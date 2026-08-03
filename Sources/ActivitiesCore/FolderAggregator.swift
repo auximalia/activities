@@ -66,4 +66,53 @@ public enum FolderAggregator {
         }
         return result
     }
+
+    /// Zaehlt bearbeitete Dateien je Kalendertag, aufgeschluesselt nach Dateiendung.
+    ///
+    /// Nur Dateien mit einer Endung aus ``extensions`` werden gezaehlt. Aufbau des
+    /// Zeitfensters wie bei ``countFilesPerDay``.
+    public static func countFilesPerDayByExtension(
+        _ files: [RelevantFile],
+        days: Int,
+        extensions: Set<String>,
+        reference: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [DayExtensionCount] {
+        guard days > 0 else { return [] }
+        let endDay = calendar.startOfDay(for: reference)
+        guard let startDay = calendar.date(byAdding: .day, value: -(days - 1), to: endDay) else {
+            return []
+        }
+
+        var counts: [Date: [String: Int]] = [:]
+        for file in files {
+            let ext = file.url.pathExtension.lowercased()
+            guard extensions.contains(ext) else { continue }
+            let day = calendar.startOfDay(for: file.timestamp)
+            if day >= startDay && day <= endDay {
+                counts[day, default: [:]][ext, default: 0] += 1
+            }
+        }
+
+        var result: [DayExtensionCount] = []
+        for offset in 0..<days {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: startDay) else { continue }
+            result.append(DayExtensionCount(day: day, counts: counts[day] ?? [:]))
+        }
+        return result
+    }
+}
+
+/// Anzahl bearbeiteter Dateien an einem Kalendertag, aufgeschluesselt nach Endung.
+public struct DayExtensionCount: Identifiable, Sendable {
+    public var id: Date { day }
+    public let day: Date
+    public let counts: [String: Int]
+
+    public init(day: Date, counts: [String: Int]) {
+        self.day = day
+        self.counts = counts
+    }
+
+    public var total: Int { counts.values.reduce(0, +) }
 }

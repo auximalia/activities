@@ -7,17 +7,21 @@ enum FileIconProvider {
     private static var cache: [String: NSImage] = [:]
 
     static func icon(for url: URL) -> NSImage {
-        let ext = url.pathExtension.lowercased()
-        if let cached = cache[ext] {
+        icon(forExtension: url.pathExtension)
+    }
+
+    static func icon(forExtension ext: String) -> NSImage {
+        let key = ext.lowercased()
+        if let cached = cache[key] {
             return cached
         }
         let image: NSImage
-        if !ext.isEmpty, let type = UTType(filenameExtension: ext) {
+        if !key.isEmpty, let type = UTType(filenameExtension: key) {
             image = NSWorkspace.shared.icon(for: type)
         } else {
-            image = NSWorkspace.shared.icon(forFile: url.path)
+            image = NSWorkspace.shared.icon(for: .data)
         }
-        cache[ext] = image
+        cache[key] = image
         return image
     }
 }

@@ -167,6 +167,24 @@ do {
     expectEqual(RowNavigation.move(selection: .folder(b), in: expanded, by: 1), .folder(b), "clamp bottom")
 }
 
+// MARK: - countFilesPerDayByExtension
+do {
+    let folder = URL(fileURLWithPath: "/docs", isDirectory: true)
+    let ref = date(2026, 8, 3)
+    let files = [
+        RelevantFile(url: folder.appendingPathComponent("a.md"), folder: folder, timestamp: date(2026, 8, 3)),
+        RelevantFile(url: folder.appendingPathComponent("b.md"), folder: folder, timestamp: date(2026, 8, 3)),
+        RelevantFile(url: folder.appendingPathComponent("c.pdf"), folder: folder, timestamp: date(2026, 8, 2)),
+        RelevantFile(url: folder.appendingPathComponent("d.png"), folder: folder, timestamp: date(2026, 8, 2)),
+    ]
+    let days = FolderAggregator.countFilesPerDayByExtension(files, days: 3, extensions: ["md", "pdf"], reference: ref, calendar: calendar)
+    expectEqual(days.count, 3, "ext: drei Tage")
+    expectEqual(days[2].counts["md"] ?? 0, 2, "ext: md am 3.8.")
+    expectEqual(days[1].counts["pdf"] ?? 0, 1, "ext: pdf am 2.8.")
+    expect(days[1].counts["png"] == nil, "ext: png nicht in Auswahl")
+    expectEqual(days[2].total, 2, "ext: Tagestotal")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

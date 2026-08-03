@@ -31,19 +31,16 @@ final class ReportViewModel {
 
     // Ergebnisse und Status.
     var buckets: [BucketedEntries] = []
-    var dayCounts: [DayCount] = []
+    /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
+    var chartDays: [DayExtensionCount] = []
     var isScanning = false
     var errorMessage: String?
     var scannedFileCount = 0
     /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
     var lastScanDuration: Double = 0
-    /// Ausgeblendete Kategorien (klickbare Legende).
-    var hiddenCategories: Set<FileCategory> = []
     /// Ausgeblendete Dateiendungen (klickbare Legende).
     var hiddenExtensions: Set<String> = []
-    /// Kategorien, die im Zeitraum vorkommen (fuer die Legende).
-    var presentCategories: [FileCategory] = []
-    /// Haeufigste Dateiendungen im Zeitraum (fuer die Legende).
+    /// Die 10 haeufigsten Dateiendungen im Zeitraum (fuer Legende und Diagramm).
     var topExtensions: [ExtensionCount] = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
@@ -80,16 +77,7 @@ final class ReportViewModel {
         self.recentFolders = store.loadRecentFolders()
     }
 
-    // MARK: - Sichtbarkeit (Legende: Kategorien & Endungen)
-
-    func toggleCategory(_ category: FileCategory) {
-        if hiddenCategories.contains(category) {
-            hiddenCategories.remove(category)
-        } else {
-            hiddenCategories.insert(category)
-        }
-        recomputeVisibleDayCounts()
-    }
+    // MARK: - Sichtbarkeit (Legende: Dateiendungen)
 
     func toggleExtension(_ ext: String) {
         let key = ext.lowercased()
@@ -98,42 +86,36 @@ final class ReportViewModel {
         } else {
             hiddenExtensions.insert(key)
         }
-        recomputeVisibleDayCounts()
+        recomputeChartDays()
     }
 
-    /// True, wenn eine Datei ueber Kategorie ODER Endung ausgeblendet ist.
+    /// True, wenn eine Datei ueber ihre Endung ausgeblendet ist.
     func isHidden(_ url: URL) -> Bool {
-        if hiddenCategories.contains(FileCategory.category(for: url)) { return true }
-        if hiddenExtensions.contains(url.pathExtension.lowercased()) { return true }
-        return false
+        hiddenExtensions.contains(url.pathExtension.lowercased())
     }
 
-    private var hasVisibilityFilter: Bool {
-        !hiddenCategories.isEmpty || !hiddenExtensions.isEmpty
-    }
+    private var hasVisibilityFilter: Bool { !hiddenExtensions.isEmpty }
 
-    /// Ermittelt vorkommende Kategorien und die haeufigsten Endungen; aktualisiert
-    /// anschliessend die (gefilterten) Tageszaehlungen.
+    /// Ermittelt die haeufigsten Endungen; aktualisiert anschliessend das Diagramm.
     private func recomputeDerived() {
-        var present = Set<FileCategory>()
         var extensionCounts: [String: Int] = [:]
         for file in relevantFiles {
-            present.insert(FileCategory.category(for: file.url))
             let ext = file.url.pathExtension.lowercased()
             if !ext.isEmpty { extensionCounts[ext, default: 0] += 1 }
         }
-        presentCategories = FileCategory.allCases.filter { present.contains($0) }
         topExtensions = extensionCounts
             .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
-            .prefix(7)
+            .prefix(10)
             .map { ExtensionCount(ext: $0.key, count: $0.value) }
-        recomputeVisibleDayCounts()
+        recomputeChartDays()
     }
 
-    /// Berechnet die Tageszaehlungen ohne ausgeblendete Kategorien/Endungen.
-    private func recomputeVisibleDayCounts() {
-        let visible = hasVisibilityFilter ? relevantFiles.filter { !isHidden($0.url) } : relevantFiles
-        dayCounts = FolderAggregator.countFilesPerDay(visible, days: days)
+    /// Berechnet die Tageszaehlungen fuer die (nicht ausgeblendeten) Top-Endungen.
+    private func recomputeChartDays() {
+        let visibleExtensions = Set(topExtensions.map(\.ext)).subtracting(hiddenExtensions)
+        chartDays = FolderAggregator.countFilesPerDayByExtension(
+            relevantFiles, days: days, extensions: visibleExtensions
+        )
     }
 
     // MARK: - Anzeige ohne leere Ordner (bei aktivem Filter)
@@ -340,9 +322,8 @@ final class ReportViewModel {
 
     private func resetResults() {
         buckets = []
-        dayCounts = []
+        chartDays = []
         relevantFiles = []
-        presentCategories = []
         topExtensions = []
         selection = nil
         expandedFolders = []

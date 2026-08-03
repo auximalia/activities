@@ -1,62 +1,102 @@
 import SwiftUI
 import ActivitiesCore
 
-/// Bericht: Verlaufsdiagramm oben, darunter die nach Zeit gruppierte Ordnerliste.
+/// Bericht: Verlaufsdiagramm oben, darunter die flache, nach Zeit gruppierte
+/// Liste aus Ordner- und (aufgeklappt) Dateizeilen.
+///
+/// Die Liste ist fokussierbar: Pfeil hoch/runter bewegt den Auswahl-Cursor,
+/// Pfeil links/rechts klappt Ordner zu/auf, Enter oeffnet die Auswahl.
 struct ReportView: View {
     @Bindable var model: ReportViewModel
-
-    /// Aktuell hervorgehobener Ordner (Ziel eines Klicks im Diagramm).
-    @State private var highlightedFolder: URL?
+    @FocusState private var listFocused: Bool
 
     var body: some View {
         ScrollViewReader { proxy in
-            List {
-                Section {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
                     HistoryChartView(dayCounts: model.dayCounts) { day in
-                        selectDay(day, proxy: proxy)
+                        model.focusDay(day)
                     }
                     .frame(height: 200)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
-                }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 8)
 
-                ForEach(model.buckets) { bucket in
-                    Section {
-                        ForEach(bucket.entries) { entry in
-                            FolderRowView(
-                                entry: entry,
-                                model: model,
-                                isHighlighted: entry.id == highlightedFolder
-                            )
-                            .id(entry.id)
+                    ForEach(model.buckets) { bucket in
+                        Section {
+                            ForEach(bucket.entries) { entry in
+                                FolderRowView(entry: entry, model: model)
+                                    .id(RowID.folder(entry.folder))
+
+                                if model.isExpanded(entry.folder) {
+                                    detailRows(for: entry.folder)
+                                }
+                            }
+                        } header: {
+                            sectionHeader(bucket)
                         }
-                    } header: {
-                        Text("\(bucket.label) · \(bucket.entries.count)")
-                            .font(.headline)
                     }
                 }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 12)
             }
-            .listStyle(.inset)
+            .focusable()
+            .focusEffectDisabled()
+            .focused($listFocused)
+            .onAppear { listFocused = true }
+            .onMoveCommand { direction in
+                switch direction {
+                case .up: model.moveSelection(-1)
+                case .down: model.moveSelection(1)
+                case .left: model.collapseSelected()
+                case .right: model.expandSelected()
+                @unknown default: break
+                }
+            }
+            .onKeyPress(.return) {
+                model.openSelection()
+                return .handled
+            }
+            .onChange(of: model.selection) { _, selection in
+                guard let selection else { return }
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    proxy.scrollTo(selection, anchor: .center)
+                }
+            }
         }
     }
 
-    /// Springt zum passenden Ordner und hebt ihn deutlich hervor.
-    private func selectDay(_ day: Date, proxy: ScrollViewProxy) {
-        guard let target = targetID(forDay: day) else { return }
-        withAnimation(.easeInOut(duration: 0.35)) {
-            highlightedFolder = target
-            proxy.scrollTo(target, anchor: .center)
+    @ViewBuilder
+    private func detailRows(for folder: URL) -> some View {
+        if let files = model.filesByFolder[folder] {
+            if files.isEmpty {
+                Text("Keine passenden Dateien in diesem Ordner.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 26)
+                    .padding(.vertical, 3)
+            } else {
+                ForEach(files) { file in
+                    FileRowView(file: file, model: model)
+                        .id(RowID.file(file.url))
+                        .padding(.leading, 26)
+                }
+            }
+        } else {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Lade Dateien …").font(.callout).foregroundStyle(.secondary)
+            }
+            .padding(.leading, 26)
+            .padding(.vertical, 3)
         }
     }
 
-    /// Ermittelt den Ordnereintrag, zu dem beim Klick auf einen Tagesbalken gescrollt wird.
-    private func targetID(forDay day: Date) -> URL? {
-        let calendar = Calendar.current
-        let entries = model.buckets.flatMap(\.entries)
-        if let match = entries.first(where: { calendar.isDate($0.newestDate, inSameDayAs: day) }) {
-            return match.id
-        }
-        // Sonst der erste Eintrag am oder vor diesem Tag (Liste ist absteigend sortiert).
-        let endOfDay = calendar.startOfDay(for: day).addingTimeInterval(24 * 60 * 60)
-        return entries.first(where: { $0.newestDate < endOfDay })?.id
+    private func sectionHeader(_ bucket: BucketedEntries) -> some View {
+        Text("\(bucket.label) · \(bucket.entries.count)")
+            .font(.headline)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(.bar)
     }
 }

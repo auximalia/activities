@@ -3,19 +3,18 @@ import ActivitiesCore
 
 /// Eine Dateizeile in der Detailansicht.
 ///
-/// Klick auf die Zeile markiert sie. Ein Klick auf das **Datei-Symbol** oeffnet
-/// die Datei mit der Standard-App.
+/// Klick auf die Zeile markiert sie. Ein Klick auf das **Datei-Symbol** markiert
+/// sie und oeffnet die Datei mit der Standard-App.
 struct FileRowView: View {
     let file: RelevantFile
     @Bindable var model: ReportViewModel
 
-    private var isSelected: Bool { model.selectedFile == file.url }
+    private var isSelected: Bool { model.selection == .file(file.url) }
 
     var body: some View {
         HStack(spacing: 8) {
-            // Datei-Symbol = Aktion: mit Standard-App oeffnen.
             Button {
-                model.selectedFile = file.url
+                model.select(.file(file.url))
                 FinderService.open(file.url)
             } label: {
                 Image(systemName: "doc")
@@ -40,7 +39,7 @@ struct FileRowView: View {
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         .contentShape(Rectangle())
         .onTapGesture {
-            model.selectedFile = file.url
+            model.select(.file(file.url))
         }
         .contextMenu {
             Button("Öffnen") { FinderService.open(file.url) }

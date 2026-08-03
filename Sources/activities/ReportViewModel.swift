@@ -2,11 +2,24 @@ import Foundation
 import Observation
 import ActivitiesCore
 
+/// Identitaet einer navigierbaren Zeile (Ordner oder Datei).
+enum RowID: Equatable, Hashable {
+    case folder(URL)
+    case file(URL)
+}
+
+/// Anfrage aus dem Diagramm: Ordner aufklappen und die Datei des Tages markieren.
+struct ChartFocus: Equatable, Sendable {
+    let folder: URL
+    let day: Date
+}
+
 /// Zustands- und Ablaufsteuerung der Oberflaeche.
 ///
-/// Haelt die Einstellungen und Ergebnisse, fuehrt den Scan im Hintergrund aus
-/// und bricht einen laufenden Scan bei erneutem Start ab. Alle veroeffentlichten
-/// Eigenschaften werden auf dem Main-Actor aktualisiert.
+/// Haelt Einstellungen, Ergebnisse, Auswahl-Cursor, Aufklapp-Status und die
+/// nachgeladenen Detaildateien. Der Scan laeuft im Hintergrund und wird bei
+/// erneutem Start abgebrochen. Alle Eigenschaften werden auf dem Main-Actor
+/// aktualisiert.
 @MainActor
 @Observable
 final class ReportViewModel {
@@ -21,8 +34,16 @@ final class ReportViewModel {
     var isScanning = false
     var errorMessage: String?
     var scannedFileCount = 0
-    /// Zuletzt angeklickte Datei (fuer die Markierung in der Detailansicht).
-    var selectedFile: URL?
+
+    /// Aktuell markierte Zeile (Auswahl-Cursor fuer Tastatur und Klick).
+    var selection: RowID?
+    /// Aufgeklappte Ordner.
+    var expandedFolders: Set<URL> = []
+    /// Nachgeladene Detaildateien je Ordner (nil = noch nicht geladen).
+    var filesByFolder: [URL: [RelevantFile]] = [:]
+    /// Einmalige Fokus-Anfrage aus dem Diagramm.
+    private var chartFocus: ChartFocus?
+    private var loadingFolders: Set<URL> = []
 
     private var scanTask: Task<Void, Never>?
     private var didInitialScan = false
@@ -36,14 +57,14 @@ final class ReportViewModel {
         self.namePattern = saved.namePattern
     }
 
-    /// Fuehrt den ersten Scan genau einmal aus (beim Erscheinen der Oberflaeche).
+    // MARK: - Scan
+
     func startInitialScanIfNeeded() {
         guard !didInitialScan else { return }
         didInitialScan = true
         rescan()
     }
 
-    /// Setzt einen neuen Wurzelordner und startet den Scan.
     func setRoot(_ url: URL) {
         rootURL = url
         store.saveRoot(url)
@@ -56,8 +77,7 @@ final class ReportViewModel {
 
         guard days > 0 else {
             errorMessage = "Der Zeitraum muss groesser als 0 Tage sein."
-            buckets = []
-            dayCounts = []
+            resetResults()
             return
         }
 
@@ -75,26 +95,145 @@ final class ReportViewModel {
             self.dayCounts = result.dayCounts
             self.scannedFileCount = result.fileCount
             self.isScanning = false
+            // Zustand passend zum neuen Ergebnis zuruecksetzen.
+            self.selection = nil
+            self.expandedFolders = []
+            self.filesByFolder = [:]
+            self.loadingFolders = []
+            self.chartFocus = nil
         }
     }
 
-    /// Laedt die Detailliste eines Ordners (im Hintergrund), gefiltert wie die Trefferauswahl.
-    func loadFiles(for folder: URL) async -> [RelevantFile] {
-        let scanner = self.scanner
-        let filter = NameFilter(namePattern)
-        return await Task.detached(priority: .userInitiated) {
-            scanner.listDirectoryFiles(folder, filter: filter)
-        }.value
+    private func resetResults() {
+        buckets = []
+        dayCounts = []
+        selection = nil
+        expandedFolders = []
+        filesByFolder = [:]
     }
 
-    /// Ergebnis eines Suchlaufs (ueber Actor-Grenzen transportierbar).
+    // MARK: - Aufklappen & Laden
+
+    func isExpanded(_ folder: URL) -> Bool { expandedFolders.contains(folder) }
+
+    func toggleExpand(_ folder: URL) {
+        if expandedFolders.contains(folder) {
+            expandedFolders.remove(folder)
+        } else {
+            expandedFolders.insert(folder)
+            ensureLoaded(folder)
+        }
+    }
+
+    private func ensureLoaded(_ folder: URL) {
+        guard filesByFolder[folder] == nil, !loadingFolders.contains(folder) else { return }
+        loadingFolders.insert(folder)
+        let scanner = self.scanner
+        let filter = NameFilter(namePattern)
+        Task { [weak self] in
+            let files = await Task.detached(priority: .userInitiated) {
+                scanner.listDirectoryFiles(folder, filter: filter)
+            }.value
+            guard let self else { return }
+            self.filesByFolder[folder] = files
+            self.loadingFolders.remove(folder)
+            self.applyChartFocus(for: folder)
+        }
+    }
+
+    // MARK: - Auswahl
+
+    func select(_ id: RowID) { selection = id }
+
+    /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
+    var visibleRows: [RowID] {
+        var rows: [RowID] = []
+        for bucket in buckets {
+            for entry in bucket.entries {
+                rows.append(.folder(entry.folder))
+                if expandedFolders.contains(entry.folder), let files = filesByFolder[entry.folder] {
+                    for file in files { rows.append(.file(file.url)) }
+                }
+            }
+        }
+        return rows
+    }
+
+    /// Bewegt den Auswahl-Cursor um ``delta`` Zeilen (Pfeiltasten hoch/runter).
+    func moveSelection(_ delta: Int) {
+        let rows = visibleRows
+        guard !rows.isEmpty else { return }
+        if let current = selection, let index = rows.firstIndex(of: current) {
+            let next = min(max(index + delta, 0), rows.count - 1)
+            selection = rows[next]
+        } else {
+            selection = delta >= 0 ? rows.first : rows.last
+        }
+    }
+
+    /// Klappt den aktuell gewaehlten Ordner zu (Pfeil links).
+    func collapseSelected() {
+        if case .folder(let folder) = selection, expandedFolders.contains(folder) {
+            expandedFolders.remove(folder)
+        }
+    }
+
+    /// Klappt den aktuell gewaehlten Ordner auf (Pfeil rechts).
+    func expandSelected() {
+        if case .folder(let folder) = selection, !expandedFolders.contains(folder) {
+            toggleExpand(folder)
+        }
+    }
+
+    /// Oeffnet die aktuelle Auswahl (Enter): Ordner im Finder (+ Pfad kopieren),
+    /// Datei mit der Standard-App.
+    func openSelection() {
+        switch selection {
+        case .folder(let url):
+            FinderService.open(url)
+            ClipboardService.copy(url.path)
+        case .file(let url):
+            FinderService.open(url)
+        case nil:
+            break
+        }
+    }
+
+    // MARK: - Diagramm-Fokus
+
+    /// Springt vom Diagramm zum Ordner des Tages, klappt ihn auf und markiert
+    /// die zugehoerige Datei.
+    func focusDay(_ day: Date) {
+        let calendar = Calendar.current
+        let entries = buckets.flatMap(\.entries)
+        let target = entries.first { calendar.isDate($0.newestDate, inSameDayAs: day) }
+            ?? entries.first { $0.newestDate < calendar.startOfDay(for: day).addingTimeInterval(24 * 60 * 60) }
+        guard let target else { return }
+
+        expandedFolders.insert(target.folder)
+        chartFocus = ChartFocus(folder: target.folder, day: day)
+        selection = .folder(target.folder)
+        ensureLoaded(target.folder)
+        applyChartFocus(for: target.folder)
+    }
+
+    private func applyChartFocus(for folder: URL) {
+        guard let focus = chartFocus, focus.folder == folder,
+              let files = filesByFolder[folder] else { return }
+        let calendar = Calendar.current
+        let match = files.first { calendar.isDate($0.timestamp, inSameDayAs: focus.day) } ?? files.first
+        if let match { selection = .file(match.url) }
+        chartFocus = nil
+    }
+
+    // MARK: - Hintergrund-Scan
+
     private struct ScanResult: Sendable {
         let entries: [FolderEntry]
         let dayCounts: [DayCount]
         let fileCount: Int
     }
 
-    /// Fuehrt den eigentlichen Scan ausserhalb des Main-Actors aus.
     nonisolated private static func runScan(
         scanner: FileScanner,
         settings: ScanSettings

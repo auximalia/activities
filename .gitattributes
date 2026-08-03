@@ -1,0 +1,16 @@
+# Zeilenenden normalisieren (im Repo LF), Auschecken plattformgerecht.
+* text=auto eol=lf
+
+# Explizit Text (immer LF)
+*.swift   text
+*.sh      text eol=lf
+*.md      text
+*.json    text
+*.plist   text
+*.yml     text
+*.py      text
+
+# Binaerdateien (keine Zeilenenden-/Diff-Behandlung)
+*.png     binary
+*.icns    binary
+*.zip     binary

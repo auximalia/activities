@@ -3,8 +3,8 @@ import ActivitiesCore
 
 /// Eine Ordnerzeile mit aufklappbarer Detailansicht.
 ///
-/// Primaerklick auf die Zeile oeffnet den Ordner im Finder und kopiert den Pfad.
-/// Der Pfeil links klappt die Detailliste (Dateien des Ordners) auf.
+/// Klick auf die Zeile klappt die Dateien auf/zu. Ein Klick auf das
+/// **Ordner-Symbol** oeffnet den Ordner im Finder (und kopiert den Pfad).
 struct FolderRowView: View {
     let entry: FolderEntry
     @Bindable var model: ReportViewModel
@@ -18,25 +18,30 @@ struct FolderRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 12)
+
+                // Ordner-Symbol = Aktion: im Finder oeffnen (+ Pfad kopieren).
                 Button {
-                    withAnimation { isExpanded.toggle() }
+                    FinderService.open(entry.folder)
+                    ClipboardService.copy(entry.folder.path)
                 } label: {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .foregroundStyle(isHighlighted ? Color.white : Color.secondary)
-                        .frame(width: 16)
+                    Image(systemName: "folder.fill")
+                        .foregroundStyle(.tint)
+                        .padding(2)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-
-                Image(systemName: "folder.fill")
-                    .foregroundStyle(isHighlighted ? Color.white : Color.accentColor)
+                .help("Im Finder öffnen · Pfad kopieren")
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.folder.lastPathComponent)
                         .font(.headline)
-                        .foregroundStyle(isHighlighted ? Color.white : Color.primary)
                     Text(entry.folder.path)
                         .font(.callout)
-                        .foregroundStyle(isHighlighted ? Color.white.opacity(0.9) : Color.secondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
@@ -46,32 +51,27 @@ struct FolderRowView: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(DateFormatting.dateTime(entry.newestDate))
                         .font(.system(.callout, design: .monospaced))
-                        .foregroundStyle(isHighlighted ? Color.white : Color.primary)
                     Text("\(entry.fileCount) \(entry.fileCount == 1 ? "Datei" : "Dateien")")
                         .font(.callout)
-                        .foregroundStyle(isHighlighted ? Color.white.opacity(0.9) : Color.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, 4)
-            .padding(.horizontal, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHighlighted ? Color.accentColor : Color.clear)
-            )
+            .padding(.vertical, 5)
+            .padding(.horizontal, 8)
+            .background(SelectionBackground(isActive: isHighlighted))
             .contentShape(Rectangle())
             .onTapGesture {
-                FinderService.open(entry.folder)
-                ClipboardService.copy(entry.folder.path)
+                withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
             }
             .contextMenu {
-                Button("Im Finder oeffnen") { FinderService.open(entry.folder) }
+                Button("Im Finder öffnen") { FinderService.open(entry.folder) }
                 Button("Im Finder anzeigen") { FinderService.reveal(entry.folder) }
                 Button("Pfad kopieren") { ClipboardService.copy(entry.folder.path) }
             }
 
             if isExpanded {
                 detailList
-                    .padding(.leading, 24)
+                    .padding(.leading, 26)
                     .padding(.top, 2)
             }
         }

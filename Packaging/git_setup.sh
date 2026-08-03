@@ -43,7 +43,8 @@ echo "==> Remote setzen"
 git -C "$ROOT" remote remove origin 2>/dev/null || true
 git -C "$ROOT" remote add origin "https://github.com/$GITHUB_USER/$GITHUB_REPO.git"
 
-echo "==> Push (ephemere Auth-URL)"
-git -C "$ROOT" push -u "https://$GITHUB_USER:$GITHUB_TOKEN@github.com/$GITHUB_USER/$GITHUB_REPO.git" HEAD:main
+echo "==> Push (Auth per Header, Token bleibt aus URL/Log heraus)"
+AUTH_B64="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64)"
+git -C "$ROOT" -c http.extraheader="AUTHORIZATION: basic $AUTH_B64" push -u origin HEAD:main
 
 echo "==> Fertig: https://github.com/$GITHUB_USER/$GITHUB_REPO (privat)"

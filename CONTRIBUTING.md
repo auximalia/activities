@@ -55,17 +55,22 @@ ditto -c -k --sequesterRsrc --keepParent dist/activities.app dist/activities.zip
 Beim ersten Start auf einem fremden Mac: Rechtsklick → „Öffnen" bzw.
 `xattr -dr com.apple.quarantine /Applications/activities.app`.
 
-## Versionsschema (Git-abgeleitet)
+## Versionsschema (Major.Minor.Patch)
 
-`build_app.sh` schreibt beim Bundeln Werte aus dem Git-Status in die Info.plist:
+Die Marketing-Version steht in der Datei `VERSION` (z. B. `1.0.34`) und wird von
+`build_app.sh` als `CFBundleShortVersionString` ins Bundle geschrieben. Die App
+zeigt sie oben rechts und im Ueber-Fenster an (Format `Major.Minor.Patch`).
 
-- `GitDescribe` = `git describe --tags --always --dirty`
-- `GitRevision` = kurzer Commit-Hash
-- `BuildDate`, `CFBundleVersion` = Commit-Anzahl
+**Veroeffentlichen** – erhoeht die Patch-Nummer, committet, baut, installiert und
+pusht in einem Schritt (so wird vor jedem Push die Patch-Nummer erhoeht):
 
-Die App zeigt oben rechts z. B. **`v1.0 · 23c5848`** (bzw. `…-dirty` bei
-uncommitteten Aenderungen). So ist im Betrieb eindeutig, welcher Stand laeuft.
-Fuer benannte Releases einen Tag setzen: `git tag v1.1`.
+```
+./Packaging/release.sh ["Commit-Nachricht"]
+```
+
+Major/Minor werden von Hand in `VERSION` angepasst (z. B. `1.1.0`). Zusaetzlich
+injiziert `build_app.sh` Git-Revision und Build-Datum als Diagnose in die
+Info.plist (im Ueber-Fenster sichtbar).
 
 ## GitHub (privates Repo)
 

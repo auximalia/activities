@@ -129,7 +129,10 @@ final class ReportViewModel {
                     filesByFolder[entry.folder] = loaded
                     files = loaded
                 }
-                for file in files {
+                let visible = hiddenCategories.isEmpty
+                    ? files
+                    : files.filter { !hiddenCategories.contains(FileCategory.category(for: $0.url)) }
+                for file in visible {
                     ordered.append(file.url)
                     map[file.url] = entry.folder
                 }
@@ -314,7 +317,25 @@ final class ReportViewModel {
 
     /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
     var visibleRows: [RowID] {
-        RowNavigation.flatten(buckets: buckets, expanded: expandedFolders, filesByFolder: filesByFolder)
+        RowNavigation.flatten(buckets: buckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
+    }
+
+    /// Geladene Dateien je Ordner, gefiltert nach ausgeblendeten Kategorien.
+    var visibleFilesByFolder: [URL: [RelevantFile]] {
+        guard !hiddenCategories.isEmpty else { return filesByFolder }
+        var result: [URL: [RelevantFile]] = [:]
+        for (folder, files) in filesByFolder {
+            result[folder] = files.filter { !hiddenCategories.contains(FileCategory.category(for: $0.url)) }
+        }
+        return result
+    }
+
+    /// Sichtbare Dateien eines Ordners fuer die Detailansicht.
+    /// ``nil`` bedeutet "noch nicht geladen" (Ladeanzeige).
+    func visibleFiles(in folder: URL) -> [RelevantFile]? {
+        guard let files = filesByFolder[folder] else { return nil }
+        guard !hiddenCategories.isEmpty else { return files }
+        return files.filter { !hiddenCategories.contains(FileCategory.category(for: $0.url)) }
     }
 
     /// Bewegt den Auswahl-Cursor um ``delta`` Zeilen (Pfeiltasten hoch/runter).

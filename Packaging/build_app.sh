@@ -42,6 +42,8 @@ echo "==> Info.plist"
 cp "$ROOT/Packaging/Info.plist" "$APP/Contents/Info.plist"
 
 echo "==> Versionsinfo aus Git injizieren"
+APP_VERSION="$(cat "$ROOT/VERSION" 2>/dev/null | tr -d '[:space:]')"
+[ -z "$APP_VERSION" ] && APP_VERSION="0.0.0"
 GIT_DESCRIBE="$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo unknown)"
 GIT_REVISION="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 GIT_COUNT="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 0)"
@@ -51,11 +53,12 @@ PB=/usr/libexec/PlistBuddy
 set_key() { # key value
     "$PB" -c "Add :$1 string $2" "$PLIST" 2>/dev/null || "$PB" -c "Set :$1 $2" "$PLIST"
 }
+set_key CFBundleShortVersionString "$APP_VERSION"
 set_key GitDescribe "$GIT_DESCRIBE"
 set_key GitRevision "$GIT_REVISION"
 set_key BuildDate "$BUILD_DATE"
 "$PB" -c "Set :CFBundleVersion $GIT_COUNT" "$PLIST" 2>/dev/null || true
-echo "   $GIT_DESCRIBE (rev $GIT_REVISION, build $GIT_COUNT)"
+echo "   v$APP_VERSION ($GIT_DESCRIBE, rev $GIT_REVISION, build $GIT_COUNT)"
 
 echo "==> App-Icon"
 ICONSET="$DIST/AppIcon.iconset"

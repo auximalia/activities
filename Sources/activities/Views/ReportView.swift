@@ -92,7 +92,7 @@ struct ReportView: View {
 
     @ViewBuilder
     private func detailRows(for folder: URL) -> some View {
-        if let files = model.filesByFolder[folder] {
+        if let files = model.visibleFiles(in: folder) {
             if files.isEmpty {
                 Text("Keine passenden Dateien in diesem Ordner.")
                     .font(.callout)

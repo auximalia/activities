@@ -7,8 +7,8 @@ import Foundation
 /// Laufzeit gelesen. So ist im Betrieb eindeutig erkennbar, welcher Stand laeuft.
 /// Beim reinen ``swift run`` (ohne Bundle) greifen die Ersatzwerte.
 enum BuildInfo {
-    /// Marketing-Version (z. B. "1.0").
-    static var marketingVersion: String { infoValue("CFBundleShortVersionString") ?? "0" }
+    /// Marketing-Version im Schema Major.Minor.Patch (z. B. "1.0.34").
+    static var marketingVersion: String { infoValue("CFBundleShortVersionString") ?? "0.0.0" }
     /// Git-Beschreibung, z. B. "a1b2c3d" oder "a1b2c3d-dirty" bzw. "v1.0-3-gabc123".
     static var gitDescribe: String { infoValue("GitDescribe") ?? "dev" }
     /// Kurzer Commit-Hash.
@@ -16,8 +16,8 @@ enum BuildInfo {
     /// Build-Zeitpunkt.
     static var buildDate: String { infoValue("BuildDate") ?? "-" }
 
-    /// Kompakte Anzeige fuer die Oberflaeche, z. B. "v1.0 · a1b2c3d-dirty".
-    static var short: String { "v\(marketingVersion) · \(gitDescribe)" }
+    /// Anzeige fuer die Oberflaeche: Major.Minor.Patch, z. B. "1.0.34".
+    static var short: String { marketingVersion }
 
     /// Mehrzeilige Details (Tooltip), inkl. Revision und Build-Zeit.
     static var details: String {

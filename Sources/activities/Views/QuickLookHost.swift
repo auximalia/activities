@@ -7,9 +7,9 @@ final class QuickLookController: ObservableObject {
     fileprivate weak var host: QuickLookHostView?
 
     /// Zeigt die Vorschau mit der gesamten Dateiliste und startet bei ``current``.
-    /// ``onChange`` meldet den Wechsel (fuer die Markierung in der Liste).
-    func present(files: [URL], current: URL, onChange: @escaping (URL) -> Void) {
-        host?.present(files: files, current: current, onChange: onChange)
+    /// ``onChange`` meldet den Wechsel, ``onClose`` das Schliessen des Panels.
+    func present(files: [URL], current: URL, onChange: @escaping (URL) -> Void, onClose: @escaping () -> Void) {
+        host?.present(files: files, current: current, onChange: onChange, onClose: onClose)
     }
 }
 
@@ -31,13 +31,15 @@ final class QuickLookHostView: NSView, QLPreviewPanelDataSource, QLPreviewPanelD
     private var urls: [URL] = []
     private var currentIndex = 0
     private var onChange: ((URL) -> Void)?
+    private var onClose: (() -> Void)?
 
     override var acceptsFirstResponder: Bool { true }
 
-    func present(files: [URL], current: URL, onChange: @escaping (URL) -> Void) {
+    func present(files: [URL], current: URL, onChange: @escaping (URL) -> Void, onClose: @escaping () -> Void) {
         self.urls = files.isEmpty ? [current] : files
         self.currentIndex = self.urls.firstIndex(of: current) ?? 0
         self.onChange = onChange
+        self.onClose = onClose
 
         window?.makeFirstResponder(self)
         guard let panel = QLPreviewPanel.shared() else { return }
@@ -60,7 +62,9 @@ final class QuickLookHostView: NSView, QLPreviewPanelDataSource, QLPreviewPanelD
         panel.currentPreviewItemIndex = currentIndex
     }
 
-    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {}
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        onClose?()
+    }
 
     // MARK: - QLPreviewPanelDataSource
 

@@ -10,6 +10,7 @@ struct ReportView: View {
     @Bindable var model: ReportViewModel
     @FocusState private var listFocused: Bool
     @StateObject private var quickLook = QuickLookController()
+    @State private var quickLookActive = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -63,16 +64,24 @@ struct ReportView: View {
                 return .handled
             }
             .onKeyPress(.space) {
-                if let url = model.selectedFileURL {
-                    quickLook.present(files: model.visibleFileURLs, current: url) { previewed in
-                        model.select(.file(previewed))
-                    }
-                    return .handled
+                guard let current = model.selectedFileURL else { return .ignored }
+                quickLookActive = true
+                Task {
+                    let files = await model.prepareFullFileList()
+                    quickLook.present(
+                        files: files,
+                        current: current,
+                        onChange: { previewed in model.quickLookNavigated(to: previewed) },
+                        onClose: {
+                            quickLookActive = false
+                            listFocused = true
+                        }
+                    )
                 }
-                return .ignored
+                return .handled
             }
             .onChange(of: model.selection) { _, selection in
-                listFocused = true
+                if !quickLookActive { listFocused = true }
                 guard let selection else { return }
                 withAnimation(.easeInOut(duration: 0.15)) {
                     proxy.scrollTo(selection, anchor: .center)

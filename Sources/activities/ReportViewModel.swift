@@ -111,6 +111,42 @@ final class ReportViewModel {
         }
     }
 
+    /// Ordnerzuordnung je Datei (fuer die QuickLook-Navigation ueber Ordnergrenzen).
+    private var fileToFolder: [URL: URL] = [:]
+
+    /// Baut die vollstaendige Dateiliste ueber ALLE Ordner (laedt bei Bedarf nach),
+    /// damit QuickLook ordnergrenzenuebergreifend navigieren kann.
+    func prepareFullFileList() async -> [URL] {
+        var ordered: [URL] = []
+        var map: [URL: URL] = [:]
+        for bucket in buckets {
+            for entry in bucket.entries {
+                let files: [RelevantFile]
+                if let cached = filesByFolder[entry.folder] {
+                    files = cached
+                } else {
+                    let loaded = await loadFilesNow(entry.folder)
+                    filesByFolder[entry.folder] = loaded
+                    files = loaded
+                }
+                for file in files {
+                    ordered.append(file.url)
+                    map[file.url] = entry.folder
+                }
+            }
+        }
+        fileToFolder = map
+        return ordered
+    }
+
+    /// Reaktion auf QuickLook-Navigation: Ordner (falls noetig) aufklappen und markieren.
+    func quickLookNavigated(to fileURL: URL) {
+        if let folder = fileToFolder[fileURL] {
+            expandedFolders.insert(folder)
+        }
+        selection = .file(fileURL)
+    }
+
     // MARK: - Auto-Refresh (FSEvents)
 
     func setAutoRefresh(_ enabled: Bool) {
@@ -229,17 +265,22 @@ final class ReportViewModel {
     private func ensureLoaded(_ folder: URL) {
         guard filesByFolder[folder] == nil, !loadingFolders.contains(folder) else { return }
         loadingFolders.insert(folder)
-        let scanner = self.scanner
-        let filter = NameFilter(namePattern)
         Task { [weak self] in
-            let files = await Task.detached(priority: .userInitiated) {
-                scanner.listDirectoryFiles(folder, filter: filter)
-            }.value
             guard let self else { return }
+            let files = await self.loadFilesNow(folder)
             self.filesByFolder[folder] = files
             self.loadingFolders.remove(folder)
             self.applyChartFocus(for: folder)
         }
+    }
+
+    /// Laedt die Detaildateien eines Ordners im Hintergrund (gefiltert wie die Trefferauswahl).
+    private func loadFilesNow(_ folder: URL) async -> [RelevantFile] {
+        let scanner = self.scanner
+        let filter = NameFilter(namePattern)
+        return await Task.detached(priority: .userInitiated) {
+            scanner.listDirectoryFiles(folder, filter: filter)
+        }.value
     }
 
     // MARK: - Auswahl

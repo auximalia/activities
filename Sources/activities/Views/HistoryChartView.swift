@@ -12,17 +12,29 @@ struct HistoryChartView: View {
     let chartDays: [DayExtensionCount]
     let topExtensions: [ExtensionCount]
     let hiddenExtensions: Set<String>
+    let otherCount: Int
+    let otherKey: String
     var onSelectDay: (Date) -> Void
     var onToggleExtension: (String) -> Void
 
-    private var extensionKeys: [String] { topExtensions.map(\.ext) }
+    private var hasOther: Bool { otherCount > 0 }
+    private var otherColor: Color { Color(nsColor: .systemGray) }
+
+    /// Reihenfolge/Domain der Stapel: Top-Endungen, danach ggf. "Sonstige".
+    private var chartKeys: [String] {
+        topExtensions.map(\.ext) + (hasOther ? [otherKey] : [])
+    }
+
+    private var chartColors: [Color] {
+        topExtensions.map { IconColor.dominant(forExtension: $0.ext) } + (hasOther ? [otherColor] : [])
+    }
 
     private var points: [ChartPoint] {
         var result: [ChartPoint] = []
         for dayCount in chartDays {
-            for ext in extensionKeys {
-                if let count = dayCount.counts[ext], count > 0 {
-                    result.append(ChartPoint(day: dayCount.day, ext: ext, count: count))
+            for key in chartKeys {
+                if let count = dayCount.counts[key], count > 0 {
+                    result.append(ChartPoint(day: dayCount.day, ext: key, count: count))
                 }
             }
         }
@@ -60,7 +72,7 @@ struct HistoryChartView: View {
                 .foregroundStyle(by: .value("Typ", point.ext))
             }
         }
-        .chartForegroundStyleScale(domain: extensionKeys, range: extensionColors)
+        .chartForegroundStyleScale(domain: chartKeys, range: chartColors)
         .chartLegend(.hidden)
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { value in
@@ -98,10 +110,6 @@ struct HistoryChartView: View {
         }
     }
 
-    private var extensionColors: [Color] {
-        extensionKeys.map { IconColor.dominant(forExtension: $0) }
-    }
-
     private var legend: some View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 104), spacing: 8, alignment: .leading)],
@@ -110,6 +118,9 @@ struct HistoryChartView: View {
         ) {
             ForEach(topExtensions) { item in
                 extensionChip(item)
+            }
+            if hasOther {
+                otherChip
             }
         }
         .padding(.horizontal, 4)
@@ -128,6 +139,28 @@ struct HistoryChartView: View {
                 Text(".\(item.ext)")
                     .font(.system(.caption, design: .monospaced))
                 Text("\(item.count)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .opacity(isHidden ? 0.35 : 1)
+            .strikethrough(isHidden, color: .secondary)
+        }
+        .buttonStyle(.plain)
+        .help(isHidden ? "Einblenden" : "Ausblenden")
+    }
+
+    private var otherChip: some View {
+        let isHidden = hiddenExtensions.contains(otherKey)
+        return Button {
+            onToggleExtension(otherKey)
+        } label: {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(otherColor)
+                    .frame(width: 11, height: 11)
+                Text("Sonstige")
+                    .font(.caption)
+                Text("\(otherCount)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

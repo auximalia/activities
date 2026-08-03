@@ -38,10 +38,15 @@ final class ReportViewModel {
     var scannedFileCount = 0
     /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
     var lastScanDuration: Double = 0
-    /// Ausgeblendete Dateiendungen (klickbare Legende).
+    /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
     var hiddenExtensions: Set<String> = []
     /// Die 10 haeufigsten Dateiendungen im Zeitraum (fuer Legende und Diagramm).
     var topExtensions: [ExtensionCount] = []
+    /// Anzahl Dateien ausserhalb der Top-10 (Sammel-Eintrag "Sonstige").
+    var otherCount: Int = 0
+    /// Sammelschluessel fuer alle Endungen ausserhalb der Top-10.
+    static let otherKey = "__other__"
+    private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
     /// Zuletzt genutzte Wurzelordner.
@@ -89,14 +94,17 @@ final class ReportViewModel {
         recomputeChartDays()
     }
 
-    /// True, wenn eine Datei ueber ihre Endung ausgeblendet ist.
+    /// True, wenn eine Datei ueber ihre Endung (oder als "Sonstige") ausgeblendet ist.
     func isHidden(_ url: URL) -> Bool {
-        hiddenExtensions.contains(url.pathExtension.lowercased())
+        let ext = url.pathExtension.lowercased()
+        if hiddenExtensions.contains(ext) { return true }
+        if hiddenExtensions.contains(Self.otherKey) && !topExtensionSet.contains(ext) { return true }
+        return false
     }
 
     private var hasVisibilityFilter: Bool { !hiddenExtensions.isEmpty }
 
-    /// Ermittelt die haeufigsten Endungen; aktualisiert anschliessend das Diagramm.
+    /// Ermittelt die haeufigsten Endungen und den "Sonstige"-Anteil; aktualisiert das Diagramm.
     private func recomputeDerived() {
         var extensionCounts: [String: Int] = [:]
         for file in relevantFiles {
@@ -107,14 +115,23 @@ final class ReportViewModel {
             .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
             .prefix(10)
             .map { ExtensionCount(ext: $0.key, count: $0.value) }
+        topExtensionSet = Set(topExtensions.map(\.ext))
+        otherCount = relevantFiles.reduce(0) {
+            topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
+        }
         recomputeChartDays()
     }
 
-    /// Berechnet die Tageszaehlungen fuer die (nicht ausgeblendeten) Top-Endungen.
+    /// Berechnet die Tageszaehlungen fuer sichtbare Top-Endungen und "Sonstige".
     private func recomputeChartDays() {
-        let visibleExtensions = Set(topExtensions.map(\.ext)).subtracting(hiddenExtensions)
-        chartDays = FolderAggregator.countFilesPerDayByExtension(
-            relevantFiles, days: days, extensions: visibleExtensions
+        let visibleTop = topExtensionSet.subtracting(hiddenExtensions)
+        let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
+        chartDays = FolderAggregator.countFilesPerDayByType(
+            relevantFiles,
+            days: days,
+            individual: visibleTop,
+            otherKey: showOther ? Self.otherKey : nil,
+            ignored: hiddenExtensions
         )
     }
 
@@ -325,6 +342,8 @@ final class ReportViewModel {
         chartDays = []
         relevantFiles = []
         topExtensions = []
+        topExtensionSet = []
+        otherCount = 0
         selection = nil
         expandedFolders = []
         filesByFolder = [:]

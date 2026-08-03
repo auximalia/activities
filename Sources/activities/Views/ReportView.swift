@@ -20,6 +20,8 @@ struct ReportView: View {
                         chartDays: model.chartDays,
                         topExtensions: model.topExtensions,
                         hiddenExtensions: model.hiddenExtensions,
+                        otherCount: model.otherCount,
+                        otherKey: ReportViewModel.otherKey,
                         onSelectDay: { model.focusDay($0) },
                         onToggleExtension: { model.toggleExtension($0) }
                     )

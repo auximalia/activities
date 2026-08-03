@@ -185,6 +185,32 @@ do {
     expectEqual(days[2].total, 2, "ext: Tagestotal")
 }
 
+// MARK: - countFilesPerDayByType (Sonstige)
+do {
+    let folder = URL(fileURLWithPath: "/docs", isDirectory: true)
+    let ref = date(2026, 8, 3)
+    let files = [
+        RelevantFile(url: folder.appendingPathComponent("a.md"), folder: folder, timestamp: date(2026, 8, 3)),
+        RelevantFile(url: folder.appendingPathComponent("b.pdf"), folder: folder, timestamp: date(2026, 8, 3)),
+        RelevantFile(url: folder.appendingPathComponent("c.png"), folder: folder, timestamp: date(2026, 8, 3)), // -> other
+        RelevantFile(url: folder.appendingPathComponent("d.zip"), folder: folder, timestamp: date(2026, 8, 3)), // ignored
+    ]
+    let days = FolderAggregator.countFilesPerDayByType(
+        files, days: 1, individual: ["md", "pdf"], otherKey: "__other__", ignored: ["zip"], reference: ref, calendar: calendar
+    )
+    expectEqual(days.count, 1, "type: ein Tag")
+    expectEqual(days[0].counts["md"] ?? 0, 1, "type: md einzeln")
+    expectEqual(days[0].counts["__other__"] ?? 0, 1, "type: png -> Sonstige")
+    expect(days[0].counts["zip"] == nil, "type: zip ignoriert")
+    expectEqual(days[0].total, 3, "type: total ohne ignoriert")
+
+    // Ohne otherKey werden uebrige Dateien verworfen.
+    let noOther = FolderAggregator.countFilesPerDayByType(
+        files, days: 1, individual: ["md"], otherKey: nil, ignored: [], reference: ref, calendar: calendar
+    )
+    expectEqual(noOther[0].total, 1, "type: ohne Sonstige nur md")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

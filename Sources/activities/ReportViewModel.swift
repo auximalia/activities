@@ -2,12 +2,6 @@ import Foundation
 import Observation
 import ActivitiesCore
 
-/// Identitaet einer navigierbaren Zeile (Ordner oder Datei).
-enum RowID: Equatable, Hashable {
-    case folder(URL)
-    case file(URL)
-}
-
 /// Anfrage aus dem Diagramm: Ordner aufklappen und die Datei des Tages markieren.
 struct ChartFocus: Equatable, Sendable {
     let folder: URL
@@ -34,6 +28,16 @@ final class ReportViewModel {
     var isScanning = false
     var errorMessage: String?
     var scannedFileCount = 0
+    /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
+    var lastScanDuration: Double = 0
+    /// Ausgeblendete Kategorien (klickbare Legende).
+    var hiddenCategories: Set<FileCategory> = []
+    /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
+    var autoRefresh: Bool
+    /// Zuletzt genutzte Wurzelordner.
+    var recentFolders: [URL] = []
+    /// Zaehler, um die Fokussierung des Filterfeldes anzustossen (Menue ⌘F).
+    var filterFocusToken = 0
 
     /// Aktuell markierte Zeile (Auswahl-Cursor fuer Tastatur und Klick).
     var selection: RowID?
@@ -49,12 +53,81 @@ final class ReportViewModel {
     private var didInitialScan = false
     private let scanner = FileScanner()
     private let store = SettingsStore()
+    private let watcher = FolderWatcher()
+    private var refreshDebounce: Task<Void, Never>?
 
     init() {
         let saved = store.load()
         self.rootURL = saved.rootURL
         self.days = saved.days
         self.namePattern = saved.namePattern
+        self.autoRefresh = saved.autoRefresh
+        self.recentFolders = store.loadRecentFolders()
+    }
+
+    // MARK: - Kategorie-Sichtbarkeit (Legende)
+
+    func toggleCategory(_ category: FileCategory) {
+        if hiddenCategories.contains(category) {
+            hiddenCategories.remove(category)
+        } else {
+            hiddenCategories.insert(category)
+        }
+    }
+
+    /// Tageszaehlungen ohne ausgeblendete Kategorien (fuer das Diagramm).
+    var visibleDayCounts: [DayCount] {
+        guard !hiddenCategories.isEmpty else { return dayCounts }
+        return dayCounts.map { dayCount in
+            DayCount(
+                day: dayCount.day,
+                countsByCategory: dayCount.countsByCategory.filter { !hiddenCategories.contains($0.key) }
+            )
+        }
+    }
+
+    /// Kategorien, die im Zeitraum vorkommen (in fester Reihenfolge, fuer die Legende).
+    var presentCategories: [FileCategory] {
+        var present = Set<FileCategory>()
+        for dayCount in dayCounts {
+            for (category, count) in dayCount.countsByCategory where count > 0 {
+                present.insert(category)
+            }
+        }
+        return FileCategory.allCases.filter { present.contains($0) }
+    }
+
+    /// URL der aktuell markierten Datei (fuer QuickLook), sonst nil.
+    var selectedFileURL: URL? {
+        if case .file(let url) = selection { return url }
+        return nil
+    }
+
+    // MARK: - Auto-Refresh (FSEvents)
+
+    func setAutoRefresh(_ enabled: Bool) {
+        autoRefresh = enabled
+        store.saveAutoRefresh(enabled)
+        updateWatcher()
+    }
+
+    func updateWatcher() {
+        if autoRefresh {
+            watcher.start(url: rootURL) { [weak self] in
+                Task { @MainActor in self?.scheduleLiveRefresh() }
+            }
+        } else {
+            watcher.stop()
+        }
+    }
+
+    private func scheduleLiveRefresh() {
+        refreshDebounce?.cancel()
+        refreshDebounce = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            if Task.isCancelled { return }
+            self?.rescan(preservingState: true)
+        }
     }
 
     // MARK: - Scan
@@ -62,17 +135,20 @@ final class ReportViewModel {
     func startInitialScanIfNeeded() {
         guard !didInitialScan else { return }
         didInitialScan = true
+        updateWatcher()
         rescan()
     }
 
     func setRoot(_ url: URL) {
         rootURL = url
         store.saveRoot(url)
+        recentFolders = store.addRecentFolder(url)
+        updateWatcher()
         rescan()
     }
 
     /// Startet einen neuen Suchlauf und verwirft einen ggf. laufenden.
-    func rescan() {
+    func rescan(preservingState: Bool = false) {
         scanTask?.cancel()
 
         guard days > 0 else {
@@ -85,6 +161,7 @@ final class ReportViewModel {
         store.save(days: days, namePattern: namePattern)
         errorMessage = nil
         isScanning = true
+        let started = Date()
 
         let scanner = self.scanner
         scanTask = Task { [weak self] in
@@ -94,13 +171,29 @@ final class ReportViewModel {
             self.buckets = TimeBucket.group(result.entries)
             self.dayCounts = result.dayCounts
             self.scannedFileCount = result.fileCount
+            self.lastScanDuration = Date().timeIntervalSince(started)
             self.isScanning = false
-            // Zustand passend zum neuen Ergebnis zuruecksetzen.
-            self.selection = nil
-            self.expandedFolders = []
-            self.filesByFolder = [:]
-            self.loadingFolders = []
-            self.chartFocus = nil
+            self.reconcileState(preservingState: preservingState)
+        }
+    }
+
+    /// Setzt Auswahl/Aufklappen passend zum neuen Ergebnis (optional erhaltend).
+    private func reconcileState(preservingState: Bool) {
+        let validFolders = Set(buckets.flatMap { $0.entries.map(\.folder) })
+        if preservingState {
+            expandedFolders = expandedFolders.intersection(validFolders)
+            filesByFolder = [:]
+            loadingFolders = []
+            for folder in expandedFolders { ensureLoaded(folder) }
+            if case .folder(let url) = selection, !validFolders.contains(url) {
+                selection = nil
+            }
+        } else {
+            selection = nil
+            expandedFolders = []
+            filesByFolder = [:]
+            loadingFolders = []
+            chartFocus = nil
         }
     }
 
@@ -147,28 +240,12 @@ final class ReportViewModel {
 
     /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
     var visibleRows: [RowID] {
-        var rows: [RowID] = []
-        for bucket in buckets {
-            for entry in bucket.entries {
-                rows.append(.folder(entry.folder))
-                if expandedFolders.contains(entry.folder), let files = filesByFolder[entry.folder] {
-                    for file in files { rows.append(.file(file.url)) }
-                }
-            }
-        }
-        return rows
+        RowNavigation.flatten(buckets: buckets, expanded: expandedFolders, filesByFolder: filesByFolder)
     }
 
     /// Bewegt den Auswahl-Cursor um ``delta`` Zeilen (Pfeiltasten hoch/runter).
     func moveSelection(_ delta: Int) {
-        let rows = visibleRows
-        guard !rows.isEmpty else { return }
-        if let current = selection, let index = rows.firstIndex(of: current) {
-            let next = min(max(index + delta, 0), rows.count - 1)
-            selection = rows[next]
-        } else {
-            selection = delta >= 0 ? rows.first : rows.last
-        }
+        selection = RowNavigation.move(selection: selection, in: visibleRows, by: delta)
     }
 
     /// Klappt den aktuell gewaehlten Ordner zu (Pfeil links).

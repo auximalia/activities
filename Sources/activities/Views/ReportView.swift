@@ -9,15 +9,20 @@ import ActivitiesCore
 struct ReportView: View {
     @Bindable var model: ReportViewModel
     @FocusState private var listFocused: Bool
+    @StateObject private var quickLook = QuickLookController()
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
-                    HistoryChartView(dayCounts: model.dayCounts) { day in
-                        model.focusDay(day)
-                    }
-                    .frame(height: 200)
+                    HistoryChartView(
+                        dayCounts: model.visibleDayCounts,
+                        presentCategories: model.presentCategories,
+                        hiddenCategories: model.hiddenCategories,
+                        onSelectDay: { model.focusDay($0) },
+                        onToggleCategory: { model.toggleCategory($0) }
+                    )
+                    .frame(height: 230)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
 
@@ -39,6 +44,7 @@ struct ReportView: View {
                 .padding(.horizontal, 8)
                 .padding(.bottom, 12)
             }
+            .background(QuickLookHost(controller: quickLook))
             .focusable()
             .focusEffectDisabled()
             .focused($listFocused)
@@ -56,7 +62,15 @@ struct ReportView: View {
                 model.openSelection()
                 return .handled
             }
+            .onKeyPress(.space) {
+                if let url = model.selectedFileURL {
+                    quickLook.preview(url)
+                    return .handled
+                }
+                return .ignored
+            }
             .onChange(of: model.selection) { _, selection in
+                listFocused = true
                 guard let selection else { return }
                 withAnimation(.easeInOut(duration: 0.15)) {
                     proxy.scrollTo(selection, anchor: .center)

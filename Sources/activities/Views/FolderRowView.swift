@@ -32,6 +32,7 @@ struct FolderRowView: View {
             }
             .buttonStyle(.plain)
             .help("Im Finder öffnen · Pfad kopieren")
+            .accessibilityLabel("Ordner im Finder öffnen")
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.folder.lastPathComponent)
@@ -57,6 +58,11 @@ struct FolderRowView: View {
         .padding(.horizontal, 8)
         .background(SelectionBackground(isActive: isSelected))
         .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            model.select(.folder(entry.folder))
+            FinderService.open(entry.folder)
+            ClipboardService.copy(entry.folder.path)
+        }
         .onTapGesture {
             model.select(.folder(entry.folder))
             withAnimation(.easeInOut(duration: 0.2)) { model.toggleExpand(entry.folder) }
@@ -65,6 +71,15 @@ struct FolderRowView: View {
             Button("Im Finder öffnen") { FinderService.open(entry.folder) }
             Button("Im Finder anzeigen") { FinderService.reveal(entry.folder) }
             Button("Pfad kopieren") { ClipboardService.copy(entry.folder.path) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Ordner \(entry.folder.lastPathComponent)")
+        .accessibilityValue("\(entry.fileCount) Dateien, zuletzt \(DateFormatting.dateTime(entry.newestDate))")
+        .accessibilityHint("Zum Auf- und Zuklappen aktivieren")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            model.select(.folder(entry.folder))
+            model.toggleExpand(entry.folder)
         }
     }
 }

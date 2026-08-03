@@ -2,13 +2,17 @@ import SwiftUI
 import Charts
 import ActivitiesCore
 
-/// Gestapeltes Balkendiagramm: bearbeitete Dateien je Tag, nach Kategorie gefaerbt.
+/// Gestapeltes Balkendiagramm mit klickbarer Legende (Kategorien ein-/ausblenden).
 ///
-/// Wochenenden sind hell hinterlegt. Ein Klick auf das Diagramm meldet den
-/// getroffenen Tag zurueck (fuer den Sprung in die Liste).
+/// Wochenenden sind hell hinterlegt. Beschriftet werden Montag und Freitag mit
+/// Wochentags-Kuerzel und kurzem Datum. Ein Klick auf das Diagramm meldet den
+/// getroffenen Tag zurueck.
 struct HistoryChartView: View {
     let dayCounts: [DayCount]
+    let presentCategories: [FileCategory]
+    let hiddenCategories: Set<FileCategory>
     var onSelectDay: (Date) -> Void
+    var onToggleCategory: (FileCategory) -> Void
 
     private var points: [ChartPoint] {
         var result: [ChartPoint] = []
@@ -28,6 +32,13 @@ struct HistoryChartView: View {
     }
 
     var body: some View {
+        VStack(spacing: 6) {
+            chart
+            legend
+        }
+    }
+
+    private var chart: some View {
         Chart {
             ForEach(weekendDays, id: \.self) { day in
                 RectangleMark(
@@ -47,7 +58,7 @@ struct HistoryChartView: View {
             }
         }
         .chartForegroundStyleScale(domain: ChartStyle.domain, range: ChartStyle.range)
-        .chartLegend(position: .bottom, spacing: 8)
+        .chartLegend(.hidden)
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { value in
                 if let date: Date = value.as(Date.self), shouldLabel(date) {
@@ -67,9 +78,7 @@ struct HistoryChartView: View {
                 }
             }
         }
-        .chartYAxis {
-            AxisMarks(position: .leading)
-        }
+        .chartYAxis { AxisMarks(position: .leading) }
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
@@ -78,13 +87,37 @@ struct HistoryChartView: View {
                     .onTapGesture { location in
                         guard let plotFrame = proxy.plotFrame else { return }
                         let origin = geometry[plotFrame].origin
-                        let x = location.x - origin.x
-                        if let day: Date = proxy.value(atX: x) {
+                        if let day: Date = proxy.value(atX: location.x - origin.x) {
                             onSelectDay(day)
                         }
                     }
             }
         }
+    }
+
+    private var legend: some View {
+        HStack(spacing: 12) {
+            ForEach(presentCategories, id: \.self) { category in
+                let isHidden = hiddenCategories.contains(category)
+                Button {
+                    onToggleCategory(category)
+                } label: {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(category.color)
+                            .frame(width: 9, height: 9)
+                        Text(category.displayName)
+                            .font(.caption)
+                    }
+                    .opacity(isHidden ? 0.35 : 1)
+                    .strikethrough(isHidden, color: .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isHidden ? "Einblenden" : "Ausblenden")
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 4)
     }
 
     private var maxTotal: Int {
@@ -96,7 +129,7 @@ struct HistoryChartView: View {
         guard !dayCounts.isEmpty else { return false }
         if dayCounts.count <= 8 { return true }
         let weekday = Calendar.current.component(.weekday, from: date)
-        return weekday == 2 || weekday == 6 // Montag oder Freitag
+        return weekday == 2 || weekday == 6
     }
 }
 

@@ -84,3 +84,43 @@ open activities.xcodeproj
 ```
 
 Alternativ laesst sich `Package.swift` direkt in Xcode oeffnen.
+
+## Notarisierung (Weitergabe ohne Gatekeeper-Trick)
+
+Erfordert das Apple Developer Program. Zugangsdaten in `.env` eintragen
+(siehe `.env.example`), dann:
+
+```
+./Packaging/build_app.sh
+./Packaging/notarize.sh
+```
+
+Signiert mit Developer ID (Hardened Runtime), notarisiert via `notarytool` und
+heftet das Ticket an. Danach startet die App auf fremden Macs ohne Rechtsklick.
+
+## Kontinuierliche Integration (CI)
+
+Der Workflow liegt (aus Token-Scope-Gruenden) unter `Packaging/github-ci.yml`.
+Zum Aktivieren nach `.github/workflows/ci.yml` kopieren – entweder ueber die
+GitHub-Weboberflaeche oder mit einem Token, der zusaetzlich den `workflow`-Scope
+hat:
+
+```
+mkdir -p .github/workflows
+cp Packaging/github-ci.yml .github/workflows/ci.yml
+git add .github/workflows/ci.yml && git commit -m "ci: enable workflow" && git push
+```
+
+Der Workflow baut auf `macos-14` und fuehrt `swift run CoreChecks` und
+`swift test` aus.
+
+## Bedienung (Kurzreferenz)
+
+- **Ordner-Symbol**: markiert + oeffnet im Finder (Pfad wird kopiert).
+- **Datei-Symbol**: markiert + oeffnet mit der Standard-App.
+- **Zeile anklicken**: Ordner auf-/zuklappen bzw. Datei markieren; **Doppelklick** oeffnet.
+- **Pfeil hoch/runter**: Auswahl bewegen · **links/rechts**: Ordner zu/auf · **Enter**: oeffnen.
+- **Leertaste**: QuickLook-Vorschau der markierten Datei.
+- **⌘R**: aktualisieren · **⌘F**: Filter fokussieren.
+- Diagramm-Legende: Kategorie anklicken blendet sie ein/aus.
+

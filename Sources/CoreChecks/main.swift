@@ -142,6 +142,31 @@ do {
     expectEqual(names(listed), ["Studium Noten.xlsx"], "Detailliste mit Filter")
 }
 
+// MARK: - RowNavigation
+do {
+    let a = URL(fileURLWithPath: "/docs/a", isDirectory: true)
+    let b = URL(fileURLWithPath: "/docs/b", isDirectory: true)
+    let fa1 = RelevantFile(url: a.appendingPathComponent("1.txt"), folder: a, timestamp: date(2026, 8, 3))
+    let fa2 = RelevantFile(url: a.appendingPathComponent("2.txt"), folder: a, timestamp: date(2026, 8, 2))
+    let entryA = FolderEntry(folder: a, newestDate: date(2026, 8, 3), fileCount: 2)
+    let entryB = FolderEntry(folder: b, newestDate: date(2026, 8, 1), fileCount: 1)
+    let buckets = [
+        BucketedEntries(label: "Heute", entries: [entryA]),
+        BucketedEntries(label: "Diese Woche", entries: [entryB]),
+    ]
+
+    let collapsed = RowNavigation.flatten(buckets: buckets, expanded: [], filesByFolder: [:])
+    expectEqual(collapsed, [.folder(a), .folder(b)], "flatten collapsed")
+
+    let expanded = RowNavigation.flatten(buckets: buckets, expanded: [a], filesByFolder: [a: [fa1, fa2]])
+    expectEqual(expanded, [.folder(a), .file(fa1.url), .file(fa2.url), .folder(b)], "flatten expanded")
+
+    expectEqual(RowNavigation.move(selection: nil, in: expanded, by: 1), .folder(a), "move nil -> first")
+    expectEqual(RowNavigation.move(selection: .folder(a), in: expanded, by: 1), .file(fa1.url), "move into file")
+    expectEqual(RowNavigation.move(selection: .folder(a), in: expanded, by: -1), .folder(a), "clamp top")
+    expectEqual(RowNavigation.move(selection: .folder(b), in: expanded, by: 1), .folder(b), "clamp bottom")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

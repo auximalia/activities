@@ -1,10 +1,11 @@
 import Foundation
 
-/// Zuletzt genutzte Einstellungen (Ordner, Tage, Filter).
+/// Zuletzt genutzte Einstellungen (Ordner, Tage, Filter, Auto-Refresh).
 struct StoredSettings {
     var rootURL: URL
     var days: Int
     var namePattern: String
+    var autoRefresh: Bool
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -17,6 +18,9 @@ final class SettingsStore {
     private let rootPathKey = "rootPath"
     private let daysKey = "days"
     private let patternKey = "namePattern"
+    private let autoRefreshKey = "autoRefresh"
+    private let recentKey = "recentFolders"
+    private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -25,6 +29,7 @@ final class SettingsStore {
     func load() -> StoredSettings {
         let days = defaults.object(forKey: daysKey) as? Int ?? 30
         let pattern = defaults.string(forKey: patternKey) ?? ""
+        let autoRefresh = defaults.object(forKey: autoRefreshKey) as? Bool ?? true
 
         let root: URL
         if let path = defaults.string(forKey: rootPathKey),
@@ -33,7 +38,7 @@ final class SettingsStore {
         } else {
             root = Self.defaultDocumentsDirectory()
         }
-        return StoredSettings(rootURL: root, days: days, namePattern: pattern)
+        return StoredSettings(rootURL: root, days: days, namePattern: pattern, autoRefresh: autoRefresh)
     }
 
     func save(days: Int, namePattern: String) {
@@ -43,6 +48,32 @@ final class SettingsStore {
 
     func saveRoot(_ url: URL) {
         defaults.set(url.path, forKey: rootPathKey)
+    }
+
+    func saveAutoRefresh(_ enabled: Bool) {
+        defaults.set(enabled, forKey: autoRefreshKey)
+    }
+
+    // MARK: - Zuletzt genutzte Ordner
+
+    func loadRecentFolders() -> [URL] {
+        let paths = defaults.stringArray(forKey: recentKey) ?? []
+        return paths
+            .filter { FileManager.default.fileExists(atPath: $0) }
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    /// Fuegt einen Ordner vorne ein (dedupliziert, begrenzt) und speichert. Gibt die neue Liste zurueck.
+    @discardableResult
+    func addRecentFolder(_ url: URL) -> [URL] {
+        var paths = defaults.stringArray(forKey: recentKey) ?? []
+        paths.removeAll { $0 == url.path }
+        paths.insert(url.path, at: 0)
+        if paths.count > maxRecent { paths = Array(paths.prefix(maxRecent)) }
+        defaults.set(paths, forKey: recentKey)
+        return paths
+            .filter { FileManager.default.fileExists(atPath: $0) }
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
     static func defaultDocumentsDirectory() -> URL {

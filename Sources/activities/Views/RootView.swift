@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// Fensteraufbau: Steuerleiste oben, darunter Diagramm + Ordnerliste bzw. Leerzustand.
+/// Fensteraufbau: Steuerleiste oben, Inhalt in der Mitte, Statuszeile unten.
 struct RootView: View {
-    @State private var model = ReportViewModel()
+    @Bindable var model: ReportViewModel
 
     var body: some View {
         VStack(spacing: 0) {
             ControlsView(model: model)
             Divider()
             content
+            Divider()
+            StatusBarView(model: model)
         }
         .task { model.startInitialScanIfNeeded() }
     }
@@ -33,5 +35,38 @@ struct RootView: View {
         } else {
             ReportView(model: model)
         }
+    }
+}
+
+/// Statuszeile: Anzahl Ordner/Dateien, Scandauer, Auto-Refresh-Zustand.
+struct StatusBarView: View {
+    @Bindable var model: ReportViewModel
+
+    private var folderCount: Int {
+        model.buckets.reduce(0) { $0 + $1.entries.count }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "folder")
+                .foregroundStyle(.secondary)
+            Text("\(folderCount) Ordner · \(model.scannedFileCount) Dateien")
+            if model.lastScanDuration > 0 {
+                Text("· \(String(format: "%.2f s", model.lastScanDuration))")
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if model.autoRefresh {
+                Label("Auto", systemImage: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(.secondary)
+            }
+            Text(model.rootURL.path)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .font(.caption)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
     }
 }

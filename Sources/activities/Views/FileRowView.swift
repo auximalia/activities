@@ -17,8 +17,10 @@ struct FileRowView: View {
                 model.select(.file(file.url))
                 FinderService.open(file.url)
             } label: {
-                Image(systemName: "doc")
-                    .foregroundStyle(.secondary)
+                Image(nsImage: FileIconProvider.icon(for: file.url))
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 18, height: 18)
                     .padding(2)
                     .contentShape(Rectangle())
             }

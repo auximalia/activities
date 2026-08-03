@@ -233,11 +233,36 @@ final class ReportViewModel {
                 selection = nil
             }
         } else {
+            // Standard: alle Ordner ausgeklappt.
             selection = nil
-            expandedFolders = []
             filesByFolder = [:]
             loadingFolders = []
             chartFocus = nil
+            expandedFolders = validFolders
+            for folder in validFolders { ensureLoaded(folder) }
+        }
+    }
+
+    // MARK: - Alle auf-/zuklappen
+
+    private func allFolderURLs() -> [URL] {
+        buckets.flatMap { $0.entries.map(\.folder) }
+    }
+
+    /// True, wenn jeder Ordner aufgeklappt ist.
+    var allExpanded: Bool {
+        let all = Set(allFolderURLs())
+        return !all.isEmpty && all.isSubset(of: expandedFolders)
+    }
+
+    func setAllExpanded(_ expand: Bool) {
+        if expand {
+            for folder in allFolderURLs() {
+                expandedFolders.insert(folder)
+                ensureLoaded(folder)
+            }
+        } else {
+            expandedFolders = []
         }
     }
 

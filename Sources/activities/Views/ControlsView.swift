@@ -45,6 +45,16 @@ struct ControlsView: View {
             .keyboardShortcut("r", modifiers: .command)
 
             Toggle(isOn: Binding(
+                get: { model.allExpanded },
+                set: { model.setAllExpanded($0) }
+            )) {
+                Image(systemName: "chevron.up.chevron.down")
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .help("Alle Ordner auf- oder zuklappen")
+
+            Toggle(isOn: Binding(
                 get: { model.autoRefresh },
                 set: { model.setAutoRefresh($0) }
             )) {

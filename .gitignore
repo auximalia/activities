@@ -1,0 +1,17 @@
+# Build-Artefakte
+.build/
+.build-x86/
+dist/
+
+# Generiertes Xcode-Projekt (aus project.yml via xcodegen erzeugbar)
+activities.xcodeproj/
+
+# Zugangsdaten / Secrets (NIEMALS einchecken)
+.env
+
+# macOS
+.DS_Store
+
+# Python-Altbestand
+**/__pycache__/
+legacy-python-cli/.pytest_cache/

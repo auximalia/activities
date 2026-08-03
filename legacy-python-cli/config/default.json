@@ -1,0 +1,19 @@
+{
+  "days": 30,
+  "excluded_folders": [
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "Library",
+    "$RECYCLE.BIN",
+    "System Volume Information"
+  ],
+  "excluded_files": [
+    ".DS_Store",
+    "Thumbs.db",
+    "desktop.ini",
+    "~$*"
+  ]
+}

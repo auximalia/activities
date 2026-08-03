@@ -1,0 +1,149 @@
+import Foundation
+import ActivitiesCore
+
+// Minimaler Pruef-Runner fuer die Fachlogik. Ersetzt XCTest, wo nur die
+// Command Line Tools verfuegbar sind. Bei jedem Fehlschlag wird protokolliert;
+// am Ende beendet sich das Programm mit Code 1, falls etwas fehlschlug.
+
+var failures = 0
+var checks = 0
+
+func expect(_ condition: Bool, _ message: String, file: StaticString = #file, line: UInt = #line) {
+    checks += 1
+    if !condition {
+        failures += 1
+        FileHandle.standardError.write(Data("FAIL: \(message) (\(file):\(line))\n".utf8))
+    }
+}
+
+func expectEqual<T: Equatable>(_ actual: T, _ expected: T, _ message: String, file: StaticString = #file, line: UInt = #line) {
+    expect(actual == expected, "\(message) — erwartet \(expected), erhalten \(actual)", file: file, line: line)
+}
+
+let calendar = Calendar(identifier: .gregorian)
+func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12) -> Date {
+    var c = DateComponents(); c.year = y; c.month = m; c.day = d; c.hour = h
+    return calendar.date(from: c)!
+}
+
+// MARK: - NameFilter
+do {
+    expect(NameFilter("").matches("egal.txt"), "leeres Muster passt immer")
+    expect(NameFilter("   ").matches("egal.pdf"), "nur Leerzeichen passt immer")
+
+    let sub = NameFilter("Studium")
+    expectEqual(sub.pattern, "*Studium*", "bloszes Wort wird Teilstring")
+    expect(sub.matches("Mein Studium 2024.docx"), "Teilstring trifft")
+    expect(sub.matches("studium.txt"), "Teilstring case-insensitiv")
+    expect(!sub.matches("Urlaub.txt"), "Teilstring trifft Nichtpassendes nicht")
+
+    let glob = NameFilter("*Studium*.xls*")
+    expect(glob.matches("Studium Noten.xls"), "Glob xls")
+    expect(glob.matches("Mein Studium.xlsx"), "Glob xlsx")
+    expect(glob.matches("2024 studium abschluss.XLSX"), "Glob case-insensitiv")
+    expect(!glob.matches("Studium.pdf"), "Glob lehnt pdf ab")
+    expect(!glob.matches("Urlaub.xls"), "Glob lehnt fehlendes Wort ab")
+
+    let q = NameFilter("datei?.txt")
+    expect(q.matches("datei1.txt"), "? trifft ein Zeichen")
+    expect(!q.matches("datei.txt"), "? verlangt ein Zeichen")
+    expect(!q.matches("datei12.txt"), "? nicht zwei Zeichen")
+}
+
+// MARK: - FileCategory
+do {
+    func cat(_ n: String) -> FileCategory { FileCategory.category(for: URL(fileURLWithPath: "/tmp/\(n)")) }
+    expectEqual(cat("b.docx"), .documents, "docx")
+    expectEqual(cat("r.pdf"), .pdf, "pdf")
+    expectEqual(cat("n.xlsx"), .spreadsheets, "xlsx")
+    expectEqual(cat("FOTO.JPG"), .images, "JPG case-insensitiv")
+    expectEqual(cat("s.py"), .code, "py")
+    expectEqual(cat("x.unbekannt"), .other, "unbekannt -> Sonstige")
+}
+
+// MARK: - TimeBucket
+do {
+    let now = date(2026, 8, 3)
+    func label(_ daysBack: Int) -> String {
+        TimeBucket.label(for: calendar.date(byAdding: .day, value: -daysBack, to: now)!, now: now, calendar: calendar)
+    }
+    expectEqual(label(0), "Heute", "0 Tage")
+    expectEqual(label(1), "Gestern", "1 Tag")
+    expectEqual(label(6), "Diese Woche", "6 Tage")
+    expectEqual(label(7), "Vor 1 Woche", "7 Tage")
+    expectEqual(label(13), "Vor 1 Woche", "13 Tage")
+    expectEqual(label(14), "Vor 2 Wochen", "14 Tage")
+}
+
+// MARK: - FolderAggregator
+do {
+    let a = URL(fileURLWithPath: "/docs/a", isDirectory: true)
+    let b = URL(fileURLWithPath: "/docs/b", isDirectory: true)
+    let files = [
+        RelevantFile(url: a.appendingPathComponent("1.txt"), folder: a, timestamp: date(2026, 8, 1)),
+        RelevantFile(url: a.appendingPathComponent("2.txt"), folder: a, timestamp: date(2026, 8, 3)),
+        RelevantFile(url: b.appendingPathComponent("3.txt"), folder: b, timestamp: date(2026, 8, 2)),
+    ]
+    let entries = FolderAggregator.groupByFolder(files)
+    expectEqual(entries.count, 2, "zwei Ordner")
+    expectEqual(entries[0].folder, a, "neuester Ordner zuerst")
+    expectEqual(entries[0].fileCount, 2, "Zaehlung Ordner a")
+    expectEqual(entries[0].newestDate, date(2026, 8, 3), "neuestes Datum")
+
+    let counts = FolderAggregator.countFilesPerDay(files, days: 3, reference: date(2026, 8, 3), calendar: calendar)
+    expectEqual(counts.count, 3, "drei Tage")
+    expectEqual(counts[0].total, 1, "1.8. hat eine Datei")
+    expectEqual(counts[2].total, 1, "3.8. hat eine Datei")
+}
+
+// MARK: - FileScanner (temporaeres Verzeichnis)
+do {
+    let scanner = FileScanner()
+    let root = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        .appendingPathComponent("activities-checks-\(UUID().uuidString)", isDirectory: true)
+    try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    func makeFile(_ rel: String, modified: Date = Date()) {
+        let url = root.appendingPathComponent(rel)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Data("x".utf8).write(to: url)
+        try? FileManager.default.setAttributes([.modificationDate: modified, .creationDate: modified], ofItemAtPath: url.path)
+    }
+    func names(_ fs: [RelevantFile]) -> Set<String> { Set(fs.map { $0.url.lastPathComponent }) }
+
+    makeFile("data/gut.txt")
+    makeFile("data/.DS_Store")
+    makeFile("data/.versteckt")
+    makeFile("data/~$offen.docx")
+    makeFile("code/main.py")
+    makeFile("code/node_modules/lib.js")
+    makeFile("code/.git/config")
+    makeFile("uni/Studium Noten.xlsx")
+    makeFile("uni/Urlaub.xlsx")
+    makeFile("alt/veraltet.txt", modified: Date().addingTimeInterval(-60 * 60 * 24 * 40))
+
+    let all = scanner.scan(settings: ScanSettings(rootURL: root, days: 30, namePattern: ""))
+    let allNames = names(all)
+    expect(allNames.contains("gut.txt"), "findet regulaere Datei")
+    expect(allNames.contains("main.py"), "findet Datei in code")
+    expect(!allNames.contains(".DS_Store"), "Junk .DS_Store ausgeschlossen")
+    expect(!allNames.contains(".versteckt"), "versteckte Datei ausgeschlossen")
+    expect(!allNames.contains("~$offen.docx"), "Office-Sperrdatei ausgeschlossen")
+    expect(!allNames.contains("lib.js"), "node_modules geprunt")
+    expect(!allNames.contains("config"), ".git geprunt")
+    expect(!allNames.contains("veraltet.txt"), "alte Datei ausserhalb Zeitraum")
+
+    let filtered = scanner.scan(settings: ScanSettings(rootURL: root, days: 30, namePattern: "*Studium*.xls*"))
+    expectEqual(names(filtered), ["Studium Noten.xlsx"], "Namensfilter im Scan")
+
+    let folder = root.appendingPathComponent("uni")
+    let listed = scanner.listDirectoryFiles(folder, filter: NameFilter("Studium"))
+    expectEqual(names(listed), ["Studium Noten.xlsx"], "Detailliste mit Filter")
+}
+
+print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
+if failures > 0 {
+    exit(1)
+}
+print("Alle Pruefungen bestanden.")

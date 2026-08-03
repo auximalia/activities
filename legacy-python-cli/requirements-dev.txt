@@ -1,0 +1,3 @@
+# Entwicklungs-Abhaengigkeiten (nur fuer die Tests benoetigt).
+# Der eigentliche Betrieb kommt ohne externe Pakete aus (nur Standardbibliothek).
+pytest>=8,<9

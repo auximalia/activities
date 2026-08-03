@@ -1,0 +1,47 @@
+# xcodegen-Spezifikation fuer die App "activities".
+#
+# Erzeugt ein Xcode-Projekt mit zwei Targets:
+#   - ActivitiesCore (Framework): reine Fachlogik (identische Quellen wie SwiftPM).
+#   - activities (App): SwiftUI-Oberflaeche, haengt von ActivitiesCore ab.
+#
+# Erzeugen:  xcodegen generate      (danach: open activities.xcodeproj)
+#
+# Hinweis: Die Quellen sind dieselben Ordner wie beim Swift-Package. Alternativ
+# laesst sich das Projekt in Xcode auch direkt ueber Package.swift oeffnen.
+name: activities
+options:
+  bundleIdPrefix: com.mtri
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  ActivitiesCore:
+    type: framework
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - Sources/ActivitiesCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mtri.activities.core
+        GENERATE_INFOPLIST_FILE: "YES"
+  activities:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - Sources/activities
+      - Packaging/Assets.xcassets
+    dependencies:
+      - target: ActivitiesCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mtri.activities
+        GENERATE_INFOPLIST_FILE: "YES"
+        INFOPLIST_KEY_CFBundleDisplayName: activities
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

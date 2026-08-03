@@ -30,7 +30,7 @@ struct ReportView: View {
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
 
-                    ForEach(model.buckets) { bucket in
+                    ForEach(model.displayBuckets) { bucket in
                         Section {
                             ForEach(bucket.entries) { entry in
                                 FolderRowView(entry: entry, model: model)
@@ -43,6 +43,15 @@ struct ReportView: View {
                         } header: {
                             sectionHeader(bucket)
                         }
+                    }
+
+                    if !model.hasVisibleResults {
+                        Text("Keine Treffer fuer den aktiven Filter. Passe den Suchtext an oder blende Kategorien/Endungen in der Legende wieder ein.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
                     }
                 }
                 .padding(.horizontal, 8)

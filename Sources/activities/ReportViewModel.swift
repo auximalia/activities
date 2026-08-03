@@ -136,6 +136,37 @@ final class ReportViewModel {
         dayCounts = FolderAggregator.countFilesPerDay(visible, days: days)
     }
 
+    // MARK: - Anzeige ohne leere Ordner (bei aktivem Filter)
+
+    /// True, wenn irgendein Filter wirkt (Suchtext ODER ausgeblendete Kategorien/Endungen).
+    var anyFilterActive: Bool {
+        !namePattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasVisibilityFilter
+    }
+
+    /// Buckets fuer die Anzeige: bei aktivem Filter werden leere Ordner ausgeblendet.
+    var displayBuckets: [BucketedEntries] {
+        guard anyFilterActive else { return buckets }
+        var result: [BucketedEntries] = []
+        for bucket in buckets {
+            let entries = bucket.entries.filter { keepFolder($0.folder) }
+            if !entries.isEmpty {
+                result.append(BucketedEntries(label: bucket.label, entries: entries))
+            }
+        }
+        return result
+    }
+
+    /// True, wenn nach dem Filtern noch Ordner uebrig sind.
+    var hasVisibleResults: Bool { !displayBuckets.isEmpty }
+
+    /// Ob ein Ordner (bei aktivem Filter) sichtbare Dateien enthaelt. Noch nicht
+    /// geladene Ordner werden vorlaeufig beibehalten (kein Flackern beim Laden).
+    private func keepFolder(_ folder: URL) -> Bool {
+        guard let files = filesByFolder[folder] else { return true }
+        guard hasVisibilityFilter else { return !files.isEmpty }
+        return files.contains { !isHidden($0.url) }
+    }
+
     /// URL der aktuell markierten Datei (fuer QuickLook), sonst nil.
     var selectedFileURL: URL? {
         if case .file(let url) = selection { return url }
@@ -358,7 +389,7 @@ final class ReportViewModel {
 
     /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
     var visibleRows: [RowID] {
-        RowNavigation.flatten(buckets: buckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
+        RowNavigation.flatten(buckets: displayBuckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
     }
 
     /// Geladene Dateien je Ordner, gefiltert nach ausgeblendeten Kategorien/Endungen.

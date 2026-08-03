@@ -11,8 +11,11 @@ struct HistoryChartView: View {
     let dayCounts: [DayCount]
     let presentCategories: [FileCategory]
     let hiddenCategories: Set<FileCategory>
+    let topExtensions: [ExtensionCount]
+    let hiddenExtensions: Set<String>
     var onSelectDay: (Date) -> Void
     var onToggleCategory: (FileCategory) -> Void
+    var onToggleExtension: (String) -> Void
 
     private var points: [ChartPoint] {
         var result: [ChartPoint] = []
@@ -96,28 +99,64 @@ struct HistoryChartView: View {
     }
 
     private var legend: some View {
-        HStack(spacing: 12) {
-            ForEach(presentCategories, id: \.self) { category in
-                let isHidden = hiddenCategories.contains(category)
-                Button {
-                    onToggleCategory(category)
-                } label: {
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(category.color)
-                            .frame(width: 9, height: 9)
-                        Text(category.displayName)
-                            .font(.caption)
-                    }
-                    .opacity(isHidden ? 0.35 : 1)
-                    .strikethrough(isHidden, color: .secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                ForEach(presentCategories, id: \.self) { category in
+                    categoryChip(category)
                 }
-                .buttonStyle(.plain)
-                .help(isHidden ? "Einblenden" : "Ausblenden")
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            if !topExtensions.isEmpty {
+                HStack(spacing: 10) {
+                    ForEach(topExtensions) { item in
+                        extensionChip(item)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
         }
         .padding(.horizontal, 4)
+    }
+
+    private func categoryChip(_ category: FileCategory) -> some View {
+        let isHidden = hiddenCategories.contains(category)
+        return Button {
+            onToggleCategory(category)
+        } label: {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(category.color)
+                    .frame(width: 9, height: 9)
+                Text(category.displayName)
+                    .font(.caption)
+            }
+            .opacity(isHidden ? 0.35 : 1)
+            .strikethrough(isHidden, color: .secondary)
+        }
+        .buttonStyle(.plain)
+        .help(isHidden ? "Einblenden" : "Ausblenden")
+    }
+
+    private func extensionChip(_ item: ExtensionCount) -> some View {
+        let isHidden = hiddenExtensions.contains(item.ext)
+        return Button {
+            onToggleExtension(item.ext)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "doc")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(".\(item.ext)")
+                    .font(.system(.caption, design: .monospaced))
+                Text("\(item.count)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .opacity(isHidden ? 0.35 : 1)
+            .strikethrough(isHidden, color: .secondary)
+        }
+        .buttonStyle(.plain)
+        .help(isHidden ? "Einblenden" : "Ausblenden")
     }
 
     private var maxTotal: Int {

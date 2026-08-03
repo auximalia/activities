@@ -17,13 +17,16 @@ struct ReportView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
                     HistoryChartView(
-                        dayCounts: model.visibleDayCounts,
+                        dayCounts: model.dayCounts,
                         presentCategories: model.presentCategories,
                         hiddenCategories: model.hiddenCategories,
+                        topExtensions: model.topExtensions,
+                        hiddenExtensions: model.hiddenExtensions,
                         onSelectDay: { model.focusDay($0) },
-                        onToggleCategory: { model.toggleCategory($0) }
+                        onToggleCategory: { model.toggleCategory($0) },
+                        onToggleExtension: { model.toggleExtension($0) }
                     )
-                    .frame(height: 230)
+                    .frame(height: 260)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
 

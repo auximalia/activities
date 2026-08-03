@@ -8,6 +8,13 @@ struct ChartFocus: Equatable, Sendable {
     let day: Date
 }
 
+/// Haeufigkeit einer Dateiendung (fuer die Legende).
+struct ExtensionCount: Identifiable, Equatable {
+    var id: String { ext }
+    let ext: String
+    let count: Int
+}
+
 /// Zustands- und Ablaufsteuerung der Oberflaeche.
 ///
 /// Haelt Einstellungen, Ergebnisse, Auswahl-Cursor, Aufklapp-Status und die
@@ -32,6 +39,12 @@ final class ReportViewModel {
     var lastScanDuration: Double = 0
     /// Ausgeblendete Kategorien (klickbare Legende).
     var hiddenCategories: Set<FileCategory> = []
+    /// Ausgeblendete Dateiendungen (klickbare Legende).
+    var hiddenExtensions: Set<String> = []
+    /// Kategorien, die im Zeitraum vorkommen (fuer die Legende).
+    var presentCategories: [FileCategory] = []
+    /// Haeufigste Dateiendungen im Zeitraum (fuer die Legende).
+    var topExtensions: [ExtensionCount] = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
     /// Zuletzt genutzte Wurzelordner.
@@ -48,6 +61,8 @@ final class ReportViewModel {
     /// Einmalige Fokus-Anfrage aus dem Diagramm.
     private var chartFocus: ChartFocus?
     private var loadingFolders: Set<URL> = []
+    /// Alle im Zeitraum relevanten Dateien (Basis fuer Diagramm und Legende).
+    private var relevantFiles: [RelevantFile] = []
 
     private var scanTask: Task<Void, Never>?
     private var didInitialScan = false
@@ -65,7 +80,7 @@ final class ReportViewModel {
         self.recentFolders = store.loadRecentFolders()
     }
 
-    // MARK: - Kategorie-Sichtbarkeit (Legende)
+    // MARK: - Sichtbarkeit (Legende: Kategorien & Endungen)
 
     func toggleCategory(_ category: FileCategory) {
         if hiddenCategories.contains(category) {
@@ -73,28 +88,52 @@ final class ReportViewModel {
         } else {
             hiddenCategories.insert(category)
         }
+        recomputeVisibleDayCounts()
     }
 
-    /// Tageszaehlungen ohne ausgeblendete Kategorien (fuer das Diagramm).
-    var visibleDayCounts: [DayCount] {
-        guard !hiddenCategories.isEmpty else { return dayCounts }
-        return dayCounts.map { dayCount in
-            DayCount(
-                day: dayCount.day,
-                countsByCategory: dayCount.countsByCategory.filter { !hiddenCategories.contains($0.key) }
-            )
+    func toggleExtension(_ ext: String) {
+        let key = ext.lowercased()
+        if hiddenExtensions.contains(key) {
+            hiddenExtensions.remove(key)
+        } else {
+            hiddenExtensions.insert(key)
         }
+        recomputeVisibleDayCounts()
     }
 
-    /// Kategorien, die im Zeitraum vorkommen (in fester Reihenfolge, fuer die Legende).
-    var presentCategories: [FileCategory] {
+    /// True, wenn eine Datei ueber Kategorie ODER Endung ausgeblendet ist.
+    func isHidden(_ url: URL) -> Bool {
+        if hiddenCategories.contains(FileCategory.category(for: url)) { return true }
+        if hiddenExtensions.contains(url.pathExtension.lowercased()) { return true }
+        return false
+    }
+
+    private var hasVisibilityFilter: Bool {
+        !hiddenCategories.isEmpty || !hiddenExtensions.isEmpty
+    }
+
+    /// Ermittelt vorkommende Kategorien und die haeufigsten Endungen; aktualisiert
+    /// anschliessend die (gefilterten) Tageszaehlungen.
+    private func recomputeDerived() {
         var present = Set<FileCategory>()
-        for dayCount in dayCounts {
-            for (category, count) in dayCount.countsByCategory where count > 0 {
-                present.insert(category)
-            }
+        var extensionCounts: [String: Int] = [:]
+        for file in relevantFiles {
+            present.insert(FileCategory.category(for: file.url))
+            let ext = file.url.pathExtension.lowercased()
+            if !ext.isEmpty { extensionCounts[ext, default: 0] += 1 }
         }
-        return FileCategory.allCases.filter { present.contains($0) }
+        presentCategories = FileCategory.allCases.filter { present.contains($0) }
+        topExtensions = extensionCounts
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .prefix(7)
+            .map { ExtensionCount(ext: $0.key, count: $0.value) }
+        recomputeVisibleDayCounts()
+    }
+
+    /// Berechnet die Tageszaehlungen ohne ausgeblendete Kategorien/Endungen.
+    private func recomputeVisibleDayCounts() {
+        let visible = hasVisibilityFilter ? relevantFiles.filter { !isHidden($0.url) } : relevantFiles
+        dayCounts = FolderAggregator.countFilesPerDay(visible, days: days)
     }
 
     /// URL der aktuell markierten Datei (fuer QuickLook), sonst nil.
@@ -129,9 +168,7 @@ final class ReportViewModel {
                     filesByFolder[entry.folder] = loaded
                     files = loaded
                 }
-                let visible = hiddenCategories.isEmpty
-                    ? files
-                    : files.filter { !hiddenCategories.contains(FileCategory.category(for: $0.url)) }
+                let visible = hasVisibilityFilter ? files.filter { !isHidden($0.url) } : files
                 for file in visible {
                     ordered.append(file.url)
                     map[file.url] = entry.folder
@@ -216,10 +253,11 @@ final class ReportViewModel {
             if Task.isCancelled { return }
             guard let self else { return }
             self.buckets = TimeBucket.group(result.entries)
-            self.dayCounts = result.dayCounts
-            self.scannedFileCount = result.fileCount
+            self.relevantFiles = result.files
+            self.scannedFileCount = result.files.count
             self.lastScanDuration = Date().timeIntervalSince(started)
             self.isScanning = false
+            self.recomputeDerived()
             self.reconcileState(preservingState: preservingState)
         }
     }
@@ -272,6 +310,9 @@ final class ReportViewModel {
     private func resetResults() {
         buckets = []
         dayCounts = []
+        relevantFiles = []
+        presentCategories = []
+        topExtensions = []
         selection = nil
         expandedFolders = []
         filesByFolder = [:]
@@ -320,12 +361,12 @@ final class ReportViewModel {
         RowNavigation.flatten(buckets: buckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
     }
 
-    /// Geladene Dateien je Ordner, gefiltert nach ausgeblendeten Kategorien.
+    /// Geladene Dateien je Ordner, gefiltert nach ausgeblendeten Kategorien/Endungen.
     var visibleFilesByFolder: [URL: [RelevantFile]] {
-        guard !hiddenCategories.isEmpty else { return filesByFolder }
+        guard hasVisibilityFilter else { return filesByFolder }
         var result: [URL: [RelevantFile]] = [:]
         for (folder, files) in filesByFolder {
-            result[folder] = files.filter { !hiddenCategories.contains(FileCategory.category(for: $0.url)) }
+            result[folder] = files.filter { !isHidden($0.url) }
         }
         return result
     }
@@ -334,8 +375,8 @@ final class ReportViewModel {
     /// ``nil`` bedeutet "noch nicht geladen" (Ladeanzeige).
     func visibleFiles(in folder: URL) -> [RelevantFile]? {
         guard let files = filesByFolder[folder] else { return nil }
-        guard !hiddenCategories.isEmpty else { return files }
-        return files.filter { !hiddenCategories.contains(FileCategory.category(for: $0.url)) }
+        guard hasVisibilityFilter else { return files }
+        return files.filter { !isHidden($0.url) }
     }
 
     /// Bewegt den Auswahl-Cursor um ``delta`` Zeilen (Pfeiltasten hoch/runter).
@@ -402,8 +443,7 @@ final class ReportViewModel {
 
     private struct ScanResult: Sendable {
         let entries: [FolderEntry]
-        let dayCounts: [DayCount]
-        let fileCount: Int
+        let files: [RelevantFile]
     }
 
     nonisolated private static func runScan(
@@ -412,7 +452,6 @@ final class ReportViewModel {
     ) async -> ScanResult {
         let files = scanner.scan(settings: settings, shouldCancel: { Task.isCancelled })
         let entries = FolderAggregator.groupByFolder(files)
-        let dayCounts = FolderAggregator.countFilesPerDay(files, days: settings.days)
-        return ScanResult(entries: entries, dayCounts: dayCounts, fileCount: files.count)
+        return ScanResult(entries: entries, files: files)
     }
 }

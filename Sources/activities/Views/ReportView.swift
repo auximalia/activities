@@ -64,7 +64,9 @@ struct ReportView: View {
             }
             .onKeyPress(.space) {
                 if let url = model.selectedFileURL {
-                    quickLook.preview(url)
+                    quickLook.present(files: model.visibleFileURLs, current: url) { previewed in
+                        model.select(.file(previewed))
+                    }
                     return .handled
                 }
                 return .ignored

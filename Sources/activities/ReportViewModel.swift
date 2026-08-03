@@ -103,6 +103,14 @@ final class ReportViewModel {
         return nil
     }
 
+    /// Alle aktuell sichtbaren Dateien in Anzeigereihenfolge (fuer QuickLook-Navigation).
+    var visibleFileURLs: [URL] {
+        visibleRows.compactMap {
+            if case .file(let url) = $0 { return url }
+            return nil
+        }
+    }
+
     // MARK: - Auto-Refresh (FSEvents)
 
     func setAutoRefresh(_ enabled: Bool) {

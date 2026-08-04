@@ -341,6 +341,38 @@ final class ReportViewModel {
 
     // MARK: - Diagramm-Fokus
 
+    /// Klick auf einen Balken: liegt ``ext`` vor (Segment getroffen), springe zur
+    /// juengsten sichtbaren Datei dieses Typs an dem Tag; sonst zum Tag (Ordner).
+    func focus(day: Date, ext: String?) {
+        if let ext, let target = newestVisibleFile(on: day, ext: ext) {
+            chartFocus = nil
+            expandedFolders.insert(target.folder)
+            ensureLoaded(target.folder)
+            selection = .file(target.url)
+        } else {
+            focusDay(day)
+        }
+    }
+
+    /// Jüngste sichtbare In-Zeitraum-Datei an ``day`` mit passender Endung (bzw.
+    /// „Sonstige" = Endung nicht in den Top-7).
+    private func newestVisibleFile(on day: Date, ext: String) -> RelevantFile? {
+        let calendar = Calendar.current
+        return relevantFiles
+            .filter { file in
+                !isHidden(file.url)
+                    && calendar.isDate(file.timestamp, inSameDayAs: day)
+                    && matchesExtensionBucket(file.url, ext: ext)
+            }
+            .max(by: { $0.timestamp < $1.timestamp })
+    }
+
+    private func matchesExtensionBucket(_ url: URL, ext: String) -> Bool {
+        let fileExt = url.pathExtension.lowercased()
+        if ext == Self.otherKey { return !topExtensionSet.contains(fileExt) }
+        return fileExt == ext.lowercased()
+    }
+
     func focusDay(_ day: Date) {
         let calendar = Calendar.current
         let entries = displayBuckets.flatMap(\.entries)

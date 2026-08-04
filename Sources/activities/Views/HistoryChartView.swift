@@ -14,7 +14,8 @@ struct HistoryChartView: View {
     let hiddenExtensions: Set<String>
     let otherCount: Int
     let otherKey: String
-    var onSelectDay: (Date) -> Void
+    /// Meldet Tag und (falls im Stapel getroffen) die Endung des Segments zurueck.
+    var onSelect: (Date, String?) -> Void
     var onToggleExtension: (String) -> Void
 
     private var hasOther: Bool { otherCount > 0 }
@@ -102,12 +103,30 @@ struct HistoryChartView: View {
                     .onTapGesture { location in
                         guard let plotFrame = proxy.plotFrame else { return }
                         let origin = geometry[plotFrame].origin
-                        if let day: Date = proxy.value(atX: location.x - origin.x) {
-                            onSelectDay(day)
-                        }
+                        guard let day: Date = proxy.value(atX: location.x - origin.x) else { return }
+                        let value: Double? = proxy.value(atY: location.y - origin.y)
+                        onSelect(day, resolveExtension(day: day, value: value))
                     }
             }
         }
+    }
+
+    /// Bestimmt aus der getroffenen Hoehe (Stapel von unten nach oben in
+    /// ``chartKeys``-Reihenfolge) die Endung des angeklickten Segments.
+    private func resolveExtension(day: Date, value: Double?) -> String? {
+        guard let value, value > 0 else { return nil }
+        let calendar = Calendar.current
+        guard let dayCount = chartDays.first(where: { calendar.isDate($0.day, inSameDayAs: day) }) else {
+            return nil
+        }
+        var cumulative = 0.0
+        for key in chartKeys {
+            let count = Double(dayCount.counts[key] ?? 0)
+            if count <= 0 { continue }
+            cumulative += count
+            if value <= cumulative { return key }
+        }
+        return nil // ueber dem Stapel
     }
 
     private var legend: some View {

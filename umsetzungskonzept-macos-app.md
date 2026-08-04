@@ -124,7 +124,7 @@ in **aufeinanderfolgende** Abschnitte gruppiert. Jeder Abschnitt zeigt seine Anz
 - Datenbasis: **sichtbare relevante Dateien** (relevantFiles minus `isHidden`).
 - Je Tag gestapelt nach **Endung**: die Top-7-Endungen einzeln, alle übrigen unter **„Sonstige"** (falls sichtbar). Ausgeblendete Endungen erzeugen keine Segmente.
 - **Wochenenden** hell hinterlegt. **X-Achse:** nur **Montag und Freitag** beschriftet (bei ≤ 8 Tagen jeder Tag), Beschriftung = Wochentagskürzel + `TT.MM.`.
-- **Klick auf einen Tag** (Balkenbereich): springt zum passenden Ordner (siehe 3.11) und markiert dessen datumstiftende Datei.
+- **Klick auf einen Balken:** wertet **x (Tag)** und **y (Höhe im Stapel)** aus. Trifft der Klick ein Segment, wird die **Endung** dieses Segments bestimmt (Stapel von unten nach oben in Legenden-/`chartKeys`-Reihenfolge, d. h. häufigster Typ unten) und zur **jüngsten sichtbaren Datei dieses Typs an diesem Tag** gesprungen (Ordner aufklappen + Datei markieren). Klick oberhalb des Stapels/ohne Segment → Rückfall auf den Tag: passender Ordner (3.11) + dessen datumstiftende Datei.
 
 ### 3.10 Farben der Endungen (Balken & Legenden-Swatch)
 Jede Endung erhält eine **aus ihrem Datei-Icon abgeleitete Farbe**:

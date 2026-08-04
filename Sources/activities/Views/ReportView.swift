@@ -22,7 +22,7 @@ struct ReportView: View {
                         hiddenExtensions: model.hiddenExtensions,
                         otherCount: model.otherCount,
                         otherKey: ReportViewModel.otherKey,
-                        onSelectDay: { model.focusDay($0) },
+                        onSelect: { day, ext in model.focus(day: day, ext: ext) },
                         onToggleExtension: { model.toggleExtension($0) }
                     )
                     .frame(height: 260)

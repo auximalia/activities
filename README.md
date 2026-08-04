@@ -25,6 +25,19 @@
 > Klick auf einen Ordner oeffnet ihn im Finder (und kopiert den Pfad), Klick auf
 > eine Datei oeffnet sie mit der Standard-App, Verlaufsdiagramm und Dark-Mode.
 >
+> **Zum Testen auf einem anderen Mac (Intel oder Apple Silicon):**
+> Ein Befehl im Terminal laedt die neueste Version, installiert sie nach
+> `/Applications` und gibt sie frei (kein Xcode/Entwickler-Tool noetig):
+>
+> ```
+> curl -fsSL https://raw.githubusercontent.com/auximalia/activities/main/Packaging/web-install.sh | bash
+> ```
+>
+> Alternativ – wenn du die App bzw. das ZIP von Hand kopiert hast – liegt im
+> Paket `install.command` bei (Doppelklick: kopiert nach `/Applications` und
+> entfernt die Quarantaene). Wird `install.command` selbst blockiert, einmalig
+> per Rechtsklick -> „Oeffnen" starten.
+>
 > ---
 >
 > ## Alt: Python-Kommandozeile (`legacy-python-cli/`)

@@ -13,6 +13,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Zugangsdaten (GITHUB_TOKEN) fuer die Release-Veroeffentlichung laden.
+if [[ -f "$ROOT/.env" ]]; then
+    set -a; source "$ROOT/.env"; set +a
+fi
+
+REPO_SLUG="${GITHUB_USER:-auximalia}/${GITHUB_REPO:-activities}"
+
 VERSION_FILE="$ROOT/VERSION"
 current="$(cat "$VERSION_FILE" 2>/dev/null | tr -d '[:space:]')"
 [ -z "$current" ] && current="1.0.0"
@@ -41,5 +48,24 @@ ditto -c -k --sequesterRsrc --keepParent dist/activities.app dist/activities.zip
 
 echo "==> Push"
 git push origin main
+
+# GitHub-Release mit stabilem Asset-Namen veroeffentlichen. Dadurch liefert
+# https://github.com/<repo>/releases/latest/download/activities.zip immer die
+# neueste Version – genau das nutzt Packaging/web-install.sh.
+if command -v gh >/dev/null 2>&1; then
+    echo "==> GitHub-Release v$new"
+    export GH_TOKEN="${GITHUB_TOKEN:-}"
+    if gh release create "v$new" "dist/activities.zip" \
+            --repo "$REPO_SLUG" --title "v$new" --notes "$msg" --latest 2>/dev/null; then
+        echo "   Release v$new erstellt."
+    else
+        # Release/Tag existiert bereits -> Asset ersetzen und als latest markieren.
+        gh release upload "v$new" "dist/activities.zip" --repo "$REPO_SLUG" --clobber
+        gh release edit "v$new" --repo "$REPO_SLUG" --latest >/dev/null 2>&1 || true
+        echo "   Release v$new aktualisiert."
+    fi
+else
+    echo "==> (gh nicht gefunden – Release-Upload uebersprungen)"
+fi
 
 echo "==> Fertig: v$new gepusht und installiert."

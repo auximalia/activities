@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.9)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.10)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -302,7 +302,13 @@ Der Core kennt weder SwiftUI noch AppKit.
 
 ## 10. Versionierung & Auslieferung
 - **Schema:** `Major.Minor.Patch` in Datei **`VERSION`** (z. B. `1.0.12`). `build_app.sh` schreibt sie als `CFBundleShortVersionString`; die App zeigt sie oben rechts + im Über-Fenster.
-- **`Packaging/release.sh`:** erhöht **vor jedem Push** die **Patch-Nummer**, committet, baut, installiert nach `/Applications`, erstellt ZIP, pusht. (Major/Minor manuell in `VERSION`.)
+- **`Packaging/release.sh`:** erhöht **vor jedem Push** die **Patch-Nummer**, committet, baut, installiert nach `/Applications`, erstellt ZIP, pusht, und veröffentlicht ein **GitHub-Release** (Asset stabil `activities.zip`, als *latest* markiert). (Major/Minor manuell in `VERSION`.)
+- **Testinstallation (öffentliches Repo):** `Packaging/web-install.sh` lädt per
+  `releases/latest/download/activities.zip` immer die neueste Version, kopiert nach
+  `/Applications` und setzt die Rechte (Quarantäne entfernen + ad-hoc neu signieren).
+  Einzeiler: `curl -fsSL .../Packaging/web-install.sh | bash`. Ohne Entwickler-Tools,
+  läuft auf Intel und Apple Silicon. `Packaging/install.command` ist die
+  Offline-Variante (Doppelklick) für ein manuell kopiertes ZIP.
 - **`Packaging/build_app.sh`:** baut arm64 + x86_64 getrennt (ohne Xcode kein `--arch`), fügt mit `lipo` zusammen, packt `.app` (Info.plist, `AppIcon.icns` = blauer LED-Kreis), injiziert Git-Revision/Build-Datum, ad-hoc-Signatur.
 - **`Packaging/notarize.sh`:** optionale Developer-ID-Signierung + Notarisierung (braucht Apple-Account; Zugangsdaten aus `.env`).
 - **`Packaging/git_setup.sh`:** legt privates GitHub-Repo an und pusht (Token aus `.env`).

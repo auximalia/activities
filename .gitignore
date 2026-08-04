@@ -8,6 +8,7 @@ activities.xcodeproj/
 
 # Zugangsdaten / Secrets (NIEMALS einchecken)
 .env
+/env
 
 # macOS
 .DS_Store

@@ -112,7 +112,7 @@ struct HistoryChartView: View {
 
     private var legend: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 104), spacing: 8, alignment: .leading)],
+            columns: [GridItem(.adaptive(minimum: 122), spacing: 8, alignment: .leading)],
             alignment: .leading,
             spacing: 4
         ) {
@@ -132,6 +132,9 @@ struct HistoryChartView: View {
             onToggleExtension(item.ext)
         } label: {
             HStack(spacing: 5) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(IconColor.dominant(forExtension: item.ext))
+                    .frame(width: 12, height: 12)
                 Image(nsImage: FileIconProvider.icon(forExtension: item.ext))
                     .resizable()
                     .interpolation(.high)
@@ -155,9 +158,9 @@ struct HistoryChartView: View {
             onToggleExtension(otherKey)
         } label: {
             HStack(spacing: 5) {
-                Circle()
+                RoundedRectangle(cornerRadius: 2)
                     .fill(otherColor)
-                    .frame(width: 11, height: 11)
+                    .frame(width: 12, height: 12)
                 Text("Sonstige")
                     .font(.caption)
                 Text("\(otherCount)")

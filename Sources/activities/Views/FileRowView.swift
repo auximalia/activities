@@ -13,6 +13,8 @@ struct FileRowView: View {
     var isDateSource: Bool = true
 
     private var isSelected: Bool { model.selection == .file(file.url) }
+    /// Ob die Datei im gewaehlten Zeitfenster liegt (sonst: Hinweis-Symbol).
+    private var isInWindow: Bool { model.isInWindow(file) }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -36,6 +38,15 @@ struct FileRowView: View {
                 .fontWeight(isDateSource ? .bold : .regular)
                 .lineLimit(1)
                 .truncationMode(.middle)
+
+            if !isInWindow {
+                Image(systemName: "clock.badge.xmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .help("Außerhalb des gewählten Zeitraums – zählt nicht zum Ordnerdatum")
+                    .accessibilityLabel("Außerhalb des gewählten Zeitraums")
+            }
+
             Spacer()
             Text(DateFormatting.dateTime(file.timestamp))
                 .font(.system(.callout, design: .monospaced))

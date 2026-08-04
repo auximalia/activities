@@ -380,6 +380,13 @@ final class ReportViewModel {
         return files.filter { $0.timestamp >= w.start && $0.timestamp < w.end }.map(\.timestamp).max()
     }
 
+    /// Ob die Datei im aktuell gewaehlten Zeitfenster liegt. Basis fuer den
+    /// „ausserhalb des Zeitraums"-Hinweis in der Detailliste.
+    func isInWindow(_ file: RelevantFile) -> Bool {
+        let w = window
+        return file.timestamp >= w.start && file.timestamp < w.end
+    }
+
     /// Anzahl sichtbarer Dateien im Ordner (live, filterabhaengig).
     func visibleFileCount(in folder: URL) -> Int {
         visibleFiles(in: folder)?.count ?? 0

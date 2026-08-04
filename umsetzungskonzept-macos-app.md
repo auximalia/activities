@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.17)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.2.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -189,6 +189,7 @@ Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
   - **Klick auf das Datei-Symbol / Doppelklick:** markieren **und** mit Standard-App öffnen.
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
   - **Hervorhebung datumstiftend:** die datumstiftende(n) Datei(en) (Zeitstempel == Ordner-Datum) werden **fett** dargestellt (Name **und** Datum); alle anderen normal. *(kein Ausgrauen)*
+  - **Außerhalb-des-Zeitraums-Hinweis:** liegt der Zeitstempel einer Datei **nicht** im gewählten Zeitfenster (`isInWindow == false`), erscheint rechts neben dem Namen das Symbol `clock.badge.xmark` mit MouseOver „Außerhalb des gewählten Zeitraums – zählt nicht zum Ordnerdatum". So ist erkennbar, warum solche Dateien nicht zum Ordnerdatum beitragen.
 - **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **gut erkennbare, aber ruhige horizontale Linie** (1 px, Sekundärfarbe ~50 % Deckkraft) als Lesehilfe, damit der Blick beim Wandern zu den rechtsbündigen Zeitstempeln nicht in die Nachbarzeile verrutscht.
 - **Markierung (Selektion):** dezente, moderne Tönung (Akzentfarbe ~12 % Füllung + feiner Rahmen, weiche Ecken) – **nicht** grell/vollflächig; Text bleibt normal lesbar.
 

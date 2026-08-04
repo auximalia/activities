@@ -77,7 +77,9 @@ struct HelpView: View {
                     fasst „Sonstige" (grau) zusammen. Die Balkenfarbe leitet sich aus der \
                     Dateityp-Symbolfarbe ab. Klicke auf ein Segment, um direkt zur \
                     passenden Datei zu springen. In der Legende blendest du einzelne \
-                    Endungen per Klick aus oder wieder ein. Eine dunkle Trennlinie unter \
+                    Endungen per Klick aus oder wieder ein; ein **Doppelklick** zeigt \
+                    nur diesen einen Typ (alle anderen aus) – erneuter Doppelklick zeigt \
+                    wieder alle. Eine dunkle Trennlinie unter \
                     der Legende grenzt den Diagrammbereich von der Tabelle ab.
                     """
                 )

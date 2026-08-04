@@ -189,6 +189,19 @@ final class ReportViewModel {
         recomputeDisplayBuckets()
     }
 
+    /// Doppelklick in der Legende ("Solo"): blendet alle anderen Endungen aus und
+    /// zeigt nur die angeklickte. Ein erneuter Doppelklick auf den bereits
+    /// isolierten Eintrag zeigt wieder alle Endungen (Toggle zurueck).
+    func soloExtension(_ ext: String) {
+        let key = ext.lowercased()
+        var allKeys = Set(topExtensions.map(\.ext))
+        if otherCount > 0 { allKeys.insert(Self.otherKey) }
+        let others = allKeys.subtracting([key])
+        hiddenExtensions = (hiddenExtensions == others) ? [] : others
+        recomputeChart()
+        recomputeDisplayBuckets()
+    }
+
     /// True, wenn eine Datei ueber ihre Endung (oder als "Sonstige") ausgeblendet ist.
     func isHidden(_ url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()

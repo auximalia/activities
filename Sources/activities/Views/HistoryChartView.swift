@@ -17,6 +17,8 @@ struct HistoryChartView: View {
     /// Meldet Tag und (falls im Stapel getroffen) die Endung des Segments zurueck.
     var onSelect: (Date, String?) -> Void
     var onToggleExtension: (String) -> Void
+    /// Doppelklick auf einen Legendeneintrag: nur diesen Typ anzeigen ("Solo").
+    var onSoloExtension: (String) -> Void
 
     private var hasOther: Bool { otherCount > 0 }
     private var otherColor: Color { Color(nsColor: .systemGray) }
@@ -147,50 +149,50 @@ struct HistoryChartView: View {
 
     private func extensionChip(_ item: ExtensionCount) -> some View {
         let isHidden = hiddenExtensions.contains(item.ext)
-        return Button {
-            onToggleExtension(item.ext)
-        } label: {
-            HStack(spacing: 5) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(IconColor.dominant(forExtension: item.ext))
-                    .frame(width: 12, height: 12)
-                Image(nsImage: FileIconProvider.icon(forExtension: item.ext))
-                    .resizable()
-                    .interpolation(.high)
-                    .frame(width: 16, height: 16)
-                Text(".\(item.ext)")
-                    .font(.system(.caption, design: .monospaced))
-                Text("\(item.count)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .opacity(isHidden ? 0.35 : 1)
-            .strikethrough(isHidden, color: .secondary)
+        return HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(IconColor.dominant(forExtension: item.ext))
+                .frame(width: 12, height: 12)
+            Image(nsImage: FileIconProvider.icon(forExtension: item.ext))
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 16, height: 16)
+            Text(".\(item.ext)")
+                .font(.system(.caption, design: .monospaced))
+            Text("\(item.count)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
-        .buttonStyle(.plain)
-        .help(isHidden ? "Einblenden" : "Ausblenden")
+        .opacity(isHidden ? 0.35 : 1)
+        .strikethrough(isHidden, color: .secondary)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { onSoloExtension(item.ext) }
+        .onTapGesture(count: 1) { onToggleExtension(item.ext) }
+        .help(isHidden
+              ? "Einblenden · Doppelklick: nur diesen Typ"
+              : "Ausblenden · Doppelklick: nur diesen Typ")
     }
 
     private var otherChip: some View {
         let isHidden = hiddenExtensions.contains(otherKey)
-        return Button {
-            onToggleExtension(otherKey)
-        } label: {
-            HStack(spacing: 5) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(otherColor)
-                    .frame(width: 12, height: 12)
-                Text("Sonstige")
-                    .font(.caption)
-                Text("\(otherCount)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .opacity(isHidden ? 0.35 : 1)
-            .strikethrough(isHidden, color: .secondary)
+        return HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(otherColor)
+                .frame(width: 12, height: 12)
+            Text("Sonstige")
+                .font(.caption)
+            Text("\(otherCount)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
-        .buttonStyle(.plain)
-        .help(isHidden ? "Einblenden" : "Ausblenden")
+        .opacity(isHidden ? 0.35 : 1)
+        .strikethrough(isHidden, color: .secondary)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { onSoloExtension(otherKey) }
+        .onTapGesture(count: 1) { onToggleExtension(otherKey) }
+        .help(isHidden
+              ? "Einblenden · Doppelklick: nur diese"
+              : "Ausblenden · Doppelklick: nur diese")
     }
 
     private var maxTotal: Int {

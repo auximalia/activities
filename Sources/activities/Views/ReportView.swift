@@ -26,7 +26,8 @@ struct ReportView: View {
                         otherCount: model.otherCount,
                         otherKey: ReportViewModel.otherKey,
                         onSelect: { day, ext in model.focus(day: day, ext: ext) },
-                        onToggleExtension: { model.toggleExtension($0) }
+                        onToggleExtension: { model.toggleExtension($0) },
+                        onSoloExtension: { model.soloExtension($0) }
                     )
                     .frame(height: 260)
                     .padding(.horizontal, 4)

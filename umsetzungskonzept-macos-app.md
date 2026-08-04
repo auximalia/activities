@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.11)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.12)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -90,7 +90,8 @@ nicht ein Datum im Dateinamen.
 - **Legenden-Grundmenge** = die Endungen, die in den **relevanten Dateien** (In-Zeitraum) vorkommen. → Es gibt **keine** Legenden-Einträge für Typen, die nur in älteren (out-of-window) Dateien vorkommen (sie hätten kein Balkensegment).
 - Berechne Häufigkeit je Endung über `relevantFiles`. Zeige die **7 häufigsten** Endungen als Legenden-Chips (Endung + Icon + Anzahl). Sortierung: Anzahl absteigend, bei Gleichstand Endung alphabetisch.
 - Gibt es **mehr als 7** Endungen, werden alle übrigen In-Zeitraum-Dateien unter einem neutralen **„Sonstige"**-Chip (grau) zusammengefasst; `otherCount` = Anzahl relevanter Dateien, deren Endung nicht in den Top-7 ist. Bei ≤7 Endungen: kein „Sonstige".
-- Jeder Chip ist **an-/ausblendbar** (Toggle). Ausgeblendete Chips bleiben sichtbar, aber abgeblendet + durchgestrichen (damit wieder aktivierbar).
+- Jeder Chip ist **an-/ausblendbar** (Einfachklick = Toggle). Ausgeblendete Chips bleiben sichtbar, aber abgeblendet + durchgestrichen (damit wieder aktivierbar).
+- **Doppelklick auf einen Chip = „Solo"**: blendet alle anderen Endungen aus und zeigt nur die angeklickte (`soloExtension`). Ein erneuter Doppelklick auf den bereits isolierten Chip zeigt wieder **alle** Endungen (Toggle zurück). Umgesetzt in der Legende über zwei `onTapGesture(count: 2 bzw. 1)`.
 - **`isHidden(datei)`**: `true`, wenn die Endung in der Ausblend-Menge ist **oder** „Sonstige" ausgeblendet ist und die Endung nicht in den Top-7 liegt.
 - Der Typ-Filter wirkt **konsistent** auf: Diagramm, Ordner-Zugehörigkeit/-Datum, Detailzeilen, Tastatur-Navigation, QuickLook-Liste.
 

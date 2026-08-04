@@ -186,7 +186,7 @@ struct HistoryChartView: View {
 
 /// Ein Datenpunkt fuer einen Tag und eine Dateiendung.
 private struct ChartPoint: Identifiable {
-    let id = UUID()
+    var id: String { "\(day.timeIntervalSince1970)-\(ext)" }
     let day: Date
     let ext: String
     let count: Int

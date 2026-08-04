@@ -67,6 +67,7 @@ final class ReportViewModel {
     private var relevantFiles: [RelevantFile] = []
 
     private var scanTask: Task<Void, Never>?
+    private var detailLoadTask: Task<Void, Never>?
     private var didInitialScan = false
     private let scanner = FileScanner()
     private let store = SettingsStore()
@@ -299,20 +300,10 @@ final class ReportViewModel {
         }
     }
 
-    /// Setzt Auswahl/Aufklappen passend zum neuen Ergebnis (optional erhaltend).
-    ///
-    /// Es werden stets ALLE Ordner-Detaildateien geladen (Basis fuer Legende und
-    /// Diagramm); das Aufklappen steuert nur die Anzeige.
+    /// Setzt Auswahl/Aufklappen passend zum neuen Ergebnis (optional erhaltend)
+    /// und laedt anschliessend die Detaildateien (fuer Legende/Diagramm).
     private func reconcileState(preservingState: Bool) {
         let validFolders = Set(buckets.flatMap { $0.entries.map(\.folder) })
-
-        // Abgeleitete Werte leeren, bis die Detaildateien geladen sind.
-        topExtensions = []
-        topExtensionSet = []
-        otherCount = 0
-        chartDays = []
-        filesByFolder = [:]
-        loadingFolders = []
 
         if preservingState {
             expandedFolders = expandedFolders.intersection(validFolders)
@@ -325,8 +316,39 @@ final class ReportViewModel {
             expandedFolders = validFolders
         }
 
-        for folder in validFolders { ensureLoaded(folder) }
-        if loadingFolders.isEmpty { recomputeDerived() }
+        loadDetails(for: validFolders)
+    }
+
+    /// Laedt die Detaildateien ALLER Ordner im Hintergrund und tauscht das
+    /// Ergebnis in einem Schwung aus (verhindert Flackern durch Zwischenzustaende).
+    private func loadDetails(for folders: Set<URL>) {
+        detailLoadTask?.cancel()
+
+        if folders.isEmpty {
+            filesByFolder = [:]
+            loadingFolders = []
+            recomputeDerived()
+            return
+        }
+
+        let scanner = self.scanner
+        let filter = NameFilter(namePattern)
+        let list = Array(folders)
+        detailLoadTask = Task { [weak self] in
+            let loaded = await Task.detached(priority: .userInitiated) { () -> [URL: [RelevantFile]] in
+                var dict: [URL: [RelevantFile]] = [:]
+                for folder in list {
+                    if Task.isCancelled { break }
+                    dict[folder] = scanner.listDirectoryFiles(folder, filter: filter)
+                }
+                return dict
+            }.value
+            if Task.isCancelled { return }
+            guard let self else { return }
+            self.filesByFolder = loaded
+            self.loadingFolders = []
+            self.recomputeDerived()
+        }
     }
 
     // MARK: - Alle auf-/zuklappen

@@ -8,7 +8,7 @@ struct ActivitiesApp: App {
     var body: some Scene {
         WindowGroup("activities") {
             RootView(model: model)
-                .frame(minWidth: 900, minHeight: 520)
+                .frame(minWidth: 1000, minHeight: 520)
         }
         .defaultSize(width: 980, height: 720)
         .commands {

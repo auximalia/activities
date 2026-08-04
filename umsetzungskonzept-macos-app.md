@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.7)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.8)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -148,10 +148,12 @@ erste Ordner mit `newestDate < Ende jenes Tages` (Liste ist absteigend sortiert)
 
 ## 4. Oberfläche & Interaktion
 
-Ein Fenster (Mindestbreite ~900 pt), drei Bereiche: **Steuerleiste** (oben),
+Ein Fenster (Mindestbreite ~1000 pt), drei Bereiche: **Steuerleiste** (oben),
 **Inhalt** (Diagramm + Liste), **Statuszeile** (unten). Dark-Mode automatisch.
 Der Credit/Version-Text rechts in der Steuerleiste ist **einzeilig** (kürzt bei
 Platzmangel, statt vertikal umzubrechen) und hat niedrige Layout-Priorität.
+Der Fortschritts-/Abbrechen-Block hat **festen Platz** (immer reserviert, nur
+sichtbar während der Suche), damit die Leiste beim Ein-/Ausblenden nicht springt.
 
 ### 4.1 Steuerleiste
 - **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).

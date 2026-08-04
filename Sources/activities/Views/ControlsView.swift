@@ -110,24 +110,28 @@ struct ControlsView: View {
             .controlSize(.mini)
             .help("Automatisch aktualisieren, wenn sich der Ordner aendert")
 
-            if model.isScanning || model.isLoadingDetails {
-                ProgressView().controlSize(.small)
-                if model.isScanning {
-                    Text("\(model.scanProgress) Dateien")
-                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
-                } else if model.detailTotal > 0 {
-                    Text("\(model.detailDone)/\(model.detailTotal)")
-                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            // Fortschritt/Abbrechen: fester Platz, damit die Leiste beim Ein-/Ausblenden nicht springt.
+            HStack(spacing: 6) {
+                if model.isScanning || model.isLoadingDetails {
+                    ProgressView().controlSize(.small)
+                    if model.isScanning {
+                        Text("\(model.scanProgress) Dateien")
+                            .font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+                    } else if model.detailTotal > 0 {
+                        Text("\(model.detailDone)/\(model.detailTotal)")
+                            .font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Button {
+                        model.cancelScan()
+                    } label: {
+                        Image(systemName: "stop.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Suche abbrechen")
                 }
-                Button {
-                    model.cancelScan()
-                } label: {
-                    Image(systemName: "stop.circle.fill")
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
-                .help("Suche abbrechen")
             }
+            .frame(width: 170, alignment: .leading)
 
             Spacer(minLength: 0)
 

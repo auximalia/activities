@@ -155,9 +155,9 @@ Ein Fenster, drei Bereiche: **Steuerleiste** (oben), **Inhalt** (Diagramm + List
 - **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).
 - **Zeitmodus-Umschalter** (Segmented): **„Tage" | „Zeitspanne"**.
   - **Tage:** Presets **7 / 30 / 90** (Segmented) + **Zahlen-Eingabefeld** (manuelle Eingabe, geklemmt 1…3650) + **Stepper**-Pfeile. Änderung ⇒ Rescan.
-  - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum). Reihenfolge wird über die Picker-Grenzen erzwungen (von `in: …bis`, bis `in: von…heute`), „bis" ist auf **heute** begrenzt. Änderung ⇒ Rescan.
+  - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum). Reihenfolge wird über die Picker-Grenzen erzwungen (von `in: …bis`, bis `in: von…heute`), „bis" ist auf **heute** begrenzt. Änderungen lösen **keinen** Suchlauf aus (kein Rescan pro Tastendruck); sie werden **erst mit „Aktualisieren"** angewandt.
 - **Namensfilter-Textfeld** (Enter = Rescan).
-- **„Aktualisieren"** (Rescan), Tastenkürzel **⌘R**.
+- **„Aktualisieren"** (Rescan), Tastenkürzel **⌘R**. Läuft eine Suche, erscheint daneben ein **Abbrechen-Button** (Stop), der den laufenden Scan **und** das Detail-Laden sofort abbricht.
 - **Toggle „alles auf-/zuklappen"** (Standard: alle Ordner aufgeklappt).
 - **Toggle „Auto-Refresh"** (Dateisystem-Überwachung, siehe 5.3).
 - **Fortschrittsanzeige** während des Scans.

@@ -110,8 +110,16 @@ struct ControlsView: View {
             .controlSize(.mini)
             .help("Automatisch aktualisieren, wenn sich der Ordner aendert")
 
-            if model.isScanning {
+            if model.isScanning || model.isLoadingDetails {
                 ProgressView().controlSize(.small)
+                Button {
+                    model.cancelScan()
+                } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .help("Suche abbrechen")
             }
 
             Spacer(minLength: 0)

@@ -138,7 +138,7 @@ final class ReportViewModel {
         let day = Calendar.current.startOfDay(for: date)
         rangeStart = min(day, rangeEnd)
         store.saveTimeMode(useDateRange: useDateRange, start: rangeStart, end: rangeEnd)
-        rescan()
+        // Kein automatischer Rescan: erst "Aktualisieren" wendet die Zeitspanne an.
     }
 
     func setRangeEnd(_ date: Date) {
@@ -146,7 +146,15 @@ final class ReportViewModel {
         let day = Calendar.current.startOfDay(for: date)
         rangeEnd = min(max(day, rangeStart), today)
         store.saveTimeMode(useDateRange: useDateRange, start: rangeStart, end: rangeEnd)
-        rescan()
+        // Kein automatischer Rescan: erst "Aktualisieren" wendet die Zeitspanne an.
+    }
+
+    /// Bricht einen laufenden Suchlauf (und das Laden der Detaildateien) ab.
+    func cancelScan() {
+        scanTask?.cancel()
+        detailLoadTask?.cancel()
+        isScanning = false
+        isLoadingDetails = false
     }
 
     // MARK: - Abgeleitete Statusflags
@@ -563,19 +571,28 @@ final class ReportViewModel {
         let filter = NameFilter(namePattern)
         let list = Array(folders)
         detailLoadTask = Task { [weak self] in
-            let loaded = await Task.detached(priority: .userInitiated) { () -> [URL: [RelevantFile]] in
-                var dict: [URL: [RelevantFile]] = [:]
-                for folder in list {
-                    if Task.isCancelled { break }
-                    dict[folder] = scanner.listDirectoryFiles(folder, filter: filter)
-                }
-                return dict
-            }.value
+            let loaded = await Self.listAll(scanner: scanner, filter: filter, folders: list)
             if Task.isCancelled { return }
             guard let self else { return }
             self.filesByFolder = loaded
             self.finishDetailLoad()
         }
+    }
+
+    /// Listet die Detaildateien aller Ordner ausserhalb des Main-Actors; bricht
+    /// bei Task-Abbruch ab (fuer den Abbrechen-Button).
+    nonisolated private static func listAll(
+        scanner: FileScanner,
+        filter: NameFilter,
+        folders: [URL]
+    ) async -> [URL: [RelevantFile]] {
+        var dict: [URL: [RelevantFile]] = [:]
+        for folder in folders {
+            if Task.isCancelled { break }
+            dict[folder] = scanner.listDirectoryFiles(folder, filter: filter)
+            await Task.yield()
+        }
+        return dict
     }
 
     /// Nach dem Laden: Ordnerliste berechnen und Aufklapp-/Auswahlzustand setzen.

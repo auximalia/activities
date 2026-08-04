@@ -8,6 +8,14 @@ struct ControlsView: View {
     @State private var showImporter = false
     @FocusState private var filterFocused: Bool
 
+    /// Tage-Eingabe, geklemmt auf 1…3650 (nicht-negative ganze Zahlen).
+    private var daysBinding: Binding<Int> {
+        Binding(
+            get: { model.days },
+            set: { model.days = min(max($0, 1), 3650) }
+        )
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             folderMenu
@@ -56,8 +64,15 @@ struct ControlsView: View {
                 .fixedSize()
                 .help("Zeitraum in Tagen")
 
-                Stepper(value: $model.days, in: 1...3650) {
-                    Text("\(model.days) Tage").monospacedDigit()
+                HStack(spacing: 4) {
+                    TextField("", value: daysBinding, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 48)
+                        .multilineTextAlignment(.trailing)
+                        .help("Tage manuell eingeben (1–3650)")
+                    Text("Tage").foregroundStyle(.secondary)
+                    Stepper("", value: daysBinding, in: 1...3650)
+                        .labelsHidden()
                 }
                 .fixedSize()
             }

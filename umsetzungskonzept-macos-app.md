@@ -154,7 +154,7 @@ Ein Fenster, drei Bereiche: **Steuerleiste** (oben), **Inhalt** (Diagramm + List
 ### 4.1 Steuerleiste
 - **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).
 - **Zeitmodus-Umschalter** (Segmented): **„Tage" | „Zeitspanne"**.
-  - **Tage:** Presets **7 / 30 / 90** (Segmented) + **Stepper** (1…3650). Änderung ⇒ Rescan.
+  - **Tage:** Presets **7 / 30 / 90** (Segmented) + **Zahlen-Eingabefeld** (manuelle Eingabe, geklemmt 1…3650) + **Stepper**-Pfeile. Änderung ⇒ Rescan.
   - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum). Reihenfolge wird über die Picker-Grenzen erzwungen (von `in: …bis`, bis `in: von…heute`), „bis" ist auf **heute** begrenzt. Änderung ⇒ Rescan.
 - **Namensfilter-Textfeld** (Enter = Rescan).
 - **„Aktualisieren"** (Rescan), Tastenkürzel **⌘R**.

@@ -104,19 +104,27 @@ final class ReportViewModel {
 
     private var hasVisibilityFilter: Bool { !hiddenExtensions.isEmpty }
 
-    /// Ermittelt die haeufigsten Endungen und den "Sonstige"-Anteil; aktualisiert das Diagramm.
+    /// Alle geladenen Detaildateien (Basis fuer Legende und Diagramm – das, was
+    /// in der Tabelle tatsaechlich gezeigt wird).
+    private var allDetailFiles: [RelevantFile] {
+        filesByFolder.values.flatMap { $0 }
+    }
+
+    /// Ermittelt die 7 haeufigsten Endungen (aus den gezeigten Dateien) und den
+    /// "Sonstige"-Anteil; aktualisiert anschliessend das Diagramm.
     private func recomputeDerived() {
+        let files = allDetailFiles
         var extensionCounts: [String: Int] = [:]
-        for file in relevantFiles {
+        for file in files {
             let ext = file.url.pathExtension.lowercased()
             if !ext.isEmpty { extensionCounts[ext, default: 0] += 1 }
         }
         topExtensions = extensionCounts
             .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
-            .prefix(10)
+            .prefix(7)
             .map { ExtensionCount(ext: $0.key, count: $0.value) }
         topExtensionSet = Set(topExtensions.map(\.ext))
-        otherCount = relevantFiles.reduce(0) {
+        otherCount = files.reduce(0) {
             topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
         }
         recomputeChartDays()
@@ -127,7 +135,7 @@ final class ReportViewModel {
         let visibleTop = topExtensionSet.subtracting(hiddenExtensions)
         let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
         chartDays = FolderAggregator.countFilesPerDayByType(
-            relevantFiles,
+            allDetailFiles,
             days: days,
             individual: visibleTop,
             otherKey: showOther ? Self.otherKey : nil,
@@ -287,31 +295,38 @@ final class ReportViewModel {
             self.scannedFileCount = result.files.count
             self.lastScanDuration = Date().timeIntervalSince(started)
             self.isScanning = false
-            self.recomputeDerived()
             self.reconcileState(preservingState: preservingState)
         }
     }
 
     /// Setzt Auswahl/Aufklappen passend zum neuen Ergebnis (optional erhaltend).
+    ///
+    /// Es werden stets ALLE Ordner-Detaildateien geladen (Basis fuer Legende und
+    /// Diagramm); das Aufklappen steuert nur die Anzeige.
     private func reconcileState(preservingState: Bool) {
         let validFolders = Set(buckets.flatMap { $0.entries.map(\.folder) })
+
+        // Abgeleitete Werte leeren, bis die Detaildateien geladen sind.
+        topExtensions = []
+        topExtensionSet = []
+        otherCount = 0
+        chartDays = []
+        filesByFolder = [:]
+        loadingFolders = []
+
         if preservingState {
             expandedFolders = expandedFolders.intersection(validFolders)
-            filesByFolder = [:]
-            loadingFolders = []
-            for folder in expandedFolders { ensureLoaded(folder) }
             if case .folder(let url) = selection, !validFolders.contains(url) {
                 selection = nil
             }
         } else {
-            // Standard: alle Ordner ausgeklappt.
             selection = nil
-            filesByFolder = [:]
-            loadingFolders = []
             chartFocus = nil
             expandedFolders = validFolders
-            for folder in validFolders { ensureLoaded(folder) }
         }
+
+        for folder in validFolders { ensureLoaded(folder) }
+        if loadingFolders.isEmpty { recomputeDerived() }
     }
 
     // MARK: - Alle auf-/zuklappen
@@ -371,6 +386,8 @@ final class ReportViewModel {
             self.filesByFolder[folder] = files
             self.loadingFolders.remove(folder)
             self.applyChartFocus(for: folder)
+            // Legende/Diagramm erst neu berechnen, wenn alle Ladevorgaenge fertig sind.
+            if self.loadingFolders.isEmpty { self.recomputeDerived() }
         }
     }
 

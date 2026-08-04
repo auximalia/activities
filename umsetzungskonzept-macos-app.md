@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.0.12)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.6)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -178,7 +178,7 @@ Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit)
   - **Klick auf das Datei-Symbol / Doppelklick:** markieren **und** mit Standard-App öffnen.
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
   - **Hervorhebung datumstiftend:** die datumstiftende(n) Datei(en) (Zeitstempel == Ordner-Datum) werden **fett** dargestellt (Name **und** Datum); alle anderen normal. *(kein Ausgrauen)*
-- **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **dezente horizontale Linie** (Divider, ~35 % Deckkraft) als Lesehilfe, damit der Blick beim Wandern zu den rechtsbündigen Zeitstempeln nicht in die Nachbarzeile verrutscht.
+- **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **gut erkennbare, aber ruhige horizontale Linie** (1 px, Sekundärfarbe ~50 % Deckkraft) als Lesehilfe, damit der Blick beim Wandern zu den rechtsbündigen Zeitstempeln nicht in die Nachbarzeile verrutscht.
 - **Markierung (Selektion):** dezente, moderne Tönung (Akzentfarbe ~12 % Füllung + feiner Rahmen, weiche Ecken) – **nicht** grell/vollflächig; Text bleibt normal lesbar.
 
 ### 4.4 Tastatur & QuickLook
@@ -246,8 +246,8 @@ Sources/
     FileScanner.swift        scan(...) + listDirectoryFiles(...)  (3.1–3.3)
     ExclusionRules.swift     Ausschlusslisten (3.4)
     NameFilter.swift         Glob/CASEFOLD/Auto-Teilstring (3.5)
-    FolderAggregator.swift   folderEntries(from:cutoff:isVisible:) (3.7),
-                             countFilesPerDayByType(...) (3.9),
+    FolderAggregator.swift   folderEntries(from:start:end:isVisible:) (3.7),
+                             countFilesPerDayByType(_:startDay:endDay:individual:otherKey:ignored:) (3.9),
                              groupByFolder(...), countFilesPerDay(...) [legacy]
     TimeBucket.swift         label(...)/group(...) (3.8)
     RowNavigation.swift      RowID, flatten(...), move(...) (3.11)
@@ -270,13 +270,15 @@ Abhängigkeitsrichtung: `Views → ReportViewModel → ActivitiesCore/Services`.
 Der Core kennt weder SwiftUI noch AppKit.
 
 ## 8. Zentrale Abläufe im ViewModel (`ReportViewModel`)
-- **Zustand:** `relevantFiles` (private Wahrheit), `filesByFolder` (Detaildateien), `displayBuckets`, `chartDays`, `topExtensions`/`otherCount`/`hiddenExtensions`, `expandedFolders`, `selection`, Flags `isScanning`/`isLoadingDetails`.
-- **rescan(preservingState):** Hintergrund-Scan → `relevantFiles` → `reconcileState`.
-- **reconcileState:** `recomputeLegend()` + `recomputeChart()` (synchron) → `loadDetails(...)`.
-- **loadDetails:** lädt `filesByFolder` für alle relevanten Ordner im Hintergrund, tauscht **einmalig** → `finishDetailLoad()`.
+- **Zustand:** `relevantFiles` (private Wahrheit), `filesByFolder` (Detaildateien), `displayBuckets`, `chartDays`, `topExtensions`/`otherCount`/`hiddenExtensions`, `expandedFolders`, `selection`; Zeitmodus `useDateRange`/`days`/`rangeStart`/`rangeEnd` (→ abgeleitetes `window` mit `[start,end)` + Chart-Tagen); Flags `isScanning`/`isLoadingDetails`, Fortschritt `scanProgress`/`detailDone`/`detailTotal`, `confirmLargeScan`.
+- **rescan(preservingState, confirmedLarge):** validiert Zeitfenster; bei Spanne > 10 Jahren (und nicht bestätigt/Live) → `confirmLargeScan = true` **ohne** Scan. Sonst Hintergrund-Scan (off-main, abbrechbar, Fortschritt) → `relevantFiles` → `reconcileState`.
+- **reconcileState:** `recomputeLegend()` + `recomputeChart()` (synchron; Chart bei > ~4000 Tagen leer) → `loadDetails(...)`.
+- **loadDetails:** lädt `filesByFolder` für alle relevanten Ordner im Hintergrund (nonisolated `listAll`, abbrechbar, Fortschritt), tauscht **einmalig** → `finishDetailLoad()`.
 - **finishDetailLoad:** `recomputeDisplayBuckets()` (Ordner-Datumslogik 3.7) + Aufklapp-/Auswahlzustand.
 - **toggleExtension:** `recomputeChart()` + `recomputeDisplayBuckets()` (Legende bleibt stabil).
-- **Live-Reads:** `newestVisibleDate(in:)`, `visibleFileCount(in:)`, `visibleFiles(in:)` – von den Views pro Render benutzt (5.1).
+- **cancelScan():** bricht Scan **und** Detail-Laden ab, setzt Flags/Fortschritt zurück.
+- **Zeitspanne:** `setRangeStart/End` speichern nur (kein Rescan) – Anwendung erst über „Aktualisieren".
+- **Live-Reads:** `newestVisibleDate(in:)` (auf das Fenster begrenzt), `visibleFileCount(in:)`, `visibleFiles(in:)` – von den Views pro Render benutzt (5.1).
 
 ## 9. Datei-System (macOS-Spezifika)
 - Zeitstempel: `URLResourceValues.creationDateKey` / `.contentModificationDateKey`.

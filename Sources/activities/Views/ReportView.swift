@@ -39,9 +39,10 @@ struct ReportView: View {
                                     detailRows(for: entry)
                                 }
 
-                                Divider()
-                                    .opacity(0.35)
-                                    .padding(.vertical, 1)
+                                Rectangle()
+                                    .fill(Color.secondary.opacity(0.5))
+                                    .frame(height: 1)
+                                    .padding(.vertical, 2)
                             }
                         } header: {
                             sectionHeader(bucket)

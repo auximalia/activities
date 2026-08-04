@@ -164,7 +164,7 @@ Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit)
 
 ### 4.3 Ordner- & Dateizeilen
 - **Ordnerzeile:** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion), Name (fett), Pfad (klein, gekürzt), rechts **Datum** (Monospace) + **Anzahl**.
-  - **Klick auf die Zeile:** auf-/zuklappen **und** markieren.
+  - **Klick auf die Zeile (Text):** auf-/zuklappen, markieren **und den Ordnerpfad in die Zwischenablage kopieren**.
   - **Klick auf das Ordner-Symbol:** markieren **und** im Datei-Manager öffnen (+ Pfad in Zwischenablage).
   - **Doppelklick:** im Datei-Manager öffnen (+ kopieren).
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
@@ -173,7 +173,8 @@ Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit)
   - **Klick auf die Zeile:** markieren.
   - **Klick auf das Datei-Symbol / Doppelklick:** markieren **und** mit Standard-App öffnen.
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
-  - **Hervorhebung datumstiftend:** die datumstiftende(n) Datei(en) (Zeitstempel == Ordner-Datum) normal; **alle anderen dezent ausgegraut** (Opazität ~0.5).
+  - **Hervorhebung datumstiftend:** die datumstiftende(n) Datei(en) (Zeitstempel == Ordner-Datum) werden **fett** dargestellt (Name **und** Datum); alle anderen normal. *(kein Ausgrauen)*
+- **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **dezente horizontale Linie** (Divider, ~35 % Deckkraft) als Lesehilfe, damit der Blick beim Wandern zu den rechtsbündigen Zeitstempeln nicht in die Nachbarzeile verrutscht.
 - **Markierung (Selektion):** dezente, moderne Tönung (Akzentfarbe ~12 % Füllung + feiner Rahmen, weiche Ecken) – **nicht** grell/vollflächig; Text bleibt normal lesbar.
 
 ### 4.4 Tastatur & QuickLook
@@ -320,6 +321,6 @@ funktional und plattformunabhängig beschrieben.
 **Wichtige Design-Entscheidungen (nicht verlieren):**
 - Ordner-Datum/-Zugehörigkeit kommen aus den **angezeigten** (Detail-)Dateien, gefiltert + auf den Zeitraum begrenzt → das Datum entspricht **immer** einer sichtbaren Datei; Filtern re-datiert bzw. entfernt Ordner.
 - Legende/Diagramm nur über **In-Zeitraum**-Typen (keine Einträge ohne Balken); Top-7 + „Sonstige".
-- Detailliste zeigt **alle** (namens-/typ-gefilterten) Dateien des Ordners, auch ältere; die nicht-datumstiftenden werden **dezent ausgegraut**.
+- Detailliste zeigt **alle** (namens-/typ-gefilterten) Dateien des Ordners, auch ältere; die **datumstiftende(n)** Datei(en) werden **fett** hervorgehoben.
 - Filter-abhängige Werte in der UI **live** aus dem Model lesen (sonst „stale"-Zeilen).
 - Diagramm gegen Flackern: **stabile Balken-IDs** + **einmaliger** Datentausch.

@@ -3,9 +3,9 @@ import ActivitiesCore
 
 /// Kopfzeile eines Ordners in der flachen Liste.
 ///
-/// Klick auf die Zeile klappt die Dateien auf/zu und markiert den Ordner.
-/// Ein Klick auf das **Ordner-Symbol** markiert ihn und oeffnet ihn im Finder
-/// (+ kopiert den Pfad).
+/// Klick auf die Zeile klappt die Dateien auf/zu, markiert den Ordner und
+/// **kopiert den Ordnerpfad** in die Zwischenablage. Ein Klick auf das
+/// **Ordner-Symbol** markiert ihn und oeffnet ihn im Finder (+ kopiert den Pfad).
 struct FolderRowView: View {
     let entry: FolderEntry
     @Bindable var model: ReportViewModel
@@ -73,6 +73,7 @@ struct FolderRowView: View {
         }
         .onTapGesture {
             model.select(.folder(entry.folder))
+            ClipboardService.copy(entry.folder.path)
             withAnimation(.easeInOut(duration: 0.2)) { model.toggleExpand(entry.folder) }
         }
         .contextMenu {

@@ -38,6 +38,10 @@ struct ReportView: View {
                                 if model.isExpanded(entry.folder) {
                                     detailRows(for: entry)
                                 }
+
+                                Divider()
+                                    .opacity(0.35)
+                                    .padding(.vertical, 1)
                             }
                         } header: {
                             sectionHeader(bucket)

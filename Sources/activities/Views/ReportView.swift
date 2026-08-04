@@ -44,13 +44,22 @@ struct ReportView: View {
                         }
                     }
 
-                    if !model.hasVisibleResults {
-                        Text("Keine Treffer fuer den aktiven Filter. Passe den Suchtext an oder blende Kategorien/Endungen in der Legende wieder ein.")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                    if model.displayBuckets.isEmpty {
+                        if model.isLoadingDetails {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Lade Ordner …").foregroundStyle(.secondary)
+                            }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 24)
+                        } else {
+                            Text("Keine Treffer fuer den aktiven Filter. Passe den Suchtext an oder blende Endungen in der Legende wieder ein.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 24)
+                        }
                     }
                 }
                 .padding(.horizontal, 8)

@@ -40,6 +40,8 @@ final class ReportViewModel {
     /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
     var chartDays: [DayExtensionCount] = []
     var isScanning = false
+    /// Laedt gerade die Detaildateien (Ordnerliste erscheint danach).
+    var isLoadingDetails = false
     var errorMessage: String?
     var scannedFileCount = 0
     /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
@@ -76,6 +78,7 @@ final class ReportViewModel {
     private var detailLoadTask: Task<Void, Never>?
     private var refreshDebounce: Task<Void, Never>?
     private var didInitialScan = false
+    private var preserveOnNextLoad = false
     private let scanner = FileScanner()
     private let store = SettingsStore()
     private let watcher = FolderWatcher()
@@ -105,7 +108,8 @@ final class ReportViewModel {
         } else {
             hiddenExtensions.insert(key)
         }
-        recomputeVisible()
+        recomputeChart()
+        recomputeDisplayBuckets()
     }
 
     /// True, wenn eine Datei ueber ihre Endung (oder als "Sonstige") ausgeblendet ist.
@@ -116,9 +120,13 @@ final class ReportViewModel {
         return false
     }
 
-    /// Ermittelt die Legende (Top-7 + "Sonstige") aus den In-Zeitraum-Dateien und
-    /// berechnet danach die sichtbaren Ableitungen neu.
-    private func recomputeDerived() {
+    /// Zeitraum-Grenze (aelter = nicht mehr relevant).
+    private var cutoff: Date {
+        Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+    }
+
+    /// Legende (Top-7 + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
+    private func recomputeLegend() {
         var extensionCounts: [String: Int] = [:]
         for file in relevantFiles {
             let ext = file.url.pathExtension.lowercased()
@@ -132,15 +140,11 @@ final class ReportViewModel {
         otherCount = relevantFiles.reduce(0) {
             topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
         }
-        recomputeVisible()
     }
 
-    /// Berechnet Ordnerliste (mit neu bestimmtem Datum) und Diagramm aus den
-    /// sichtbaren In-Zeitraum-Dateien.
-    private func recomputeVisible() {
+    /// Diagramm: sichtbare In-Zeitraum-Dateien je Tag nach Typ.
+    private func recomputeChart() {
         let visible = relevantFiles.filter { !isHidden($0.url) }
-        displayBuckets = TimeBucket.group(FolderAggregator.groupByFolder(visible))
-
         let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
         chartDays = FolderAggregator.countFilesPerDayByType(
             visible,
@@ -149,6 +153,15 @@ final class ReportViewModel {
             otherKey: showOther ? Self.otherKey : nil,
             ignored: []
         )
+    }
+
+    /// Ordnerliste aus den DETAILDATEIEN: Datum = juengste sichtbare Datei; ein
+    /// Ordner erscheint nur, wenn dieses Datum im Zeitraum liegt.
+    private func recomputeDisplayBuckets() {
+        let entries = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff) { url in
+            !self.isHidden(url)
+        }
+        displayBuckets = TimeBucket.group(entries)
         pruneSelection()
     }
 
@@ -413,33 +426,28 @@ final class ReportViewModel {
         }
     }
 
-    /// Legende/Diagramm/Ordnerliste (sync) aus ``relevantFiles`` ableiten,
-    /// Anzeige-Status setzen und danach die Detaildateien im Hintergrund laden.
+    /// Legende/Diagramm (sync) aus ``relevantFiles`` ableiten; die Ordnerliste
+    /// folgt nach dem Laden der Detaildateien (dort steckt die Ordner-Datumslogik).
     private func reconcileState(preservingState: Bool) {
-        recomputeDerived()
-        let displayed = Set(displayedFolders())
-
-        if preservingState {
-            expandedFolders = expandedFolders.intersection(displayed)
-            if case .folder(let url) = selection, !displayed.contains(url) {
-                selection = nil
-            }
-        } else {
+        recomputeLegend()
+        recomputeChart()
+        preserveOnNextLoad = preservingState
+        if !preservingState {
             selection = nil
             chartFocus = nil
-            expandedFolders = displayed
         }
-
         loadDetails(for: Set(relevantFiles.map(\.folder)))
     }
 
     /// Laedt die Detaildateien aller relevanten Ordner im Hintergrund und tauscht
-    /// sie in einem Schwung aus (verhindert Flackern). Betrifft nur die Detailzeilen.
+    /// sie in einem Schwung aus; danach wird die Ordnerliste daraus berechnet.
     private func loadDetails(for folders: Set<URL>) {
         detailLoadTask?.cancel()
+        isLoadingDetails = true
 
         if folders.isEmpty {
             filesByFolder = [:]
+            finishDetailLoad()
             return
         }
 
@@ -458,8 +466,24 @@ final class ReportViewModel {
             if Task.isCancelled { return }
             guard let self else { return }
             self.filesByFolder = loaded
-            if let focus = self.chartFocus { self.applyChartFocus(for: focus.folder) }
+            self.finishDetailLoad()
         }
+    }
+
+    /// Nach dem Laden: Ordnerliste berechnen und Aufklapp-/Auswahlzustand setzen.
+    private func finishDetailLoad() {
+        isLoadingDetails = false
+        recomputeDisplayBuckets()
+        let displayed = Set(displayedFolders())
+        if preserveOnNextLoad {
+            expandedFolders = expandedFolders.intersection(displayed)
+            if case .folder(let url) = selection, !displayed.contains(url) {
+                selection = nil
+            }
+        } else {
+            expandedFolders = displayed
+        }
+        if let focus = chartFocus { applyChartFocus(for: focus.folder) }
     }
 
     private func resetResults() {
@@ -472,6 +496,7 @@ final class ReportViewModel {
         selection = nil
         expandedFolders = []
         filesByFolder = [:]
+        isLoadingDetails = false
     }
 
     private struct ScanResult: Sendable {

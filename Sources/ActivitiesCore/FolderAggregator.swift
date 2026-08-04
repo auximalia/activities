@@ -33,6 +33,33 @@ public enum FolderAggregator {
         return entries
     }
 
+    /// Bildet Ordner-Eintraege aus den Detaildateien je Ordner.
+    ///
+    /// Beruecksichtigt werden nur Dateien, die ``isVisible`` erfuellen (Typ-Filter).
+    /// Das **Ordner-Datum** ist die juengste sichtbare Datei; ein Ordner erscheint
+    /// nur, wenn dieses Datum **im Zeitraum** liegt (``timestamp >= cutoff``).
+    /// ``fileCount`` ist die Anzahl sichtbarer Dateien im Ordner (auch aeltere).
+    /// Ergebnis absteigend nach Datum (sekundaer Pfad absteigend).
+    public static func folderEntries(
+        from filesByFolder: [URL: [RelevantFile]],
+        cutoff: Date,
+        isVisible: (URL) -> Bool
+    ) -> [FolderEntry] {
+        var entries: [FolderEntry] = []
+        for (folder, files) in filesByFolder {
+            let visible = files.filter { isVisible($0.url) }
+            guard let newest = visible.map(\.timestamp).max(), newest >= cutoff else { continue }
+            entries.append(FolderEntry(folder: folder, newestDate: newest, fileCount: visible.count))
+        }
+        entries.sort { first, second in
+            if first.newestDate != second.newestDate {
+                return first.newestDate > second.newestDate
+            }
+            return first.folder.path > second.folder.path
+        }
+        return entries
+    }
+
     /// Zaehlt bearbeitete Dateien je Kalendertag, aufgeschluesselt nach Dateityp.
     ///
     /// Der Zeitraum umfasst ``days`` Tage bis einschliesslich ``reference``; Tage

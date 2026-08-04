@@ -211,6 +211,47 @@ do {
     expectEqual(noOther[0].total, 1, "type: ohne Sonstige nur md")
 }
 
+// MARK: - folderEntries (Ordner-Datum = juengste sichtbare Datei, im Zeitraum)
+do {
+    let now = date(2026, 8, 4)
+    let cutoff30 = calendar.date(byAdding: .day, value: -30, to: now)!   // ~05.07.
+    let cutoff90 = calendar.date(byAdding: .day, value: -90, to: now)!   // ~06.05.
+    let a = URL(fileURLWithPath: "/docs/A", isDirectory: true)
+    let b = URL(fileURLWithPath: "/docs/B", isDirectory: true)
+    let filesByFolder: [URL: [RelevantFile]] = [
+        a: [
+            RelevantFile(url: a.appendingPathComponent("new.xmind"), folder: a, timestamp: date(2026, 8, 1)),
+            RelevantFile(url: a.appendingPathComponent("old.py"), folder: a, timestamp: date(2026, 5, 28)),
+        ],
+        b: [
+            RelevantFile(url: b.appendingPathComponent("x.xmind"), folder: b, timestamp: date(2026, 7, 20)),
+        ],
+    ]
+
+    // Ohne Filter: A = 01.08 (neuer), B = 20.07.
+    let e1 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff30) { _ in true }
+    expectEqual(e1.count, 2, "folderEntries: zwei Ordner")
+    expectEqual(e1[0].folder, a, "folderEntries: A zuerst")
+    expectEqual(e1[0].newestDate, date(2026, 8, 1), "folderEntries: A-Datum 01.08")
+    expectEqual(e1[0].fileCount, 2, "folderEntries: A zaehlt alle sichtbaren")
+
+    // 30 Tage, .xmind ausgeblendet: A-Restdatei (28.05) faellt aus dem Fenster,
+    // B hat nur .xmind -> beide verschwinden.
+    let e2 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff30) {
+        $0.pathExtension.lowercased() != "xmind"
+    }
+    expect(e2.isEmpty, "folderEntries(30d): xmind aus -> leer")
+
+    // 90 Tage, .xmind ausgeblendet: A wird auf 28.05 (.py) neu datiert und bleibt.
+    let e3 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff90) {
+        $0.pathExtension.lowercased() != "xmind"
+    }
+    expectEqual(e3.count, 1, "folderEntries(90d): nur A bleibt")
+    expectEqual(e3[0].folder, a, "folderEntries(90d): A")
+    expectEqual(e3[0].newestDate, date(2026, 5, 28), "folderEntries(90d): A neu datiert 28.05")
+    expectEqual(e3[0].fileCount, 1, "folderEntries(90d): A zaehlt nur sichtbare (.py)")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

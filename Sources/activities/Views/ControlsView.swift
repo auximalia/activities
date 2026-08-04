@@ -135,12 +135,17 @@ struct ControlsView: View {
                 Text("designed by matthias.riedel.dresden")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Text(BuildInfo.short)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .help(BuildInfo.details)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
+            .layoutPriority(-1)
         }
         .padding(10)
         .onChange(of: model.days) { _, _ in model.rescan() }

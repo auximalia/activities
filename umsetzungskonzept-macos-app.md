@@ -28,9 +28,11 @@ Datei öffnet sie mit der Standard-App.
 ## 1. Glossar
 
 - **Wurzelordner (root):** vom Nutzer gewählter Ordner, der rekursiv durchsucht wird. Standard: Dokumente-Ordner.
-- **Zeitraum (days):** Anzahl Tage rückwärts ab jetzt. `cutoff = jetzt − days` (Tagesgenau).
+- **Zeitfenster:** ein Intervall `[start, end)` (start inklusiv, end exklusiv). Es entsteht aus einem von **zwei Modi**:
+  - **Rollierend (Tage):** `start = jetzt − days`, `end = ∞` (keine obere Grenze) → letzte `days` Kalendertage.
+  - **Zeitspanne (von–bis):** `start = Tagesbeginn(von)`, `end = Tagesbeginn(bis) + 1 Tag` (**„bis" schließt den ganzen Tag ein**), `bis` ≤ heute, `von` ≤ `bis`.
 - **Effektiver Zeitstempel einer Datei:** `max(Erstelldatum, Änderungsdatum)`.
-- **Relevante Datei (in-window):** reguläre, nicht ausgeschlossene, nicht versteckte Datei im Wurzelbaum, deren Name dem Namensfilter entspricht und deren effektiver Zeitstempel `>= cutoff` ist.
+- **Relevante Datei (im Fenster):** reguläre, nicht ausgeschlossene, nicht versteckte Datei im Wurzelbaum, deren Name dem Namensfilter entspricht und deren effektiver Zeitstempel im Zeitfenster `[start, end)` liegt.
 - **Detaildatei:** reguläre, nicht ausgeschlossene, nicht versteckte Datei **direkt** in einem Ordner, die dem Namensfilter entspricht – **ohne** Zeitraumgrenze (also inkl. älterer Dateien).
 - **Typ-Filter:** in der Legende aus-/einblendbare Dateiendungen (inkl. Sammel-Eintrag „Sonstige").
 - **Sichtbar:** eine Datei ist sichtbar, wenn sie nicht durch den Typ-Filter ausgeblendet ist.
@@ -55,9 +57,9 @@ Rekursiver Tiefendurchlauf des Wurzelbaums, `topdown`:
 - **Versteckte Objekte überspringen** (Namen mit führendem Punkt bzw. OS-Attribut „versteckt").
 - **Ausgeschlossene Ordner nicht betreten** (Pruning, siehe 3.4).
 - **Symlinks nicht verfolgen** (Schutz gegen Schleifen).
-- Nur **reguläre Dateien** auswerten; **ausgeschlossene Dateien** (3.4) überspringen.
+- Nur reguläre Dateien; **ausgeschlossene Dateien** (3.4) überspringen.
 - **Namensfilter** anwenden (3.5).
-- Nur behalten, wenn `effektiverZeitstempel >= cutoff`.
+- Nur behalten, wenn der effektive Zeitstempel im **Zeitfenster** `[start, end)` liegt (`start <= ts < end`).
 - Nicht lesbare Einträge überspringen und protokollieren (kein Abbruch).
 - Ergebnis: Liste `relevantFiles` mit `folder = direktes Elternverzeichnis`.
 
@@ -95,9 +97,9 @@ nicht ein Datum im Dateinamen.
 ### 3.7 Ordner-Zugehörigkeit & -Datum (Kernregel – mehrfach nachspezifiziert)
 Aus den **Detaildateien** je Ordner (nicht aus den relevanten Dateien!):
 1. Wende den Typ-Filter an → **sichtbare** Detaildateien des Ordners.
-2. **Ordner-Datum** = jüngster Zeitstempel der sichtbaren Detaildateien.
-3. **Ordner wird angezeigt**, genau dann wenn dieses Datum **>= cutoff** (im Zeitraum) liegt.
-4. **`fileCount`** = Anzahl sichtbarer Detaildateien (auch ältere; entspricht den gezeigten Zeilen).
+2. **Ordner-Datum** = jüngster Zeitstempel der sichtbaren Detaildateien **im Zeitfenster** `[start, end)`.
+3. **Ordner wird angezeigt**, genau dann wenn es eine sichtbare Detaildatei im Zeitfenster gibt (d. h. Ordner-Datum existiert).
+4. **`fileCount`** = Anzahl sichtbarer Detaildateien (auch außerhalb des Fensters; entspricht den gezeigten Zeilen).
 
 Folge (gefordertes Verhalten): Blendet der Typ-Filter die datumstiftende Datei
 aus, **rückt das Ordner-Datum auf die nächstjüngere sichtbare Datei**; liegt keine
@@ -120,7 +122,7 @@ Ordner werden nach Datum **absteigend** sortiert (sekundär Pfad absteigend), da
 in **aufeinanderfolgende** Abschnitte gruppiert. Jeder Abschnitt zeigt seine Anzahl.
 
 ### 3.9 Diagramm (gestapelte Balken je Tag)
-- Zeitachse: die letzten `days` Tage bis heute, **lückenlos** (Tage ohne Dateien = leer).
+- Zeitachse: alle Kalendertage des Zeitfensters, **lückenlos** (rollierend: die letzten `days` Tage bis heute; Zeitspanne: von…bis). Tage ohne Dateien = leer.
 - Datenbasis: **sichtbare relevante Dateien** (relevantFiles minus `isHidden`).
 - Je Tag gestapelt nach **Endung**: die Top-7-Endungen einzeln, alle übrigen unter **„Sonstige"** (falls sichtbar). Ausgeblendete Endungen erzeugen keine Segmente.
 - **Wochenenden** hell hinterlegt. **X-Achse:** nur **Montag und Freitag** beschriftet (bei ≤ 8 Tagen jeder Tag), Beschriftung = Wochentagskürzel + `TT.MM.`.
@@ -151,7 +153,9 @@ Ein Fenster, drei Bereiche: **Steuerleiste** (oben), **Inhalt** (Diagramm + List
 
 ### 4.1 Steuerleiste
 - **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).
-- **Zeitraum-Presets** als Segmented Control: **7 / 30 / 90**. Zusätzlich **Stepper** (1…3650 Tage). Änderung ⇒ Rescan.
+- **Zeitmodus-Umschalter** (Segmented): **„Tage" | „Zeitspanne"**.
+  - **Tage:** Presets **7 / 30 / 90** (Segmented) + **Stepper** (1…3650). Änderung ⇒ Rescan.
+  - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum). Reihenfolge wird über die Picker-Grenzen erzwungen (von `in: …bis`, bis `in: von…heute`), „bis" ist auf **heute** begrenzt. Änderung ⇒ Rescan.
 - **Namensfilter-Textfeld** (Enter = Rescan).
 - **„Aktualisieren"** (Rescan), Tastenkürzel **⌘R**.
 - **Toggle „alles auf-/zuklappen"** (Standard: alle Ordner aufgeklappt).
@@ -219,8 +223,9 @@ soweit noch gültig).
 
 ### 5.4 Persistenz (Einstellungen)
 Gespeichert werden: Wurzelordner (Pfad), Tage, Namensfilter, Auto-Refresh,
-zuletzt genutzte Ordner (max. 8). Ablage in den plattformüblichen Nutzer-
-einstellungen. Standard-Wurzelordner: Dokumente-Ordner; Standard-Tage: 30.
+**Zeitmodus (Tage/Zeitspanne) und die custom von/bis-Daten**, zuletzt genutzte
+Ordner (max. 8). Ablage in den plattformüblichen Nutzereinstellungen.
+Standard-Wurzelordner: Dokumente-Ordner; Standard: Tage-Modus mit 30 Tagen.
 
 ---
 

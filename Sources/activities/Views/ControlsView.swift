@@ -15,21 +15,52 @@ struct ControlsView: View {
             Divider().frame(height: 18)
 
             Picker("", selection: Binding(
-                get: { model.days },
-                set: { model.days = $0 }
+                get: { model.useDateRange },
+                set: { model.setUseDateRange($0) }
             )) {
-                Text("7").tag(7)
-                Text("30").tag(30)
-                Text("90").tag(90)
+                Text("Tage").tag(false)
+                Text("Zeitspanne").tag(true)
             }
             .pickerStyle(.segmented)
             .fixedSize()
-            .help("Zeitraum in Tagen")
+            .help("Zeitraum als rollierende Tage oder feste Zeitspanne (von–bis)")
 
-            Stepper(value: $model.days, in: 1...3650) {
-                Text("\(model.days) Tage").monospacedDigit()
+            if model.useDateRange {
+                DatePicker("", selection: Binding(
+                    get: { model.rangeStart },
+                    set: { model.setRangeStart($0) }
+                ), in: ...model.rangeEnd, displayedComponents: .date)
+                .datePickerStyle(.field)
+                .labelsHidden()
+                .help("Von (inklusive)")
+
+                Text("–").foregroundStyle(.secondary)
+
+                DatePicker("", selection: Binding(
+                    get: { model.rangeEnd },
+                    set: { model.setRangeEnd($0) }
+                ), in: model.rangeStart...Date(), displayedComponents: .date)
+                .datePickerStyle(.field)
+                .labelsHidden()
+                .help("Bis (inklusive ganzem Tag, max. heute)")
+            } else {
+                Picker("", selection: Binding(
+                    get: { model.days },
+                    set: { model.days = $0 }
+                )) {
+                    Text("7").tag(7)
+                    Text("30").tag(30)
+                    Text("90").tag(90)
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+                .help("Zeitraum in Tagen")
+
+                Stepper(value: $model.days, in: 1...3650) {
+                    Text("\(model.days) Tage").monospacedDigit()
+                }
+                .fixedSize()
             }
-            .fixedSize()
 
             TextField("Filter, z. B. *Studium*.xls*", text: $model.namePattern)
                 .textFieldStyle(.roundedBorder)

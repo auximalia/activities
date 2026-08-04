@@ -36,19 +36,22 @@ public enum FolderAggregator {
     /// Bildet Ordner-Eintraege aus den Detaildateien je Ordner.
     ///
     /// Beruecksichtigt werden nur Dateien, die ``isVisible`` erfuellen (Typ-Filter).
-    /// Das **Ordner-Datum** ist die juengste sichtbare Datei; ein Ordner erscheint
-    /// nur, wenn dieses Datum **im Zeitraum** liegt (``timestamp >= cutoff``).
-    /// ``fileCount`` ist die Anzahl sichtbarer Dateien im Ordner (auch aeltere).
-    /// Ergebnis absteigend nach Datum (sekundaer Pfad absteigend).
+    /// Das **Ordner-Datum** ist die juengste sichtbare Datei **im Intervall**
+    /// ``[start, end)``; ein Ordner erscheint nur, wenn es eine solche Datei gibt.
+    /// ``fileCount`` ist die Anzahl **sichtbarer** Dateien im Ordner (auch ausserhalb
+    /// des Intervalls – entspricht den gezeigten Detailzeilen). Ergebnis absteigend
+    /// nach Datum (sekundaer Pfad absteigend).
     public static func folderEntries(
         from filesByFolder: [URL: [RelevantFile]],
-        cutoff: Date,
+        start: Date,
+        end: Date,
         isVisible: (URL) -> Bool
     ) -> [FolderEntry] {
         var entries: [FolderEntry] = []
         for (folder, files) in filesByFolder {
             let visible = files.filter { isVisible($0.url) }
-            guard let newest = visible.map(\.timestamp).max(), newest >= cutoff else { continue }
+            let inRange = visible.filter { $0.timestamp >= start && $0.timestamp < end }
+            guard let newest = inRange.map(\.timestamp).max() else { continue }
             entries.append(FolderEntry(folder: folder, newestDate: newest, fileCount: visible.count))
         }
         entries.sort { first, second in
@@ -131,23 +134,22 @@ public enum FolderAggregator {
 
     /// Zaehlt je Tag, aufgeschluesselt nach Dateityp – mit optionalem Sammel-Eintrag.
     ///
+    /// Das Tagesfenster ist ``[startDay, endDay]`` (beide Tagesbeginn, inklusive).
     /// - ``individual``: Endungen, die einzeln unter ihrem Schluessel gezaehlt werden.
     /// - ``otherKey``: Sammelschluessel fuer alle uebrigen Dateien (``nil`` = ignorieren).
     /// - ``ignored``: Endungen, die komplett weggelassen werden (z. B. ausgeblendete).
     public static func countFilesPerDayByType(
         _ files: [RelevantFile],
-        days: Int,
+        startDay: Date,
+        endDay: Date,
         individual: Set<String>,
         otherKey: String?,
         ignored: Set<String> = [],
-        reference: Date = Date(),
         calendar: Calendar = .current
     ) -> [DayExtensionCount] {
-        guard days > 0 else { return [] }
-        let endDay = calendar.startOfDay(for: reference)
-        guard let startDay = calendar.date(byAdding: .day, value: -(days - 1), to: endDay) else {
-            return []
-        }
+        let start = calendar.startOfDay(for: startDay)
+        let end = calendar.startOfDay(for: endDay)
+        guard start <= end else { return [] }
 
         var counts: [Date: [String: Int]] = [:]
         for file in files {
@@ -162,15 +164,17 @@ public enum FolderAggregator {
                 continue
             }
             let day = calendar.startOfDay(for: file.timestamp)
-            if day >= startDay && day <= endDay {
+            if day >= start && day <= end {
                 counts[day, default: [:]][key, default: 0] += 1
             }
         }
 
         var result: [DayExtensionCount] = []
-        for offset in 0..<days {
-            guard let day = calendar.date(byAdding: .day, value: offset, to: startDay) else { continue }
+        var day = start
+        while day <= end {
             result.append(DayExtensionCount(day: day, counts: counts[day] ?? [:]))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
         }
         return result
     }

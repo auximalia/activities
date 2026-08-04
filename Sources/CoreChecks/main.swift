@@ -123,7 +123,8 @@ do {
     makeFile("uni/Urlaub.xlsx")
     makeFile("alt/veraltet.txt", modified: Date().addingTimeInterval(-60 * 60 * 24 * 40))
 
-    let all = scanner.scan(settings: ScanSettings(rootURL: root, days: 30, namePattern: ""))
+    let scanStart = Date().addingTimeInterval(-60 * 60 * 24 * 30)
+    let all = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart, end: .distantFuture, namePattern: ""))
     let allNames = names(all)
     expect(allNames.contains("gut.txt"), "findet regulaere Datei")
     expect(allNames.contains("main.py"), "findet Datei in code")
@@ -134,7 +135,7 @@ do {
     expect(!allNames.contains("config"), ".git geprunt")
     expect(!allNames.contains("veraltet.txt"), "alte Datei ausserhalb Zeitraum")
 
-    let filtered = scanner.scan(settings: ScanSettings(rootURL: root, days: 30, namePattern: "*Studium*.xls*"))
+    let filtered = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart, end: .distantFuture, namePattern: "*Studium*.xls*"))
     expectEqual(names(filtered), ["Studium Noten.xlsx"], "Namensfilter im Scan")
 
     let folder = root.appendingPathComponent("uni")
@@ -195,8 +196,9 @@ do {
         RelevantFile(url: folder.appendingPathComponent("c.png"), folder: folder, timestamp: date(2026, 8, 3)), // -> other
         RelevantFile(url: folder.appendingPathComponent("d.zip"), folder: folder, timestamp: date(2026, 8, 3)), // ignored
     ]
+    let dayStart = calendar.startOfDay(for: ref)
     let days = FolderAggregator.countFilesPerDayByType(
-        files, days: 1, individual: ["md", "pdf"], otherKey: "__other__", ignored: ["zip"], reference: ref, calendar: calendar
+        files, startDay: dayStart, endDay: dayStart, individual: ["md", "pdf"], otherKey: "__other__", ignored: ["zip"], calendar: calendar
     )
     expectEqual(days.count, 1, "type: ein Tag")
     expectEqual(days[0].counts["md"] ?? 0, 1, "type: md einzeln")
@@ -206,7 +208,7 @@ do {
 
     // Ohne otherKey werden uebrige Dateien verworfen.
     let noOther = FolderAggregator.countFilesPerDayByType(
-        files, days: 1, individual: ["md"], otherKey: nil, ignored: [], reference: ref, calendar: calendar
+        files, startDay: dayStart, endDay: dayStart, individual: ["md"], otherKey: nil, ignored: [], calendar: calendar
     )
     expectEqual(noOther[0].total, 1, "type: ohne Sonstige nur md")
 }
@@ -229,7 +231,7 @@ do {
     ]
 
     // Ohne Filter: A = 01.08 (neuer), B = 20.07.
-    let e1 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff30) { _ in true }
+    let e1 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff30, end: .distantFuture) { _ in true }
     expectEqual(e1.count, 2, "folderEntries: zwei Ordner")
     expectEqual(e1[0].folder, a, "folderEntries: A zuerst")
     expectEqual(e1[0].newestDate, date(2026, 8, 1), "folderEntries: A-Datum 01.08")
@@ -237,19 +239,39 @@ do {
 
     // 30 Tage, .xmind ausgeblendet: A-Restdatei (28.05) faellt aus dem Fenster,
     // B hat nur .xmind -> beide verschwinden.
-    let e2 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff30) {
+    let e2 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff30, end: .distantFuture) {
         $0.pathExtension.lowercased() != "xmind"
     }
     expect(e2.isEmpty, "folderEntries(30d): xmind aus -> leer")
 
     // 90 Tage, .xmind ausgeblendet: A wird auf 28.05 (.py) neu datiert und bleibt.
-    let e3 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff90) {
+    let e3 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff90, end: .distantFuture) {
         $0.pathExtension.lowercased() != "xmind"
     }
     expectEqual(e3.count, 1, "folderEntries(90d): nur A bleibt")
     expectEqual(e3[0].folder, a, "folderEntries(90d): A")
     expectEqual(e3[0].newestDate, date(2026, 5, 28), "folderEntries(90d): A neu datiert 28.05")
     expectEqual(e3[0].fileCount, 1, "folderEntries(90d): A zaehlt nur sichtbare (.py)")
+
+    // Feste Zeitspanne mit OBERER Grenze: Dateien nach `end` stiften kein Datum.
+    let c = URL(fileURLWithPath: "/docs/C", isDirectory: true)
+    let d = URL(fileURLWithPath: "/docs/D", isDirectory: true)
+    let ranged: [URL: [RelevantFile]] = [
+        c: [
+            RelevantFile(url: c.appendingPathComponent("early.txt"), folder: c, timestamp: date(2026, 6, 1)),
+            RelevantFile(url: c.appendingPathComponent("late.txt"), folder: c, timestamp: date(2026, 6, 20)),
+        ],
+        d: [
+            RelevantFile(url: d.appendingPathComponent("x.txt"), folder: d, timestamp: date(2026, 6, 20)),
+        ],
+    ]
+    let start = date(2026, 6, 1)
+    let end = date(2026, 6, 18) // exklusiv -> 17.06. inklusive
+    let r = FolderAggregator.folderEntries(from: ranged, start: start, end: end) { _ in true }
+    expectEqual(r.count, 1, "range: nur C liegt in der Spanne")
+    expectEqual(r[0].folder, c, "range: C")
+    expectEqual(r[0].newestDate, date(2026, 6, 1), "range: Datum = juengste IN-Spanne (01.06, nicht 20.06)")
+    expectEqual(r[0].fileCount, 2, "range: zaehlt alle sichtbaren (2)")
 }
 
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")

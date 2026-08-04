@@ -27,7 +27,8 @@ final class FileScannerTests: XCTestCase {
     }
 
     private func settings(days: Int = 30, pattern: String = "") -> ScanSettings {
-        ScanSettings(rootURL: root, days: days, namePattern: pattern)
+        let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        return ScanSettings(rootURL: root, start: start, end: .distantFuture, namePattern: pattern)
     }
 
     private func names(_ files: [RelevantFile]) -> Set<String> {

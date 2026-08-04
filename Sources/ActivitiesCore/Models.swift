@@ -1,14 +1,20 @@
 import Foundation
 
 /// Vollstaendig aufgeloeste Einstellungen fuer einen Suchlauf.
+///
+/// Zeitfenster als halboffenes Intervall ``[start, end)`` (``end`` exklusiv).
+/// Fuer den rollierenden Modus ist ``end`` = ``Date.distantFuture`` (keine obere
+/// Grenze); fuer eine feste Zeitspanne ist ``end`` = Tagesbeginn(bis) + 1 Tag.
 public struct ScanSettings: Equatable, Sendable {
     public var rootURL: URL
-    public var days: Int
+    public var start: Date
+    public var end: Date
     public var namePattern: String
 
-    public init(rootURL: URL, days: Int, namePattern: String) {
+    public init(rootURL: URL, start: Date, end: Date, namePattern: String) {
         self.rootURL = rootURL
-        self.days = days
+        self.start = start
+        self.end = end
         self.namePattern = namePattern
     }
 }

@@ -1,11 +1,14 @@
 import Foundation
 
-/// Zuletzt genutzte Einstellungen (Ordner, Tage, Filter, Auto-Refresh).
+/// Zuletzt genutzte Einstellungen (Ordner, Tage, Filter, Auto-Refresh, Zeitspanne).
 struct StoredSettings {
     var rootURL: URL
     var days: Int
     var namePattern: String
     var autoRefresh: Bool
+    var useDateRange: Bool
+    var rangeStart: Date
+    var rangeEnd: Date
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -20,6 +23,9 @@ final class SettingsStore {
     private let patternKey = "namePattern"
     private let autoRefreshKey = "autoRefresh"
     private let recentKey = "recentFolders"
+    private let useRangeKey = "useDateRange"
+    private let rangeStartKey = "rangeStart"
+    private let rangeEndKey = "rangeEnd"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -30,6 +36,13 @@ final class SettingsStore {
         let days = defaults.object(forKey: daysKey) as? Int ?? 30
         let pattern = defaults.string(forKey: patternKey) ?? ""
         let autoRefresh = defaults.object(forKey: autoRefreshKey) as? Bool ?? true
+        let useDateRange = defaults.object(forKey: useRangeKey) as? Bool ?? false
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let defaultStart = calendar.date(byAdding: .day, value: -30, to: today) ?? today
+        let rangeStart = (defaults.object(forKey: rangeStartKey) as? Double).map { Date(timeIntervalSince1970: $0) } ?? defaultStart
+        let rangeEnd = (defaults.object(forKey: rangeEndKey) as? Double).map { Date(timeIntervalSince1970: $0) } ?? today
 
         let root: URL
         if let path = defaults.string(forKey: rootPathKey),
@@ -38,12 +51,23 @@ final class SettingsStore {
         } else {
             root = Self.defaultDocumentsDirectory()
         }
-        return StoredSettings(rootURL: root, days: days, namePattern: pattern, autoRefresh: autoRefresh)
+        return StoredSettings(
+            rootURL: root, days: days, namePattern: pattern, autoRefresh: autoRefresh,
+            useDateRange: useDateRange,
+            rangeStart: calendar.startOfDay(for: rangeStart),
+            rangeEnd: calendar.startOfDay(for: rangeEnd)
+        )
     }
 
     func save(days: Int, namePattern: String) {
         defaults.set(days, forKey: daysKey)
         defaults.set(namePattern, forKey: patternKey)
+    }
+
+    func saveTimeMode(useDateRange: Bool, start: Date, end: Date) {
+        defaults.set(useDateRange, forKey: useRangeKey)
+        defaults.set(start.timeIntervalSince1970, forKey: rangeStartKey)
+        defaults.set(end.timeIntervalSince1970, forKey: rangeEndKey)
     }
 
     func saveRoot(_ url: URL) {

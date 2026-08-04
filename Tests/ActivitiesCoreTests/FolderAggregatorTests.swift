@@ -26,17 +26,17 @@ final class FolderAggregatorTests: XCTestCase {
             ],
         ]
 
-        let all = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff30) { _ in true }
+        let all = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff30, end: .distantFuture) { _ in true }
         XCTAssertEqual(all.count, 2)
         XCTAssertEqual(all.first?.folder, a)
         XCTAssertEqual(all.first?.newestDate, date(2026, 8, 1))
 
         // 30 Tage, xmind aus: A-Rest (28.05) ausserhalb, B nur xmind -> leer.
-        let d30 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff30) { $0.pathExtension != "xmind" }
+        let d30 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff30, end: .distantFuture) { $0.pathExtension != "xmind" }
         XCTAssertTrue(d30.isEmpty)
 
         // 90 Tage, xmind aus: A wird auf 28.05 neu datiert und bleibt.
-        let d90 = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff90) { $0.pathExtension != "xmind" }
+        let d90 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff90, end: .distantFuture) { $0.pathExtension != "xmind" }
         XCTAssertEqual(d90.count, 1)
         XCTAssertEqual(d90.first?.folder, a)
         XCTAssertEqual(d90.first?.newestDate, date(2026, 5, 28))

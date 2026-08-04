@@ -15,6 +15,15 @@ struct ExtensionCount: Identifiable, Equatable {
     let count: Int
 }
 
+/// Aufgeloestes Zeitfenster: Instant-Intervall ``[start, end)`` plus die
+/// Kalendertage ``chartStartDay…chartEndDay`` fuer die Diagramm-Achse.
+private struct TimeWindow {
+    let start: Date        // inklusiv
+    let end: Date          // exklusiv
+    let chartStartDay: Date
+    let chartEndDay: Date
+}
+
 /// Zustands- und Ablaufsteuerung der Oberflaeche.
 ///
 /// Einzige Wahrheit sind die **In-Zeitraum-Dateien** (``relevantFiles``). Der
@@ -33,6 +42,11 @@ final class ReportViewModel {
     var rootURL: URL
     var days: Int
     var namePattern: String
+    /// Zeitmodus: false = rollierend (Tage), true = feste Zeitspanne (von–bis).
+    var useDateRange: Bool
+    /// Feste Zeitspanne (nur bei ``useDateRange``); auf Tagesbeginn normalisiert.
+    var rangeStart: Date
+    var rangeEnd: Date
 
     // Ergebnisse und Status.
     /// Anzuzeigende Ordner (nach Zeitraum + Typ-Filter, ohne leere Ordner).
@@ -90,6 +104,49 @@ final class ReportViewModel {
         self.namePattern = saved.namePattern
         self.autoRefresh = saved.autoRefresh
         self.recentFolders = store.loadRecentFolders()
+        self.useDateRange = saved.useDateRange
+        self.rangeStart = saved.rangeStart
+        self.rangeEnd = saved.rangeEnd
+    }
+
+    /// Aufgeloestes Zeitfenster aus Modus + (Tage | Zeitspanne).
+    private var window: TimeWindow {
+        let calendar = Calendar.current
+        let now = Date()
+        if useDateRange {
+            let startDay = calendar.startOfDay(for: rangeStart)
+            let endDay = calendar.startOfDay(for: rangeEnd)
+            let end = calendar.date(byAdding: .day, value: 1, to: endDay) ?? endDay
+            return TimeWindow(start: startDay, end: end, chartStartDay: startDay, chartEndDay: endDay)
+        } else {
+            let start = calendar.date(byAdding: .day, value: -days, to: now) ?? now
+            let endDay = calendar.startOfDay(for: now)
+            let startDay = calendar.date(byAdding: .day, value: -(days - 1), to: endDay) ?? endDay
+            return TimeWindow(start: start, end: .distantFuture, chartStartDay: startDay, chartEndDay: endDay)
+        }
+    }
+
+    // MARK: - Zeitmodus (Tage / Zeitspanne)
+
+    func setUseDateRange(_ on: Bool) {
+        useDateRange = on
+        store.saveTimeMode(useDateRange: on, start: rangeStart, end: rangeEnd)
+        rescan()
+    }
+
+    func setRangeStart(_ date: Date) {
+        let day = Calendar.current.startOfDay(for: date)
+        rangeStart = min(day, rangeEnd)
+        store.saveTimeMode(useDateRange: useDateRange, start: rangeStart, end: rangeEnd)
+        rescan()
+    }
+
+    func setRangeEnd(_ date: Date) {
+        let today = Calendar.current.startOfDay(for: Date())
+        let day = Calendar.current.startOfDay(for: date)
+        rangeEnd = min(max(day, rangeStart), today)
+        store.saveTimeMode(useDateRange: useDateRange, start: rangeStart, end: rangeEnd)
+        rescan()
     }
 
     // MARK: - Abgeleitete Statusflags
@@ -120,11 +177,6 @@ final class ReportViewModel {
         return false
     }
 
-    /// Zeitraum-Grenze (aelter = nicht mehr relevant).
-    private var cutoff: Date {
-        Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-    }
-
     /// Legende (Top-7 + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
     private func recomputeLegend() {
         var extensionCounts: [String: Int] = [:]
@@ -144,21 +196,24 @@ final class ReportViewModel {
 
     /// Diagramm: sichtbare In-Zeitraum-Dateien je Tag nach Typ.
     private func recomputeChart() {
+        let w = window
         let visible = relevantFiles.filter { !isHidden($0.url) }
         let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
         chartDays = FolderAggregator.countFilesPerDayByType(
             visible,
-            days: days,
+            startDay: w.chartStartDay,
+            endDay: w.chartEndDay,
             individual: topExtensionSet,
             otherKey: showOther ? Self.otherKey : nil,
             ignored: []
         )
     }
 
-    /// Ordnerliste aus den DETAILDATEIEN: Datum = juengste sichtbare Datei; ein
-    /// Ordner erscheint nur, wenn dieses Datum im Zeitraum liegt.
+    /// Ordnerliste aus den DETAILDATEIEN: Datum = juengste sichtbare Datei im
+    /// Zeitfenster; ein Ordner erscheint nur, wenn es eine solche Datei gibt.
     private func recomputeDisplayBuckets() {
-        let entries = FolderAggregator.folderEntries(from: filesByFolder, cutoff: cutoff) { url in
+        let w = window
+        let entries = FolderAggregator.folderEntries(from: filesByFolder, start: w.start, end: w.end) { url in
             !self.isHidden(url)
         }
         displayBuckets = TimeBucket.group(entries)
@@ -278,9 +333,11 @@ final class ReportViewModel {
         return files.filter { !isHidden($0.url) }
     }
 
-    /// Datum, das der Ordner "erhält" = juengste sichtbare Datei (live, filterabhaengig).
+    /// Datum, das der Ordner "erhält" = juengste sichtbare Datei **im Zeitfenster**.
     func newestVisibleDate(in folder: URL) -> Date? {
-        visibleFiles(in: folder)?.map(\.timestamp).max()
+        guard let files = visibleFiles(in: folder) else { return nil }
+        let w = window
+        return files.filter { $0.timestamp >= w.start && $0.timestamp < w.end }.map(\.timestamp).max()
     }
 
     /// Anzahl sichtbarer Dateien im Ordner (live, filterabhaengig).
@@ -443,13 +500,22 @@ final class ReportViewModel {
     func rescan(preservingState: Bool = false) {
         scanTask?.cancel()
 
-        guard days > 0 else {
-            errorMessage = "Der Zeitraum muss groesser als 0 Tage sein."
-            resetResults()
-            return
+        let w = window
+        if useDateRange {
+            guard w.chartStartDay <= w.chartEndDay else {
+                errorMessage = "Das Anfangsdatum muss vor dem Enddatum liegen."
+                resetResults()
+                return
+            }
+        } else {
+            guard days > 0 else {
+                errorMessage = "Der Zeitraum muss groesser als 0 Tage sein."
+                resetResults()
+                return
+            }
         }
 
-        let settings = ScanSettings(rootURL: rootURL, days: days, namePattern: namePattern)
+        let settings = ScanSettings(rootURL: rootURL, start: w.start, end: w.end, namePattern: namePattern)
         store.save(days: days, namePattern: namePattern)
         errorMessage = nil
         isScanning = true

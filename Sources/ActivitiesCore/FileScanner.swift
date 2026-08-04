@@ -22,19 +22,18 @@ public struct FileScanner: Sendable {
         return max(created, modified)
     }
 
-    /// Liefert alle Dateien im Wurzelbaum, deren Datum im Zeitraum liegt.
+    /// Liefert alle Dateien im Wurzelbaum, deren Datum im Intervall ``[start, end)`` liegt.
     ///
     /// - Parameters:
-    ///   - settings: Wurzelordner, Zeitraum (Tage) und Namensmuster.
-    ///   - now: Bezugszeitpunkt fuer die Zeitraumgrenze (Standard: jetzt).
+    ///   - settings: Wurzelordner, Zeitfenster (start inklusiv, end exklusiv) und Namensmuster.
     ///   - shouldCancel: Wird regelmaessig geprueft; liefert ``true``, bricht der Scan ab.
     public func scan(
         settings: ScanSettings,
-        now: Date = Date(),
         shouldCancel: () -> Bool = { false }
     ) -> [RelevantFile] {
         let filter = NameFilter(settings.namePattern)
-        let cutoff = Calendar.current.date(byAdding: .day, value: -settings.days, to: now) ?? now
+        let start = settings.start
+        let end = settings.end
 
         let keys: Set<URLResourceKey> = [
             .creationDateKey, .contentModificationDateKey, .isDirectoryKey,
@@ -82,7 +81,7 @@ public struct FileScanner: Sendable {
                 creation: values.creationDate,
                 modification: values.contentModificationDate
             )
-            if timestamp >= cutoff {
+            if timestamp >= start && timestamp < end {
                 results.append(
                     RelevantFile(
                         url: fileURL,

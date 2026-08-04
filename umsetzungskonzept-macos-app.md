@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.16)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.17)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -86,13 +86,13 @@ nicht ein Datum im Dateinamen.
 - Beispiel: `*Studium*.xls*` findet `Studium Noten.xls`/`Mein Studium.xlsx`.
 - Der Namensfilter wirkt **sowohl** auf den Scan (relevante Dateien) **als auch** auf die Detailliste.
 
-### 3.6 Typ-Filter & Legende (Top-7 + „Sonstige")
+### 3.6 Typ-Filter & Legende (Top-10 + „Sonstige")
 - **Legenden-Grundmenge** = die Endungen, die in den **relevanten Dateien** (In-Zeitraum) vorkommen. → Es gibt **keine** Legenden-Einträge für Typen, die nur in älteren (out-of-window) Dateien vorkommen (sie hätten kein Balkensegment).
-- Berechne Häufigkeit je Endung über `relevantFiles`. Zeige die **7 häufigsten** Endungen als Legenden-Chips (Endung + Icon + Anzahl). Sortierung: Anzahl absteigend, bei Gleichstand Endung alphabetisch.
-- Gibt es **mehr als 7** Endungen, werden alle übrigen In-Zeitraum-Dateien unter einem neutralen **„Sonstige"**-Chip (grau) zusammengefasst; `otherCount` = Anzahl relevanter Dateien, deren Endung nicht in den Top-7 ist. Bei ≤7 Endungen: kein „Sonstige".
+- Berechne Häufigkeit je Endung über `relevantFiles`. Zeige die **10 häufigsten** Endungen als Legenden-Chips (Endung + Icon + Anzahl). Sortierung: Anzahl absteigend, bei Gleichstand Endung alphabetisch. (Grenze zentral in `ReportViewModel.legendTopCount`.)
+- Gibt es **mehr als 10** Endungen, werden alle übrigen In-Zeitraum-Dateien unter einem neutralen **„Sonstige"**-Chip (grau) zusammengefasst; `otherCount` = Anzahl relevanter Dateien, deren Endung nicht in den Top-10 ist. Bei ≤10 Endungen: kein „Sonstige".
 - Jeder Chip ist **an-/ausblendbar** (Einfachklick = Toggle). Ausgeblendete Chips bleiben sichtbar, aber abgeblendet + durchgestrichen (damit wieder aktivierbar).
 - **Doppelklick auf einen Chip = „Solo"**: blendet alle anderen Endungen aus und zeigt nur die angeklickte (`soloExtension`). Ein erneuter Doppelklick auf den bereits isolierten Chip zeigt wieder **alle** Endungen (Toggle zurück). Umgesetzt in der Legende über zwei `onTapGesture(count: 2 bzw. 1)`.
-- **`isHidden(datei)`**: `true`, wenn die Endung in der Ausblend-Menge ist **oder** „Sonstige" ausgeblendet ist und die Endung nicht in den Top-7 liegt.
+- **`isHidden(datei)`**: `true`, wenn die Endung in der Ausblend-Menge ist **oder** „Sonstige" ausgeblendet ist und die Endung nicht in den Top-10 liegt.
 - Der Typ-Filter wirkt **konsistent** auf: Diagramm, Ordner-Zugehörigkeit/-Datum, Detailzeilen, Tastatur-Navigation, QuickLook-Liste.
 
 ### 3.7 Ordner-Zugehörigkeit & -Datum (Kernregel – mehrfach nachspezifiziert)
@@ -125,7 +125,7 @@ in **aufeinanderfolgende** Abschnitte gruppiert. Jeder Abschnitt zeigt seine Anz
 ### 3.9 Diagramm (gestapelte Balken je Tag)
 - Zeitachse: alle Kalendertage des Zeitfensters, **lückenlos** (rollierend: die letzten `days` Tage bis heute; Zeitspanne: von…bis). Tage ohne Dateien = leer.
 - Datenbasis: **sichtbare relevante Dateien** (relevantFiles minus `isHidden`).
-- Je Tag gestapelt nach **Endung**: die Top-7-Endungen einzeln, alle übrigen unter **„Sonstige"** (falls sichtbar). Ausgeblendete Endungen erzeugen keine Segmente.
+- Je Tag gestapelt nach **Endung**: die Top-10-Endungen einzeln, alle übrigen unter **„Sonstige"** (falls sichtbar). Ausgeblendete Endungen erzeugen keine Segmente.
 - **Wochenenden** hell hinterlegt. **X-Achse:** nur **Montag und Freitag** beschriftet (bei ≤ 8 Tagen jeder Tag), Beschriftung = Wochentagskürzel + `TT.MM.`.
 - **Klick auf einen Balken:** wertet **x (Tag)** und **y (Höhe im Stapel)** aus. Trifft der Klick ein Segment, wird die **Endung** dieses Segments bestimmt (Stapel von unten nach oben in Legenden-/`chartKeys`-Reihenfolge, d. h. häufigster Typ unten) und zur **jüngsten sichtbaren Datei dieses Typs an diesem Tag** gesprungen (Ordner aufklappen + Datei markieren). Klick oberhalb des Stapels/ohne Segment → Rückfall auf den Tag: passender Ordner (3.11) + dessen datumstiftende Datei.
 
@@ -357,7 +357,7 @@ funktional und plattformunabhängig beschrieben.
 
 **Wichtige Design-Entscheidungen (nicht verlieren):**
 - Ordner-Datum/-Zugehörigkeit kommen aus den **angezeigten** (Detail-)Dateien, gefiltert + auf den Zeitraum begrenzt → das Datum entspricht **immer** einer sichtbaren Datei; Filtern re-datiert bzw. entfernt Ordner.
-- Legende/Diagramm nur über **In-Zeitraum**-Typen (keine Einträge ohne Balken); Top-7 + „Sonstige".
+- Legende/Diagramm nur über **In-Zeitraum**-Typen (keine Einträge ohne Balken); Top-10 + „Sonstige".
 - Detailliste zeigt **alle** (namens-/typ-gefilterten) Dateien des Ordners, auch ältere; die **datumstiftende(n)** Datei(en) werden **fett** hervorgehoben.
 - Filter-abhängige Werte in der UI **live** aus dem Model lesen (sonst „stale"-Zeilen).
 - Diagramm gegen Flackern: **stabile Balken-IDs** + **einmaliger** Datentausch.

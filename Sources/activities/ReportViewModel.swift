@@ -69,12 +69,14 @@ final class ReportViewModel {
     var lastScanDuration: Double = 0
     /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
     var hiddenExtensions: Set<String> = []
-    /// Die 7 haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm).
+    /// Die haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm), max. ``legendTopCount``.
     var topExtensions: [ExtensionCount] = []
-    /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-7 (Sammel-Eintrag "Sonstige").
+    /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-Endungen (Sammel-Eintrag "Sonstige").
     var otherCount: Int = 0
-    /// Sammelschluessel fuer alle Endungen ausserhalb der Top-7.
+    /// Sammelschluessel fuer alle Endungen ausserhalb der Top-Endungen.
     static let otherKey = "__other__"
+    /// Maximale Anzahl einzeln gelisteter Endungen in der Legende (Rest -> "Sonstige").
+    static let legendTopCount = 10
     private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
@@ -210,7 +212,7 @@ final class ReportViewModel {
         return false
     }
 
-    /// Legende (Top-7 + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
+    /// Legende (Top-Endungen + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
     private func recomputeLegend() {
         var extensionCounts: [String: Int] = [:]
         for file in relevantFiles {
@@ -219,7 +221,7 @@ final class ReportViewModel {
         }
         topExtensions = extensionCounts
             .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
-            .prefix(7)
+            .prefix(Self.legendTopCount)
             .map { ExtensionCount(ext: $0.key, count: $0.value) }
         topExtensionSet = Set(topExtensions.map(\.ext))
         otherCount = relevantFiles.reduce(0) {
@@ -450,7 +452,7 @@ final class ReportViewModel {
     }
 
     /// Jüngste sichtbare In-Zeitraum-Datei an ``day`` mit passender Endung (bzw.
-    /// „Sonstige" = Endung nicht in den Top-7).
+    /// „Sonstige" = Endung nicht in den Top-Endungen).
     private func newestVisibleFile(on day: Date, ext: String) -> RelevantFile? {
         let calendar = Calendar.current
         return relevantFiles

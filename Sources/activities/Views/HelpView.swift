@@ -38,7 +38,7 @@ struct HelpView: View {
                 ])
 
                 section("Diagramm & Legende", icon: "chart.bar.xaxis", [
-                    "Gestapelte Balken pro Tag nach Endung (Top 7 + graue „Sonstige“).",
+                    "Gestapelte Balken pro Tag nach Endung (Top 10 + graue „Sonstige“).",
                     "Klick auf ein Segment springt zur passenden Datei.",
                     "Legende: jeder Eintrag ist ein Knopf – Klick blendet den Typ aus/ein.",
                     "Doppelklick = nur diesen Typ; erneuter Doppelklick = wieder alle.",

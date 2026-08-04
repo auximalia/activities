@@ -66,6 +66,7 @@ struct FolderRowView: View {
         .padding(.horizontal, 8)
         .background(SelectionBackground(isActive: isSelected))
         .contentShape(Rectangle())
+        .help("Klick: auf-/zuklappen & Pfad kopieren · Doppelklick: im Finder öffnen")
         .onTapGesture(count: 2) {
             model.select(.folder(entry.folder))
             FinderService.open(entry.folder)

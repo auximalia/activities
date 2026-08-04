@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.14)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.15)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -213,10 +213,15 @@ Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 - **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), Export CSV …, Export HTML …, „Über activities".
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
 - **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-
-  Eintrag im **Hilfe**-Menü). Scrollbare Kurzanleitung mit Abschnitten (Zweck,
-  Ordnerwahl, Zeitraum, Filter, Aktualisieren/Auto-Refresh, Diagramm/Legende,
-  Liste/Details, Tastatur/QuickLook, Export) und einer Tastenkürzel-Tabelle
-  (`HelpView.swift`, Fenster-`id: "help"`).
+  Eintrag im **Hilfe**-Menü). Scrollbare Kurzanleitung, **stichpunktartig** (wenig
+  Blocktext) mit Abschnitten (Zweck, Ordnerwahl, Zeitraum, Filter,
+  Aktualisieren/Auto-Refresh, Diagramm/Legende, Liste/Details, Tastatur/QuickLook,
+  Export) und einer Tastenkürzel-Tabelle (`HelpView.swift`, Fenster-`id: "help"`).
+- **MouseOver-Tooltips (`.help`)** an wichtigen Elementen: Ordner-Menü (Aktion +
+  aktueller Pfad), Zeitraum-Umschalter, Datumsfelder, Tage-Feld, **Filter**,
+  **Aktualisieren** (⌘R), Auf-/Zuklappen, An-den-Anfang, Auto-Refresh, Abbrechen,
+  Legenden-Chips (Klick/Doppelklick), Diagramm (Segment-Klick), Ordner- und
+  Dateizeilen (Klick/Doppelklick-Verhalten).
 - **Export:** CSV (`;`-getrennt) und eigenständiges HTML, jeweils aus den angezeigten Ordnern (`displayBuckets`), über Speichern-Dialog.
 
 ## 5. Reaktivität, Nebenläufigkeit, Persistenz

@@ -82,6 +82,7 @@ struct ControlsView: View {
                 .frame(minWidth: 180, maxWidth: 300)
                 .focused($filterFocused)
                 .onSubmit { model.rescan() }
+                .help("Namensfilter (Glob-Muster * und ?) für Datei- und Ordnernamen · Enter startet die Suche")
 
             Button {
                 model.rescan()
@@ -89,6 +90,7 @@ struct ControlsView: View {
                 Label("Aktualisieren", systemImage: "arrow.clockwise")
             }
             .keyboardShortcut("r", modifiers: .command)
+            .help("Suche neu starten (⌘R)")
 
             Toggle(isOn: Binding(
                 get: { model.allExpanded },
@@ -191,6 +193,6 @@ struct ControlsView: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help(model.rootURL.path)
+        .help("Wurzelordner wählen (zuletzt genutzte im Menü) · aktuell: \(model.rootURL.path)")
     }
 }

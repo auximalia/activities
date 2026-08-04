@@ -46,6 +46,7 @@ struct FileRowView: View {
         .padding(.horizontal, 8)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         .contentShape(Rectangle())
+        .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau")
         .onTapGesture(count: 2) {
             model.select(.file(file.url))
             FinderService.open(file.url)

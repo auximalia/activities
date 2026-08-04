@@ -104,6 +104,7 @@ struct HistoryChartView: View {
                 Rectangle()
                     .fill(Color.clear)
                     .contentShape(Rectangle())
+                    .help("Klick auf ein Balken-Segment springt zur passenden Datei")
                     .onTapGesture { location in
                         guard let plotFrame = proxy.plotFrame else { return }
                         let origin = geometry[plotFrame].origin

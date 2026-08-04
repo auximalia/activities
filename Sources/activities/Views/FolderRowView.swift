@@ -13,6 +13,14 @@ struct FolderRowView: View {
     private var isExpanded: Bool { model.isExpanded(entry.folder) }
     private var isSelected: Bool { model.selection == .folder(entry.folder) }
 
+    /// Live berechnetes Ordner-Datum (juengste sichtbare Datei) – filterabhaengig.
+    private var displayDate: Date { model.newestVisibleDate(in: entry.folder) ?? entry.newestDate }
+    /// Live berechnete Anzahl sichtbarer Dateien.
+    private var displayCount: Int {
+        let live = model.visibleFileCount(in: entry.folder)
+        return live > 0 ? live : entry.fileCount
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
@@ -47,9 +55,9 @@ struct FolderRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text(DateFormatting.dateTime(entry.newestDate))
+                Text(DateFormatting.dateTime(displayDate))
                     .font(.system(.callout, design: .monospaced))
-                Text("\(entry.fileCount) \(entry.fileCount == 1 ? "Datei" : "Dateien")")
+                Text("\(displayCount) \(displayCount == 1 ? "Datei" : "Dateien")")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

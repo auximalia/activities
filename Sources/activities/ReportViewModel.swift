@@ -278,6 +278,16 @@ final class ReportViewModel {
         return files.filter { !isHidden($0.url) }
     }
 
+    /// Datum, das der Ordner "erhält" = juengste sichtbare Datei (live, filterabhaengig).
+    func newestVisibleDate(in folder: URL) -> Date? {
+        visibleFiles(in: folder)?.map(\.timestamp).max()
+    }
+
+    /// Anzahl sichtbarer Dateien im Ordner (live, filterabhaengig).
+    func visibleFileCount(in folder: URL) -> Int {
+        visibleFiles(in: folder)?.count ?? 0
+    }
+
     // MARK: - Aufklappen
 
     func isExpanded(_ folder: URL) -> Bool { expandedFolders.contains(folder) }

@@ -120,8 +120,9 @@ struct ReportView: View {
                     .padding(.leading, 26)
                     .padding(.vertical, 3)
             } else {
+                let sourceDate = model.newestVisibleDate(in: entry.folder) ?? entry.newestDate
                 ForEach(files) { file in
-                    FileRowView(file: file, model: model, isDateSource: file.timestamp == entry.newestDate)
+                    FileRowView(file: file, model: model, isDateSource: file.timestamp == sourceDate)
                         .id(RowID.file(file.url))
                         .padding(.leading, 26)
                 }

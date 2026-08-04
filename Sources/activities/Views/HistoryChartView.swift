@@ -87,9 +87,11 @@ struct HistoryChartView: View {
                             Text(DateFormatting.weekdayShort(date))
                                 .font(.caption2)
                                 .fontWeight(.semibold)
+                                .foregroundStyle(.primary)
                             Text(DateFormatting.dayMonth(date))
-                                .font(.system(size: 9))
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 10))
+                                .fontWeight(.medium)
+                                .foregroundStyle(.primary)
                         }
                         .fixedSize()
                     }

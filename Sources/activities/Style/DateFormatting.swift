@@ -44,6 +44,11 @@ enum DateFormatting {
         return weekdaySymbols[safe: weekday] ?? ""
     }
 
+    /// Wochentag + volles Datum, z. B. "Fr., 12.06.2026".
+    static func weekdayDate(_ date: Date, calendar: Calendar = .current) -> String {
+        "\(weekdayShort(date, calendar: calendar))., \(day(date))"
+    }
+
     /// Kurzes Datum ohne Jahr, z. B. "06.07.".
     static func dayMonth(_ date: Date) -> String {
         dayMonthFormatter.string(from: date)

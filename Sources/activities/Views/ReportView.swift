@@ -12,13 +12,30 @@ struct ReportView: View {
     @StateObject private var quickLook = QuickLookController()
     @State private var quickLookActive = false
 
-    /// Stabile ID des obersten Elements (Diagramm) fuer „an den Anfang springen".
+    /// Stabile ID des obersten Elements (Überschrift) für „an den Anfang springen".
     static let topAnchorID = "list-top-anchor"
+
+    /// Überschrift über dem Diagramm, z. B. „Fr., 12.06.2026 – Mi., 17.08.2026 (30 Tage)".
+    private var rangeHeadline: String {
+        let start = DateFormatting.weekdayDate(model.displayRangeStart)
+        let end = DateFormatting.weekdayDate(model.displayRangeEnd)
+        let n = model.displayRangeDayCount
+        return "\(start) – \(end) (\(n) \(n == 1 ? "Tag" : "Tage"))"
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
+                    Text(rangeHeadline)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 8)
+                        .padding(.horizontal, 8)
+                        .id(ReportView.topAnchorID)
+                        .help("Aktuell angezeigter Zeitraum")
+
                     HistoryChartView(
                         chartDays: model.chartDays,
                         topExtensions: model.topExtensions,
@@ -32,7 +49,6 @@ struct ReportView: View {
                     .frame(height: 260)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
-                    .id(ReportView.topAnchorID)
 
                     ForEach(model.displayBuckets) { bucket in
                         Section {

@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.2.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.2.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -169,6 +169,12 @@ sichtbar während der Suche), damit die Leiste beim Ein-/Ausblenden nicht spring
 - Rechts dezent: „designed by matthias.riedel.dresden" + **Versionsnummer** (klick-/kopierbar, Tooltip mit Revision/Build-Datum).
 
 ### 4.2 Diagramm + Legende
+Über dem Diagramm steht der **aktuell angezeigte Zeitraum als Überschrift**, z. B.
+„Fr., 12.06.2026 – Mi., 17.08.2026 (30 Tage)" (`DateFormatting.weekdayDate` +
+Tageszahl). Der Bereich wird beim Diagramm-Neuaufbau festgehalten
+(`displayRangeStart/End`), passt also immer zum sichtbaren Diagramm (in
+„Zeitspanne" der zuletzt mit *Aktualisieren* geladene Bereich). Die Überschrift
+trägt zugleich den **Top-Anker** (Ziel von ⌘↑ / „An den Anfang").
 Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit).
 Jeder Legendeneintrag ist ein **Button-Chip** (umrandete „Pille" mit Farbfeld,
 Icon, Name, Anzahl; Hover-Highlight + Zeigehand-Cursor), sodass die

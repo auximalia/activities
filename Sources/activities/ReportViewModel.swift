@@ -77,6 +77,10 @@ final class ReportViewModel {
     static let otherKey = "__other__"
     /// Maximale Anzahl einzeln gelisteter Endungen in der Legende (Rest -> "Sonstige").
     static let legendTopCount = 10
+    /// Start-/Endtag des aktuell **angezeigten** Zeitraums (wird beim Diagramm-
+    /// Neuaufbau gesetzt, passt daher immer zum sichtbaren Diagramm/der Liste).
+    private(set) var displayRangeStart: Date = Calendar.current.startOfDay(for: Date())
+    private(set) var displayRangeEnd: Date = Calendar.current.startOfDay(for: Date())
     private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
@@ -232,6 +236,8 @@ final class ReportViewModel {
     /// Diagramm: sichtbare In-Zeitraum-Dateien je Tag nach Typ.
     private func recomputeChart() {
         let w = window
+        displayRangeStart = w.chartStartDay
+        displayRangeEnd = w.chartEndDay
         // Schutz vor Riesen-Diagrammen (z. B. mehrere Jahrzehnte): leer lassen.
         guard windowSpanDays <= 4000 else {
             chartDays = []
@@ -385,6 +391,14 @@ final class ReportViewModel {
     func isInWindow(_ file: RelevantFile) -> Bool {
         let w = window
         return file.timestamp >= w.start && file.timestamp < w.end
+    }
+
+    /// Anzahl Kalendertage im angezeigten Zeitraum (inklusive Start und Ende).
+    var displayRangeDayCount: Int {
+        let cal = Calendar.current
+        let s = cal.startOfDay(for: displayRangeStart)
+        let e = cal.startOfDay(for: displayRangeEnd)
+        return (cal.dateComponents([.day], from: s, to: e).day ?? 0) + 1
     }
 
     /// Anzahl sichtbarer Dateien im Ordner (live, filterabhaengig).

@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.2.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.2.2)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -175,11 +175,16 @@ Tageszahl). Der Bereich wird beim Diagramm-Neuaufbau festgehalten
 (`displayRangeStart/End`), passt also immer zum sichtbaren Diagramm (in
 „Zeitspanne" der zuletzt mit *Aktualisieren* geladene Bereich). Die Überschrift
 trägt zugleich den **Top-Anker** (Ziel von ⌘↑ / „An den Anfang").
-Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit).
-Jeder Legendeneintrag ist ein **Button-Chip** (umrandete „Pille" mit Farbfeld,
-Icon, Name, Anzahl; Hover-Highlight + Zeigehand-Cursor), sodass die
+Siehe 3.9/3.10. Jeder Legendeneintrag ist ein **Button-Chip** (umrandete „Pille"
+mit Farbfeld, Icon, Name, Anzahl; Hover-Highlight + Zeigehand-Cursor), sodass die
 Klickbarkeit erkennbar ist – die Chips grenzen sich selbst voneinander ab, eine
 Hintergrundfläche/Trennlinie hinter der Legende gibt es nicht mehr.
+**Anordnung: linksbündiges Flow-Layout** (`FlowLayout`, ein eigenes `Layout`):
+Chips liegen **dicht nebeneinander**, jeweils **so breit wie ihr Inhalt** (keine
+gestreckten Spalten, kein adaptives Grid), mit **kleinen festen Abständen**
+(horizontal/vertikal je ~6 pt) und Umbruch in die nächste Zeile bei Platzmangel.
+Nicht verwenden: `LazyVGrid(.adaptive(minimum:))` – das streckt die Spalten auf
+die volle Breite und erzeugt große Lücken.
 Ein **„An den Anfang"-Knopf** in der Steuerleiste (Symbol `arrow.up.to.line`,
 Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 

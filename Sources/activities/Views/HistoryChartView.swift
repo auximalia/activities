@@ -136,11 +136,7 @@ struct HistoryChartView: View {
     }
 
     private var legend: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 122), spacing: 8, alignment: .leading)],
-            alignment: .leading,
-            spacing: 8
-        ) {
+        FlowLayout(horizontalSpacing: 6, verticalSpacing: 6) {
             ForEach(topExtensions) { item in
                 LegendChip(
                     color: IconColor.dominant(forExtension: item.ext),
@@ -245,5 +241,55 @@ private struct LegendChip: View {
         .help(isHidden
               ? "Einblenden · Doppelklick: nur diesen"
               : "Ausblenden · Doppelklick: nur diesen")
+    }
+}
+
+/// Linksbuendiges Flow-Layout: ordnet die Elemente dicht nebeneinander an und
+/// bricht bei Platzmangel in die naechste Zeile um. Feste, kleine Abstaende –
+/// keine gestreckten Spalten wie bei einem adaptiven Grid.
+struct FlowLayout: Layout {
+    var horizontalSpacing: CGFloat = 6
+    var verticalSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalWidth: CGFloat = 0
+        var totalHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0, rowWidth + horizontalSpacing + size.width > maxWidth {
+                totalWidth = max(totalWidth, rowWidth)
+                totalHeight += rowHeight + verticalSpacing
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                rowWidth += (rowWidth > 0 ? horizontalSpacing : 0) + size.width
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+        totalWidth = max(totalWidth, rowWidth)
+        totalHeight += rowHeight
+        return CGSize(width: min(totalWidth, maxWidth), height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + verticalSpacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }

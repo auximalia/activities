@@ -79,8 +79,8 @@ struct HelpView: View {
                     passenden Datei zu springen. In der Legende blendest du einzelne \
                     Endungen per Klick aus oder wieder ein; ein **Doppelklick** zeigt \
                     nur diesen einen Typ (alle anderen aus) – erneuter Doppelklick zeigt \
-                    wieder alle. Eine dunkle Trennlinie unter \
-                    der Legende grenzt den Diagrammbereich von der Tabelle ab.
+                    wieder alle. Die Legende steht in einem abgesetzten Panel (getönte \
+                    Karte mit feinem Rahmen), das sie vom Diagramm und der Tabelle abhebt.
                     """
                 )
 

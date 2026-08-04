@@ -34,13 +34,6 @@ struct ReportView: View {
                     .padding(.vertical, 8)
                     .id(ReportView.topAnchorID)
 
-                    // Dunkle Trennlinie zwischen Legende/Diagramm und der Tabelle.
-                    Rectangle()
-                        .fill(Color.primary.opacity(0.35))
-                        .frame(height: 1)
-                        .padding(.horizontal, 4)
-                        .padding(.bottom, 4)
-
                     ForEach(model.displayBuckets) { bucket in
                         Section {
                             ForEach(bucket.entries) { entry in

@@ -50,7 +50,7 @@ struct HistoryChartView: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             chart
             legend
         }
@@ -137,7 +137,7 @@ struct HistoryChartView: View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 122), spacing: 8, alignment: .leading)],
             alignment: .leading,
-            spacing: 4
+            spacing: 6
         ) {
             ForEach(topExtensions) { item in
                 extensionChip(item)
@@ -146,6 +146,16 @@ struct HistoryChartView: View {
                 otherChip
             }
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.secondary.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.30), lineWidth: 1)
+        )
         .padding(.horizontal, 4)
     }
 

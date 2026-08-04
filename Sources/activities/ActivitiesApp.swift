@@ -21,8 +21,8 @@ struct ActivitiesApp: App {
                 Button("Filter fokussieren") { model.filterFocusToken += 1 }
                     .keyboardShortcut("f", modifiers: .command)
                 Divider()
-                Button("Als CSV exportieren …") { ExportService.exportCSV(model.buckets) }
-                Button("Als HTML exportieren …") { ExportService.exportHTML(model.buckets) }
+                Button("Als CSV exportieren …") { ExportService.exportCSV(model.displayBuckets) }
+                Button("Als HTML exportieren …") { ExportService.exportHTML(model.displayBuckets) }
             }
         }
 

@@ -17,10 +17,15 @@ struct ExtensionCount: Identifiable, Equatable {
 
 /// Zustands- und Ablaufsteuerung der Oberflaeche.
 ///
-/// Haelt Einstellungen, Ergebnisse, Auswahl-Cursor, Aufklapp-Status und die
-/// nachgeladenen Detaildateien. Der Scan laeuft im Hintergrund und wird bei
-/// erneutem Start abgebrochen. Alle Eigenschaften werden auf dem Main-Actor
-/// aktualisiert.
+/// Einzige Wahrheit sind die **In-Zeitraum-Dateien** (``relevantFiles``). Der
+/// Typ-Filter wirkt auf diese Menge und bestimmt daraus:
+/// - **Legende** (Typ-Grundmenge des Zeitraums; ausgeblendete Typen bleiben dimm-sichtbar),
+/// - **Diagramm** (sichtbare In-Zeitraum-Dateien je Tag),
+/// - **Ordner-Zugehoerigkeit & -Datum** (juengste sichtbare In-Zeitraum-Datei; faellt
+///   sie aus dem Zeitraum, verschwindet der Ordner).
+///
+/// Die **Detailliste** eines Ordners zeigt hingegen ALLE Dateien des Ordners
+/// (nur der Typ-Filter blendet einzelne aus) – aus ``filesByFolder``.
 @MainActor
 @Observable
 final class ReportViewModel {
@@ -30,7 +35,8 @@ final class ReportViewModel {
     var namePattern: String
 
     // Ergebnisse und Status.
-    var buckets: [BucketedEntries] = []
+    /// Anzuzeigende Ordner (nach Zeitraum + Typ-Filter, ohne leere Ordner).
+    var displayBuckets: [BucketedEntries] = []
     /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
     var chartDays: [DayExtensionCount] = []
     var isScanning = false
@@ -40,11 +46,11 @@ final class ReportViewModel {
     var lastScanDuration: Double = 0
     /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
     var hiddenExtensions: Set<String> = []
-    /// Die 10 haeufigsten Dateiendungen im Zeitraum (fuer Legende und Diagramm).
+    /// Die 7 haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm).
     var topExtensions: [ExtensionCount] = []
-    /// Anzahl Dateien ausserhalb der Top-10 (Sammel-Eintrag "Sonstige").
+    /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-7 (Sammel-Eintrag "Sonstige").
     var otherCount: Int = 0
-    /// Sammelschluessel fuer alle Endungen ausserhalb der Top-10.
+    /// Sammelschluessel fuer alle Endungen ausserhalb der Top-7.
     static let otherKey = "__other__"
     private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
@@ -58,21 +64,21 @@ final class ReportViewModel {
     var selection: RowID?
     /// Aufgeklappte Ordner.
     var expandedFolders: Set<URL> = []
-    /// Nachgeladene Detaildateien je Ordner (nil = noch nicht geladen).
+    /// Detaildateien je Ordner (ALLE Dateien, nur namensgefiltert; nil = laedt noch).
     var filesByFolder: [URL: [RelevantFile]] = [:]
-    /// Einmalige Fokus-Anfrage aus dem Diagramm.
-    private var chartFocus: ChartFocus?
-    private var loadingFolders: Set<URL> = []
-    /// Alle im Zeitraum relevanten Dateien (Basis fuer Diagramm und Legende).
+
+    /// Alle im Zeitraum relevanten Dateien (Basis fuer Legende/Diagramm/Ordner).
     private var relevantFiles: [RelevantFile] = []
+    private var chartFocus: ChartFocus?
+    private var fileToFolder: [URL: URL] = [:]
 
     private var scanTask: Task<Void, Never>?
     private var detailLoadTask: Task<Void, Never>?
+    private var refreshDebounce: Task<Void, Never>?
     private var didInitialScan = false
     private let scanner = FileScanner()
     private let store = SettingsStore()
     private let watcher = FolderWatcher()
-    private var refreshDebounce: Task<Void, Never>?
 
     init() {
         let saved = store.load()
@@ -83,7 +89,14 @@ final class ReportViewModel {
         self.recentFolders = store.loadRecentFolders()
     }
 
-    // MARK: - Sichtbarkeit (Legende: Dateiendungen)
+    // MARK: - Abgeleitete Statusflags
+
+    /// True, wenn der Scan In-Zeitraum-Dateien gefunden hat.
+    var hasScanResults: Bool { !relevantFiles.isEmpty }
+    /// True, wenn nach dem Typ-Filter noch Ordner uebrig sind.
+    var hasVisibleResults: Bool { !displayBuckets.isEmpty }
+
+    // MARK: - Typ-Filter (Legende)
 
     func toggleExtension(_ ext: String) {
         let key = ext.lowercased()
@@ -92,7 +105,7 @@ final class ReportViewModel {
         } else {
             hiddenExtensions.insert(key)
         }
-        recomputeChartDays()
+        recomputeVisible()
     }
 
     /// True, wenn eine Datei ueber ihre Endung (oder als "Sonstige") ausgeblendet ist.
@@ -103,20 +116,11 @@ final class ReportViewModel {
         return false
     }
 
-    private var hasVisibilityFilter: Bool { !hiddenExtensions.isEmpty }
-
-    /// Alle geladenen Detaildateien (Basis fuer Legende und Diagramm – das, was
-    /// in der Tabelle tatsaechlich gezeigt wird).
-    private var allDetailFiles: [RelevantFile] {
-        filesByFolder.values.flatMap { $0 }
-    }
-
-    /// Ermittelt die 7 haeufigsten Endungen (aus den gezeigten Dateien) und den
-    /// "Sonstige"-Anteil; aktualisiert anschliessend das Diagramm.
+    /// Ermittelt die Legende (Top-7 + "Sonstige") aus den In-Zeitraum-Dateien und
+    /// berechnet danach die sichtbaren Ableitungen neu.
     private func recomputeDerived() {
-        let files = allDetailFiles
         var extensionCounts: [String: Int] = [:]
-        for file in files {
+        for file in relevantFiles {
             let ext = file.url.pathExtension.lowercased()
             if !ext.isEmpty { extensionCounts[ext, default: 0] += 1 }
         }
@@ -125,63 +129,49 @@ final class ReportViewModel {
             .prefix(7)
             .map { ExtensionCount(ext: $0.key, count: $0.value) }
         topExtensionSet = Set(topExtensions.map(\.ext))
-        otherCount = files.reduce(0) {
+        otherCount = relevantFiles.reduce(0) {
             topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
         }
-        recomputeChartDays()
+        recomputeVisible()
     }
 
-    /// Berechnet die Tageszaehlungen fuer sichtbare Top-Endungen und "Sonstige".
-    private func recomputeChartDays() {
-        let visibleTop = topExtensionSet.subtracting(hiddenExtensions)
+    /// Berechnet Ordnerliste (mit neu bestimmtem Datum) und Diagramm aus den
+    /// sichtbaren In-Zeitraum-Dateien.
+    private func recomputeVisible() {
+        let visible = relevantFiles.filter { !isHidden($0.url) }
+        displayBuckets = TimeBucket.group(FolderAggregator.groupByFolder(visible))
+
         let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
         chartDays = FolderAggregator.countFilesPerDayByType(
-            allDetailFiles,
+            visible,
             days: days,
-            individual: visibleTop,
+            individual: topExtensionSet,
             otherKey: showOther ? Self.otherKey : nil,
-            ignored: hiddenExtensions
+            ignored: []
         )
+        pruneSelection()
     }
 
-    // MARK: - Anzeige ohne leere Ordner (bei aktivem Filter)
-
-    /// True, wenn irgendein Filter wirkt (Suchtext ODER ausgeblendete Kategorien/Endungen).
-    var anyFilterActive: Bool {
-        !namePattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasVisibilityFilter
-    }
-
-    /// Buckets fuer die Anzeige: bei aktivem Filter werden leere Ordner ausgeblendet.
-    var displayBuckets: [BucketedEntries] {
-        guard anyFilterActive else { return buckets }
-        var result: [BucketedEntries] = []
-        for bucket in buckets {
-            let entries = bucket.entries.filter { keepFolder($0.folder) }
-            if !entries.isEmpty {
-                result.append(BucketedEntries(label: bucket.label, entries: entries))
-            }
+    /// Verwirft die Auswahl, wenn ihr Ordner/ihre Datei nicht mehr sichtbar ist.
+    private func pruneSelection() {
+        let displayed = Set(displayBuckets.flatMap { $0.entries.map(\.folder) })
+        switch selection {
+        case .folder(let url):
+            if !displayed.contains(url) { selection = nil }
+        case .file(let url):
+            if isHidden(url) || !displayed.contains(url.deletingLastPathComponent()) { selection = nil }
+        case nil:
+            break
         }
-        return result
     }
 
-    /// True, wenn nach dem Filtern noch Ordner uebrig sind.
-    var hasVisibleResults: Bool { !displayBuckets.isEmpty }
+    // MARK: - Auswahl / QuickLook
 
-    /// Ob ein Ordner (bei aktivem Filter) sichtbare Dateien enthaelt. Noch nicht
-    /// geladene Ordner werden vorlaeufig beibehalten (kein Flackern beim Laden).
-    private func keepFolder(_ folder: URL) -> Bool {
-        guard let files = filesByFolder[folder] else { return true }
-        guard hasVisibilityFilter else { return !files.isEmpty }
-        return files.contains { !isHidden($0.url) }
-    }
-
-    /// URL der aktuell markierten Datei (fuer QuickLook), sonst nil.
     var selectedFileURL: URL? {
         if case .file(let url) = selection { return url }
         return nil
     }
 
-    /// Alle aktuell sichtbaren Dateien in Anzeigereihenfolge (fuer QuickLook-Navigation).
     var visibleFileURLs: [URL] {
         visibleRows.compactMap {
             if case .file(let url) = $0 { return url }
@@ -189,15 +179,11 @@ final class ReportViewModel {
         }
     }
 
-    /// Ordnerzuordnung je Datei (fuer die QuickLook-Navigation ueber Ordnergrenzen).
-    private var fileToFolder: [URL: URL] = [:]
-
-    /// Baut die vollstaendige Dateiliste ueber ALLE Ordner (laedt bei Bedarf nach),
-    /// damit QuickLook ordnergrenzenuebergreifend navigieren kann.
+    /// Vollstaendige Dateiliste ueber alle angezeigten Ordner (fuer QuickLook).
     func prepareFullFileList() async -> [URL] {
         var ordered: [URL] = []
         var map: [URL: URL] = [:]
-        for bucket in buckets {
+        for bucket in displayBuckets {
             for entry in bucket.entries {
                 let files: [RelevantFile]
                 if let cached = filesByFolder[entry.folder] {
@@ -207,8 +193,7 @@ final class ReportViewModel {
                     filesByFolder[entry.folder] = loaded
                     files = loaded
                 }
-                let visible = hasVisibilityFilter ? files.filter { !isHidden($0.url) } : files
-                for file in visible {
+                for file in files where !isHidden(file.url) {
                     ordered.append(file.url)
                     map[file.url] = entry.folder
                 }
@@ -218,12 +203,142 @@ final class ReportViewModel {
         return ordered
     }
 
-    /// Reaktion auf QuickLook-Navigation: Ordner (falls noetig) aufklappen und markieren.
     func quickLookNavigated(to fileURL: URL) {
         if let folder = fileToFolder[fileURL] {
             expandedFolders.insert(folder)
         }
         selection = .file(fileURL)
+    }
+
+    func select(_ id: RowID) { selection = id }
+
+    /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
+    var visibleRows: [RowID] {
+        RowNavigation.flatten(buckets: displayBuckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
+    }
+
+    func moveSelection(_ delta: Int) {
+        selection = RowNavigation.move(selection: selection, in: visibleRows, by: delta)
+    }
+
+    func collapseSelected() {
+        if case .folder(let folder) = selection, expandedFolders.contains(folder) {
+            expandedFolders.remove(folder)
+        }
+    }
+
+    func expandSelected() {
+        if case .folder(let folder) = selection, !expandedFolders.contains(folder) {
+            toggleExpand(folder)
+        }
+    }
+
+    func openSelection() {
+        switch selection {
+        case .folder(let url):
+            FinderService.open(url)
+            ClipboardService.copy(url.path)
+        case .file(let url):
+            FinderService.open(url)
+        case nil:
+            break
+        }
+    }
+
+    // MARK: - Detailansicht (alle Dateien des Ordners, Typ-gefiltert)
+
+    /// Detaildateien je Ordner, gefiltert nach ausgeblendeten Endungen.
+    var visibleFilesByFolder: [URL: [RelevantFile]] {
+        guard !hiddenExtensions.isEmpty else { return filesByFolder }
+        var result: [URL: [RelevantFile]] = [:]
+        for (folder, files) in filesByFolder {
+            result[folder] = files.filter { !isHidden($0.url) }
+        }
+        return result
+    }
+
+    /// Sichtbare Dateien eines Ordners (ALLE Dateien, Typ-gefiltert).
+    /// ``nil`` bedeutet "noch nicht geladen".
+    func visibleFiles(in folder: URL) -> [RelevantFile]? {
+        guard let files = filesByFolder[folder] else { return nil }
+        guard !hiddenExtensions.isEmpty else { return files }
+        return files.filter { !isHidden($0.url) }
+    }
+
+    // MARK: - Aufklappen
+
+    func isExpanded(_ folder: URL) -> Bool { expandedFolders.contains(folder) }
+
+    func toggleExpand(_ folder: URL) {
+        if expandedFolders.contains(folder) {
+            expandedFolders.remove(folder)
+        } else {
+            expandedFolders.insert(folder)
+            ensureLoaded(folder)
+        }
+    }
+
+    private func displayedFolders() -> [URL] {
+        displayBuckets.flatMap { $0.entries.map(\.folder) }
+    }
+
+    var allExpanded: Bool {
+        let all = Set(displayedFolders())
+        return !all.isEmpty && all.isSubset(of: expandedFolders)
+    }
+
+    func setAllExpanded(_ expand: Bool) {
+        if expand {
+            for folder in displayedFolders() {
+                expandedFolders.insert(folder)
+                ensureLoaded(folder)
+            }
+        } else {
+            expandedFolders = []
+        }
+    }
+
+    private func ensureLoaded(_ folder: URL) {
+        guard filesByFolder[folder] == nil else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let files = await self.loadFilesNow(folder)
+            self.filesByFolder[folder] = files
+            self.applyChartFocus(for: folder)
+        }
+    }
+
+    private func loadFilesNow(_ folder: URL) async -> [RelevantFile] {
+        let scanner = self.scanner
+        let filter = NameFilter(namePattern)
+        return await Task.detached(priority: .userInitiated) {
+            scanner.listDirectoryFiles(folder, filter: filter)
+        }.value
+    }
+
+    // MARK: - Diagramm-Fokus
+
+    func focusDay(_ day: Date) {
+        let calendar = Calendar.current
+        let entries = displayBuckets.flatMap(\.entries)
+        let target = entries.first { calendar.isDate($0.newestDate, inSameDayAs: day) }
+            ?? entries.first { $0.newestDate < calendar.startOfDay(for: day).addingTimeInterval(24 * 60 * 60) }
+        guard let target else { return }
+
+        expandedFolders.insert(target.folder)
+        chartFocus = ChartFocus(folder: target.folder, day: day)
+        selection = .folder(target.folder)
+        ensureLoaded(target.folder)
+        applyChartFocus(for: target.folder)
+    }
+
+    private func applyChartFocus(for folder: URL) {
+        guard let focus = chartFocus, focus.folder == folder,
+              let files = visibleFiles(in: folder) else { return }
+        let calendar = Calendar.current
+        let match = files.first { calendar.isDate($0.timestamp, inSameDayAs: focus.day) } ?? files.first
+        if let match { selection = .file(match.url) }
+        chartFocus = nil
     }
 
     // MARK: - Auto-Refresh (FSEvents)
@@ -270,7 +385,6 @@ final class ReportViewModel {
         rescan()
     }
 
-    /// Startet einen neuen Suchlauf und verwirft einen ggf. laufenden.
     func rescan(preservingState: Bool = false) {
         scanTask?.cancel()
 
@@ -291,7 +405,6 @@ final class ReportViewModel {
             let result = await Self.runScan(scanner: scanner, settings: settings)
             if Task.isCancelled { return }
             guard let self else { return }
-            self.buckets = TimeBucket.group(result.entries)
             self.relevantFiles = result.files
             self.scannedFileCount = result.files.count
             self.lastScanDuration = Date().timeIntervalSince(started)
@@ -300,34 +413,33 @@ final class ReportViewModel {
         }
     }
 
-    /// Setzt Auswahl/Aufklappen passend zum neuen Ergebnis (optional erhaltend)
-    /// und laedt anschliessend die Detaildateien (fuer Legende/Diagramm).
+    /// Legende/Diagramm/Ordnerliste (sync) aus ``relevantFiles`` ableiten,
+    /// Anzeige-Status setzen und danach die Detaildateien im Hintergrund laden.
     private func reconcileState(preservingState: Bool) {
-        let validFolders = Set(buckets.flatMap { $0.entries.map(\.folder) })
+        recomputeDerived()
+        let displayed = Set(displayedFolders())
 
         if preservingState {
-            expandedFolders = expandedFolders.intersection(validFolders)
-            if case .folder(let url) = selection, !validFolders.contains(url) {
+            expandedFolders = expandedFolders.intersection(displayed)
+            if case .folder(let url) = selection, !displayed.contains(url) {
                 selection = nil
             }
         } else {
             selection = nil
             chartFocus = nil
-            expandedFolders = validFolders
+            expandedFolders = displayed
         }
 
-        loadDetails(for: validFolders)
+        loadDetails(for: Set(relevantFiles.map(\.folder)))
     }
 
-    /// Laedt die Detaildateien ALLER Ordner im Hintergrund und tauscht das
-    /// Ergebnis in einem Schwung aus (verhindert Flackern durch Zwischenzustaende).
+    /// Laedt die Detaildateien aller relevanten Ordner im Hintergrund und tauscht
+    /// sie in einem Schwung aus (verhindert Flackern). Betrifft nur die Detailzeilen.
     private func loadDetails(for folders: Set<URL>) {
         detailLoadTask?.cancel()
 
         if folders.isEmpty {
             filesByFolder = [:]
-            loadingFolders = []
-            recomputeDerived()
             return
         }
 
@@ -346,36 +458,12 @@ final class ReportViewModel {
             if Task.isCancelled { return }
             guard let self else { return }
             self.filesByFolder = loaded
-            self.loadingFolders = []
-            self.recomputeDerived()
-        }
-    }
-
-    // MARK: - Alle auf-/zuklappen
-
-    private func allFolderURLs() -> [URL] {
-        buckets.flatMap { $0.entries.map(\.folder) }
-    }
-
-    /// True, wenn jeder Ordner aufgeklappt ist.
-    var allExpanded: Bool {
-        let all = Set(allFolderURLs())
-        return !all.isEmpty && all.isSubset(of: expandedFolders)
-    }
-
-    func setAllExpanded(_ expand: Bool) {
-        if expand {
-            for folder in allFolderURLs() {
-                expandedFolders.insert(folder)
-                ensureLoaded(folder)
-            }
-        } else {
-            expandedFolders = []
+            if let focus = self.chartFocus { self.applyChartFocus(for: focus.folder) }
         }
     }
 
     private func resetResults() {
-        buckets = []
+        displayBuckets = []
         chartDays = []
         relevantFiles = []
         topExtensions = []
@@ -386,133 +474,7 @@ final class ReportViewModel {
         filesByFolder = [:]
     }
 
-    // MARK: - Aufklappen & Laden
-
-    func isExpanded(_ folder: URL) -> Bool { expandedFolders.contains(folder) }
-
-    func toggleExpand(_ folder: URL) {
-        if expandedFolders.contains(folder) {
-            expandedFolders.remove(folder)
-        } else {
-            expandedFolders.insert(folder)
-            ensureLoaded(folder)
-        }
-    }
-
-    private func ensureLoaded(_ folder: URL) {
-        guard filesByFolder[folder] == nil, !loadingFolders.contains(folder) else { return }
-        loadingFolders.insert(folder)
-        Task { [weak self] in
-            guard let self else { return }
-            let files = await self.loadFilesNow(folder)
-            self.filesByFolder[folder] = files
-            self.loadingFolders.remove(folder)
-            self.applyChartFocus(for: folder)
-            // Legende/Diagramm erst neu berechnen, wenn alle Ladevorgaenge fertig sind.
-            if self.loadingFolders.isEmpty { self.recomputeDerived() }
-        }
-    }
-
-    /// Laedt die Detaildateien eines Ordners im Hintergrund (gefiltert wie die Trefferauswahl).
-    private func loadFilesNow(_ folder: URL) async -> [RelevantFile] {
-        let scanner = self.scanner
-        let filter = NameFilter(namePattern)
-        return await Task.detached(priority: .userInitiated) {
-            scanner.listDirectoryFiles(folder, filter: filter)
-        }.value
-    }
-
-    // MARK: - Auswahl
-
-    func select(_ id: RowID) { selection = id }
-
-    /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
-    var visibleRows: [RowID] {
-        RowNavigation.flatten(buckets: displayBuckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
-    }
-
-    /// Geladene Dateien je Ordner, gefiltert nach ausgeblendeten Kategorien/Endungen.
-    var visibleFilesByFolder: [URL: [RelevantFile]] {
-        guard hasVisibilityFilter else { return filesByFolder }
-        var result: [URL: [RelevantFile]] = [:]
-        for (folder, files) in filesByFolder {
-            result[folder] = files.filter { !isHidden($0.url) }
-        }
-        return result
-    }
-
-    /// Sichtbare Dateien eines Ordners fuer die Detailansicht.
-    /// ``nil`` bedeutet "noch nicht geladen" (Ladeanzeige).
-    func visibleFiles(in folder: URL) -> [RelevantFile]? {
-        guard let files = filesByFolder[folder] else { return nil }
-        guard hasVisibilityFilter else { return files }
-        return files.filter { !isHidden($0.url) }
-    }
-
-    /// Bewegt den Auswahl-Cursor um ``delta`` Zeilen (Pfeiltasten hoch/runter).
-    func moveSelection(_ delta: Int) {
-        selection = RowNavigation.move(selection: selection, in: visibleRows, by: delta)
-    }
-
-    /// Klappt den aktuell gewaehlten Ordner zu (Pfeil links).
-    func collapseSelected() {
-        if case .folder(let folder) = selection, expandedFolders.contains(folder) {
-            expandedFolders.remove(folder)
-        }
-    }
-
-    /// Klappt den aktuell gewaehlten Ordner auf (Pfeil rechts).
-    func expandSelected() {
-        if case .folder(let folder) = selection, !expandedFolders.contains(folder) {
-            toggleExpand(folder)
-        }
-    }
-
-    /// Oeffnet die aktuelle Auswahl (Enter): Ordner im Finder (+ Pfad kopieren),
-    /// Datei mit der Standard-App.
-    func openSelection() {
-        switch selection {
-        case .folder(let url):
-            FinderService.open(url)
-            ClipboardService.copy(url.path)
-        case .file(let url):
-            FinderService.open(url)
-        case nil:
-            break
-        }
-    }
-
-    // MARK: - Diagramm-Fokus
-
-    /// Springt vom Diagramm zum Ordner des Tages, klappt ihn auf und markiert
-    /// die zugehoerige Datei.
-    func focusDay(_ day: Date) {
-        let calendar = Calendar.current
-        let entries = buckets.flatMap(\.entries)
-        let target = entries.first { calendar.isDate($0.newestDate, inSameDayAs: day) }
-            ?? entries.first { $0.newestDate < calendar.startOfDay(for: day).addingTimeInterval(24 * 60 * 60) }
-        guard let target else { return }
-
-        expandedFolders.insert(target.folder)
-        chartFocus = ChartFocus(folder: target.folder, day: day)
-        selection = .folder(target.folder)
-        ensureLoaded(target.folder)
-        applyChartFocus(for: target.folder)
-    }
-
-    private func applyChartFocus(for folder: URL) {
-        guard let focus = chartFocus, focus.folder == folder,
-              let files = filesByFolder[folder] else { return }
-        let calendar = Calendar.current
-        let match = files.first { calendar.isDate($0.timestamp, inSameDayAs: focus.day) } ?? files.first
-        if let match { selection = .file(match.url) }
-        chartFocus = nil
-    }
-
-    // MARK: - Hintergrund-Scan
-
     private struct ScanResult: Sendable {
-        let entries: [FolderEntry]
         let files: [RelevantFile]
     }
 
@@ -521,7 +483,6 @@ final class ReportViewModel {
         settings: ScanSettings
     ) async -> ScanResult {
         let files = scanner.scan(settings: settings, shouldCancel: { Task.isCancelled })
-        let entries = FolderAggregator.groupByFolder(files)
-        return ScanResult(entries: entries, files: files)
+        return ScanResult(files: files)
     }
 }

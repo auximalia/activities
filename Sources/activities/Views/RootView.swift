@@ -19,14 +19,14 @@ struct RootView: View {
     private var content: some View {
         if let message = model.errorMessage {
             EmptyStateView(systemImage: "exclamationmark.triangle", title: "Es ist ein Problem aufgetreten", message: message)
-        } else if model.isScanning && model.buckets.isEmpty {
+        } else if model.isScanning && !model.hasScanResults {
             VStack(spacing: 12) {
                 ProgressView()
                 Text("Durchsuche \(model.rootURL.lastPathComponent) …")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if model.buckets.isEmpty {
+        } else if !model.hasScanResults {
             EmptyStateView(
                 systemImage: "tray",
                 title: "Keine Ordner gefunden",
@@ -43,7 +43,7 @@ struct StatusBarView: View {
     @Bindable var model: ReportViewModel
 
     private var folderCount: Int {
-        model.buckets.reduce(0) { $0 + $1.entries.count }
+        model.displayBuckets.reduce(0) { $0 + $1.entries.count }
     }
 
     var body: some View {

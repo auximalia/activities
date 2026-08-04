@@ -12,6 +12,9 @@ struct ReportView: View {
     @StateObject private var quickLook = QuickLookController()
     @State private var quickLookActive = false
 
+    /// Stabile ID des obersten Elements (Diagramm) fuer „an den Anfang springen".
+    static let topAnchorID = "list-top-anchor"
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -28,6 +31,14 @@ struct ReportView: View {
                     .frame(height: 260)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
+                    .id(ReportView.topAnchorID)
+
+                    // Dunkle Trennlinie zwischen Legende/Diagramm und der Tabelle.
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.35))
+                        .frame(height: 1)
+                        .padding(.horizontal, 4)
+                        .padding(.bottom, 4)
 
                     ForEach(model.displayBuckets) { bucket in
                         Section {
@@ -118,6 +129,11 @@ struct ReportView: View {
                 guard let selection else { return }
                 withAnimation(.easeInOut(duration: 0.15)) {
                     proxy.scrollTo(selection, anchor: .center)
+                }
+            }
+            .onChange(of: model.scrollToTopToken) { _, _ in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(ReportView.topAnchorID, anchor: .top)
                 }
             }
         }

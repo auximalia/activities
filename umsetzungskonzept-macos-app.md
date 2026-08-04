@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.10)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.11)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -169,6 +169,10 @@ sichtbar während der Suche), damit die Leiste beim Ein-/Ausblenden nicht spring
 
 ### 4.2 Diagramm + Legende
 Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit).
+Unter der Legende trennt eine **dunkle horizontale Linie** (`Color.primary`,
+Deckkraft ~0.35) den Diagrammbereich sichtbar von der Tabelle.
+Ein **„An den Anfang"-Knopf** in der Steuerleiste (Symbol `arrow.up.to.line`,
+Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 
 ### 4.3 Ordner- & Dateizeilen
 - **Ordnerzeile:** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion), Name (fett), Pfad (klein, gekürzt), rechts **Datum** (Monospace) + **Anzahl**.
@@ -204,7 +208,7 @@ Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit)
 
 ### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
 - **Statuszeile:** „N Ordner · M Dateien · X.XX s", Auto-Refresh-Indikator, Wurzelpfad.
-- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), Export CSV …, Export HTML …, „Über activities".
+- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), Export CSV …, Export HTML …, „Über activities".
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
 - **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-
   Eintrag im **Hilfe**-Menü). Scrollbare Kurzanleitung mit Abschnitten (Zweck,

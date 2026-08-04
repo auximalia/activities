@@ -77,7 +77,8 @@ struct HelpView: View {
                     fasst „Sonstige" (grau) zusammen. Die Balkenfarbe leitet sich aus der \
                     Dateityp-Symbolfarbe ab. Klicke auf ein Segment, um direkt zur \
                     passenden Datei zu springen. In der Legende blendest du einzelne \
-                    Endungen per Klick aus oder wieder ein.
+                    Endungen per Klick aus oder wieder ein. Eine dunkle Trennlinie unter \
+                    der Legende grenzt den Diagrammbereich von der Tabelle ab.
                     """
                 )
 
@@ -103,7 +104,8 @@ struct HelpView: View {
                     Auswahl, Links/Rechts klappt Ordner zu/auf, Enter oeffnet die Auswahl \
                     im Finder bzw. der Standard-App. Leertaste oeffnet die QuickLook-\
                     Vorschau der markierten Datei; darin blaettern die Pfeiltasten durch \
-                    alle Dateien.
+                    alle Dateien. Mit ⌘↑ (oder dem Pfeil-nach-oben-Knopf in der \
+                    Steuerleiste) springst du wieder an den Anfang der Liste.
                     """
                 )
 
@@ -163,6 +165,7 @@ struct HelpView: View {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 4) {
                 shortcutRow("⌘R", "Aktualisieren")
                 shortcutRow("⌘F", "Filter fokussieren")
+                shortcutRow("⌘↑", "An den Anfang der Liste")
                 shortcutRow("↑ / ↓", "Auswahl bewegen")
                 shortcutRow("← / →", "Ordner zu-/aufklappen")
                 shortcutRow("↩︎", "Auswahl oeffnen")

@@ -20,6 +20,8 @@ struct ActivitiesApp: App {
                     .keyboardShortcut("r", modifiers: .command)
                 Button("Filter fokussieren") { model.filterFocusToken += 1 }
                     .keyboardShortcut("f", modifiers: .command)
+                Button("An den Anfang") { model.scrollToTopToken += 1 }
+                    .keyboardShortcut(.upArrow, modifiers: .command)
                 Divider()
                 Button("Als CSV exportieren …") { ExportService.exportCSV(model.displayBuckets) }
                 Button("Als HTML exportieren …") { ExportService.exportHTML(model.displayBuckets) }

@@ -100,6 +100,14 @@ struct ControlsView: View {
             .controlSize(.mini)
             .help("Alle Ordner auf- oder zuklappen")
 
+            Button {
+                model.scrollToTopToken += 1
+            } label: {
+                Image(systemName: "arrow.up.to.line")
+            }
+            .buttonStyle(.borderless)
+            .help("An den Anfang der Liste springen (⌘↑)")
+
             Toggle(isOn: Binding(
                 get: { model.autoRefresh },
                 set: { model.setAutoRefresh($0) }

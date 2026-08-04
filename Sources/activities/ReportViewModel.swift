@@ -82,6 +82,8 @@ final class ReportViewModel {
     var recentFolders: [URL] = []
     /// Zaehler, um die Fokussierung des Filterfeldes anzustossen (Menue ⌘F).
     var filterFocusToken = 0
+    /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
+    var scrollToTopToken = 0
 
     /// Aktuell markierte Zeile (Auswahl-Cursor fuer Tastatur und Klick).
     var selection: RowID?

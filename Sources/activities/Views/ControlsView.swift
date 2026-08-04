@@ -112,6 +112,13 @@ struct ControlsView: View {
 
             if model.isScanning || model.isLoadingDetails {
                 ProgressView().controlSize(.small)
+                if model.isScanning {
+                    Text("\(model.scanProgress) Dateien")
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                } else if model.detailTotal > 0 {
+                    Text("\(model.detailDone)/\(model.detailTotal)")
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
                 Button {
                     model.cancelScan()
                 } label: {

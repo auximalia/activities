@@ -50,9 +50,17 @@ struct ReportView: View {
 
                     if model.displayBuckets.isEmpty {
                         if model.isLoadingDetails {
-                            HStack(spacing: 8) {
-                                ProgressView().controlSize(.small)
-                                Text("Lade Ordner …").foregroundStyle(.secondary)
+                            VStack(spacing: 6) {
+                                if model.detailTotal > 0 {
+                                    ProgressView(value: Double(model.detailDone), total: Double(model.detailTotal))
+                                        .frame(width: 220)
+                                    Text("Lade Ordner \(model.detailDone) von \(model.detailTotal) …")
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                } else {
+                                    ProgressView().controlSize(.small)
+                                    Text("Lade Ordner …").foregroundStyle(.secondary)
+                                }
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 24)

@@ -13,6 +13,12 @@ struct RootView: View {
             StatusBarView(model: model)
         }
         .task { model.startInitialScanIfNeeded() }
+        .alert("Sehr grosser Zeitraum", isPresented: $model.confirmLargeScan) {
+            Button("Trotzdem suchen") { model.confirmLargeScanAndProceed() }
+            Button("Abbrechen", role: .cancel) { model.dismissLargeScan() }
+        } message: {
+            Text("Der gewaehlte Zeitraum umfasst mehr als 10 Jahre. Die Suche kann sehr lange dauern und viele Ordner liefern. Trotzdem starten?")
+        }
     }
 
     @ViewBuilder
@@ -22,8 +28,11 @@ struct RootView: View {
         } else if model.isScanning && !model.hasScanResults {
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Durchsuche \(model.rootURL.lastPathComponent) …")
+                Text("Durchsuche \(model.rootURL.lastPathComponent) … \(model.scanProgress) Dateien")
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Button("Abbrechen") { model.cancelScan() }
+                    .controlSize(.small)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if !model.hasScanResults {

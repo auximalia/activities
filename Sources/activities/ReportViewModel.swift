@@ -56,6 +56,13 @@ final class ReportViewModel {
     var isScanning = false
     /// Laedt gerade die Detaildateien (Ordnerliste erscheint danach).
     var isLoadingDetails = false
+    /// Anzahl bisher gepruefter Eintraege im laufenden Scan (Fortschritt).
+    var scanProgress = 0
+    /// Fortschritt beim Laden der Detaildateien: geladene / gesamte Ordner.
+    var detailDone = 0
+    var detailTotal = 0
+    /// Zeigt die Warnung „sehr grosser Zeitraum" an (View bindet daran).
+    var confirmLargeScan = false
     var errorMessage: String?
     var scannedFileCount = 0
     /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
@@ -155,6 +162,9 @@ final class ReportViewModel {
         detailLoadTask?.cancel()
         isScanning = false
         isLoadingDetails = false
+        scanProgress = 0
+        detailDone = 0
+        detailTotal = 0
     }
 
     // MARK: - Abgeleitete Statusflags
@@ -205,6 +215,11 @@ final class ReportViewModel {
     /// Diagramm: sichtbare In-Zeitraum-Dateien je Tag nach Typ.
     private func recomputeChart() {
         let w = window
+        // Schutz vor Riesen-Diagrammen (z. B. mehrere Jahrzehnte): leer lassen.
+        guard windowSpanDays <= 4000 else {
+            chartDays = []
+            return
+        }
         let visible = relevantFiles.filter { !isHidden($0.url) }
         let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
         chartDays = FolderAggregator.countFilesPerDayByType(
@@ -505,8 +520,28 @@ final class ReportViewModel {
         rescan()
     }
 
-    func rescan(preservingState: Bool = false) {
+    /// Anzahl Kalendertage des aktuellen Zeitfensters.
+    private var windowSpanDays: Int {
+        let w = window
+        return (Calendar.current.dateComponents([.day], from: w.chartStartDay, to: w.chartEndDay).day ?? 0) + 1
+    }
+
+    /// Schwelle fuer die Warnung „sehr grosser Zeitraum" (~10 Jahre).
+    private let largeSpanThreshold = 3653
+
+    /// Warnung bestaetigt: trotzdem suchen.
+    func confirmLargeScanAndProceed() {
+        confirmLargeScan = false
+        rescan(confirmedLarge: true)
+    }
+
+    func dismissLargeScan() {
+        confirmLargeScan = false
+    }
+
+    func rescan(preservingState: Bool = false, confirmedLarge: Bool = false) {
         scanTask?.cancel()
+        detailLoadTask?.cancel()
 
         let w = window
         if useDateRange {
@@ -523,15 +558,24 @@ final class ReportViewModel {
             }
         }
 
+        // Warnung bei sehr grossem Zeitraum (nicht bei Live-Refresh / nach Bestaetigung).
+        if !preservingState && !confirmedLarge && windowSpanDays > largeSpanThreshold {
+            confirmLargeScan = true
+            return
+        }
+
         let settings = ScanSettings(rootURL: rootURL, start: w.start, end: w.end, namePattern: namePattern)
         store.save(days: days, namePattern: namePattern)
         errorMessage = nil
         isScanning = true
+        scanProgress = 0
         let started = Date()
 
         let scanner = self.scanner
         scanTask = Task { [weak self] in
-            let result = await Self.runScan(scanner: scanner, settings: settings)
+            let result = await Self.runScan(scanner: scanner, settings: settings) { count in
+                Task { @MainActor in self?.scanProgress = count }
+            }
             if Task.isCancelled { return }
             guard let self else { return }
             self.relevantFiles = result.files
@@ -560,6 +604,8 @@ final class ReportViewModel {
     private func loadDetails(for folders: Set<URL>) {
         detailLoadTask?.cancel()
         isLoadingDetails = true
+        detailTotal = folders.count
+        detailDone = 0
 
         if folders.isEmpty {
             filesByFolder = [:]
@@ -571,7 +617,9 @@ final class ReportViewModel {
         let filter = NameFilter(namePattern)
         let list = Array(folders)
         detailLoadTask = Task { [weak self] in
-            let loaded = await Self.listAll(scanner: scanner, filter: filter, folders: list)
+            let loaded = await Self.listAll(scanner: scanner, filter: filter, folders: list) { done in
+                Task { @MainActor in self?.detailDone = done }
+            }
             if Task.isCancelled { return }
             guard let self else { return }
             self.filesByFolder = loaded
@@ -580,16 +628,21 @@ final class ReportViewModel {
     }
 
     /// Listet die Detaildateien aller Ordner ausserhalb des Main-Actors; bricht
-    /// bei Task-Abbruch ab (fuer den Abbrechen-Button).
+    /// bei Task-Abbruch ab (fuer den Abbrechen-Button). ``onProgress`` meldet die
+    /// Zahl fertiger Ordner (gedrosselt).
     nonisolated private static func listAll(
         scanner: FileScanner,
         filter: NameFilter,
-        folders: [URL]
+        folders: [URL],
+        onProgress: (Int) -> Void
     ) async -> [URL: [RelevantFile]] {
         var dict: [URL: [RelevantFile]] = [:]
+        var done = 0
         for folder in folders {
             if Task.isCancelled { break }
             dict[folder] = scanner.listDirectoryFiles(folder, filter: filter)
+            done += 1
+            if done % 8 == 0 || done == folders.count { onProgress(done) }
             await Task.yield()
         }
         return dict
@@ -622,6 +675,9 @@ final class ReportViewModel {
         expandedFolders = []
         filesByFolder = [:]
         isLoadingDetails = false
+        scanProgress = 0
+        detailDone = 0
+        detailTotal = 0
     }
 
     private struct ScanResult: Sendable {
@@ -630,9 +686,10 @@ final class ReportViewModel {
 
     nonisolated private static func runScan(
         scanner: FileScanner,
-        settings: ScanSettings
+        settings: ScanSettings,
+        onProgress: (Int) -> Void
     ) async -> ScanResult {
-        let files = scanner.scan(settings: settings, shouldCancel: { Task.isCancelled })
+        let files = scanner.scan(settings: settings, shouldCancel: { Task.isCancelled }, onProgress: onProgress)
         return ScanResult(files: files)
     }
 }

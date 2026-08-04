@@ -27,9 +27,11 @@ public struct FileScanner: Sendable {
     /// - Parameters:
     ///   - settings: Wurzelordner, Zeitfenster (start inklusiv, end exklusiv) und Namensmuster.
     ///   - shouldCancel: Wird regelmaessig geprueft; liefert ``true``, bricht der Scan ab.
+    ///   - onProgress: Wird periodisch mit der Zahl der bisher geprueften Eintraege aufgerufen.
     public func scan(
         settings: ScanSettings,
-        shouldCancel: () -> Bool = { false }
+        shouldCancel: () -> Bool = { false },
+        onProgress: (Int) -> Void = { _ in }
     ) -> [RelevantFile] {
         let filter = NameFilter(settings.namePattern)
         let start = settings.start
@@ -53,8 +55,11 @@ public struct FileScanner: Sendable {
         }
 
         var results: [RelevantFile] = []
+        var examined = 0
         for case let fileURL as URL in enumerator {
             if shouldCancel() { break }
+            examined += 1
+            if examined & 1023 == 0 { onProgress(examined) }
 
             guard let values = try? fileURL.resourceValues(forKeys: keys) else { continue }
             let name = values.name ?? fileURL.lastPathComponent
@@ -91,6 +96,7 @@ public struct FileScanner: Sendable {
                 )
             }
         }
+        onProgress(examined)
         return results
     }
 

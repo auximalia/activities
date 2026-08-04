@@ -191,9 +191,11 @@ Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit)
 
 ### 4.5 Zustände
 - **Fehler:** z. B. „Zeitraum muss > 0 sein", nicht existierender Ordner → klare Meldung.
-- **Scan läuft & noch keine Treffer:** „Durchsuche …".
+- **Sehr großer Zeitraum (> 10 Jahre):** **vor** dem Start erscheint eine Rückfrage („Trotzdem suchen" / „Abbrechen"). Gilt auch beim App-Start mit gespeicherter Riesen-Spanne → kein versehentliches Einfrieren.
+- **Fortschritt:** während des Scans „Durchsuche … N Dateien" (N = geprüfte Einträge, live); beim Laden der Ordner ein **Balken** „Ordner X von Y". In der Steuerleiste ist dieser Zähler dauerhaft sichtbar, daneben ein **Abbrechen-Button** (bricht Scan **und** Detail-Laden ab).
+- **Scan läuft & noch keine Treffer:** „Durchsuche …" (mit Zähler + Abbrechen).
+- **Detaildateien laden noch:** im Listenbereich Fortschritt „Lade Ordner X von Y" (Diagramm/Legende sind da schon sichtbar).
 - **Kein In-Zeitraum-Treffer:** „Keine Ordner gefunden".
-- **Detaildateien laden noch:** im Listenbereich „Lade Ordner …" (Diagramm/Legende sind da schon sichtbar).
 - **Filter blendet alles aus:** unter dem Diagramm dezent „Keine Treffer für den aktiven Filter" – **Diagramm & Legende bleiben sichtbar**, damit man wieder einblenden kann.
 
 ### 4.6 Statuszeile / Menü / Über-Fenster
@@ -212,7 +214,8 @@ Datumstift-Hervorhebung werden bei jedem Render aus den sichtbaren Detaildateien
 berechnet, sodass ein Typ-Filter-Toggle sie garantiert aktualisiert.
 
 ### 5.2 Nebenläufigkeit
-- **Scan** und **Detail-Laden** laufen im Hintergrund; ein laufender Vorgang wird bei Neustart abgebrochen.
+- **Scan** und **Detail-Laden** laufen im Hintergrund (nonisolated, off-main) und sind **abbrechbar** (prüfen `Task.isCancelled` je Datei bzw. je Ordner). Fortschritt wird gedrosselt an die Oberfläche gemeldet.
+- **Diagramm-Schutz:** Bei extrem großen Zeitfenstern (> ~4000 Tage) wird die Tagesliste **nicht** aufgebaut (leeres Diagramm), damit kein Millionen-Elemente-Array den Main-Thread blockiert; die Ordnerliste funktioniert weiter. In der Praxis greift zuvor die 10-Jahre-Warnung.
 - **Diagramm/Legende/Ordnerzugehörigkeit** werden aus den relevanten Dateien **synchron** berechnet (sofort sichtbar); die **Detaildateien** (für Detailzeilen + Ordner-Datumslogik) werden danach **in einem Schwung** getauscht (kein Zwischen-Leerzustand → kein Flackern).
 - **Diagramm-Stabilität:** Balken haben **stabile IDs** (Tag+Endung), damit die Chart-Bibliothek nicht bei jedem Redraw neu animiert (Flacker-Vermeidung).
 

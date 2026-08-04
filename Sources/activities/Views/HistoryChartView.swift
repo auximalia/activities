@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import AppKit
 import ActivitiesCore
 
 /// Gestapeltes Balkendiagramm nach Dateiendung, gefaerbt mit der dominierenden
@@ -138,74 +139,35 @@ struct HistoryChartView: View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 122), spacing: 8, alignment: .leading)],
             alignment: .leading,
-            spacing: 6
+            spacing: 8
         ) {
             ForEach(topExtensions) { item in
-                extensionChip(item)
+                LegendChip(
+                    color: IconColor.dominant(forExtension: item.ext),
+                    icon: FileIconProvider.icon(forExtension: item.ext),
+                    title: ".\(item.ext)",
+                    monospacedTitle: true,
+                    count: item.count,
+                    isHidden: hiddenExtensions.contains(item.ext),
+                    onToggle: { onToggleExtension(item.ext) },
+                    onSolo: { onSoloExtension(item.ext) }
+                )
             }
             if hasOther {
-                otherChip
+                LegendChip(
+                    color: otherColor,
+                    icon: nil,
+                    title: "Sonstige",
+                    monospacedTitle: false,
+                    count: otherCount,
+                    isHidden: hiddenExtensions.contains(otherKey),
+                    onToggle: { onToggleExtension(otherKey) },
+                    onSolo: { onSoloExtension(otherKey) }
+                )
             }
         }
-        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.10))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.30), lineWidth: 1)
-        )
         .padding(.horizontal, 4)
-    }
-
-    private func extensionChip(_ item: ExtensionCount) -> some View {
-        let isHidden = hiddenExtensions.contains(item.ext)
-        return HStack(spacing: 5) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(IconColor.dominant(forExtension: item.ext))
-                .frame(width: 12, height: 12)
-            Image(nsImage: FileIconProvider.icon(forExtension: item.ext))
-                .resizable()
-                .interpolation(.high)
-                .frame(width: 16, height: 16)
-            Text(".\(item.ext)")
-                .font(.system(.caption, design: .monospaced))
-            Text("\(item.count)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .opacity(isHidden ? 0.35 : 1)
-        .strikethrough(isHidden, color: .secondary)
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2) { onSoloExtension(item.ext) }
-        .onTapGesture(count: 1) { onToggleExtension(item.ext) }
-        .help(isHidden
-              ? "Einblenden · Doppelklick: nur diesen Typ"
-              : "Ausblenden · Doppelklick: nur diesen Typ")
-    }
-
-    private var otherChip: some View {
-        let isHidden = hiddenExtensions.contains(otherKey)
-        return HStack(spacing: 5) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(otherColor)
-                .frame(width: 12, height: 12)
-            Text("Sonstige")
-                .font(.caption)
-            Text("\(otherCount)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .opacity(isHidden ? 0.35 : 1)
-        .strikethrough(isHidden, color: .secondary)
-        .contentShape(Rectangle())
-        .onTapGesture(count: 2) { onSoloExtension(otherKey) }
-        .onTapGesture(count: 1) { onToggleExtension(otherKey) }
-        .help(isHidden
-              ? "Einblenden · Doppelklick: nur diese"
-              : "Ausblenden · Doppelklick: nur diese")
     }
 
     private var maxTotal: Int {
@@ -227,4 +189,61 @@ private struct ChartPoint: Identifiable {
     let day: Date
     let ext: String
     let count: Int
+}
+
+/// Ein klickbarer Legendeneintrag im Button-Look: Farbfeld, optionales Icon,
+/// Name und Anzahl in einer umrandeten „Pille" mit Hover-Highlight und
+/// Zeigehand-Cursor. Einfachklick = Toggle, Doppelklick = „Solo".
+private struct LegendChip: View {
+    let color: Color
+    let icon: NSImage?
+    let title: String
+    let monospacedTitle: Bool
+    let count: Int
+    let isHidden: Bool
+    let onToggle: () -> Void
+    let onSolo: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 12, height: 12)
+            if let icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 16, height: 16)
+            }
+            Text(title)
+                .font(monospacedTitle ? .system(.caption, design: .monospaced) : .caption)
+            Text("\(count)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .opacity(isHidden ? 0.4 : 1)
+        .strikethrough(isHidden, color: .secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(Color.secondary.opacity(hovering ? 0.20 : 0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(isHidden ? 0.25 : 0.45), lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .onTapGesture(count: 2) { onSolo() }
+        .onTapGesture(count: 1) { onToggle() }
+        .onHover { inside in
+            hovering = inside
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+        .help(isHidden
+              ? "Einblenden · Doppelklick: nur diesen"
+              : "Ausblenden · Doppelklick: nur diesen")
+    }
 }

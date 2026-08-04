@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.15)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.16)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -170,9 +170,10 @@ sichtbar während der Suche), damit die Leiste beim Ein-/Ausblenden nicht spring
 
 ### 4.2 Diagramm + Legende
 Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit).
-Die Legende sitzt in einem **abgesetzten Panel** („Karte": leicht getönte Fläche
-`Color.secondary` ~0.10, abgerundete Ecken r=10, feiner Rahmen ~0.30), das sie
-optisch vom Diagramm und der Tabelle abhebt.
+Jeder Legendeneintrag ist ein **Button-Chip** (umrandete „Pille" mit Farbfeld,
+Icon, Name, Anzahl; Hover-Highlight + Zeigehand-Cursor), sodass die
+Klickbarkeit erkennbar ist – die Chips grenzen sich selbst voneinander ab, eine
+Hintergrundfläche/Trennlinie hinter der Legende gibt es nicht mehr.
 Ein **„An den Anfang"-Knopf** in der Steuerleiste (Symbol `arrow.up.to.line`,
 Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 

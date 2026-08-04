@@ -8,6 +8,9 @@ import ActivitiesCore
 struct FileRowView: View {
     let file: RelevantFile
     @Bindable var model: ReportViewModel
+    /// Ob diese Datei dem Ordner sein Datum stiftet (juengste sichtbare Datei).
+    /// Nicht-datumstiftende Dateien werden dezent ausgegraut.
+    var isDateSource: Bool = true
 
     private var isSelected: Bool { model.selection == .file(file.url) }
 
@@ -37,6 +40,7 @@ struct FileRowView: View {
                 .font(.system(.callout, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
+        .opacity(isDateSource ? 1.0 : 0.5)
         .padding(.vertical, 3)
         .padding(.horizontal, 8)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))

@@ -36,7 +36,7 @@ struct ReportView: View {
                                     .id(RowID.folder(entry.folder))
 
                                 if model.isExpanded(entry.folder) {
-                                    detailRows(for: entry.folder)
+                                    detailRows(for: entry)
                                 }
                             }
                         } header: {
@@ -111,8 +111,8 @@ struct ReportView: View {
     }
 
     @ViewBuilder
-    private func detailRows(for folder: URL) -> some View {
-        if let files = model.visibleFiles(in: folder) {
+    private func detailRows(for entry: FolderEntry) -> some View {
+        if let files = model.visibleFiles(in: entry.folder) {
             if files.isEmpty {
                 Text("Keine passenden Dateien in diesem Ordner.")
                     .font(.callout)
@@ -121,7 +121,7 @@ struct ReportView: View {
                     .padding(.vertical, 3)
             } else {
                 ForEach(files) { file in
-                    FileRowView(file: file, model: model)
+                    FileRowView(file: file, model: model, isDateSource: file.timestamp == entry.newestDate)
                         .id(RowID.file(file.url))
                         .padding(.leading, 26)
                 }

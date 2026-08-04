@@ -24,12 +24,29 @@ struct ActivitiesApp: App {
                 Button("Als CSV exportieren …") { ExportService.exportCSV(model.displayBuckets) }
                 Button("Als HTML exportieren …") { ExportService.exportHTML(model.displayBuckets) }
             }
+            CommandGroup(replacing: .help) {
+                HelpMenuButton()
+            }
         }
 
         Window("Über activities", id: "about") {
             AboutView()
         }
         .windowResizability(.contentSize)
+
+        Window("activities Hilfe", id: "help") {
+            HelpView()
+        }
+        .defaultSize(width: 560, height: 680)
+    }
+}
+
+/// Menuepunkt „activities Hilfe" (oeffnet das Hilfe-Fenster).
+private struct HelpMenuButton: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Button("activities Hilfe") { openWindow(id: "help") }
+            .keyboardShortcut("?", modifiers: .command)
     }
 }
 

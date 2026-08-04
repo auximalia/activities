@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.8)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.1.9)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -202,10 +202,15 @@ Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit)
 - **Kein In-Zeitraum-Treffer:** „Keine Ordner gefunden".
 - **Filter blendet alles aus:** unter dem Diagramm dezent „Keine Treffer für den aktiven Filter" – **Diagramm & Legende bleiben sichtbar**, damit man wieder einblenden kann.
 
-### 4.6 Statuszeile / Menü / Über-Fenster
+### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
 - **Statuszeile:** „N Ordner · M Dateien · X.XX s", Auto-Refresh-Indikator, Wurzelpfad.
 - **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), Export CSV …, Export HTML …, „Über activities".
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
+- **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-
+  Eintrag im **Hilfe**-Menü). Scrollbare Kurzanleitung mit Abschnitten (Zweck,
+  Ordnerwahl, Zeitraum, Filter, Aktualisieren/Auto-Refresh, Diagramm/Legende,
+  Liste/Details, Tastatur/QuickLook, Export) und einer Tastenkürzel-Tabelle
+  (`HelpView.swift`, Fenster-`id: "help"`).
 - **Export:** CSV (`;`-getrennt) und eigenständiges HTML, jeweils aus den angezeigten Ordnern (`displayBuckets`), über Speichern-Dialog.
 
 ## 5. Reaktivität, Nebenläufigkeit, Persistenz
@@ -259,7 +264,7 @@ Sources/
     Models.swift             RelevantFile/FolderEntry/BucketedEntries/DayExtensionCount/ScanSettings
     FileCategory.swift       [legacy: alte Kategorien; von der App NICHT mehr genutzt]
   activities/            (SwiftUI-App)
-    ActivitiesApp.swift      @main, Fenster, Menübefehle, Über-Fenster
+    ActivitiesApp.swift      @main, Fenster, Menübefehle, Über-Fenster, Hilfe-Fenster
     ReportViewModel.swift    @Observable Orchestrierung (Kern der Fachablauflogik)
     Views/                   RootView, ControlsView, HistoryChartView, ReportView,
                              FolderRowView, FileRowView, EmptyStateView, QuickLookHost

@@ -1,342 +1,325 @@
-# Umsetzungskonzept – macOS-App „Zuletzt verwendete Ordner"
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.0.12)
 
-Konzept für den **nativen Neubau** des bestehenden Kommandozeilen-Werkzeugs als
-eigenständige **macOS-App in Swift/SwiftUI** namens **activities**. Die App zeigt
-die zuletzt bearbeiteten Ordner in einem Fenster, erlaubt das Setzen von Zeitraum
-und Namensfilter direkt in der Oberfläche, öffnet per Klick den Ordner im Finder
-und einzelne Dateien mit ihrer Standard-App.
+Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
+beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
+Plattform (Windows/Linux/Web) originalgetreu nachgebaut werden kann.
 
-Sprachkonvention dieses Repos: Prosa/Doku/Kommentare auf **Deutsch**,
-Code-Bezeichner und Commit-Nachrichten auf **Englisch**.
+- **Teil A (Fachlogik & Oberfläche)** ist *plattformunabhängig*.
+- **Teil B (Implementierung)** dokumentiert die konkrete macOS/Swift-Umsetzung.
+- **Teil C (Portierung)** listet, was beim OS-Wechsel neu zu bauen ist.
 
----
-
-## 1. Entscheidungsgrundlage (geklärt)
-
-| Nr. | Thema | Festlegung |
-|---|---|---|
-| E1 | Technischer Ansatz | **Nativer Neubau in Swift/SwiftUI** (Variante D). Der bestehende Python-Code wird **nicht** wiederverwendet, sondern dient als fachliche Referenzspezifikation. |
-| E2 | Verteilung | **Nur für den Eigengebrauch.** Keine Notarisierung; ad-hoc-Signierung genügt (Start ggf. per Rechtsklick → „Öffnen"). |
-| E3 | Klick auf Ordner | **Primärklick öffnet den Ordner im Finder** *und* kopiert den Pfad in die Zwischenablage. Zusätzliche Aktionen (Im Finder anzeigen, nur kopieren) über Kontextmenü. |
-| E4 | Klick auf Datei | **Primärklick auf eine Datei (in der Detailansicht) öffnet sie mit der Standard-App** (`NSWorkspace.open`) – direktes Weiterarbeiten. Kontextmenü: Im Finder anzeigen, Pfad kopieren. |
-| E5 | Filter | Ein **Namensfilter** im GUI (statt CLI-Parameter). Ganzer Dateiname, Groß-/Kleinschreibung wird ignoriert, Platzhalter `*`/`?` erlaubt (z. B. `*Studium*.xls*`). Ein Wort **ohne** Platzhalter wird automatisch als Teilstring `*Wort*` behandelt. Der Filter wirkt **überall konsistent** (Ordnerauswahl, Detailansicht und Diagramm). |
-| E6 | Python-Bestand | Wird in einen **Unterordner verschoben und behalten** (nicht gelöscht), siehe §9. |
-| E7 | App-Metadaten | Name **activities**; App-Icon: **blauer, gefüllter Kreis (LED-Optik)**; Bundle-ID **`com.mtri.activities`** (Platzhalter, jederzeit änderbar). |
-| E8 | Zielsystem | **macOS 14 (Sonoma)** als minimale Version (Festlegung, siehe Begründung unten). |
-| E9 | Dokumentation | Dieses Konzept wird als Datei abgelegt. |
-
-### Bewusste Annahmen (bitte bei Bedarf widersprechen)
-
-- **Minimale Systemversion: macOS 14 (Sonoma)** (Festlegung E8). Grund: das
-  Balkendiagramm nutzt *Swift Charts* (ab macOS 13); 14 als solide, aktuelle Basis
-  mit stabilem `@Observable` und modernen SwiftUI-APIs.
-- **App Sandbox aus** (Eigengebrauch). Der Zugriff auf den vom Nutzer gewählten
-  Wurzelordner erfolgt über den nativen Ordner-Dialog (`NSOpenPanel`/`.fileImporter`),
-  der Leserechte für genau diesen Ordner erteilt (Powerbox) – auch ohne „Full Disk Access".
-- Oberfläche auf **Deutsch**, lokale Zeitzone, Datumsformate der System-Locale.
-- **Symlinks werden nicht verfolgt** (Schutz gegen Schleifen).
-- Nicht lesbare Ordner/Dateien werden übersprungen und protokolliert (kein Abbruch).
-
-### Nicht im Umfang (Out of Scope)
-
-- **Windows/Linux entfallen.** Der native Neubau ist macOS-exklusiv. (Das bisherige
-  Python-CLI kann bei Bedarf separat für andere Plattformen erhalten bleiben – siehe §9.)
-- Keine Historie/Datenbank, keine Netzlaufwerk-Sonderbehandlung, kein Auto-Update.
+Sprachkonvention des Repos: Prosa/Kommentare **Deutsch**, Code-Bezeichner/Commits
+**Englisch**.
 
 ---
 
-## 2. Fachliche Anforderungen (aus dem Bestand übernommen)
+## 0. Zweck & Kernidee
 
-Diese Regeln des bestehenden Werkzeugs werden originalgetreu nachgebaut:
-
-| Nr. | Anforderung | Festlegung |
-|---|---|---|
-| A1 | Auswertungsobjekt | Nur **Dateien** werden bewertet, angezeigt werden **Ordner**. |
-| A2 | Anzeige | Pro Treffer der **direkte Elternordner** mit vollständigem Pfad, dedupliziert. |
-| A3 | Maßgebliches Datum je Datei | **`max(Erstelldatum, Änderungsdatum)`**. Auf macOS beide zuverlässig verfügbar. |
-| A4 | Ordner-Datum | Neuestes Datum aller direkt enthaltenen relevanten Dateien. |
-| A5 | Zeitraum | Standard **30 Tage** rückwärts, im GUI einstellbar. |
-| A6 | Wurzelordner | Standard: Dokumente-Ordner; im GUI wählbar. |
-| A7 | Ausschlüsse | Versteckte Objekte + Junk (`.DS_Store`, `Thumbs.db`, `desktop.ini`, `~$*`, `.git`, `node_modules`, `__pycache__`, `.venv` …), pflegbar. |
-| A8 | Zeit-Gruppierung | Sektionen *Heute*, *Gestern*, *Diese Woche* (< 7 Tage), danach *Vor N Wochen*. |
-| A9 | Sortierung | Ordner nach neuestem Datum absteigend; bei Gleichstand alphabetisch. |
-| A10 | Detailansicht | Aufklappbar je Ordner: die Dateien des Ordners (auch ältere, ohne Zeitraumgrenze), gemäß Namensfilter (E5), nach Datum absteigend. |
-| A11 | Verlaufsdiagramm | Gestapeltes Balkendiagramm: Dateien je Tag nach Kategorie; Wochenenden hervorgehoben; Klick auf Balken springt zum Tag. |
-| A12 | Dateityp-Kategorien | Dokumente, PDF, Tabellen, Präsentationen, Bilder, Medien, Archive, Code, Sonstige (Endungs-Zuordnung aus `file_types.py`). |
-| A13 | Leerzustand | Klare Meldung, wenn im Zeitraum nichts gefunden wird. |
-| A14 | Dark-Mode | Automatisch anhand der Systemeinstellung (in SwiftUI kostenlos). |
-| A15 | Datei öffnen | Klick auf eine Datei in der Detailansicht öffnet sie mit der Standard-App (E4). |
-
-Die **exakte** Zeit-Bucket-Regel (aus `bucket_label`): `days_ago = heute − datum`;
-`<= 0` → Heute, `== 1` → Gestern, `< 7` → Diese Woche, sonst `Vor {days_ago // 7} Woche(n)`.
+Ein Werkzeug, das auf einen Blick zeigt, **in welchen Ordnern zuletzt (innerhalb
+eines Zeitraums) gearbeitet** wurde, gruppiert nach Zeitabschnitten, mit einem
+**Verlaufsdiagramm** nach Dateityp. Ordner (nicht einzelne Dateien) sind die
+Hauptobjekte; ein Klick öffnet den Ordner im Datei-Manager, ein Klick auf eine
+Datei öffnet sie mit der Standard-App.
 
 ---
 
-## 3. Architektur (SwiftUI, MVVM)
+# TEIL A — Plattformunabhängige Spezifikation
+
+## 1. Glossar
+
+- **Wurzelordner (root):** vom Nutzer gewählter Ordner, der rekursiv durchsucht wird. Standard: Dokumente-Ordner.
+- **Zeitraum (days):** Anzahl Tage rückwärts ab jetzt. `cutoff = jetzt − days` (Tagesgenau).
+- **Effektiver Zeitstempel einer Datei:** `max(Erstelldatum, Änderungsdatum)`.
+- **Relevante Datei (in-window):** reguläre, nicht ausgeschlossene, nicht versteckte Datei im Wurzelbaum, deren Name dem Namensfilter entspricht und deren effektiver Zeitstempel `>= cutoff` ist.
+- **Detaildatei:** reguläre, nicht ausgeschlossene, nicht versteckte Datei **direkt** in einem Ordner, die dem Namensfilter entspricht – **ohne** Zeitraumgrenze (also inkl. älterer Dateien).
+- **Typ-Filter:** in der Legende aus-/einblendbare Dateiendungen (inkl. Sammel-Eintrag „Sonstige").
+- **Sichtbar:** eine Datei ist sichtbar, wenn sie nicht durch den Typ-Filter ausgeblendet ist.
+- **Datumstiftende Datei:** die jüngste sichtbare Datei eines Ordners; ihr Datum ist das Ordner-Datum.
+
+## 2. Datenmodell
 
 ```
-RecentFolders.app  (Xcode-Projekt)
-├─ Model/                         (reine Fachlogik, UI-neutral, testbar)
-│  ├─ FileScanner.swift           Baum durchlaufen, Ausschlüsse, Datum, Zeitraum, Filter
-│  ├─ FolderAggregator.swift      Dateien → Ordner gruppieren, sortieren
-│  ├─ DailyCounter.swift          Dateien je Tag nach Kategorie zählen
-│  ├─ FileCategory.swift          Endung → Kategorie (Portierung von file_types.py)
-│  ├─ NameFilter.swift            Glob-Muster, case-insensitiv, Auto-Teilstring
-│  ├─ TimeBucket.swift            Zeitabschnitt (Heute/Gestern/… ) aus Datum
-│  └─ Models.swift                RelevantFile, FolderEntry, DayCount, ScanSettings
-├─ ViewModel/
-│  └─ ReportViewModel.swift       @Observable: State, Hintergrund-Scan, Cancel, Fehler
-├─ View/
-│  ├─ RootView.swift              Fensteraufbau: Toolbar + Inhalt
-│  ├─ ControlsView.swift          Ordnerwahl, Tage, Filterfeld, „Aktualisieren"
-│  ├─ HistoryChartView.swift      Swift-Charts-Balkendiagramm
-│  ├─ FolderSectionView.swift     Zeit-Sektionen mit Ordnerzeilen
-│  ├─ FolderRowView.swift         Ordnerzeile, Klick/Kontextmenü, Detailausklappung
-│  └─ EmptyStateView.swift        Leerzustand
-├─ Services/
-│  ├─ FinderService.swift         Ordner öffnen / im Finder anzeigen (NSWorkspace)
-│  ├─ ClipboardService.swift      Pfad kopieren (NSPasteboard)
-│  └─ SettingsStore.swift         Persistenz (UserDefaults + Security-Scoped Bookmark)
-├─ Resources/
-│  └─ Assets.xcassets             App-Icon
-└─ Tests/                         XCTest je Model-Modul
+RelevantFile { url; folder (= direktes Elternverzeichnis); timestamp }
+FolderEntry  { folder; newestDate; fileCount; files=[] }
+BucketedEntries { label; entries: [FolderEntry] }      // Zeitabschnitt
+DayTypeCount { day; counts: [extension: Int] }         // ein Tag im Diagramm
+ExtensionCount { ext; count }                          // Legenden-Eintrag
+RowID = folder(url) | file(url)                        // Zeilen-Identität
+ScanSettings { rootURL; days; namePattern }
 ```
 
-**Abhängigkeitsrichtung:** `View` → `ViewModel` → `Model`/`Services`. Das `Model`
-kennt weder SwiftUI noch AppKit (bleibt rein und unit-testbar).
+## 3. Fachlogik (die eigentliche Wertschöpfung)
 
-### 3.1 Datenmodelle
+### 3.1 Scan → relevante Dateien
+Rekursiver Tiefendurchlauf des Wurzelbaums, `topdown`:
+- **Versteckte Objekte überspringen** (Namen mit führendem Punkt bzw. OS-Attribut „versteckt").
+- **Ausgeschlossene Ordner nicht betreten** (Pruning, siehe 3.4).
+- **Symlinks nicht verfolgen** (Schutz gegen Schleifen).
+- Nur **reguläre Dateien** auswerten; **ausgeschlossene Dateien** (3.4) überspringen.
+- **Namensfilter** anwenden (3.5).
+- Nur behalten, wenn `effektiverZeitstempel >= cutoff`.
+- Nicht lesbare Einträge überspringen und protokollieren (kein Abbruch).
+- Ergebnis: Liste `relevantFiles` mit `folder = direktes Elternverzeichnis`.
 
-```swift
-struct ScanSettings: Equatable {
-    var rootURL: URL
-    var days: Int                 // Zeitraum rückwärts
-    var namePattern: String       // Roheingabe des Nutzers, "" = kein Filter
-}
+### 3.2 Detaildateien pro Ordner
+Für jeden Ordner, der (mind. eine) relevante Datei enthält, wird **flach** (nicht
+rekursiv) der Ordnerinhalt gelistet: reguläre, sichtbare (nicht-versteckt/-junk),
+namensgefilterte Dateien – **ohne** Zeitraumgrenze. Ergebnis `filesByFolder`.
+Sortierung: Zeitstempel absteigend, bei Gleichstand Name aufsteigend (case-insensitiv).
 
-struct RelevantFile: Identifiable {
-    let url: URL
-    let folder: URL               // direktes Elternverzeichnis
-    let timestamp: Date           // max(Erstell-, Änderungsdatum)
-}
+### 3.3 Effektiver Zeitstempel
+`max(creationDate, modificationDate)`. Fehlt eines, gilt das andere (fehlt beides:
+fernste Vergangenheit). **Wichtig:** Der Zeitstempel ist der Datei-Zeitstempel,
+nicht ein Datum im Dateinamen.
 
-struct FolderEntry: Identifiable {
-    let folder: URL
-    let newestDate: Date
-    let fileCount: Int            // Anzahl relevanter Dateien
-    var files: [RelevantFile]     // vollständige Ordnerliste (Detailansicht, lazy)
-}
+### 3.4 Ausschlüsse (fest verdrahtete Standardlisten)
+- **Ordner:** `.git`, `node_modules`, `__pycache__`, `.venv`, `venv`, `Library`, `$RECYCLE.BIN`, `System Volume Information`.
+- **Dateien (Namen/Glob):** `.DS_Store`, `Thumbs.db`, `desktop.ini`, `~$*` (Office-Sperrdateien). Glob per `fnmatch`.
 
-struct DayCount: Identifiable {
-    let day: Date
-    let countsByCategory: [FileCategory: Int]
-}
+### 3.5 Namensfilter (ein Textfeld in der GUI)
+- Wird gegen den **ganzen Dateinamen** geprüft, **case-insensitiv**.
+- Platzhalter `*` (beliebig viele Zeichen) und `?` (genau ein Zeichen) erlaubt (fnmatch-Semantik, Flag CASEFOLD).
+- **Auto-Teilstring:** enthält die Eingabe **weder** `*` **noch** `?`, wird sie als `*eingabe*` behandelt (z. B. `Studium` → `*Studium*`).
+- Leeres/whitespace-Muster = kein Filter (alle Dateien passen).
+- Beispiel: `*Studium*.xls*` findet `Studium Noten.xls`/`Mein Studium.xlsx`.
+- Der Namensfilter wirkt **sowohl** auf den Scan (relevante Dateien) **als auch** auf die Detailliste.
+
+### 3.6 Typ-Filter & Legende (Top-7 + „Sonstige")
+- **Legenden-Grundmenge** = die Endungen, die in den **relevanten Dateien** (In-Zeitraum) vorkommen. → Es gibt **keine** Legenden-Einträge für Typen, die nur in älteren (out-of-window) Dateien vorkommen (sie hätten kein Balkensegment).
+- Berechne Häufigkeit je Endung über `relevantFiles`. Zeige die **7 häufigsten** Endungen als Legenden-Chips (Endung + Icon + Anzahl). Sortierung: Anzahl absteigend, bei Gleichstand Endung alphabetisch.
+- Gibt es **mehr als 7** Endungen, werden alle übrigen In-Zeitraum-Dateien unter einem neutralen **„Sonstige"**-Chip (grau) zusammengefasst; `otherCount` = Anzahl relevanter Dateien, deren Endung nicht in den Top-7 ist. Bei ≤7 Endungen: kein „Sonstige".
+- Jeder Chip ist **an-/ausblendbar** (Toggle). Ausgeblendete Chips bleiben sichtbar, aber abgeblendet + durchgestrichen (damit wieder aktivierbar).
+- **`isHidden(datei)`**: `true`, wenn die Endung in der Ausblend-Menge ist **oder** „Sonstige" ausgeblendet ist und die Endung nicht in den Top-7 liegt.
+- Der Typ-Filter wirkt **konsistent** auf: Diagramm, Ordner-Zugehörigkeit/-Datum, Detailzeilen, Tastatur-Navigation, QuickLook-Liste.
+
+### 3.7 Ordner-Zugehörigkeit & -Datum (Kernregel – mehrfach nachspezifiziert)
+Aus den **Detaildateien** je Ordner (nicht aus den relevanten Dateien!):
+1. Wende den Typ-Filter an → **sichtbare** Detaildateien des Ordners.
+2. **Ordner-Datum** = jüngster Zeitstempel der sichtbaren Detaildateien.
+3. **Ordner wird angezeigt**, genau dann wenn dieses Datum **>= cutoff** (im Zeitraum) liegt.
+4. **`fileCount`** = Anzahl sichtbarer Detaildateien (auch ältere; entspricht den gezeigten Zeilen).
+
+Folge (gefordertes Verhalten): Blendet der Typ-Filter die datumstiftende Datei
+aus, **rückt das Ordner-Datum auf die nächstjüngere sichtbare Datei**; liegt keine
+sichtbare Datei mehr im Zeitraum, **verschwindet der Ordner** (Sparsamkeitsprinzip).
+Leere Ordner (kein sichtbarer In-Zeitraum-Treffer) werden nie angezeigt.
+
+> Invarianten (müssen immer gelten):
+> - Das angezeigte Ordner-Datum ist **immer** der Zeitstempel einer real gezeigten Detaildatei.
+> - Ein angezeigter Ordner hat **mindestens eine** sichtbare Detaildatei im Zeitraum.
+> - Das Ordner-Datum bestimmt den Zeitabschnitt (3.8) – Datum und Abschnitt sind konsistent.
+
+### 3.8 Zeitabschnitte (Buckets)
+Aus `daysAgo = Kalendertage(zwischen(Ordner-Datum, heute))`:
+- `<= 0` → **„Heute"**
+- `== 1` → **„Gestern"**
+- `< 7` → **„Diese Woche"**
+- sonst `weeks = daysAgo / 7` → **„Vor 1 Woche"** bzw. **„Vor N Wochen"**.
+
+Ordner werden nach Datum **absteigend** sortiert (sekundär Pfad absteigend), dann
+in **aufeinanderfolgende** Abschnitte gruppiert. Jeder Abschnitt zeigt seine Anzahl.
+
+### 3.9 Diagramm (gestapelte Balken je Tag)
+- Zeitachse: die letzten `days` Tage bis heute, **lückenlos** (Tage ohne Dateien = leer).
+- Datenbasis: **sichtbare relevante Dateien** (relevantFiles minus `isHidden`).
+- Je Tag gestapelt nach **Endung**: die Top-7-Endungen einzeln, alle übrigen unter **„Sonstige"** (falls sichtbar). Ausgeblendete Endungen erzeugen keine Segmente.
+- **Wochenenden** hell hinterlegt. **X-Achse:** nur **Montag und Freitag** beschriftet (bei ≤ 8 Tagen jeder Tag), Beschriftung = Wochentagskürzel + `TT.MM.`.
+- **Klick auf einen Tag** (Balkenbereich): springt zum passenden Ordner (siehe 3.11) und markiert dessen datumstiftende Datei.
+
+### 3.10 Farben der Endungen (Balken & Legenden-Swatch)
+Jede Endung erhält eine **aus ihrem Datei-Icon abgeleitete Farbe**:
+1. Icon der Endung rendern (32×32), Pixel auslesen.
+2. **Sättigungsgewichteter Mittelwert der farbigen Pixel** (Alpha ≥ 0.3, Sättigung ≥ 0.22, 0.15 ≤ Helligkeit ≤ 0.99). So gewinnt der farbige Akzent, nicht der weiß/graue Hintergrund.
+3. Fehlt Farbe → Rückfall auf den (un-premultiplizierten) Deckfarben-Mittelwert.
+4. **Normalisierung** in HSB: ist die Sättigung < 0.12 (Graustufen-Icon) → nur Helligkeit auf `[0.45, 0.72]` klemmen (bleibt grau); sonst Sättigung auf `[0.6, 0.95]`, Helligkeit auf `[0.55, 0.9]` klemmen (kräftig & unterscheidbar).
+5. Ergebnis je Endung cachen. „Sonstige" ist neutrales Grau.
+Der Legenden-Chip zeigt links dieses **Farbrechteck** (Balkenfarbe), dann das Icon, den Endungsnamen und die Anzahl.
+
+### 3.11 Navigation & flache Zeilenliste
+Aus `displayBuckets` (Ordner) + `expandedFolders` + sichtbaren Detaildateien wird
+eine **flache, geordnete Zeilenliste** gebildet: je Ordnerzeile, gefolgt (falls
+aufgeklappt) von seinen sichtbaren Detaildateien. Diese Reihenfolge steuert die
+Pfeiltasten-Navigation und QuickLook.
+
+Diagramm-Klick-Ziel: der erste Ordner mit `newestDate` am selben Tag; sonst der
+erste Ordner mit `newestDate < Ende jenes Tages` (Liste ist absteigend sortiert).
+
+## 4. Oberfläche & Interaktion
+
+Ein Fenster, drei Bereiche: **Steuerleiste** (oben), **Inhalt** (Diagramm + Liste),
+**Statuszeile** (unten). Dark-Mode automatisch.
+
+### 4.1 Steuerleiste
+- **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).
+- **Zeitraum-Presets** als Segmented Control: **7 / 30 / 90**. Zusätzlich **Stepper** (1…3650 Tage). Änderung ⇒ Rescan.
+- **Namensfilter-Textfeld** (Enter = Rescan).
+- **„Aktualisieren"** (Rescan), Tastenkürzel **⌘R**.
+- **Toggle „alles auf-/zuklappen"** (Standard: alle Ordner aufgeklappt).
+- **Toggle „Auto-Refresh"** (Dateisystem-Überwachung, siehe 5.3).
+- **Fortschrittsanzeige** während des Scans.
+- Rechts dezent: „designed by matthias.riedel.dresden" + **Versionsnummer** (klick-/kopierbar, Tooltip mit Revision/Build-Datum).
+
+### 4.2 Diagramm + Legende
+Siehe 3.9/3.10. Legende ist ein **umbrechendes Raster** (Chips ~≥122 pt breit).
+
+### 4.3 Ordner- & Dateizeilen
+- **Ordnerzeile:** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion), Name (fett), Pfad (klein, gekürzt), rechts **Datum** (Monospace) + **Anzahl**.
+  - **Klick auf die Zeile:** auf-/zuklappen **und** markieren.
+  - **Klick auf das Ordner-Symbol:** markieren **und** im Datei-Manager öffnen (+ Pfad in Zwischenablage).
+  - **Doppelklick:** im Datei-Manager öffnen (+ kopieren).
+  - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
+  - **Datum & Anzahl werden LIVE** aus den sichtbaren Detaildateien berechnet (nicht aus einem gecachten Wert) – siehe 6.
+- **Dateizeile (eingerückt):** **Datei-Icon** (echtes Typ-Icon, feste 18×18 px), Name, rechts Datum (Monospace).
+  - **Klick auf die Zeile:** markieren.
+  - **Klick auf das Datei-Symbol / Doppelklick:** markieren **und** mit Standard-App öffnen.
+  - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
+  - **Hervorhebung datumstiftend:** die datumstiftende(n) Datei(en) (Zeitstempel == Ordner-Datum) normal; **alle anderen dezent ausgegraut** (Opazität ~0.5).
+- **Markierung (Selektion):** dezente, moderne Tönung (Akzentfarbe ~12 % Füllung + feiner Rahmen, weiche Ecken) – **nicht** grell/vollflächig; Text bleibt normal lesbar.
+
+### 4.4 Tastatur & QuickLook
+- **Pfeil hoch/runter:** Auswahl-Cursor über die flache Zeilenliste bewegen.
+- **Pfeil links/rechts:** aktuellen Ordner zu-/aufklappen.
+- **Enter:** Auswahl öffnen (Ordner → Datei-Manager + kopieren; Datei → Standard-App).
+- **Leertaste:** **QuickLook-Vorschau** der markierten Datei.
+  - In QuickLook navigieren **Pfeil hoch/runter (und links/rechts)** zur **nächsten/vorigen Datei** über **alle angezeigten Dateien hinweg**; überschreitet die Navigation eine Ordnergrenze, wird der Zielordner **aufgeklappt** und die Zeile markiert.
+- Nach Auswahl scrollt die Liste die markierte Zeile in die Mitte; die Liste hält den Tastaturfokus (nach Klick zurückholen).
+
+### 4.5 Zustände
+- **Fehler:** z. B. „Zeitraum muss > 0 sein", nicht existierender Ordner → klare Meldung.
+- **Scan läuft & noch keine Treffer:** „Durchsuche …".
+- **Kein In-Zeitraum-Treffer:** „Keine Ordner gefunden".
+- **Detaildateien laden noch:** im Listenbereich „Lade Ordner …" (Diagramm/Legende sind da schon sichtbar).
+- **Filter blendet alles aus:** unter dem Diagramm dezent „Keine Treffer für den aktiven Filter" – **Diagramm & Legende bleiben sichtbar**, damit man wieder einblenden kann.
+
+### 4.6 Statuszeile / Menü / Über-Fenster
+- **Statuszeile:** „N Ordner · M Dateien · X.XX s", Auto-Refresh-Indikator, Wurzelpfad.
+- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), Export CSV …, Export HTML …, „Über activities".
+- **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
+- **Export:** CSV (`;`-getrennt) und eigenständiges HTML, jeweils aus den angezeigten Ordnern (`displayBuckets`), über Speichern-Dialog.
+
+## 5. Reaktivität, Nebenläufigkeit, Persistenz
+
+### 5.1 Reaktivität (wichtige Lehre)
+Alle vom Filter abhängigen Anzeigen müssen **aus der Model-Wahrheit live**
+gelesen werden (nicht aus in Views kopierten Werten), sonst zeigen umgruppierte
+Zeilen veraltete Daten. Konkret: Ordner-Datum, Ordner-Anzahl und die
+Datumstift-Hervorhebung werden bei jedem Render aus den sichtbaren Detaildateien
+berechnet, sodass ein Typ-Filter-Toggle sie garantiert aktualisiert.
+
+### 5.2 Nebenläufigkeit
+- **Scan** und **Detail-Laden** laufen im Hintergrund; ein laufender Vorgang wird bei Neustart abgebrochen.
+- **Diagramm/Legende/Ordnerzugehörigkeit** werden aus den relevanten Dateien **synchron** berechnet (sofort sichtbar); die **Detaildateien** (für Detailzeilen + Ordner-Datumslogik) werden danach **in einem Schwung** getauscht (kein Zwischen-Leerzustand → kein Flackern).
+- **Diagramm-Stabilität:** Balken haben **stabile IDs** (Tag+Endung), damit die Chart-Bibliothek nicht bei jedem Redraw neu animiert (Flacker-Vermeidung).
+
+### 5.3 Auto-Refresh (Dateisystem-Überwachung)
+Optional (Standard an). Überwacht den Wurzelbaum; bei Änderung **entprellt**
+(~0.8 s) einen **zustandserhaltenden** Rescan (Aufklappungen/Auswahl bleiben,
+soweit noch gültig).
+
+### 5.4 Persistenz (Einstellungen)
+Gespeichert werden: Wurzelordner (Pfad), Tage, Namensfilter, Auto-Refresh,
+zuletzt genutzte Ordner (max. 8). Ablage in den plattformüblichen Nutzer-
+einstellungen. Standard-Wurzelordner: Dokumente-Ordner; Standard-Tage: 30.
+
+---
+
+# TEIL B — macOS-Implementierung (Referenz)
+
+## 6. Technik-Stack
+- **Sprache/UI:** Swift 5.9+, SwiftUI, AppKit-Brücken, **Swift Charts**, **QuickLook (Quartz)**, **CoreImage/CoreGraphics** (Icon-Farbe), **FSEvents** (CoreServices).
+- **Ziel:** macOS 14+ (Sonoma). Universal Binary (arm64 + x86_64).
+- **Build:** Swift Package Manager; funktioniert mit reinen Command Line Tools (ohne volles Xcode).
+
+## 7. Modulaufbau
 ```
-
----
-
-## 4. Kernlogik (die heiklen Details, portiert)
-
-### 4.1 Datum je Datei (A3)
-Über `URLResourceValues`: `.creationDateKey` und `.contentModificationDateKey`.
-`timestamp = max(creation, modification)`. **Ein** Ressourcenabruf je Datei; die
-Werte werden beim Enumerieren vorgeladen (`enumerator(at:includingPropertiesForKeys:)`).
-
-### 4.2 Baumdurchlauf & Ausschlüsse (A7)
-`FileManager.enumerator` mit Optionen `.skipsHiddenFiles` (Dotfiles/Attribut
-„versteckt") und ohne Symlink-Verfolgung. Ausgeschlossene **Ordner** werden per
-`enumerator.skipDescendants()` beim Betreten übersprungen (Pendant zum Pruning in
-`os.walk`). Junk-**Dateien** über exakte Namen und Glob (`~$*`). Fehler je Eintrag
-(`try?`) → überspringen und loggen (`os.Logger`).
-
-### 4.3 Namensfilter (E4) – neu gegenüber dem Bestand
+Sources/
+  ActivitiesCore/        (reine Fachlogik, Foundation-only, testbar, UI-neutral)
+    FileScanner.swift        scan(...) + listDirectoryFiles(...)  (3.1–3.3)
+    ExclusionRules.swift     Ausschlusslisten (3.4)
+    NameFilter.swift         Glob/CASEFOLD/Auto-Teilstring (3.5)
+    FolderAggregator.swift   folderEntries(from:cutoff:isVisible:) (3.7),
+                             countFilesPerDayByType(...) (3.9),
+                             groupByFolder(...), countFilesPerDay(...) [legacy]
+    TimeBucket.swift         label(...)/group(...) (3.8)
+    RowNavigation.swift      RowID, flatten(...), move(...) (3.11)
+    ReportExport.swift       csv(...)/html(...)
+    Models.swift             RelevantFile/FolderEntry/BucketedEntries/DayExtensionCount/ScanSettings
+    FileCategory.swift       [legacy: alte Kategorien; von der App NICHT mehr genutzt]
+  activities/            (SwiftUI-App)
+    ActivitiesApp.swift      @main, Fenster, Menübefehle, Über-Fenster
+    ReportViewModel.swift    @Observable Orchestrierung (Kern der Fachablauflogik)
+    Views/                   RootView, ControlsView, HistoryChartView, ReportView,
+                             FolderRowView, FileRowView, EmptyStateView, QuickLookHost
+    Services/                FinderService, ClipboardService, SettingsStore,
+                             FolderWatcher (FSEvents), ExportService, FileIconProvider
+    Style/                   IconColor (3.10), DateFormatting, SelectionBackground
+    BuildInfo.swift          liest Version/Revision aus Info.plist
+  CoreChecks/            ausführbarer Prüf-Runner (ersetzt XCTest ohne Xcode)
+Tests/ActivitiesCoreTests/   XCTest-Suite (mit vollem Xcode)
 ```
-Eingabe → getrimmt, kleingeschrieben.
-  enthält kein *,? und keinen .  →  als "*eingabe*" behandeln (Teilstring).
-  sonst  →  wörtlich als Glob-Muster.
-Vergleich: Muster (lowercased) gegen Dateiname (lowercased), fnmatch-Semantik.
-Leeres Muster → jede Datei passt.
-```
-Umsetzung des Glob per selbst geschriebenem Matcher oder `NSPredicate(format:
-"self LIKE[c] %@")` mit Umsetzung `*`→`*`, `?`→`?`. Empfehlung: **eigener
-kleiner Glob-Matcher** (deterministisch, unit-testbar), analog zu Pythons `fnmatch`.
-Der Filter wirkt auf den **ganzen Dateinamen** (nicht nur die Endung).
+Abhängigkeitsrichtung: `Views → ReportViewModel → ActivitiesCore/Services`.
+Der Core kennt weder SwiftUI noch AppKit.
 
-### 4.4 Gruppierung & Zählung (A2, A4, A9, A11)
-- `FolderEntry` je direktem Elternordner; `newestDate` = Maximum, `fileCount` = Anzahl.
-- Sortierung: `newestDate` absteigend, sekundär Pfad alphabetisch.
-- `DayCount`: für jeden der `days` Tage bis heute eine (ggf. leere) Zählung je
-  Kategorie; Dateien außerhalb des Fensters ignorieren.
+## 8. Zentrale Abläufe im ViewModel (`ReportViewModel`)
+- **Zustand:** `relevantFiles` (private Wahrheit), `filesByFolder` (Detaildateien), `displayBuckets`, `chartDays`, `topExtensions`/`otherCount`/`hiddenExtensions`, `expandedFolders`, `selection`, Flags `isScanning`/`isLoadingDetails`.
+- **rescan(preservingState):** Hintergrund-Scan → `relevantFiles` → `reconcileState`.
+- **reconcileState:** `recomputeLegend()` + `recomputeChart()` (synchron) → `loadDetails(...)`.
+- **loadDetails:** lädt `filesByFolder` für alle relevanten Ordner im Hintergrund, tauscht **einmalig** → `finishDetailLoad()`.
+- **finishDetailLoad:** `recomputeDisplayBuckets()` (Ordner-Datumslogik 3.7) + Aufklapp-/Auswahlzustand.
+- **toggleExtension:** `recomputeChart()` + `recomputeDisplayBuckets()` (Legende bleibt stabil).
+- **Live-Reads:** `newestVisibleDate(in:)`, `visibleFileCount(in:)`, `visibleFiles(in:)` – von den Views pro Render benutzt (5.1).
 
-### 4.5 Detailansicht (A10, A15)
-Beim Aufklappen einer Zeile: `contentsOfDirectory` des Ordners, **ohne**
-Zeitraumgrenze (auch ältere Dateien), aber **mit** dem aktiven Namensfilter (E5,
-konsistent zur Ordnerauswahl); Junk/versteckt/Symlinks weglassen, nach Datum
-absteigend (sekundär Name). Lazy: erst beim Ausklappen laden. Ein Klick auf eine
-Datei öffnet sie mit der Standard-App (`NSWorkspace.open`).
+## 9. Datei-System (macOS-Spezifika)
+- Zeitstempel: `URLResourceValues.creationDateKey` / `.contentModificationDateKey`.
+- Scan: `FileManager.enumerator(at:includingPropertiesForKeys:options:[.skipsHiddenFiles])`, ausgeschlossene Ordner via `skipDescendants()`; Symlinks via `isSymbolicLinkKey` überspringen.
+- Detail: `contentsOfDirectory(at:...options:[.skipsHiddenFiles])`.
+- Datei-Icon: `NSWorkspace.icon(for: UTType(filenameExtension:))`, gecacht pro Endung.
+- Öffnen/Anzeigen: `NSWorkspace.open(url)` bzw. `activateFileViewerSelecting`.
+- Zwischenablage: `NSPasteboard`.
+- QuickLook: `QLPreviewPanel` + Data-Source/Delegate in einer versteckten `NSView`; Pfeiltasten via `previewPanel(_:handle:)` (keyCodes 125/126/123/124).
+- FSEvents: `FSEventStreamCreate` (Flags `FileEvents|NoDefer`, Latenz 1 s).
+- Ordner-Dialog: `.fileImporter` (Powerbox erteilt Leserechte für den gewählten Ordner – kein „Full Disk Access" nötig, App **ohne** Sandbox).
 
----
+## 10. Versionierung & Auslieferung
+- **Schema:** `Major.Minor.Patch` in Datei **`VERSION`** (z. B. `1.0.12`). `build_app.sh` schreibt sie als `CFBundleShortVersionString`; die App zeigt sie oben rechts + im Über-Fenster.
+- **`Packaging/release.sh`:** erhöht **vor jedem Push** die **Patch-Nummer**, committet, baut, installiert nach `/Applications`, erstellt ZIP, pusht. (Major/Minor manuell in `VERSION`.)
+- **`Packaging/build_app.sh`:** baut arm64 + x86_64 getrennt (ohne Xcode kein `--arch`), fügt mit `lipo` zusammen, packt `.app` (Info.plist, `AppIcon.icns` = blauer LED-Kreis), injiziert Git-Revision/Build-Datum, ad-hoc-Signatur.
+- **`Packaging/notarize.sh`:** optionale Developer-ID-Signierung + Notarisierung (braucht Apple-Account; Zugangsdaten aus `.env`).
+- **`Packaging/git_setup.sh`:** legt privates GitHub-Repo an und pusht (Token aus `.env`).
+- **CI:** `Packaging/github-ci.yml` (nach `.github/workflows/` kopieren) baut auf `macos-14`, führt `swift run CoreChecks` und `swift test` aus.
+- Bundle-ID `com.mtri.activities`; App-Name `activities`.
 
-## 5. Oberfläche (SwiftUI)
-
-- **Steuerleiste oben** (`ControlsView`): Ordner-Auswahl-Button (öffnet
-  `.fileImporter`), Stepper/Textfeld für Tage, Textfeld für den Namensfilter,
-  „Aktualisieren"-Button. Enter im Filterfeld löst ebenfalls den Scan aus.
-- **Verlaufsdiagramm** (`HistoryChartView`) via *Swift Charts*: `BarMark`
-  gestapelt nach `FileCategory` mit `foregroundStyle(by:)`; Wochenenden per
-  `RectangleMark`/Hintergrund hervorgehoben; `.onTapGesture`/Auswahl scrollt in
-  der Liste zum Tag (via `ScrollViewReader`).
-- **Ordnerliste** (`FolderSectionView`): `List` mit Sektionen je Zeitabschnitt
-  (Kopf zeigt Anzahl). Jede `FolderRowView`: Pfad, Datum (mit Wochentag), Anzahl;
-  aufklappbar (`DisclosureGroup`) für die Detailansicht.
-- **Klick/Interaktion** (E3, E4):
-  - **Ordnerzeile** – Primärklick → `FinderService.open(folder)` **und**
-    `ClipboardService.copy(path)`, mit kurzer visueller Rückmeldung.
-    Kontextmenü: „Im Finder öffnen", „Im Finder anzeigen"
-    (`NSWorkspace.activateFileViewerSelecting`), „Pfad kopieren".
-  - **Dateizeile (Detailansicht)** – Primärklick → `FinderService.open(file)`
-    öffnet die Datei mit der Standard-App. Kontextmenü: „Im Finder anzeigen",
-    „Pfad kopieren".
-- **Leerzustand** (`EmptyStateView`) und **Ladezustand** (Fortschritt während des Scans).
-- **Dark-Mode**: automatisch; Systemfarben/`.background`-Materialien verwenden.
+## 11. Tests
+- **CoreChecks** (`swift run CoreChecks`) ohne Xcode; **XCTest** mit Xcode. Abgedeckt u. a.:
+  - NameFilter (Glob, Auto-Teilstring, CASEFOLD, `?`).
+  - TimeBucket-Grenzen (Heute/Gestern/Diese Woche/Vor N Wochen).
+  - Scanner (Ausschlüsse, `max`-Datum, Cutoff-Grenzfall, Symlink/Fehler).
+  - Aggregation, `countFilesPerDayByType` (inkl. „Sonstige"/ignoriert).
+  - **`folderEntries` (Kernregel 3.7):** Ordner-Neudatierung beim Filtern (der „xmind"-90-Tage-Fall), Wegfall bei Fenster-Austritt.
+  - RowNavigation (flatten/move), ReportExport (CSV/HTML).
 
 ---
 
-## 6. Dienste (AppKit-Brücken)
+# TEIL C — Portierung auf ein anderes OS
 
-```swift
-enum FinderService {
-    // öffnet Ordner ODER Datei: NSWorkspace.open wählt bei Dateien die Standard-App
-    static func open(_ url: URL)       { NSWorkspace.shared.open(url) }
-    static func reveal(_ url: URL)     { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-}
-enum ClipboardService {
-    static func copy(_ text: String) {
-        let pb = NSPasteboard.general; pb.clearContents(); pb.setString(text, forType: .string)
-    }
-}
-```
+**Direkt wiederverwendbar (Teil A + `ActivitiesCore`-Logik):** Scan-Regeln,
+Zeitstempel, Ausschlüsse, Namensfilter, Typ-Filter/Legende, **Ordner-Datumslogik
+(3.7)**, Zeitabschnitte, Diagrammzählung, Navigation, Export – alles rein
+funktional und plattformunabhängig beschrieben.
 
-- **`SettingsStore`**: zuletzt genutzte `days`/`namePattern` in `UserDefaults`;
-  der gewählte **Ordner** als **Security-Scoped Bookmark** (damit der Zugriff nach
-  Neustart erhalten bleibt), mit `startAccessingSecurityScopedResource()`.
+**Neu zu implementieren (plattformspezifisch):**
+1. **Dateisystem:** rekursiver Walk mit Pruning & Symlink-Schutz; Datei-Zeitstempel (Erstell-/Änderungsdatum); flaches Listing.
+2. **Datei-Icons + dominante Farbe** (3.10): OS-Icon je Endung holen, farbige Pixel mitteln, HSB-normalisieren.
+3. **Öffnen/Anzeigen** im Datei-Manager, **Standard-App** öffnen, **Zwischenablage**.
+4. **Vorschau** (QuickLook-Äquivalent) inkl. Pfeiltasten-Navigation über die Dateiliste.
+5. **Dateisystem-Überwachung** (FSEvents-Äquivalent, entprellt).
+6. **Einstellungen persistieren**, **Ordnerauswahl-Dialog**.
+7. **UI** gemäß Abschnitt 4 (Diagramm gestapelt nach Endung, dezente Selektion, Ausgrauen der nicht-datumstiftenden Dateien, Tastatur- & Fokus-Verhalten, Live-Reads gemäß 5.1).
+8. **Versionsschema + Release-Automatik** gemäß Abschnitt 10.
 
----
-
-## 7. Nebenläufigkeit, Fehler, Logging
-
-- **Scan asynchron** (`Task`/`async`), Fachlogik in einem `actor` oder auf einem
-  Hintergrund-Executor; UI-Aktualisierung auf dem Main-Actor. Ergebnis inkrementell
-  oder nach Abschluss übergeben; **laufender Scan wird bei erneutem Start abgebrochen**
-  (`Task.cancel()` + `Task.checkCancellation()` in der Schleife).
-- **Fehlerbehandlung:** Kein stiller Abbruch. Ungültige Eingaben (Tage ≤ 0, Ordner
-  nicht lesbar) → klare Meldung im GUI. Einzelne nicht lesbare Einträge → überspringen.
-- **Logging:** `os.Logger` (kein `print`). Knappe Meldungen: Start, Anzahl gescannt,
-  gefundene Ordner, Dauer.
-
----
-
-## 8. Abhängigkeiten & Voraussetzungen
-
-| Abhängigkeit | Zweck | Anmerkung |
-|---|---|---|
-| **Xcode** (aktuell) | Build/Signierung | Voraussetzung auf dem Entwicklungsrechner. |
-| **macOS 14+** | Ziel-/Baubasis | wegen Swift Charts + moderner SwiftUI-APIs. |
-| **SwiftUI / AppKit / Swift Charts** | GUI, Finder, Diagramm | alle **systemeigen**, keine externen Pakete (Fortführung der „stdlib-first"-Idee). |
-| Ad-hoc-Codesignatur | Gatekeeper | genügt für Eigengebrauch; keine Notarisierung. |
-
-**macOS-Datenschutz (TCC):** Der Zugriff auf den vom Nutzer im Dialog gewählten
-Ordner ist über die Powerbox erlaubt – auch für `~/Documents`. Erst das Scannen
-*beliebiger* geschützter Orte ohne Nutzerauswahl bräuchte „Full Disk Access". Durch
-die Ordnerwahl per `.fileImporter` umgehen wir zusätzliche Berechtigungsdialoge.
-
----
-
-## 9. Migration / Verhältnis zum Bestand
-
-- Der Python-Code (`recent_files/`, `tests/`, `config/`, `requirements-dev.txt`)
-  wird **in einen Unterordner verschoben und behalten** (E6), z. B.
-  `legacy-python-cli/`. Er wird **nicht** in die App portiert-übernommen, dient
-  aber als **fachliche Referenz** (insb. `file_types.py`, `bucket_label`,
-  Scanner-Regeln) und bleibt als eigenständiges Cross-Plattform-CLI lauffähig.
-- Das SwiftUI-Projekt (`activities/…` bzw. eigener Xcode-Projektordner) entsteht
-  parallel im Repo-Root.
-- `config/default.json` liefert die **Ausschlusslisten**; diese werden als
-  Konstanten/Bundle-Ressource in Swift übernommen (Quelle bleibt die Referenzdatei).
-
----
-
-## 10. Umsetzungsphasen (jede mit Prüfkriterium)
-
-0. **Bestand umziehen** (Python-Code nach `legacy-python-cli/`).
-   *verify:* CLI läuft weiterhin (`python -m recent_files --help`); Repo-Root ist
-   frei für das Xcode-Projekt.
-1. **Projektgerüst** (Xcode-Projekt, Bundle-ID `com.mtri.activities`, Name
-   `activities`, macOS-14-Target, leeres Fenster).
-   *verify:* App startet, zeigt leeres Fenster; ad-hoc-Signatur läuft.
-2. **Model-Portierung** (`FileCategory`, `NameFilter`, `TimeBucket`, Modelle).
-   *verify:* XCTests grün (Kategorien, Glob-Filter inkl. `*Studium*.xls*`,
-   Bucket-Grenzfälle, Auto-Teilstring).
-3. **Scanner + Aggregation** (Enumerator, Datum, Ausschlüsse, Zeitraum, Gruppierung).
-   *verify:* XCTests gegen ein temporäres Verzeichnis mit gesetzten Zeitstempeln;
-   Grenzfall „genau auf dem Cutoff", Symlink-/Fehlerbehandlung, Sortierung.
-4. **Grundoberfläche** (Steuerleiste, Ordnerliste mit Sektionen, Leerzustand).
-   *verify:* Scan eines echten Ordners zeigt korrekte Sektionen/Sortierung.
-5. **Finder-Klick + Kopieren + Kontextmenü** (`FinderService`, `ClipboardService`).
-   *verify:* Klick öffnet den Ordner **und** kopiert den Pfad; Kontextmenü-Aktionen wirken.
-6. **Detailansicht + Datei öffnen** (aufklappbar, gefiltert, lazy; Klick öffnet Datei).
-   *verify:* Ausklappen zeigt die gefilterten Dateien korrekt sortiert; Klick auf
-   eine Datei öffnet sie mit der Standard-App.
-7. **Verlaufsdiagramm** (Swift Charts, Wochenenden, Klick→Tag).
-   *verify:* Stapel je Kategorie stimmen mit den Tageszählungen überein; Klick scrollt.
-8. **Persistenz + Feinschliff** (Settings, Security-Scoped Bookmark, App-Icon,
-   Hintergrund-Scan/Cancel, Dark-Mode-Prüfung).
-   *verify:* Einstellungen überleben Neustart; Ordnerzugriff bleibt erhalten.
-
----
-
-## 11. Tests (Überblick, XCTest)
-
-- `NameFilterTests`: `*Studium*.xls*`, bloßes Wort → `*wort*`, Groß/Klein, `?`.
-- `FileCategoryTests`: Endungs-Zuordnung inkl. „Sonstige".
-- `TimeBucketTests`: Heute/Gestern/Diese Woche/Vor N Wochen, Grenzen 6/7 Tage.
-- `FileScannerTests`: Ausschlüsse, `max`-Datum, Cutoff-Grenzfall, Symlink/Fehler.
-- `FolderAggregatorTests`: Zuordnung, Datum, Zählung, Sortierung.
-- `DailyCounterTests`: lückenlose Tage, Fenstergrenzen, Kategorien-Stapel.
-
----
-
-## 12. Risiken
-
-| Risiko | Umgang |
-|---|---|
-| TCC-Berechtigungen beim Scan | Ordnerwahl per `.fileImporter` (Powerbox); Security-Scoped Bookmark für Persistenz. |
-| Erstelldatum/Sortierung bei Netzlaufwerken | `try?` je Datei, überspringen + loggen; Hinweis in Doku. |
-| Große Bäume blockieren die UI | Scan im Hintergrund, Abbruch bei Re-Scan, Fortschrittsanzeige. |
-| Swift-Charts-API-Änderungen | Diagramm in eigener View kapseln (`HistoryChartView`). |
-| Verlust der Windows-Unterstützung | Bewusste Entscheidung; Python-CLI bleibt als `legacy-python-cli/` erhalten (§9). |
-
----
-
-## 13. Getroffene Entscheidungen (zuvor offene Punkte)
-
-1. **Python-Bestand:** in Unterordner `legacy-python-cli/` verschieben und behalten (E6).
-2. **Minimale macOS-Version:** **macOS 14 (Sonoma)** (E8).
-3. **Primärklick-Semantik:** Ordner → im Finder **öffnen** + Pfad kopieren (E3);
-   Datei → mit **Standard-App öffnen** (E4). Weitere Aktionen im Kontextmenü.
-4. **Filter-Reichweite:** wirkt **konsistent überall** – Ordnerauswahl,
-   Detailansicht und Diagramm (E5).
-5. **App-Metadaten:** Name **activities**, App-Icon **blauer, gefüllter Kreis
-   (LED)**, Bundle-ID **`com.mtri.activities`** (E7).
-
-**Zum App-Icon:** Als Asset-Katalog (`AppIcon`) in allen geforderten Größen. Der
-blaue LED-Kreis wird als Vektor angelegt (radialer Verlauf für den „Leuchten"-Effekt,
-optional zarter Schein), gerendert in die benötigten PNG-Größen (16–1024 px).
-
----
-
-## 14. Nächster Schritt
-
-Nach Freigabe dieses Konzepts beginne ich mit **Phase 0 (Python-Bestand nach
-`legacy-python-cli/` verschieben)**, danach **Phase 1 (Xcode-Projektgerüst)** und
-**Phase 2 (Model-Portierung mit Tests)**.
+**Wichtige Design-Entscheidungen (nicht verlieren):**
+- Ordner-Datum/-Zugehörigkeit kommen aus den **angezeigten** (Detail-)Dateien, gefiltert + auf den Zeitraum begrenzt → das Datum entspricht **immer** einer sichtbaren Datei; Filtern re-datiert bzw. entfernt Ordner.
+- Legende/Diagramm nur über **In-Zeitraum**-Typen (keine Einträge ohne Balken); Top-7 + „Sonstige".
+- Detailliste zeigt **alle** (namens-/typ-gefilterten) Dateien des Ordners, auch ältere; die nicht-datumstiftenden werden **dezent ausgegraut**.
+- Filter-abhängige Werte in der UI **live** aus dem Model lesen (sonst „stale"-Zeilen).
+- Diagramm gegen Flackern: **stabile Balken-IDs** + **einmaliger** Datentausch.

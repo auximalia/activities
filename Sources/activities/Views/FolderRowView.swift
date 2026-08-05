@@ -91,12 +91,10 @@ struct FolderRowView: View {
             }
         }
         .contentShape(Rectangle())
-        .help("Klick: auf-/zuklappen & Pfad kopieren · Doppelklick: im Finder öffnen")
-        .onTapGesture(count: 2) {
-            model.select(.folder(entry.folder))
-            FinderService.open(entry.folder)
-            ClipboardService.copy(entry.folder.path)
-        }
+        .help("Klick: auf-/zuklappen & Pfad kopieren · Finder: Ordner-Symbol oder Kontextmenü")
+        // Ein einzelner Einfachklick ohne konkurrierenden Doppelklick reagiert
+        // unmittelbar (keine Wartezeit auf das Doppelklick-Intervall).
+        // Der Finder wird ueber das Ordner-Symbol bzw. das Kontextmenue geoeffnet.
         .onTapGesture {
             model.select(.folder(entry.folder))
             ClipboardService.copy(entry.folder.path)

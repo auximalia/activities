@@ -237,6 +237,16 @@ do {
     expectEqual(e1[0].newestDate, date(2026, 8, 1), "folderEntries: A-Datum 01.08")
     expectEqual(e1[0].fileCount, 2, "folderEntries: A zaehlt alle sichtbaren")
 
+    // countOnlyInWindow: A hat nur EINE Datei im 30-Tage-Fenster (01.08);
+    // die aeltere (28.05) darf dann nicht mitgezaehlt werden.
+    let e1w = FolderAggregator.folderEntries(
+        from: filesByFolder, start: cutoff30, end: .distantFuture, countOnlyInWindow: true
+    ) { _ in true }
+    expectEqual(e1w.count, 2, "folderEntries(countOnlyInWindow): zwei Ordner")
+    expectEqual(e1w[0].folder, a, "folderEntries(countOnlyInWindow): A zuerst")
+    expectEqual(e1w[0].fileCount, 1, "folderEntries(countOnlyInWindow): A zaehlt nur im Fenster")
+    expectEqual(e1w[1].fileCount, 1, "folderEntries(countOnlyInWindow): B zaehlt nur im Fenster")
+
     // 30 Tage, .xmind ausgeblendet: A-Restdatei (28.05) faellt aus dem Fenster,
     // B hat nur .xmind -> beide verschwinden.
     let e2 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff30, end: .distantFuture) {

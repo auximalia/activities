@@ -112,6 +112,18 @@ struct ControlsView: View {
             .help("An den Anfang der Liste springen (⌘↑)")
 
             Toggle(isOn: Binding(
+                get: { model.showOutOfWindowFiles },
+                set: { model.setShowOutOfWindowFiles($0) }
+            )) {
+                Image(systemName: "clock.badge.xmark")
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .help(model.showOutOfWindowFiles
+                  ? "Dateien außerhalb des Zeitraums werden angezeigt – ausschalten blendet sie aus"
+                  : "Dateien außerhalb des Zeitraums sind ausgeblendet – einschalten zeigt sie an")
+
+            Toggle(isOn: Binding(
                 get: { model.autoRefresh },
                 set: { model.setAutoRefresh($0) }
             )) {

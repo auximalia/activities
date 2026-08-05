@@ -69,12 +69,18 @@ struct FileRowView: View {
         .background(isAlternate ? RowMetrics.zebraColor : Color.clear)
         .contentShape(Rectangle())
         .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau")
+        // Markieren sofort beim Mausdruck: zwei konkurrierende onTapGesture
+        // (count 1 und 2) wuerden SwiftUI zwingen, das Doppelklick-Intervall
+        // (~300 ms) abzuwarten, bevor der Einfachklick feuert.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isSelected { model.select(.file(file.url)) }
+                }
+        )
         .onTapGesture(count: 2) {
             model.select(.file(file.url))
             FinderService.open(file.url)
-        }
-        .onTapGesture {
-            model.select(.file(file.url))
         }
         .contextMenu {
             Button("Öffnen") { FinderService.open(file.url) }

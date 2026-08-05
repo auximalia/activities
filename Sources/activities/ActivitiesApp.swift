@@ -31,8 +31,17 @@ struct ActivitiesApp: App {
                 Button("An den Anfang") { model.scrollToTopToken += 1 }
                     .keyboardShortcut(.upArrow, modifiers: .command)
                 Divider()
+                Toggle("Dateien außerhalb des Zeitraums zeigen", isOn: Binding(
+                    get: { model.showOutOfWindowFiles },
+                    set: { model.setShowOutOfWindowFiles($0) }
+                ))
+            }
+            // Export gehoert ins Menue „Ablage" – dort sucht man ihn.
+            CommandGroup(replacing: .saveItem) {
                 Button("Als CSV exportieren …") { ExportService.exportCSV(model.displayBuckets) }
+                    .keyboardShortcut("e", modifiers: .command)
                 Button("Als HTML exportieren …") { ExportService.exportHTML(model.displayBuckets) }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .help) {
                 HelpMenuButton()

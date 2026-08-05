@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.4.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.5.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -94,6 +94,14 @@ nicht ein Datum im Dateinamen.
 - **Doppelklick auf einen Chip = „Solo"**: blendet alle anderen Endungen aus und zeigt nur die angeklickte (`soloExtension`). Ein erneuter Doppelklick auf den bereits isolierten Chip zeigt wieder **alle** Endungen (Toggle zurück). Umgesetzt in der Legende über zwei `onTapGesture(count: 2 bzw. 1)`.
 - **`isHidden(datei)`**: `true`, wenn die Endung in der Ausblend-Menge ist **oder** „Sonstige" ausgeblendet ist und die Endung nicht in den Top-10 liegt.
 - Der Typ-Filter wirkt **konsistent** auf: Diagramm, Ordner-Zugehörigkeit/-Datum, Detailzeilen, Tastatur-Navigation, QuickLook-Liste.
+
+### 3.6.1 Schalter „Dateien außerhalb des Zeitraums zeigen"
+- **Zustand** `showOutOfWindowFiles`, **Standard: aus** (nur Treffer im Zeitraum), persistiert (`SettingsStore`).
+- Wirkt in **einer** zentralen Regel `isVisibleDetail(file)` = Typ-Filter **und** (falls Schalter aus) `isInWindow(file)`. Alles Weitere folgt daraus automatisch: Detailzeilen, `visibleFileCount`, **Sektionskopf-Summen**, Tastatur-Navigation (`visibleFilesByFolder`).
+- **Nicht automatisch** – muss ausdrücklich mitgezogen werden: `prepareFullFileList()` (QuickLook-Reihenfolge) und `FolderEntry.fileCount` (Export). Letzteres über `FolderAggregator.folderEntries(…, countOnlyInWindow:)` ⇒ **Export ist WYSIWYG**.
+- **Kein neuer Scan** beim Umschalten – nur `recomputeDisplayBuckets()`; die Detaildaten liegen bereits vor.
+- **Performance:** `isInWindow` nutzt **gepufferte** Fenstergrenzen (`cachedWindowStart/End`, gesetzt in `recomputeChart`/`recomputeDisplayBuckets`). `window` rechnet mit `Calendar`; pro Dateizeile neu aufgerufen wäre das unnötig teuer.
+- **Auswahl:** `pruneSelection` prüft die Datei gegen `visibleFiles(in:)`, damit eine ausgeblendete Datei nicht markiert bleibt.
 
 ### 3.7 Ordner-Zugehörigkeit & -Datum (Kernregel – mehrfach nachspezifiziert)
 Aus den **Detaildateien** je Ordner (nicht aus den relevanten Dateien!):
@@ -193,9 +201,9 @@ Alle Maße zentral in `RowMetrics` (`Style/RowMetrics.swift`), damit Einrückung
 Baumlinien und Datumsspalte zueinander passen.
 
 - **Ordnerzeile (einzeilig):** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion, feste 18×18 px), dann **Name (fett) und Pfad (klein, sekundär) hintereinander in EINER Zeile** – nicht untereinander. Bei Platzmangel wird **der Pfad** mittig gekürzt (`truncationMode(.middle)`, `layoutPriority(-1)`), **nie der Name** (`fixedSize(horizontal: true)`). Rechts nur das **Datum** (Monospace) – **keine** Dateianzahl (die steht im Zeitabschnitts-Kopf, siehe 4.3.3).
-  - **Klick auf die Zeile (Text):** auf-/zuklappen, markieren **und den Ordnerpfad in die Zwischenablage kopieren**.
+  - **Klick auf die Zeile (Text):** auf-/zuklappen, markieren **und den Ordnerpfad in die Zwischenablage kopieren** – reagiert **sofort** (siehe 4.3.4).
   - **Klick auf das Ordner-Symbol:** markieren **und** im Datei-Manager öffnen (+ Pfad in Zwischenablage).
-  - **Doppelklick:** im Datei-Manager öffnen (+ kopieren).
+  - **Kein Doppelklick auf der Ordnerzeile** – der Datei-Manager wird über das Ordner-Symbol oder das Kontextmenü geöffnet. Grund: siehe 4.3.4.
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
   - **Datum wird LIVE** aus den sichtbaren Detaildateien berechnet (nicht aus einem gecachten Wert) – siehe 6.
 - **Dateizeile (eingerückt):** **Datei-Icon** (echtes Typ-Icon, feste 18×18 px), Name, rechts Datum (Monospace).
@@ -233,6 +241,13 @@ Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 O
 - Singular/Plural bei „Datei/Dateien" beachten.
 
 
+#### 4.3.4 Sofortige Klick-Reaktion (wichtige Lehre)
+**Problem:** Liegen auf derselben Zeile `onTapGesture(count: 2)` *und* `onTapGesture(count: 1)`, **muss** SwiftUI das Doppelklick-Intervall (`NSEvent.doubleClickInterval`, ~300 ms) abwarten, bevor der Einfachklick feuern darf – die Markierung erscheint spürbar verzögert.
+
+**Regel:**
+- **Dateizeile:** Markieren über eine **simultane** `DragGesture(minimumDistance: 0)` (feuert beim Mausdruck, idempotent), Öffnen weiterhin per `onTapGesture(count: 2)`. Der Einfachklick-Handler entfällt.
+- **Ordnerzeile:** **nur** ein `onTapGesture` (markieren + auf-/zuklappen + Pfad kopieren) und **kein** konkurrierender Doppelklick ⇒ ohne Disambiguierung reagiert er unmittelbar. Öffnen im Datei-Manager über Ordner-Symbol/Kontextmenü.
+
 ### 4.4 Tastatur & QuickLook
 - **Pfeil hoch/runter:** Auswahl-Cursor über die flache Zeilenliste bewegen.
 - **Pfeil links/rechts:** aktuellen Ordner zu-/aufklappen.
@@ -252,7 +267,8 @@ Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 O
 
 ### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
 - **Statuszeile:** „N Ordner · M Dateien · X.XX s", Auto-Refresh-Indikator, Wurzelpfad.
-- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), Export CSV …, Export HTML …, „Über activities", „Nach Updates suchen …", „Update installieren".
+- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), „Dateien außerhalb des Zeitraums zeigen" (Umschalter), „Über activities", „Nach Updates suchen …", „Update installieren".
+- **Export liegt im Menü „Ablage"** (`CommandGroup(replacing: .saveItem)`): „Als CSV exportieren …" (⌘E) und „Als HTML exportieren …" (⇧⌘E). *Lehre:* vorher hing er in `CommandGroup(after: .toolbar)` und landete damit im Menü „Darstellung" – dort findet ihn niemand.
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
 - **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-
   Eintrag im **Hilfe**-Menü). Scrollbare Kurzanleitung, **stichpunktartig** (wenig

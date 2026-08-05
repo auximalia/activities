@@ -84,6 +84,9 @@ final class ReportViewModel {
     private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
+    /// Ob Dateien **ausserhalb** des Zeitraums in der Detailliste erscheinen.
+    /// Standard: aus – so bleiben nur die gesuchten Treffer stehen.
+    var showOutOfWindowFiles: Bool
     /// Zuletzt genutzte Wurzelordner.
     var recentFolders: [URL] = []
     /// Zaehler, um die Fokussierung des Filterfeldes anzustossen (Menue ⌘F).
@@ -118,10 +121,23 @@ final class ReportViewModel {
         self.days = saved.days
         self.namePattern = saved.namePattern
         self.autoRefresh = saved.autoRefresh
+        self.showOutOfWindowFiles = saved.showOutOfWindowFiles
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
         self.rangeEnd = saved.rangeEnd
+    }
+
+    /// Gepufferte Fenstergrenzen fuer ``isInWindow``. ``window`` rechnet mit
+    /// ``Calendar``; pro Dateizeile neu aufgerufen waere das unnoetig teuer.
+    private var cachedWindowStart: Date = .distantPast
+    private var cachedWindowEnd: Date = .distantFuture
+
+    /// Uebernimmt die aktuellen Fenstergrenzen in den Puffer.
+    private func refreshWindowCache() {
+        let w = window
+        cachedWindowStart = w.start
+        cachedWindowEnd = w.end
     }
 
     /// Aufgeloestes Zeitfenster aus Modus + (Tage | Zeitspanne).
@@ -236,6 +252,7 @@ final class ReportViewModel {
     /// Diagramm: sichtbare In-Zeitraum-Dateien je Tag nach Typ.
     private func recomputeChart() {
         let w = window
+        refreshWindowCache()
         displayRangeStart = w.chartStartDay
         displayRangeEnd = w.chartEndDay
         // Schutz vor Riesen-Diagrammen (z. B. mehrere Jahrzehnte): leer lassen.
@@ -259,7 +276,15 @@ final class ReportViewModel {
     /// Zeitfenster; ein Ordner erscheint nur, wenn es eine solche Datei gibt.
     private func recomputeDisplayBuckets() {
         let w = window
-        let entries = FolderAggregator.folderEntries(from: filesByFolder, start: w.start, end: w.end) { url in
+        refreshWindowCache()
+        // Der Ordner-Zaehler folgt der Anzeige (WYSIWYG, auch fuer den Export):
+        // bei ausgeblendeten Ausserhalb-Dateien zaehlen nur die im Zeitraum.
+        let entries = FolderAggregator.folderEntries(
+            from: filesByFolder,
+            start: w.start,
+            end: w.end,
+            countOnlyInWindow: !showOutOfWindowFiles
+        ) { url in
             !self.isHidden(url)
         }
         displayBuckets = TimeBucket.group(entries)
@@ -273,7 +298,10 @@ final class ReportViewModel {
         case .folder(let url):
             if !displayed.contains(url) { selection = nil }
         case .file(let url):
-            if isHidden(url) || !displayed.contains(url.deletingLastPathComponent()) { selection = nil }
+            let folder = url.deletingLastPathComponent()
+            // Auch der Zeitfenster-Schalter kann die markierte Datei ausblenden.
+            let stillVisible = visibleFiles(in: folder)?.contains { $0.url == url } ?? false
+            if !displayed.contains(folder) || !stillVisible { selection = nil }
         case nil:
             break
         }
@@ -307,7 +335,9 @@ final class ReportViewModel {
                     filesByFolder[entry.folder] = loaded
                     files = loaded
                 }
-                for file in files where !isHidden(file.url) {
+                // Gleiche Sichtbarkeitsregel wie in der Liste, sonst blaettert
+                // QuickLook auf Dateien, die gar nicht angezeigt werden.
+                for file in files where isVisibleDetail(file) {
                     ordered.append(file.url)
                     map[file.url] = entry.folder
                 }
@@ -363,34 +393,40 @@ final class ReportViewModel {
 
     /// Detaildateien je Ordner, gefiltert nach ausgeblendeten Endungen.
     var visibleFilesByFolder: [URL: [RelevantFile]] {
-        guard !hiddenExtensions.isEmpty else { return filesByFolder }
+        guard !hiddenExtensions.isEmpty || !showOutOfWindowFiles else { return filesByFolder }
         var result: [URL: [RelevantFile]] = [:]
         for (folder, files) in filesByFolder {
-            result[folder] = files.filter { !isHidden($0.url) }
+            result[folder] = files.filter { isVisibleDetail($0) }
         }
         return result
+    }
+
+    /// Ob eine Detaildatei angezeigt wird: Typ-Filter **und** – je nach
+    /// Schalter – die Zugehoerigkeit zum Zeitraum.
+    private func isVisibleDetail(_ file: RelevantFile) -> Bool {
+        if isHidden(file.url) { return false }
+        if !showOutOfWindowFiles && !isInWindow(file) { return false }
+        return true
     }
 
     /// Sichtbare Dateien eines Ordners (ALLE Dateien, Typ-gefiltert).
     /// ``nil`` bedeutet "noch nicht geladen".
     func visibleFiles(in folder: URL) -> [RelevantFile]? {
         guard let files = filesByFolder[folder] else { return nil }
-        guard !hiddenExtensions.isEmpty else { return files }
-        return files.filter { !isHidden($0.url) }
+        guard !hiddenExtensions.isEmpty || !showOutOfWindowFiles else { return files }
+        return files.filter { isVisibleDetail($0) }
     }
 
     /// Datum, das der Ordner "erhält" = juengste sichtbare Datei **im Zeitfenster**.
     func newestVisibleDate(in folder: URL) -> Date? {
         guard let files = visibleFiles(in: folder) else { return nil }
-        let w = window
-        return files.filter { $0.timestamp >= w.start && $0.timestamp < w.end }.map(\.timestamp).max()
+        return files.filter { isInWindow($0) }.map(\.timestamp).max()
     }
 
     /// Ob die Datei im aktuell gewaehlten Zeitfenster liegt. Basis fuer den
     /// „ausserhalb des Zeitraums"-Hinweis in der Detailliste.
     func isInWindow(_ file: RelevantFile) -> Bool {
-        let w = window
-        return file.timestamp >= w.start && file.timestamp < w.end
+        file.timestamp >= cachedWindowStart && file.timestamp < cachedWindowEnd
     }
 
     /// Anzahl Kalendertage im angezeigten Zeitraum (inklusive Start und Ende).
@@ -515,6 +551,14 @@ final class ReportViewModel {
     }
 
     // MARK: - Auto-Refresh (FSEvents)
+
+    /// Schaltet die Anzeige von Dateien ausserhalb des Zeitraums um.
+    /// Es wird **nicht** neu gescannt – die Daten liegen bereits vor.
+    func setShowOutOfWindowFiles(_ enabled: Bool) {
+        showOutOfWindowFiles = enabled
+        store.saveShowOutOfWindowFiles(enabled)
+        recomputeDisplayBuckets()
+    }
 
     func setAutoRefresh(_ enabled: Bool) {
         autoRefresh = enabled

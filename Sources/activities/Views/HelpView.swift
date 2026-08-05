@@ -48,7 +48,8 @@ struct HelpView: View {
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",
                     "Die datumstiftende Datei (neueste im Zeitfenster) ist fett.",
-                    "Dateien außerhalb des Zeitraums: graues Icon, gedimmt, Uhr-Symbol.",
+                    "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",
+                    "Der Uhr-Schalter oben zeigt sie bei Bedarf (grau/gedimmt, Uhr-Symbol).",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",
                 ])
 
@@ -59,7 +60,8 @@ struct HelpView: View {
                 ])
 
                 section("Exportieren", icon: "square.and.arrow.up", [
-                    "Über die Menüleiste als CSV oder als HTML-Bericht exportieren.",
+                    "Menü „Ablage“: als CSV (⌘E) oder als HTML-Bericht (⇧⌘E).",
+                    "Exportiert wird genau das, was gerade angezeigt wird.",
                 ])
 
                 section("Updates", icon: "arrow.down.circle", [
@@ -124,6 +126,8 @@ struct HelpView: View {
                 shortcutRow("⌘R", "Aktualisieren")
                 shortcutRow("⌘F", "Filter fokussieren")
                 shortcutRow("⌘↑", "An den Anfang der Liste")
+                shortcutRow("⌘E", "Als CSV exportieren")
+                shortcutRow("⇧⌘E", "Als HTML exportieren")
                 shortcutRow("↑ / ↓", "Auswahl bewegen")
                 shortcutRow("← / →", "Ordner zu-/aufklappen")
                 shortcutRow("↩︎", "Auswahl öffnen")

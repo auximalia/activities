@@ -38,13 +38,18 @@ public enum FolderAggregator {
     /// Beruecksichtigt werden nur Dateien, die ``isVisible`` erfuellen (Typ-Filter).
     /// Das **Ordner-Datum** ist die juengste sichtbare Datei **im Intervall**
     /// ``[start, end)``; ein Ordner erscheint nur, wenn es eine solche Datei gibt.
-    /// ``fileCount`` ist die Anzahl **sichtbarer** Dateien im Ordner (auch ausserhalb
-    /// des Intervalls – entspricht den gezeigten Detailzeilen). Ergebnis absteigend
-    /// nach Datum (sekundaer Pfad absteigend).
+    ///
+    /// ``fileCount`` entspricht den **tatsaechlich gezeigten** Detailzeilen:
+    /// - ``countOnlyInWindow == false``: alle sichtbaren Dateien des Ordners
+    ///   (auch ausserhalb des Intervalls),
+    /// - ``countOnlyInWindow == true``: nur die Dateien im Intervall.
+    ///
+    /// Ergebnis absteigend nach Datum (sekundaer Pfad absteigend).
     public static func folderEntries(
         from filesByFolder: [URL: [RelevantFile]],
         start: Date,
         end: Date,
+        countOnlyInWindow: Bool = false,
         isVisible: (URL) -> Bool
     ) -> [FolderEntry] {
         var entries: [FolderEntry] = []
@@ -52,7 +57,8 @@ public enum FolderAggregator {
             let visible = files.filter { isVisible($0.url) }
             let inRange = visible.filter { $0.timestamp >= start && $0.timestamp < end }
             guard let newest = inRange.map(\.timestamp).max() else { continue }
-            entries.append(FolderEntry(folder: folder, newestDate: newest, fileCount: visible.count))
+            let count = countOnlyInWindow ? inRange.count : visible.count
+            entries.append(FolderEntry(folder: folder, newestDate: newest, fileCount: count))
         }
         entries.sort { first, second in
             if first.newestDate != second.newestDate {

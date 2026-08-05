@@ -9,6 +9,8 @@ struct StoredSettings {
     var useDateRange: Bool
     var rangeStart: Date
     var rangeEnd: Date
+    /// Ob Dateien ausserhalb des Zeitraums in der Detailliste erscheinen.
+    var showOutOfWindowFiles: Bool
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -26,6 +28,7 @@ final class SettingsStore {
     private let useRangeKey = "useDateRange"
     private let rangeStartKey = "rangeStart"
     private let rangeEndKey = "rangeEnd"
+    private let showOutOfWindowKey = "showOutOfWindowFiles"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -37,6 +40,8 @@ final class SettingsStore {
         let pattern = defaults.string(forKey: patternKey) ?? ""
         let autoRefresh = defaults.object(forKey: autoRefreshKey) as? Bool ?? true
         let useDateRange = defaults.object(forKey: useRangeKey) as? Bool ?? false
+        // Standard: Dateien ausserhalb des Zeitraums sind ausgeblendet.
+        let showOutOfWindow = defaults.object(forKey: showOutOfWindowKey) as? Bool ?? false
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -55,7 +60,8 @@ final class SettingsStore {
             rootURL: root, days: days, namePattern: pattern, autoRefresh: autoRefresh,
             useDateRange: useDateRange,
             rangeStart: calendar.startOfDay(for: rangeStart),
-            rangeEnd: calendar.startOfDay(for: rangeEnd)
+            rangeEnd: calendar.startOfDay(for: rangeEnd),
+            showOutOfWindowFiles: showOutOfWindow
         )
     }
 
@@ -76,6 +82,10 @@ final class SettingsStore {
 
     func saveAutoRefresh(_ enabled: Bool) {
         defaults.set(enabled, forKey: autoRefreshKey)
+    }
+
+    func saveShowOutOfWindowFiles(_ enabled: Bool) {
+        defaults.set(enabled, forKey: showOutOfWindowKey)
     }
 
     // MARK: - Zuletzt genutzte Ordner

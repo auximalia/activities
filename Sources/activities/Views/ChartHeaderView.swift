@@ -19,6 +19,7 @@ struct ChartHeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            headline
             if model.headerExpanded {
                 HistoryChartView(
                     chartDays: model.chartDays,
@@ -38,43 +39,69 @@ struct ChartHeaderView: View {
             }
 
             filterIndicator
-            collapseBar
         }
         .background(.bar)
     }
 
-    /// Schmale Leiste zum Auf-/Zuklappen; zeigt eingeklappt eine Kurzfassung.
-    private var collapseBar: some View {
-        HStack(spacing: 6) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    model.setHeaderExpanded(!model.headerExpanded)
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: model.headerExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption2)
-                    Text(model.headerExpanded ? "Diagramm ausblenden" : "Diagramm einblenden")
-                        .font(.caption)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("Kopfzone auf- oder zuklappen – eingeklappt bleibt mehr Platz für die Liste")
+    /// Zeitraum als **Überschrift direkt über dem Diagramm**, linksbündig.
+    ///
+    /// Der Zeitraum beschriftet das Diagramm – ohne ihn sind die Balken nicht
+    /// deutbar. Er gehört deshalb in dessen unmittelbare Nähe und **nicht** in
+    /// die Titelleiste (dort stand er in v1.8.x; Gesetz der Nähe).
+    /// Bleibt auch **eingeklappt** sichtbar, weil die Information dann erst
+    /// recht gebraucht wird.
+    private var headline: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(rangeHeadline)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help("Aktuell angezeigter Zeitraum")
 
             if !model.headerExpanded && !model.topExtensions.isEmpty {
-                Text("·").foregroundStyle(.tertiary)
                 Text(collapsedSummary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            Spacer(minLength: 0)
+
+            Spacer(minLength: 8)
+            collapseButton
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 3)
+        .padding(.top, 6)
+        .padding(.bottom, model.headerExpanded ? 0 : 6)
+    }
+
+    /// Zeitraum ausgeschrieben, z. B. „Mi., 08.07.2026 – Do., 06.08.2026 · 30 Tage".
+    /// Über dem Diagramm ist Platz für die Langfassung mit Wochentagen.
+    private var rangeHeadline: String {
+        let start = DateFormatting.weekdayDate(model.displayRangeStart)
+        let end = DateFormatting.weekdayDate(model.displayRangeEnd)
+        let days = model.displayRangeDayCount
+        return "\(start) – \(end) · \(days) \(days == 1 ? "Tag" : "Tage")"
+    }
+
+    /// Auf-/Zuklappen – sitzt rechts in der Überschriftzeile.
+    private var collapseButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                model.setHeaderExpanded(!model.headerExpanded)
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: model.headerExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2)
+                Text(model.headerExpanded ? "Diagramm ausblenden" : "Diagramm einblenden")
+                    .font(.caption)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .help("Kopfzone auf- oder zuklappen – eingeklappt bleibt mehr Platz für die Liste")
     }
 
     /// Kurzfassung der Legende für den eingeklappten Zustand.

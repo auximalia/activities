@@ -50,6 +50,7 @@ struct HelpView: View {
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
                     "Diagramm und Legende bleiben oben stehen; „Diagramm ausblenden“ schafft Platz.",
+                    "Über dem Diagramm steht der angezeigte Zeitraum als Überschrift.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",
                     "Die datumstiftende Datei (neueste im Zeitfenster) ist fett.",
                     "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",

@@ -7,9 +7,16 @@ import UniformTypeIdentifiers
 /// Einstellungs-Formulare; in Toolbars gehören Knöpfe mit sichtbarem
 /// Aktiv-Zustand hin. Zusätzlich sind sie deutlich kompakter.
 ///
-/// Gruppiert nach Art – **Zustände** und **Aktionen** stehen nicht mehr
-/// ununterscheidbar nebeneinander. Reicht die Breite nicht, klappt macOS die
-/// hinteren Elemente automatisch in ein Überlauf-Menü.
+/// **Reihenfolge folgt dem Arbeitsablauf**, von links nach rechts:
+/// `Ort → Suche → Zeitraum → Anpassungen`.
+/// 1. **Ort** – welchen Ordner durchsuche ich?
+/// 2. **Suche** – welcher Name?
+/// 3. **Zeitraum** – welcher Ausschnitt der Zeit?
+/// 4. **Anpassungen** – Zustände (Darstellung) und Aktionen, durch Gruppierung getrennt.
+///
+/// Die ersten drei Schritte liegen in der `.navigation`-Zone (links), damit die
+/// Lesereihenfolge der Arbeitsreihenfolge entspricht. Reicht die Breite nicht,
+/// klappt macOS die hinteren Elemente automatisch in ein Überlauf-Menü.
 struct MainToolbar: ToolbarContent {
     @Bindable var model: ReportViewModel
     var updates: UpdateChecker
@@ -17,15 +24,28 @@ struct MainToolbar: ToolbarContent {
     @State private var showCustomDays = false
 
     var body: some ToolbarContent {
+        // 1. Ort
         ToolbarItem(placement: .navigation) {
             folderMenu
         }
 
-        ToolbarItem {
+        // 2. Suche
+        ToolbarItem(placement: .navigation) {
+            SearchField(
+                text: $model.namePattern,
+                prompt: "Name filtern, z. B. studium",
+                onSubmit: { model.rescan() }
+            )
+            .frame(width: 220)
+            .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
+        }
+
+        // 3. Zeitraum
+        ToolbarItem(placement: .navigation) {
             timeRangeControls
         }
 
-        // --- Zustände ---
+        // 4a. Anpassungen: Zustände (ändern die Darstellung, nicht die Datenmenge)
         ToolbarItem {
             Toggle(isOn: Binding(
                 get: { model.allExpanded },
@@ -61,7 +81,7 @@ struct MainToolbar: ToolbarContent {
             .help("Automatisch aktualisieren, wenn sich der Ordner ändert")
         }
 
-        // --- Aktionen ---
+        // 4b. Anpassungen: Aktionen
         ToolbarItem {
             Button {
                 model.scrollToTopToken += 1

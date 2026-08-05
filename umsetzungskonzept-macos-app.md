@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.8.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.9.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -203,23 +203,30 @@ Ein Fenster (Mindestbreite ~1180 pt, Mindesthöhe 600 pt, Vorgabe 1280×780), vi
 
 Dark-Mode automatisch.
 
-**Toolbar (4.1.1):** Aufbau `[Ordner] [Zeitraum] | [3 Zustands-Toggles] | [Aktionen] | [Status] [Suchfeld]`.
+**Toolbar (4.1.1):** Reihenfolge folgt dem **Arbeitsablauf**, nicht der Art der Elemente:
+`[1 Ort] [2 Suche] [3 Zeitraum]  ·Titel·  [4 Anpassungen: Zustände | Aktionen | Status]`.
+Die Schritte 1–3 liegen in der `.navigation`-Zone (links), damit Lese- und Arbeitsreihenfolge
+übereinstimmen.
 - `Switch` ist laut HIG ein Element für Einstellungs-**Formulare**; in der Toolbar stehen
   **Toggle-Buttons** (`toggleStyle(.button)`) mit sichtbarem Aktiv-Zustand.
 - **Zustände und Aktionen sind getrennt** gruppiert – früher standen sie ununterscheidbar nebeneinander.
 - Reicht die Breite nicht, klappt macOS die hinteren Elemente selbsttätig in ein Überlauf-Menü.
-- **Suchfeld über `.searchable(placement: .toolbar)`** – nativ, mit Lupe und Löschen-Knopf.
-  *Geprüft:* funktioniert **ohne** `NavigationStack`; eine Hülle ist nicht nötig.
-  ⌘F kann nicht über `searchFocused` umgesetzt werden (erst ab macOS 15, Ziel ist 14) –
-  stattdessen macht `SearchFieldFocus` das `NSSearchField` über AppKit zum First Responder.
+- **Suchfeld als eingebettetes `NSSearchField`** (`SearchField`, `NSViewRepresentable`).
+  `.searchable` wurde **verworfen**: SwiftUI platziert es zwingend ganz rechts, die
+  Ablauf-Reihenfolge verlangt aber Position 2. Das eingebettete Feld liefert die native
+  Optik (Lupe, Löschen-Knopf) bei freier Platzierung. *Abweichung von der macOS-Konvention
+  (Suchfeld rechts) – bewusst, weil Suchen hier Hauptarbeit ist.*
+  ⌘F: `searchFocused` gibt es erst ab macOS 15 (Ziel ist 14) – `SearchFieldFocus` macht das
+  Feld über AppKit zum First Responder.
 - **Mindestbreite 1180 pt:** Darunter kollabiert das Suchfeld zur Lupe. Für eine
   filterzentrierte App zu wenig – deshalb wurde das Fenster verbreitert statt Elemente zu entfernen.
   *(Nebenbefund: `defaultSize` war mit 980 kleiner als `minWidth` 1000 – behoben.)*
 
-**Titelleiste (4.1.2):** Titel „activities — <Ordnername>", Untertitel
-„08.07. – 06.08.2026 · 30 Tage". Der Untertitel ist bewusst **kompakt** (kein Wochentag,
-Jahr nur am Ende) – die Langfassung wurde abgeschnitten. Die früher über dem Diagramm
-zentrierte Überschrift entfällt dadurch ersatzlos.
+**Titelleiste (4.1.2):** Nur der Titel „activities — <Ordnername>".
+**Der Zeitraum steht bewusst NICHT hier** (Korrektur gegenüber v1.8.x): Er **beschriftet das
+Diagramm** – ohne ihn sind die Balken nicht deutbar – und gehört deshalb in dessen Nähe.
+Er erscheint als **linksbündige Überschrift über dem Diagramm** in der Langfassung
+(„Fr., 31.07.2026 – Do., 06.08.2026 · 7 Tage") und bleibt auch **eingeklappt** sichtbar.
 
 
 ### 4.1 Toolbar im Einzelnen (`MainToolbar`)

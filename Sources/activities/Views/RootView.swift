@@ -19,21 +19,13 @@ struct RootView: View {
             StatusBarView(model: model)
         }
         .toolbar { MainToolbar(model: model, updates: updates) }
-        // Natives Suchfeld in der Toolbar (im Spike geprueft: funktioniert
-        // ohne NavigationStack).
-        .searchable(
-            text: $model.namePattern,
-            placement: .toolbar,
-            prompt: "Name filtern, z. B. studium"
-        )
-        .onSubmit(of: .search) { model.rescan() }
         // ⌘F: `.searchFocused` gibt es erst ab macOS 15 – Ziel ist macOS 14.
         // Deshalb wird das Suchfeld ueber AppKit zum First Responder gemacht.
         .onChange(of: model.filterFocusToken) { _, _ in SearchFieldFocus.focus() }
-        // Titelleiste traegt Ordner und Zeitraum – dadurch entfaellt die frueher
-        // zentrierte Ueberschrift ueber dem Diagramm.
+        // Der Zeitraum steht NICHT mehr hier, sondern als Ueberschrift direkt
+        // ueber dem Diagramm (siehe ChartHeaderView): Er beschriftet das
+        // Diagramm und gehoert in dessen Naehe, nicht in die Fenster-Metazeile.
         .navigationTitle("activities — \(model.rootURL.lastPathComponent)")
-        .navigationSubtitle(rangeSubtitle)
         .task { model.startInitialScanIfNeeded() }
         .task { await updates.check() }
         .alert("Sehr grosser Zeitraum", isPresented: $model.confirmLargeScan) {
@@ -63,16 +55,6 @@ struct RootView: View {
         }
     }
 
-    /// Zeitraum als Untertitel der Titelleiste, z. B. „08.07. – 06.08.2026 · 30 Tage".
-    ///
-    /// Bewusst **kompakt** (kein Wochentag, Jahr nur am Ende): Der Platz in der
-    /// Titelleiste ist knapp, die Langfassung wurde abgeschnitten.
-    private var rangeSubtitle: String {
-        let start = DateFormatting.dayMonth(model.displayRangeStart)
-        let end = DateFormatting.day(model.displayRangeEnd)
-        let days = model.displayRangeDayCount
-        return "\(start) – \(end) · \(days) \(days == 1 ? "Tag" : "Tage")"
-    }
 
     @ViewBuilder
     private var content: some View {

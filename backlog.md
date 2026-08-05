@@ -7,7 +7,10 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 **Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
 **Hotfix (v1.6.1):** UX-26.
 **Erledigt in Sprint 2a (v1.7.0):** UX-27, UX-11.
-**Erledigt in Sprint 2 (v1.8.0):** UX-03, UX-04, UX-05, UX-15. – Backlog umfasst 27 Einträge, davon 16 offen.
+**Erledigt in Sprint 2 (v1.8.0):** UX-03, UX-04, UX-05, UX-15.
+**Nachjustiert (v1.9.0):** Toolbar nach Arbeitsablauf sortiert; UX-05 teilweise **revidiert**
+(Zeitraum zurück ans Diagramm – siehe Konsistenz-Punkt 8).
+**Nachgemeldet:** UX-28. – Backlog umfasst 28 Einträge, davon 17 offen.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -214,6 +217,24 @@ Endung hat bei jedem Zeitraum dieselbe Farbe; automatisierte Palettenprüfung in
 Datei-Icons"). §3.10 ist mit diesem Punkt neu zu fassen: Icon-Farbe wird zur *Anregung*
 für die Kuratierung, ist aber nicht mehr die Quelle zur Laufzeit.
 
+### UX-28 · Zeitraum abschaltbar (reines Suchwerkzeug)
+**Aufwand:** M · **Nutzen:** hoch · **Gemeldet:** beim Toolbar-Umbau v1.9.0
+Wer gezielt nach einem Namen sucht, will das **über den gesamten Bestand** tun – nicht
+begrenzt auf 30 Tage. Der Zeitraum ist dann keine Hilfe, sondern eine versteckte
+Einschränkung, die Treffer unterschlägt.
+
+**Lösung:** Dritter Modus neben „Tage" und „Spanne", z. B. **„Alle"** – oder ein
+Ausschalter für die Zeitachse. Wirkung: `window` = unbegrenzt.
+
+**Zu klären (nicht trivial):**
+- Das **Diagramm** braucht eine Zeitachse. Bei „Alle" entweder ausblenden (Kopfzone
+  einklappen) oder die Achse auf den tatsächlichen Datenbereich spannen – bei mehreren
+  Jahren greift dann die 4000-Tage-Schutzgrenze (5.x).
+- Die **Zeitabschnitte** („Heute", „Diese Woche" …) bleiben sinnvoll, werden aber sehr lang.
+- **Laufzeit:** Ohne Zeitfenster fällt die stärkste Reduktion weg; die Ergebnismenge kann
+  sehr groß werden. Vorher an einem großen Baum messen.
+- Sinnvoll **nach** UX-02 (Live-Filter), weil beides denselben Pfad betrifft.
+
 ---
 
 ## P2 – Lesbarkeit und Gestaltung
@@ -360,6 +381,18 @@ aus einem Guss bleibt:
    markiert, nicht als Fix.
 6. **UX-02 hat eine Architektur-Vorbedingung.** Live-Filterung erfordert einen
    ungefilterten Scan; das ist kein reiner UI-Umbau und braucht eine Messung.
+8. **UX-05 teilweise revidiert (v1.9.0).** Der Zeitraum wurde in Sprint 2 in die
+   Titelleiste verschoben – das war falsch: Er **beschriftet das Diagramm** (ohne ihn sind
+   die Balken nicht deutbar) und gehört damit in dessen Nähe, nicht in die Fenster-Metazeile.
+   *Dies widerspricht ausgerechnet UX-08/4.3.2 („Gesetz der Nähe"), das wir selbst
+   aufgestellt hatten.* Gültig ist jetzt: Fenstertitel = „activities — <Ordner>",
+   Zeitraum = linksbündige Überschrift über dem Diagramm, auch im eingeklappten Zustand sichtbar.
+9. **`.searchable` wurde durch ein eigenes `NSSearchField` ersetzt (v1.9.0).** SwiftUI
+   platziert `.searchable` zwingend ganz rechts; die Ablauf-Reihenfolge
+   *Ort → Suche → Zeitraum → Anpassungen* verlangt die zweite Position. Der
+   `NSViewRepresentable`-Umweg erhält die native Optik bei freier Platzierung.
+   *Abweichung von der macOS-Konvention (Suchfeld rechts) – bewusst, weil Suchen hier
+   Hauptarbeit ist und nicht Nebensache.*
 7. **UX-01 wurde nach Code-Prüfung entschärft.** Der vermutete Funktionsfehler existiert
    nicht – der Teilstring-Filter ist implementiert. *Lehre: Annahmen aus der Oberfläche
    am Code prüfen, bevor sie als Fehler ins Backlog wandern.*

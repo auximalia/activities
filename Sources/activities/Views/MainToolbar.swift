@@ -149,6 +149,10 @@ struct MainToolbar: ToolbarContent {
         } label: {
             Label(model.rootURL.lastPathComponent, systemImage: "folder")
         }
+        // Ordnername ausdruecklich MIT Beschriftung: Der aktuelle Ordner ist die
+        // wichtigste Zustandsinformation der App – ein blosses Ordnersymbol
+        // verschweigt sie.
+        .labelStyle(.titleAndIcon)
         .help("Wurzelordner wählen · aktuell: \(model.rootURL.path)")
         .fileImporter(
             isPresented: $showImporter,

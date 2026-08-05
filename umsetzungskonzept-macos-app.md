@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.10.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.10.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -224,7 +224,7 @@ einer Suche sichtbar) – sonst verschöben sich beim Ein- und Ausblenden alle N
   filterzentrierte App zu wenig – deshalb wurde das Fenster verbreitert statt Elemente zu entfernen.
   *(Nebenbefund: `defaultSize` war mit 980 kleiner als `minWidth` 1000 – behoben.)*
 
-**Titelleiste (4.1.2):** Nur der Titel „activities — <Ordnername>".
+**Titelleiste (4.1.2):** Nur „activities". Der **Ordnername steht im Ordner-Menü** der Toolbar; im Fenstertitel wäre er unmittelbar daneben eine Dopplung.
 **Der Zeitraum steht bewusst NICHT hier** (Korrektur gegenüber v1.8.x): Er **beschriftet das
 Diagramm** – ohne ihn sind die Balken nicht deutbar – und gehört deshalb in dessen Nähe.
 Er erscheint als **linksbündige Überschrift über dem Diagramm** in der Langfassung
@@ -232,7 +232,7 @@ Er erscheint als **linksbündige Überschrift über dem Diagramm** in der Langfa
 
 
 ### 4.1 Toolbar im Einzelnen (`MainToolbar`)
-- **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).
+- **Ordner-Menü** mit **ausgeschriebenem Ordnernamen** neben dem Symbol (`labelStyle(.titleAndIcon)`): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8). Der aktuelle Ordner ist die wichtigste Zustandsinformation der App – ein blosses Ordnersymbol verschweigt sie.
 - **Zeitmodus-Umschalter** (Segmented): **„Tage" | „Spanne"**.
   - **Tage:** Presets **7 / 30 / 90** + Eintrag **„Eigene"** (Schieberegler-Symbol). Dieser öffnet ein **Popover** mit Zahlenfeld und Stepper (1…3650). *Früher standen Presets **und** Stepper dauerhaft nebeneinander – zwei Wege für dieselbe Größe; das war Redundanz, kein Komfort (UX-15).*
   - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum), Grenzen über die Picker erzwungen, „bis" auf **heute** begrenzt. Änderungen wirken **sofort** (seit v1.10.0 ohne Suchlauf, siehe 5.-1).

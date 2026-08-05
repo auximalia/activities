@@ -25,7 +25,9 @@ struct RootView: View {
         // Der Zeitraum steht NICHT mehr hier, sondern als Ueberschrift direkt
         // ueber dem Diagramm (siehe ChartHeaderView): Er beschriftet das
         // Diagramm und gehoert in dessen Naehe, nicht in die Fenster-Metazeile.
-        .navigationTitle("activities — \(model.rootURL.lastPathComponent)")
+        // Der Ordnername steht jetzt sichtbar im Ordner-Menue der Toolbar –
+        // im Fenstertitel waere er unmittelbar daneben eine Dopplung.
+        .navigationTitle("activities")
         .task { model.startInitialScanIfNeeded() }
         .task { await updates.check() }
         .alert(

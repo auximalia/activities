@@ -6,7 +6,7 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 **Status:** ✅ erledigt · ⏳ offen
 **Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
 **Hotfix (v1.6.1):** UX-26.
-**Nachgemeldet:** UX-27 (Betriebsbefund, messtechnisch belegt) – Backlog umfasst 27 Einträge, davon 22 offen.
+**Erledigt in Sprint 2a (v1.7.0):** UX-27, UX-11. – Backlog umfasst 27 Einträge, davon 20 offen.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -131,7 +131,7 @@ weiterhin zum Ziel.
 anderen Quellen kennzeichnen sich ausdrücklich. `scrollTo` jetzt ohne Anker (minimal).
 Regel im Konzept §4.3.5 festgehalten.
 
-### UX-27 · Dateityp-Farben sind nicht unterscheidbar
+### ✅ UX-27 · Dateityp-Farben sind nicht unterscheidbar *(erledigt, v1.7.0)*
 **Aufwand:** M · **Nutzen:** sehr hoch · **Gefunden:** nach v1.6.1 im Betrieb
 Balkensegmente und Legenden-Chips lassen sich farblich nicht auseinanderhalten – besonders
 die vielen **grauen** Segmente. Das Diagramm ist die zentrale Darstellung der App; wenn
@@ -239,7 +239,7 @@ Datum ist durch die Gruppierung bereits bekannt.
 **Lösung:** „Heute, 22:59" / „Gestern, 14:32" / ältere mit Datum.
 **Folge:** Die feste Datumsspalte (150 pt) darf schmaler werden → mehr Platz für Namen.
 
-### UX-11 · Wochenend-Bänder und Raster zurücknehmen
+### ✅ UX-11 · Wochenend-Bänder und Raster zurücknehmen *(erledigt, v1.7.0)*
 **Aufwand:** S · **Nutzen:** mittel · **Gehört zu:** UX-27 (Kontextschicht)
 Die grauen Wochenend-Flächen wirken visuell **stärker** als die Datenbalken. Kontext darf
 nie lauter sein als Inhalt.
@@ -377,12 +377,13 @@ Arbeitsfläche und Statuszeile aufgeräumt. Kein Architektur-Eingriff.
 Behob eine Störung der häufigsten Interaktion; zusätzlich wird jetzt minimal statt
 zentriert gescrollt.
 
-**➡️ Sprint 2a – „Farbsystem" (vorgezogen)**
+**✅ Sprint 2a – „Farbsystem" (abgeschlossen, v1.7.0)**
 UX-27 **und UX-11** (Datenschicht + Kontextschicht – dieselbe Entwurfsentscheidung).
-Eigener Sprint, weil eine Palette entworfen, kuratiert und automatisiert geprüft werden
-muss und weil §3.10 der Spezifikation dabei neu gefasst wird.
+Ergebnis: 11 Farben mit zugesichertem ΔE ≥ 25, in CoreChecks automatisiert geprüft;
+§3.10 neu gefasst; `IconColor` entfernt.
+*Vorher/nachher für die Endungen aus dem Befund: kleinster Abstand 0.0 → 26.8.*
 
-**Sprint 2 – „Kopfzone und Toolbar"**
+**➡️ Sprint 2 – „Kopfzone und Toolbar" (als Nächstes)**
 UX-03, UX-04, UX-05, UX-15
 → Der große Gestaltungsschritt; danach wirkt die App native.
 

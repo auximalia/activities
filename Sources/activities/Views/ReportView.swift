@@ -44,7 +44,8 @@ struct ReportView: View {
                         otherKey: ReportViewModel.otherKey,
                         onSelect: { day, ext in model.focus(day: day, ext: ext) },
                         onToggleExtension: { model.toggleExtension($0) },
-                        onSoloExtension: { model.soloExtension($0) }
+                        onSoloExtension: { model.soloExtension($0) },
+                        colorAssignment: model.typeColorAssignment
                     )
                     .frame(height: 260)
                     .padding(.horizontal, 4)

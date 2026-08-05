@@ -20,9 +20,11 @@ struct HistoryChartView: View {
     var onToggleExtension: (String) -> Void
     /// Doppelklick auf einen Legendeneintrag: nur diesen Typ anzeigen ("Solo").
     var onSoloExtension: (String) -> Void
+    /// Farbplatz je Endung (kategoriale Palette aus dem Kern).
+    var colorAssignment: [String: Int]
 
     private var hasOther: Bool { otherCount > 0 }
-    private var otherColor: Color { Color(nsColor: .systemGray) }
+    private var otherColor: Color { FileTypeColor.other }
 
     /// Reihenfolge/Domain der Stapel: Top-Endungen, danach ggf. "Sonstige".
     private var chartKeys: [String] {
@@ -30,7 +32,8 @@ struct HistoryChartView: View {
     }
 
     private var chartColors: [Color] {
-        topExtensions.map { IconColor.dominant(forExtension: $0.ext) } + (hasOther ? [otherColor] : [])
+        topExtensions.map { FileTypeColor.color(forExtension: $0.ext, assignment: colorAssignment) }
+            + (hasOther ? [otherColor] : [])
     }
 
     private var points: [ChartPoint] {
@@ -65,7 +68,9 @@ struct HistoryChartView: View {
                     yStart: .value("von", 0),
                     yEnd: .value("bis", maxTotal)
                 )
-                .foregroundStyle(Color.secondary.opacity(0.10))
+                // Kontextschicht: bewusst dicht am Hintergrund (ΔE <= 15),
+                // damit ein Wochenend-Band nie als Datenflaeche gelesen wird.
+                .foregroundStyle(Color.secondary.opacity(0.06))
             }
 
             ForEach(points) { point in
@@ -81,8 +86,8 @@ struct HistoryChartView: View {
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { value in
                 if let date: Date = value.as(Date.self), shouldLabel(date) {
-                    AxisGridLine()
-                    AxisTick()
+                    AxisGridLine().foregroundStyle(Color.secondary.opacity(0.18))
+                    AxisTick().foregroundStyle(Color.secondary.opacity(0.25))
                     AxisValueLabel {
                         VStack(spacing: 1) {
                             Text(DateFormatting.weekdayShort(date))
@@ -99,7 +104,12 @@ struct HistoryChartView: View {
                 }
             }
         }
-        .chartYAxis { AxisMarks(position: .leading) }
+        .chartYAxis {
+            AxisMarks(position: .leading) { _ in
+                AxisGridLine().foregroundStyle(Color.secondary.opacity(0.18))
+                AxisValueLabel()
+            }
+        }
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
@@ -139,7 +149,7 @@ struct HistoryChartView: View {
         FlowLayout(horizontalSpacing: 6, verticalSpacing: 6) {
             ForEach(topExtensions) { item in
                 LegendChip(
-                    color: IconColor.dominant(forExtension: item.ext),
+                    color: FileTypeColor.color(forExtension: item.ext, assignment: colorAssignment),
                     icon: FileIconProvider.icon(forExtension: item.ext),
                     title: ".\(item.ext)",
                     monospacedTitle: true,

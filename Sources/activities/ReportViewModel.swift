@@ -97,6 +97,9 @@ final class ReportViewModel {
     var otherCount: Int = 0
     /// Sammelschluessel fuer alle Endungen ausserhalb der Top-Endungen.
     static let otherKey = "__other__"
+    /// Farbplatz je Endung (kategoriale Palette). Wird mit der Legende neu
+    /// bestimmt, damit Diagramm und Chips garantiert dieselbe Farbe zeigen.
+    private(set) var typeColorAssignment: [String: Int] = [:]
     /// Maximale Anzahl einzeln gelisteter Endungen in der Legende (Rest -> "Sonstige").
     static let legendTopCount = 10
     /// Start-/Endtag des aktuell **angezeigten** Zeitraums (wird beim Diagramm-
@@ -290,6 +293,9 @@ final class ReportViewModel {
             .prefix(Self.legendTopCount)
             .map { ExtensionCount(ext: $0.key, count: $0.value) }
         topExtensionSet = Set(topExtensions.map(\.ext))
+        // Farbzuordnung folgt der Legende: eindeutig, stabil und unabhaengig
+        // von der Haeufigkeit (siehe TypePalette.assignment).
+        typeColorAssignment = TypePalette.assignment(for: topExtensions.map(\.ext))
         otherCount = relevantFiles.reduce(0) {
             topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
         }

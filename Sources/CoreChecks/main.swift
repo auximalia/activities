@@ -284,6 +284,59 @@ do {
     expectEqual(r[0].fileCount, 2, "range: zaehlt alle sichtbaren (2)")
 }
 
+// MARK: - Farbpalette: Unterscheidbarkeit ist zugesichert, also pruefbar
+do {
+    let colors = TypePalette.all
+    expectEqual(colors.count, 11, "Palette: 10 bunte + 1 neutrale Farbe")
+
+    // Genau EIN Grau – sonst kollidiert eine bunte Farbe mit "Sonstige".
+    expectEqual(colors.filter(\.isNeutral).count, 1, "Palette: genau ein Neutralgrau")
+
+    // Paarweise Unterscheidbarkeit (Schwelle fuer kategoriale Kodierung).
+    var worst = Double.infinity
+    var worstPair = (0, 0)
+    for i in 0..<colors.count {
+        for j in (i + 1)..<colors.count {
+            let d = colors[i].deltaE(to: colors[j])
+            if d < worst { worst = d; worstPair = (i, j) }
+        }
+    }
+    expect(worst >= 25, String(format: "Palette: kleinster Abstand %.1f (Plaetze %d/%d) >= 25",
+                               worst, worstPair.0, worstPair.1))
+
+    // Abstand zu beiden Fensterhintergruenden (eine Palette fuer Light und Dark).
+    let darkBackground = PaletteColor(hue: 0, saturation: 0, brightness: 0.13)
+    let lightBackground = PaletteColor(hue: 0, saturation: 0, brightness: 1.0)
+    for (name, background) in [("Dark", darkBackground), ("Light", lightBackground)] {
+        let minimum = colors.map { $0.deltaE(to: background) }.min() ?? 0
+        expect(minimum >= 25, String(format: "Palette: Abstand zum %@-Hintergrund %.1f >= 25", name, minimum))
+    }
+
+    // Kontextschicht muss DICHT am Hintergrund bleiben (nie als Datum lesbar).
+    let weekendDark = PaletteColor(hue: 0, saturation: 0, brightness: 0.22)
+    expect(weekendDark.deltaE(to: darkBackground) <= 15, "Kontextschicht: Wochenend-Band nah am Hintergrund")
+
+    // Zuweisung: eindeutig und stabil.
+    let exts = ["swift", "md", "py", "log", "pdf", "xlsx", "png", "xmind", "sh", "json"]
+    let map = TypePalette.assignment(for: exts)
+    expectEqual(map.count, exts.count, "Zuweisung: jede Endung erhaelt einen Platz")
+    expectEqual(Set(map.values).count, exts.count, "Zuweisung: alle Plaetze verschieden")
+
+    // Kuratierte Endungen behalten ihren Vorzugsplatz.
+    expectEqual(map["pdf"], TypePalette.preferredIndex(forExtension: "pdf"), "Zuweisung: pdf behaelt Rot")
+    expectEqual(map["xlsx"], TypePalette.preferredIndex(forExtension: "xlsx"), "Zuweisung: xlsx behaelt Gruen")
+    expectEqual(map["swift"], TypePalette.preferredIndex(forExtension: "swift"), "Zuweisung: swift behaelt Orange")
+
+    // Stabilitaet: gleiche Menge -> gleiche Zuordnung, unabhaengig von der Reihenfolge.
+    let shuffled = TypePalette.assignment(for: exts.reversed())
+    expect(map == shuffled, "Zuweisung: unabhaengig von der Eingabereihenfolge")
+
+    // Fallback ist deterministisch (kein prozess-zufaelliger Hash).
+    expectEqual(TypePalette.fallbackIndex(forExtension: "xmind"),
+                TypePalette.fallbackIndex(forExtension: "XMIND"),
+                "Fallback: gross/klein egal und stabil")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

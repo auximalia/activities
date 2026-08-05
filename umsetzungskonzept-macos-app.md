@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.6.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.7.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -139,14 +139,49 @@ in **aufeinanderfolgende** Abschnitte gruppiert. Jeder Abschnitt zeigt seine Anz
 - **Wochenenden** hell hinterlegt. **X-Achse:** nur **Montag und Freitag** beschriftet (bei ≤ 8 Tagen jeder Tag), Beschriftung = Wochentagskürzel + `TT.MM.`.
 - **Klick auf einen Balken:** wertet **x (Tag)** und **y (Höhe im Stapel)** aus. Trifft der Klick ein Segment, wird die **Endung** dieses Segments bestimmt (Stapel von unten nach oben in Legenden-/`chartKeys`-Reihenfolge, d. h. häufigster Typ unten) und zur **jüngsten sichtbaren Datei dieses Typs an diesem Tag** gesprungen (Ordner aufklappen + Datei markieren). Klick oberhalb des Stapels/ohne Segment → Rückfall auf den Tag: passender Ordner (3.11) + dessen datumstiftende Datei.
 
-### 3.10 Farben der Endungen (Balken & Legenden-Swatch)
-Jede Endung erhält eine **aus ihrem Datei-Icon abgeleitete Farbe**:
-1. Icon der Endung rendern (32×32), Pixel auslesen.
-2. **Sättigungsgewichteter Mittelwert der farbigen Pixel** (Alpha ≥ 0.3, Sättigung ≥ 0.22, 0.15 ≤ Helligkeit ≤ 0.99). So gewinnt der farbige Akzent, nicht der weiß/graue Hintergrund.
-3. Fehlt Farbe → Rückfall auf den (un-premultiplizierten) Deckfarben-Mittelwert.
-4. **Normalisierung** in HSB: ist die Sättigung < 0.12 (Graustufen-Icon) → nur Helligkeit auf `[0.45, 0.72]` klemmen (bleibt grau); sonst Sättigung auf `[0.6, 0.95]`, Helligkeit auf `[0.55, 0.9]` klemmen (kräftig & unterscheidbar).
-5. Ergebnis je Endung cachen. „Sonstige" ist neutrales Grau.
-Der Legenden-Chip zeigt links dieses **Farbrechteck** (Balkenfarbe), dann das Icon, den Endungsnamen und die Anzahl.
+### 3.10 Farben der Endungen – feste kategoriale Palette
+**Verworfen (bis v1.6.1): Farbe aus dem Datei-Icon ableiten.** Der Ansatz scheitert
+systematisch und wurde messtechnisch widerlegt: macOS-Dokumentsymbole sind bewusst
+einheitlich gestaltet (weißes Blatt, kleiner blauer Akzent). Nachgemessen ergaben **sieben**
+gängige Endungen (`.md`, `.log`, `.txt`, `.csv`, `.command`, `.conf`, `.bak`) **exakt**
+denselben Grauton (ΔE = 0.0), `.pdf` und `.png` denselben Blauton. Man greift damit ein
+System ab, das auf *Ähnlichkeit* optimiert ist, und benötigt *Unterscheidbarkeit*.
+
+**Gültig ab v1.7.0:** eine feste Palette in `ActivitiesCore/TypePalette.swift`.
+
+- **Genau 11 Farben:** 10 bunte + **ein reserviertes Neutralgrau** für „Sonstige". Für
+  kategoriale Kodierung gelten rund 11–12 Farben als Obergrenze zuverlässiger
+  Unterscheidbarkeit; das deckt sich mit `legendTopCount` (10) + „Sonstige".
+- **Zugesichert und geprüft:** paarweise **ΔE ≥ 25** (CIE76) sowie ΔE ≥ 25 zu **beidem**
+  Fensterhintergrund (Light und Dark). Eine einzige Palette trägt beide Modi – getrennte
+  Varianten sind nicht nötig. Die Zusage wird in **CoreChecks automatisiert geprüft**;
+  deshalb liegt die Palette im Kern und nicht im App-Target.
+- **Kuratierte Vorzugsplätze** dort, wo eine Erwartung besteht (`pdf` rot, Tabellen grün,
+  Textdokumente blau, Bilder magenta) oder die Zuordnung im Alltag hilft
+  (`swift`, `py`, `js`, `md`, `json`, `sh`). Alle übrigen Endungen erhalten ihren Platz
+  über einen **eigenen FNV-1a-Hash** – *nicht* über `Hasher`, dessen Startwert pro Prozess
+  zufällig ist (die Farbe würde sich bei jedem Start ändern).
+- **Zielkonflikt Eindeutigkeit ↔ Stabilität** (bewusst entschieden): Beides zugleich ist bei
+  begrenzter Palette unmöglich. Der Kompromiss: **Eindeutigkeit ist garantiert** (nie zwei
+  gleiche Farben im Bild), **Stabilität bestmöglich** – kuratierte Endungen werden zuerst
+  bedient, die Reihenfolge ist alphabetisch und damit **unabhängig von der Häufigkeit**.
+  Ein Wechsel des Zeitraums ändert die Farbe also nicht. Kollisionen weichen deterministisch
+  auf den nächsten freien Platz aus.
+- **Schichtenmodell:** Diese Palette ist die **Datenschicht**. Die **Kontextschicht**
+  (Wochenend-Bänder, Rasterlinien, Achsen) bleibt bewusst **ΔE ≤ 15 zum Hintergrund** – sie
+  soll als Modulation des Hintergrunds gelesen werden, nie als Datum. Damit ist Grau als
+  „zwölfte Farbe" geregelt: Kontext- und Datengrau leben in verschiedenen Schichten und
+  werden über die Helligkeit getrennt, nicht über den Farbton.
+- **Aufgabenteilung in der Legende:** Das **Datei-Icon trägt die Identität**, die
+  **Palettenfarbe die Unterscheidung**. Das Icon bleibt deshalb im Chip erhalten, obwohl die
+  Farbe nicht mehr daraus abgeleitet wird.
+- **Grenze (offengelegt):** Bei 10 Kategorien ist **keine** farbfehlsichtigen-taugliche
+  Palette möglich – Deuteranopen unterscheiden verlässlich nur etwa 5–6 Farben. Milderung:
+  Icon und Endungsname im Chip tragen die Identität farbunabhängig; zum Isolieren eines Typs
+  dient der Solo-Doppelklick statt des Farbvergleichs.
+
+Der Legenden-Chip zeigt links das **Farbrechteck** (Balkenfarbe), dann das Icon, den
+Endungsnamen und die Anzahl.
 
 ### 3.11 Navigation & flache Zeilenliste
 Aus `displayBuckets` (Ordner) + `expandedFolders` + sichtbaren Detaildateien wird
@@ -369,6 +404,7 @@ Sources/
     RowNavigation.swift      RowID, flatten(...), move(...) (3.11)
     ReportExport.swift       csv(...)/html(...)
     Models.swift             RelevantFile/FolderEntry/BucketedEntries/DayExtensionCount/ScanSettings
+    TypePalette.swift        PaletteColor + kategoriale Palette (3.10), ΔE-Rechnung
     FileCategory.swift       [legacy: alte Kategorien; von der App NICHT mehr genutzt]
   activities/            (SwiftUI-App)
     ActivitiesApp.swift      @main, Fenster, Menübefehle, Über-Fenster, Hilfe-Fenster
@@ -376,8 +412,9 @@ Sources/
     Views/                   RootView, ControlsView, HistoryChartView, ReportView,
                              FolderRowView, FileRowView, EmptyStateView, QuickLookHost
     Services/                FinderService, ClipboardService, SettingsStore,
-                             FolderWatcher (FSEvents), ExportService, FileIconProvider
-    Style/                   IconColor (3.10), DateFormatting, SelectionBackground,
+                             FolderWatcher (FSEvents), ExportService, FileIconProvider,
+                             UpdateChecker (10.1)
+    Style/                   FileTypeColor (3.10), DateFormatting, SelectionBackground,
                              RowMetrics + TreeConnector (4.3.1/4.3.2)
     BuildInfo.swift          liest Version/Revision aus Info.plist
   CoreChecks/            ausführbarer Prüf-Runner (ersetzt XCTest ohne Xcode)

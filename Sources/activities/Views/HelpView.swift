@@ -40,6 +40,7 @@ struct HelpView: View {
 
                 section("Diagramm & Legende", icon: "chart.bar.xaxis", [
                     "Gestapelte Balken pro Tag nach Endung (Top 10 + graue „Sonstige“).",
+                    "Jeder Typ hat eine feste, klar unterscheidbare Farbe – auch nach Zeitraumwechsel.",
                     "Klick auf ein Segment springt zur passenden Datei.",
                     "Legende: jeder Eintrag ist ein Knopf – Klick blendet den Typ aus/ein.",
                     "Doppelklick = nur diesen Typ; erneuter Doppelklick = wieder alle.",

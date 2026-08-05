@@ -9,9 +9,9 @@ struct ActivitiesApp: App {
     var body: some Scene {
         WindowGroup("activities") {
             RootView(model: model, updates: updates)
-                .frame(minWidth: 1000, minHeight: 520)
+                .frame(minWidth: 1180, minHeight: 600)
         }
-        .defaultSize(width: 980, height: 720)
+        .defaultSize(width: 1280, height: 780)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 AboutMenuButton()

@@ -109,6 +109,9 @@ final class ReportViewModel {
     private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
+    /// Ob die Kopfzone (Diagramm + Legende) aufgeklappt ist. Eingeklappt bleibt
+    /// deutlich mehr Platz fuer die Tabelle – wichtig bei kleinen Fenstern.
+    var headerExpanded: Bool
     /// Ob Dateien **ausserhalb** des Zeitraums in der Detailliste erscheinen.
     /// Standard: aus – so bleiben nur die gesuchten Treffer stehen.
     var showOutOfWindowFiles: Bool
@@ -152,6 +155,7 @@ final class ReportViewModel {
         self.namePattern = saved.namePattern
         self.autoRefresh = saved.autoRefresh
         self.showOutOfWindowFiles = saved.showOutOfWindowFiles
+        self.headerExpanded = saved.headerExpanded
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
@@ -623,6 +627,12 @@ final class ReportViewModel {
         showOutOfWindowFiles = enabled
         store.saveShowOutOfWindowFiles(enabled)
         recomputeDisplayBuckets()
+    }
+
+    /// Klappt die Kopfzone auf/zu (nur Anzeige, keine Neuberechnung).
+    func setHeaderExpanded(_ expanded: Bool) {
+        headerExpanded = expanded
+        store.saveHeaderExpanded(expanded)
     }
 
     func setAutoRefresh(_ enabled: Bool) {

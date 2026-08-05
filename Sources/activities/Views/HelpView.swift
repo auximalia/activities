@@ -16,12 +16,12 @@ struct HelpView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 section("Ordner wählen", icon: "folder", [
-                    "Ordner-Knopf links: „Ordner wählen …“ oder einen zuletzt genutzten.",
+                    "Ordner-Knopf links in der Titelleiste: „Ordner wählen …“ oder zuletzt genutzte.",
                     "Der gewählte Ordner ist die Wurzel – alle Unterordner zählen mit.",
                 ])
 
                 section("Zeitraum festlegen", icon: "calendar", [
-                    "„Tage“: rollierend ab heute (Schnellwahl 7/30/90 oder 1–3650 eingeben).",
+                    "„Tage“: Schnellwahl 7/30/90; das Regler-Symbol öffnet die freie Eingabe.",
                     "„Zeitspanne“: feste Von–Bis, bis max. heute – wirkt erst mit „Aktualisieren“.",
                     "Ordner außerhalb des Zeitraums werden ausgeblendet.",
                 ])
@@ -49,6 +49,7 @@ struct HelpView: View {
 
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
+                    "Diagramm und Legende bleiben oben stehen; „Diagramm ausblenden“ schafft Platz.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",
                     "Die datumstiftende Datei (neueste im Zeitfenster) ist fett.",
                     "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",

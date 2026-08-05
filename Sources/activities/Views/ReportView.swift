@@ -1,8 +1,8 @@
 import SwiftUI
 import ActivitiesCore
 
-/// Bericht: Verlaufsdiagramm oben, darunter die flache, nach Zeit gruppierte
-/// Liste aus Ordner- und (aufgeklappt) Dateizeilen.
+/// Die scrollende Ordner-/Dateiliste. Diagramm und Legende liegen seit v1.8.0
+/// in der **festen** Kopfzone (``ChartHeaderView``) und scrollen nicht mit.
 ///
 /// Die Liste ist fokussierbar: Pfeil hoch/runter bewegt den Auswahl-Cursor,
 /// Pfeil links/rechts klappt Ordner zu/auf, Enter oeffnet die Auswahl.
@@ -12,46 +12,19 @@ struct ReportView: View {
     @StateObject private var quickLook = QuickLookController()
     @State private var quickLookActive = false
 
-    /// Stabile ID des obersten Elements (Überschrift) für „an den Anfang springen".
+    /// Stabile ID der ersten Tabellenzeile für „an den Anfang springen".
+    /// Lag früher auf der zentrierten Überschrift – die steht seit v1.8.0 als
+    /// Untertitel in der Titelleiste.
     static let topAnchorID = "list-top-anchor"
-
-    /// Überschrift über dem Diagramm, z. B. „Fr., 12.06.2026 – Mi., 17.08.2026 (30 Tage)".
-    private var rangeHeadline: String {
-        let start = DateFormatting.weekdayDate(model.displayRangeStart)
-        let end = DateFormatting.weekdayDate(model.displayRangeEnd)
-        let n = model.displayRangeDayCount
-        return "\(start) – \(end) (\(n) \(n == 1 ? "Tag" : "Tage"))"
-    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
-                    Text(rangeHeadline)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 8)
-                        .padding(.horizontal, 8)
+                    // Unsichtbarer Anker fuer „An den Anfang" (⌘↑).
+                    Color.clear
+                        .frame(height: 0)
                         .id(ReportView.topAnchorID)
-                        .help("Aktuell angezeigter Zeitraum")
-
-                    HistoryChartView(
-                        chartDays: model.chartDays,
-                        topExtensions: model.topExtensions,
-                        hiddenExtensions: model.hiddenExtensions,
-                        otherCount: model.otherCount,
-                        otherKey: ReportViewModel.otherKey,
-                        onSelect: { day, ext in model.focus(day: day, ext: ext) },
-                        onToggleExtension: { model.toggleExtension($0) },
-                        onSoloExtension: { model.soloExtension($0) },
-                        colorAssignment: model.typeColorAssignment
-                    )
-                    .frame(height: 260)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 8)
-
-                    filterIndicator
 
                     ForEach(model.displayBuckets) { bucket in
                         Section {
@@ -155,39 +128,6 @@ struct ReportView: View {
                     proxy.scrollTo(ReportView.topAnchorID, anchor: .top)
                 }
             }
-        }
-    }
-
-    /// Hinweis auf ausgeblendete Dateitypen samt Zuruecksetzen.
-    ///
-    /// Ohne diesen Hinweis waere der Typ-Filter ein **stiller Zustand**: Die
-    /// Ergebnisliste wirkt unvollstaendig, ohne dass erkennbar ist, warum.
-    /// Erscheint nur, wenn tatsaechlich etwas ausgeblendet ist.
-    @ViewBuilder
-    private var filterIndicator: some View {
-        if model.hasTypeFilter {
-            let count = model.hiddenTypeCount
-            HStack(spacing: 6) {
-                Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                    .foregroundStyle(.tint)
-                Text("\(count) \(count == 1 ? "Typ" : "Typen") ausgeblendet")
-                    .font(.callout)
-                Button("Zurücksetzen") { model.resetTypeFilters() }
-                    .buttonStyle(.link)
-                    .help("Alle Dateitypen wieder einblenden (⌥⌘R)")
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.10))
-            )
-            .padding(.horizontal, 4)
-            .padding(.bottom, 6)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(count) Dateitypen ausgeblendet")
-            .accessibilityHint("Zum Zurücksetzen aktivieren")
         }
     }
 

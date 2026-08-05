@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.7.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.8.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -194,26 +194,60 @@ erste Ordner mit `newestDate < Ende jenes Tages` (Liste ist absteigend sortiert)
 
 ## 4. Oberfläche & Interaktion
 
-Ein Fenster (Mindestbreite ~1000 pt), drei Bereiche: **Steuerleiste** (oben),
-**Inhalt** (Diagramm + Liste), **Statuszeile** (unten). Dark-Mode automatisch.
-Der Credit/Version-Text rechts in der Steuerleiste ist **einzeilig** (kürzt bei
-Platzmangel, statt vertikal umzubrechen) und hat niedrige Layout-Priorität.
-Der Fortschritts-/Abbrechen-Block hat **festen Platz** (immer reserviert, nur
-sichtbar während der Suche), damit die Leiste beim Ein-/Ausblenden nicht springt.
+Ein Fenster (Mindestbreite ~1180 pt, Mindesthöhe 600 pt, Vorgabe 1280×780), vier Bereiche:
 
-### 4.1 Steuerleiste
+1. **Titelleisten-Toolbar** – alle Bedienelemente (seit v1.8.0; früher eine eigene Zeile).
+2. **Feste Kopfzone** – Diagramm, Legende, Filter-Hinweis. Scrollt **nicht** mit.
+3. **Tabelle** – scrollt darunter.
+4. **Statuszeile**.
+
+Dark-Mode automatisch.
+
+**Toolbar (4.1.1):** Aufbau `[Ordner] [Zeitraum] | [3 Zustands-Toggles] | [Aktionen] | [Status] [Suchfeld]`.
+- `Switch` ist laut HIG ein Element für Einstellungs-**Formulare**; in der Toolbar stehen
+  **Toggle-Buttons** (`toggleStyle(.button)`) mit sichtbarem Aktiv-Zustand.
+- **Zustände und Aktionen sind getrennt** gruppiert – früher standen sie ununterscheidbar nebeneinander.
+- Reicht die Breite nicht, klappt macOS die hinteren Elemente selbsttätig in ein Überlauf-Menü.
+- **Suchfeld über `.searchable(placement: .toolbar)`** – nativ, mit Lupe und Löschen-Knopf.
+  *Geprüft:* funktioniert **ohne** `NavigationStack`; eine Hülle ist nicht nötig.
+  ⌘F kann nicht über `searchFocused` umgesetzt werden (erst ab macOS 15, Ziel ist 14) –
+  stattdessen macht `SearchFieldFocus` das `NSSearchField` über AppKit zum First Responder.
+- **Mindestbreite 1180 pt:** Darunter kollabiert das Suchfeld zur Lupe. Für eine
+  filterzentrierte App zu wenig – deshalb wurde das Fenster verbreitert statt Elemente zu entfernen.
+  *(Nebenbefund: `defaultSize` war mit 980 kleiner als `minWidth` 1000 – behoben.)*
+
+**Titelleiste (4.1.2):** Titel „activities — <Ordnername>", Untertitel
+„08.07. – 06.08.2026 · 30 Tage". Der Untertitel ist bewusst **kompakt** (kein Wochentag,
+Jahr nur am Ende) – die Langfassung wurde abgeschnitten. Die früher über dem Diagramm
+zentrierte Überschrift entfällt dadurch ersatzlos.
+
+
+### 4.1 Toolbar im Einzelnen (`MainToolbar`)
 - **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).
-- **Zeitmodus-Umschalter** (Segmented): **„Tage" | „Zeitspanne"**.
-  - **Tage:** Presets **7 / 30 / 90** (Segmented) + **Zahlen-Eingabefeld** (manuelle Eingabe, geklemmt 1…3650) + **Stepper**-Pfeile. Änderung ⇒ Rescan.
-  - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum). Reihenfolge wird über die Picker-Grenzen erzwungen (von `in: …bis`, bis `in: von…heute`), „bis" ist auf **heute** begrenzt. Änderungen lösen **keinen** Suchlauf aus (kein Rescan pro Tastendruck); sie werden **erst mit „Aktualisieren"** angewandt.
-- **Namensfilter-Textfeld** (Enter = Rescan).
-- **„Aktualisieren"** (Rescan), Tastenkürzel **⌘R**. Läuft eine Suche, erscheint daneben ein **Abbrechen-Button** (Stop), der den laufenden Scan **und** das Detail-Laden sofort abbricht.
-- **Toggle „alles auf-/zuklappen"** (Standard: alle Ordner aufgeklappt).
-- **Toggle „Auto-Refresh"** (Dateisystem-Überwachung, siehe 5.3).
-- **Fortschrittsanzeige** während des Scans.
-- Rechts dezent: „designed by matthias.riedel.dresden" + **Versionsnummer** (klick-/kopierbar, Tooltip mit Revision/Build-Datum).
+- **Zeitmodus-Umschalter** (Segmented): **„Tage" | „Spanne"**.
+  - **Tage:** Presets **7 / 30 / 90** + Eintrag **„Eigene"** (Schieberegler-Symbol). Dieser öffnet ein **Popover** mit Zahlenfeld und Stepper (1…3650). *Früher standen Presets **und** Stepper dauerhaft nebeneinander – zwei Wege für dieselbe Größe; das war Redundanz, kein Komfort (UX-15).*
+  - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum), Grenzen über die Picker erzwungen, „bis" auf **heute** begrenzt. Änderungen wirken **erst mit „Aktualisieren"**.
+- **Suchfeld** (`.searchable`), Enter = Rescan, ⌘F fokussiert.
+- **Drei Zustands-Toggles:** alles auf-/zuklappen · Dateien außerhalb des Zeitraums · Auto-Refresh (5.3). Bewusst **einzeln sichtbar** statt in einem Menü versteckt.
+- **Aktionen:** „An den Anfang" (⌘↑) und „Aktualisieren" (⌘R).
+- **Status:** Fortschrittsanzeige mit **Abbrechen** während einer Suche; **Update-Hinweis** (10.1), falls eine neuere Version vorliegt.
+- **Keine Eigenwerbung und keine Versionsnummer** mehr in der Arbeitsfläche – beides steht im „Über"-Fenster.
 
-### 4.2 Diagramm + Legende
+### 4.2 Feste Kopfzone (Diagramm + Legende)
+**Warum fest?** Legende und Diagramm sind **Bedienelemente**, keine Inhalte. Scrollten sie
+weg, müsste man zum Aus-/Einblenden eines Typs erst wieder nach oben – bei langen Listen
+unzumutbar. Umgesetzt in `ChartHeaderView`; `ReportView` enthält nur noch die Liste.
+
+**Warum einklappbar?** Die Kopfzone kostet dauerhaft senkrechten Platz. Nachgerechnet: bei
+720 pt Fensterhöhe und 260 pt Diagramm blieben nur ~309 pt für die Tabelle, bei 520 pt
+Höhe sogar nur ~109 pt (≈ 3 Zeilen) – unbenutzbar. Deshalb:
+**Diagramm 260 → 180 pt**, Kopfzone **einklappbar** (Zustand persistiert), **Mindesthöhe 520 → 600**.
+Eingeklappt zeigt die Leiste eine Kurzfassung der Legende.
+
+**Top-Anker:** ⌘↑ zielt auf einen unsichtbaren Anker als erstes Element der Liste
+(vorher trug die zentrierte Überschrift den Anker).
+
+
 Über dem Diagramm steht der **aktuell angezeigte Zeitraum als Überschrift**, z. B.
 „Fr., 12.06.2026 – Mi., 17.08.2026 (30 Tage)" (`DateFormatting.weekdayDate` +
 Tageszahl). Der Bereich wird beim Diagramm-Neuaufbau festgehalten
@@ -409,7 +443,8 @@ Sources/
   activities/            (SwiftUI-App)
     ActivitiesApp.swift      @main, Fenster, Menübefehle, Über-Fenster, Hilfe-Fenster
     ReportViewModel.swift    @Observable Orchestrierung (Kern der Fachablauflogik)
-    Views/                   RootView, ControlsView, HistoryChartView, ReportView,
+    Views/                   RootView (+ SearchFieldFocus), MainToolbar (4.1),
+                             ChartHeaderView (4.2), HistoryChartView, ReportView,
                              FolderRowView, FileRowView, EmptyStateView, QuickLookHost
     Services/                FinderService, ClipboardService, SettingsStore,
                              FolderWatcher (FSEvents), ExportService, FileIconProvider,

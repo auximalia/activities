@@ -6,7 +6,8 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 **Status:** ✅ erledigt · ⏳ offen
 **Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
 **Hotfix (v1.6.1):** UX-26.
-**Erledigt in Sprint 2a (v1.7.0):** UX-27, UX-11. – Backlog umfasst 27 Einträge, davon 20 offen.
+**Erledigt in Sprint 2a (v1.7.0):** UX-27, UX-11.
+**Erledigt in Sprint 2 (v1.8.0):** UX-03, UX-04, UX-05, UX-15. – Backlog umfasst 27 Einträge, davon 16 offen.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -44,7 +45,7 @@ bei der Anzeige gefiltert werden → mehr Dateien im Speicher. Vor der Umsetzung
 großen Baum (> 200 k Dateien) messen; notfalls Live-Filter nur unterhalb einer Schwelle.
 **Akzeptanz:** Tippen filtert ohne Verzögerung; nur Ordnerwechsel und Zeitraum lösen einen Scan aus.
 
-### UX-03 · Toolbar neu bauen (echte macOS-Toolbar)
+### ✅ UX-03 · Toolbar neu bauen (echte macOS-Toolbar) *(erledigt, v1.8.0)*
 **Aufwand:** L · **Nutzen:** sehr hoch
 Fünf unbeschriftete Bedienelemente, davon drei `Switch`. Switches gehören laut HIG in
 Einstellungs-Formulare, **nicht** in Toolbars; dort gehören Toggle-Buttons mit sichtbarem
@@ -57,7 +58,7 @@ bei den Aktionen, nicht zwischen den Zuständen).
 **Akzeptanz:** Jede Schaltfläche hat Icon **und** erkennbaren Zustand; Aktion und Zustand
 sind visuell getrennt.
 
-### UX-04 · Diagramm + Legende fixieren (nicht mitscrollen)
+### ✅ UX-04 · Diagramm + Legende fixieren (nicht mitscrollen) *(erledigt, v1.8.0)*
 **Aufwand:** M · **Nutzen:** hoch
 Beim Scrollen verschwinden Diagramm und Legende. Wer bei Zeile 200 einen Dateityp
 ausblenden will, muss zurückscrollen.
@@ -66,7 +67,7 @@ zur Tabelle). Ersetzt die Idee einer zusätzlichen Trennlinie – löst Abgrenzu
 Bedienbarkeit in einem Zug.
 **Folge:** ⌘↑ / „An den Anfang" scrollt dann nur noch die Tabelle (bleibt sinnvoll).
 
-### UX-05 · Zeitraum in die Titelleiste, zentrierte Überschrift entfernen
+### ✅ UX-05 · Zeitraum in die Titelleiste, zentrierte Überschrift entfernen *(erledigt, v1.8.0)*
 **Aufwand:** S · **Nutzen:** mittel · **Abhängig von:** UX-03
 Die Titelleiste zeigt nur „activities" und verschenkt ~44 px. Gleichzeitig steht die
 Zeitraum-Überschrift **zentriert** in einem sonst durchgängig linksbündigen UI.
@@ -268,7 +269,7 @@ Datumsspalte wenig für den Namen.
 **Lösung:** Unterhalb einer Schwelle Pfad ausblenden und Datumsspalte verkürzen, statt
 alles zu quetschen.
 
-### UX-15 · Zwei Zeitraum-Bedienelemente zusammenführen
+### ✅ UX-15 · Zwei Zeitraum-Bedienelemente zusammenführen *(erledigt, v1.8.0)*
 **Aufwand:** S · **Nutzen:** mittel · **Teil von:** UX-03
 „7 30 90" **und** Stepper „30 Tage" stehen nebeneinander – zwei Wege für dieselbe Größe.
 **Lösung:** Presets behalten, Feineinstellung hinter „Eigene …".
@@ -383,11 +384,15 @@ Ergebnis: 11 Farben mit zugesichertem ΔE ≥ 25, in CoreChecks automatisiert ge
 §3.10 neu gefasst; `IconColor` entfernt.
 *Vorher/nachher für die Endungen aus dem Befund: kleinster Abstand 0.0 → 26.8.*
 
-**➡️ Sprint 2 – „Kopfzone und Toolbar" (als Nächstes)**
+**✅ Sprint 2 – „Kopfzone und Toolbar" (abgeschlossen, v1.8.0)**
 UX-03, UX-04, UX-05, UX-15
+*Spike vorab:* `.searchable` rendert ohne `NavigationStack` – die Hülle war unnötig.
+*Ungeplant mitgemacht (aus Platzberechnung nötig):* Diagramm 260→180, Kopfzone einklappbar,
+Mindesthöhe 520→600, Mindestbreite 1000→1180 (sonst kollabiert das Suchfeld zur Lupe).
+*Nebenbefund:* `defaultSize` (980) war kleiner als `minWidth` (1000) – behoben.
 → Der große Gestaltungsschritt; danach wirkt die App native.
 
-**Sprint 3 – „Tabelle lesbar"**
+**➡️ Sprint 3 – „Tabelle lesbar" (als Nächstes)**
 UX-08, UX-09, UX-10, UX-11, UX-12
 
 **Sprint 4 – „Live-Filter"**

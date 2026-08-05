@@ -1,20 +1,40 @@
 import SwiftUI
+import AppKit
 
-/// Fensteraufbau: Steuerleiste oben, Inhalt in der Mitte, Statuszeile unten.
+/// Fensteraufbau: **feste Kopfzone** (Diagramm + Legende), darunter die
+/// scrollende Liste, unten die Statuszeile. Die Bedienelemente liegen seit
+/// v1.8.0 in der **Titelleisten-Toolbar** statt in einer eigenen Zeile.
 struct RootView: View {
     @Bindable var model: ReportViewModel
     var updates: UpdateChecker
 
     var body: some View {
         VStack(spacing: 0) {
-            ControlsView(model: model, updates: updates)
-            Divider()
+            if model.hasScanResults && model.errorMessage == nil {
+                ChartHeaderView(model: model)
+                Divider()
+            }
             content
             Divider()
             StatusBarView(model: model)
         }
+        .toolbar { MainToolbar(model: model, updates: updates) }
+        // Natives Suchfeld in der Toolbar (im Spike geprueft: funktioniert
+        // ohne NavigationStack).
+        .searchable(
+            text: $model.namePattern,
+            placement: .toolbar,
+            prompt: "Name filtern, z. B. studium"
+        )
+        .onSubmit(of: .search) { model.rescan() }
+        // ⌘F: `.searchFocused` gibt es erst ab macOS 15 – Ziel ist macOS 14.
+        // Deshalb wird das Suchfeld ueber AppKit zum First Responder gemacht.
+        .onChange(of: model.filterFocusToken) { _, _ in SearchFieldFocus.focus() }
+        // Titelleiste traegt Ordner und Zeitraum – dadurch entfaellt die frueher
+        // zentrierte Ueberschrift ueber dem Diagramm.
+        .navigationTitle("activities — \(model.rootURL.lastPathComponent)")
+        .navigationSubtitle(rangeSubtitle)
         .task { model.startInitialScanIfNeeded() }
-        // Stille Update-Pruefung beim Start (Fehler bleiben ohne Meldung).
         .task { await updates.check() }
         .alert("Sehr grosser Zeitraum", isPresented: $model.confirmLargeScan) {
             Button("Trotzdem suchen") { model.confirmLargeScanAndProceed() }
@@ -22,7 +42,6 @@ struct RootView: View {
         } message: {
             Text("Der gewaehlte Zeitraum umfasst mehr als 10 Jahre. Die Suche kann sehr lange dauern und viele Ordner liefern. Trotzdem starten?")
         }
-        // Rueckmeldung nur bei MANUELLER Suche (Menue).
         .alert(
             updates.manualResult?.title ?? "",
             isPresented: Binding(
@@ -42,6 +61,17 @@ struct RootView: View {
         } message: {
             Text(updates.manualResult?.message ?? "")
         }
+    }
+
+    /// Zeitraum als Untertitel der Titelleiste, z. B. „08.07. – 06.08.2026 · 30 Tage".
+    ///
+    /// Bewusst **kompakt** (kein Wochentag, Jahr nur am Ende): Der Platz in der
+    /// Titelleiste ist knapp, die Langfassung wurde abgeschnitten.
+    private var rangeSubtitle: String {
+        let start = DateFormatting.dayMonth(model.displayRangeStart)
+        let end = DateFormatting.day(model.displayRangeEnd)
+        let days = model.displayRangeDayCount
+        return "\(start) – \(end) · \(days) \(days == 1 ? "Tag" : "Tage")"
     }
 
     @ViewBuilder
@@ -70,7 +100,7 @@ struct RootView: View {
     }
 }
 
-/// Statuszeile: Anzahl Ordner/Dateien, Scandauer, Auto-Refresh-Zustand.
+/// Statuszeile: Anzahl Ordner/Dateien, Auto-Refresh-Zustand, Wurzelpfad.
 struct StatusBarView: View {
     @Bindable var model: ReportViewModel
 
@@ -101,5 +131,32 @@ struct StatusBarView: View {
         .font(.caption)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
+    }
+}
+
+
+/// Fokussiert das Suchfeld der Toolbar (Menuebefehl „Filter fokussieren", ⌘F).
+///
+/// SwiftUIs ``searchFocused`` ist erst ab macOS 15 verfuegbar; das Ziel dieser
+/// App ist macOS 14. Der Umweg ueber AppKit sucht das ``NSSearchField`` im
+/// Fenster – inklusive der Titelleiste, wo die Toolbar lebt.
+enum SearchFieldFocus {
+    static func focus() {
+        guard let window = NSApp.keyWindow ?? NSApp.windows.first(where: \.isVisible) else { return }
+        let roots = [window.contentView, window.contentView?.superview].compactMap { $0 }
+        for root in roots {
+            if let field = firstSearchField(in: root) {
+                window.makeFirstResponder(field)
+                return
+            }
+        }
+    }
+
+    private static func firstSearchField(in view: NSView) -> NSSearchField? {
+        if let field = view as? NSSearchField { return field }
+        for subview in view.subviews {
+            if let found = firstSearchField(in: subview) { return found }
+        }
+        return nil
     }
 }

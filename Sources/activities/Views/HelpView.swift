@@ -61,6 +61,13 @@ struct HelpView: View {
                     "Über die Menüleiste als CSV oder als HTML-Bericht exportieren.",
                 ])
 
+                section("Updates", icon: "arrow.down.circle", [
+                    "Beim Start prüft die App still, ob eine neuere Version vorliegt.",
+                    "Gibt es eine, erscheint oben rechts „aktuell → neu“ – Klick installiert sie.",
+                    "Manuell über das Menü: „Nach Updates suchen …“.",
+                    "Der Installer läuft sichtbar im Terminal; die App startet danach neu.",
+                ])
+
                 shortcuts
 
                 Text("designed by matthias.riedel.dresden · \(BuildInfo.short)")

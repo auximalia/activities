@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.3.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.4.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -213,7 +213,7 @@ Linien (`Path`/`Canvas`), **nicht** `├──`/`└──`-Zeichen:
   `connectorX = horizontalPadding + disclosureWidth + itemSpacing + folderIconPadding + folderIconSize/2` (= 8 + 12 + 8 + 2 + 9 = **39 pt**), und daraus abgeleitet `fileIndent = connectorX − connectorWidth/2` (= **28 pt**). Das Ordnersymbol braucht dafür eine **feste Kantenlänge** (`folderIconSize` = 18 pt), sonst ist seine Mitte nicht bestimmbar.
 - **Konnektor je Dateizeile** (`TreeConnector`): senkrechte Linie von oben bis zur Zeilenmitte, dann ein **abgerundeter Bogen** (`addQuadCurve`, Radius `connectorRadius` = 6) nach rechts zum Icon → weiche „Mind-Map"-Anmutung.
 - **Letzte Datei:** die Senkrechte endet am Bogen. **Alle anderen:** Senkrechte läuft bis zum unteren Zeilenrand durch.
-- **Ordner-Stub:** ist ein Ordner aufgeklappt, zeichnet die Ordnerzeile eine kurze Senkrechte von ihrer Mitte bis zum unteren Rand – sie leitet sichtbar in den Dateiblock über und setzt **mittig unter dem Ordnersymbol** an.
+- **Ordner-Stub:** ist ein Ordner aufgeklappt, zeichnet die Ordnerzeile eine kurze Senkrechte bis zum unteren Rand – sie leitet sichtbar in den Dateiblock über und setzt **mittig unter dem Ordnersymbol** an. Sie beginnt **erst unterhalb der Symbol-Unterkante** (`midY + folderIconSize/2 + stubGap`), damit die Linie das Ordnersymbol **nicht übermalt**.
 - **Flucht:** Ordner-Stub und Datei-Konnektoren nutzen dieselbe X-Position `connectorX`, damit die Linien exakt übereinanderliegen.
 - Linien: `connectorColor` (Sekundärfarbe ~45 %), Stärke 1,2 pt, runde Enden; rein dekorativ (`accessibilityHidden`, kein Hit-Testing).
 
@@ -251,7 +251,7 @@ Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 O
 
 ### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
 - **Statuszeile:** „N Ordner · M Dateien · X.XX s", Auto-Refresh-Indikator, Wurzelpfad.
-- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), Export CSV …, Export HTML …, „Über activities".
+- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), Export CSV …, Export HTML …, „Über activities", „Nach Updates suchen …", „Update installieren".
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
 - **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-
   Eintrag im **Hilfe**-Menü). Scrollbare Kurzanleitung, **stichpunktartig** (wenig
@@ -367,6 +367,21 @@ Der Core kennt weder SwiftUI noch AppKit.
 - **`Packaging/git_setup.sh`:** legt privates GitHub-Repo an und pusht (Token aus `.env`).
 - **CI:** `Packaging/github-ci.yml` (nach `.github/workflows/` kopieren) baut auf `macos-14`, führt `swift run CoreChecks` und `swift test` aus.
 - Bundle-ID `com.mtri.activities`; App-Name `activities`.
+
+### 10.1 Update-Hinweis & Selbst-Update (`Services/UpdateChecker.swift`)
+- **Prüfung:** `GET https://api.github.com/repos/auximalia/activities/releases/latest`, ausgewertet wird `tag_name` (z. B. `v1.4.0`). Repo ist öffentlich → **kein Token**. Timeout 10 s, Cache umgangen.
+- **Versionsvergleich:** `SemanticVersion` (Major/Minor/Patch) vergleicht **numerisch** über ein Tupel. *Wichtig:* ein Zeichenketten-Vergleich wäre falsch (`"1.3.10" < "1.3.9"` als Text).
+- **Zeitpunkt:** still beim Programmstart (`.task` in `RootView`). **Fehler erzeugen keine Meldung** (offline, Rate-Limit ⇒ einfach kein Hinweis).
+- **Entwickler-Schutz:** bei `swift run` (ohne Bundle) ist die Version `0.0.0`; dann wäre immer ein „Update" verfügbar → Hinweis wird unterdrückt (`isDevelopmentBuild`).
+- **Anzeige:** Knopf oben rechts in der Steuerleiste, **nur** wenn eine neuere Version existiert: Symbol `arrow.down.circle.fill` + „<installiert> → <verfügbar>", Tooltip mit beiden Versionen.
+- **Menü:** „Nach Updates suchen …" (manuell) und „Update installieren" (nur aktiv bei verfügbarem Update). **Nur die manuelle Suche** meldet auch „Du nutzt bereits die neueste Version" bzw. einen Fehler; der Start-Check bleibt still.
+- **Installation:** ein Hilfsskript wird nach `$TMPDIR/activities-update.command` geschrieben (Modus 0755) und **sichtbar in Terminal.app** gestartet. Es
+  1. **wartet, bis der Prozess `activities` beendet ist** (max. ~10 s),
+  2. führt `curl -fsSL <web-install.sh> | bash` aus,
+  3. der Installer kopiert nach `/Applications`, entfernt die Quarantäne und startet die App neu.
+  Die App beendet sich ~0,7 s nach dem Start des Terminals selbst (`NSApp.terminate`).
+- **Warum dieser Umweg:** Eine laufende App kann sich **nicht selbst ersetzen**, und das abschließende `open` würde sonst nur die **alte** Instanz in den Vordergrund holen (gleiche Bundle-ID). Terminal macht außerdem den Fortschritt sichtbar und erlaubt eine etwaige Passwortabfrage.
+- **Rechte:** `/Applications` ist `drwxrwxr-x root:admin` → Admin-Nutzer schreiben **ohne sudo**; der Installer fragt nur im Ausnahmefall nach einem Passwort.
 
 ## 11. Tests
 - **CoreChecks** (`swift run CoreChecks`) ohne Xcode; **XCTest** mit Xcode. Abgedeckt u. a.:

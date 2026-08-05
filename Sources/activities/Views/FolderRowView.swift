@@ -74,7 +74,12 @@ struct FolderRowView: View {
             if isExpanded {
                 GeometryReader { geometry in
                     Path { path in
-                        path.move(to: CGPoint(x: RowMetrics.connectorX, y: geometry.size.height / 2))
+                        // Erst UNTERHALB des Ordnersymbols beginnen, damit die
+                        // Linie das Symbol nicht uebermalt.
+                        let startY = geometry.size.height / 2
+                            + RowMetrics.folderIconSize / 2
+                            + RowMetrics.stubGap
+                        path.move(to: CGPoint(x: RowMetrics.connectorX, y: startY))
                         path.addLine(to: CGPoint(x: RowMetrics.connectorX, y: geometry.size.height))
                     }
                     .stroke(

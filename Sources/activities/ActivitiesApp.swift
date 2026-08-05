@@ -4,16 +4,24 @@ import SwiftUI
 @main
 struct ActivitiesApp: App {
     @State private var model = ReportViewModel()
+    @State private var updates = UpdateChecker()
 
     var body: some Scene {
         WindowGroup("activities") {
-            RootView(model: model)
+            RootView(model: model, updates: updates)
                 .frame(minWidth: 1000, minHeight: 520)
         }
         .defaultSize(width: 980, height: 720)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 AboutMenuButton()
+                Divider()
+                Button("Nach Updates suchen …") {
+                    Task { await updates.check(manual: true) }
+                }
+                .disabled(updates.isChecking)
+                Button("Update installieren") { updates.installUpdate() }
+                    .disabled(!updates.showsUpdateBadge)
             }
             CommandGroup(after: .toolbar) {
                 Button("Aktualisieren") { model.rescan() }

@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// Auto-Refresh und "Aktualisieren".
 struct ControlsView: View {
     @Bindable var model: ReportViewModel
+    var updates: UpdateChecker
     @State private var showImporter = false
     @FocusState private var filterFocused: Bool
 
@@ -144,6 +145,24 @@ struct ControlsView: View {
             .frame(width: 170, alignment: .leading)
 
             Spacer(minLength: 0)
+
+            // Update-Hinweis: erscheint nur, wenn im Repo eine neuere Version liegt.
+            if updates.showsUpdateBadge, let latest = updates.latestVersion {
+                Button {
+                    updates.installUpdate()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.circle.fill")
+                        Text("\(BuildInfo.short) → \(latest.description)")
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                    .foregroundStyle(.tint)
+                    .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                .help("Update verfügbar (installiert \(BuildInfo.short), verfügbar \(latest.description)) – klicken zum Installieren")
+            }
 
             VStack(alignment: .trailing, spacing: 1) {
                 Text("designed by matthias.riedel.dresden")

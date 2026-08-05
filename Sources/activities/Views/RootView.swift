@@ -3,21 +3,44 @@ import SwiftUI
 /// Fensteraufbau: Steuerleiste oben, Inhalt in der Mitte, Statuszeile unten.
 struct RootView: View {
     @Bindable var model: ReportViewModel
+    var updates: UpdateChecker
 
     var body: some View {
         VStack(spacing: 0) {
-            ControlsView(model: model)
+            ControlsView(model: model, updates: updates)
             Divider()
             content
             Divider()
             StatusBarView(model: model)
         }
         .task { model.startInitialScanIfNeeded() }
+        // Stille Update-Pruefung beim Start (Fehler bleiben ohne Meldung).
+        .task { await updates.check() }
         .alert("Sehr grosser Zeitraum", isPresented: $model.confirmLargeScan) {
             Button("Trotzdem suchen") { model.confirmLargeScanAndProceed() }
             Button("Abbrechen", role: .cancel) { model.dismissLargeScan() }
         } message: {
             Text("Der gewaehlte Zeitraum umfasst mehr als 10 Jahre. Die Suche kann sehr lange dauern und viele Ordner liefern. Trotzdem starten?")
+        }
+        // Rueckmeldung nur bei MANUELLER Suche (Menue).
+        .alert(
+            updates.manualResult?.title ?? "",
+            isPresented: Binding(
+                get: { updates.manualResult != nil },
+                set: { if !$0 { updates.manualResult = nil } }
+            )
+        ) {
+            if updates.manualResult?.offersInstall == true {
+                Button("Jetzt installieren") {
+                    updates.manualResult = nil
+                    updates.installUpdate()
+                }
+                Button("Später", role: .cancel) { updates.manualResult = nil }
+            } else {
+                Button("OK", role: .cancel) { updates.manualResult = nil }
+            }
+        } message: {
+            Text(updates.manualResult?.message ?? "")
         }
     }
 

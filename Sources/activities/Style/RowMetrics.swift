@@ -22,6 +22,9 @@ enum RowMetrics {
     static let connectorRadius: CGFloat = 6
     /// Linienstaerke der Baumlinien.
     static let connectorLineWidth: CGFloat = 1.2
+    /// Luft zwischen Ordnersymbol-Unterkante und dem Beginn des Baum-Stubs,
+    /// damit die Linie das Symbol nicht uebermalt.
+    static let stubGap: CGFloat = 3
 
     /// Waagerechte Position der senkrechten Baumlinie = **Mitte des
     /// Ordnersymbols**, gemessen vom linken Rand eines Ordner-Blocks. Dadurch

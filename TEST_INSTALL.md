@@ -33,6 +33,12 @@ Terminal.
 
 > Zum spaeteren Aktualisieren einfach denselben Befehl erneut ausfuehren – es
 > kommt immer die aktuelle Version.
+>
+> **Noch einfacher:** Ab Version 1.4.0 prueft die App beim Start selbst, ob es
+> eine neuere Version gibt. Ist das der Fall, erscheint oben rechts ein Hinweis
+> „installiert → verfuegbar"; ein Klick darauf installiert die neue Version
+> (sichtbar im Terminal) und startet die App neu. Manuell geht das ueber das
+> Menue „Nach Updates suchen …".
 
 ---
 

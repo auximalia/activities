@@ -13,7 +13,9 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 **Nachgemeldet:** UX-28.
 **v1.10.0 – Grundsatz „sparsam scannen":** Gescannt wird nur noch bei Start, Ordnerwechsel,
 ⌘R und Auto-Refresh; Zeitraum und Filter arbeiten im Speicher. Vorbedingung von UX-02 damit
-erledigt. – Backlog umfasst 28 Einträge, davon 17 offen (UX-02 nur noch Restaufwand).
+erledigt.
+**Nachgemeldet:** UX-29 (Betriebsbefund). – Backlog umfasst 29 Einträge, davon 18 offen
+(UX-02 nur noch Restaufwand).
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -242,6 +244,39 @@ Ausschalter für die Zeitachse. Wirkung: `window` = unbegrenzt.
 - **Laufzeit:** Ohne Zeitfenster fällt die stärkste Reduktion weg; die Ergebnismenge kann
   sehr groß werden. Vorher an einem großen Baum messen.
 - Sinnvoll **nach** UX-02 (Live-Filter), weil beides denselben Pfad betrifft.
+
+### UX-29 · Leere Liste erklärt ihre Ursache nicht
+**Aufwand:** S · **Nutzen:** hoch · **Gefunden:** im Betrieb nach v1.10.1
+Steht ein Suchbegriff im Feld und man **wechselt den Ordner**, kann die Liste leer bleiben,
+weil der Filter alles ausschließt. Der Nutzer sieht nur einen leeren Ordner und hält die App
+für defekt oder den Ordner für unbenutzt. *Beim Wechsel in „Downloads" reproduziert.*
+
+**Ursache:** `setRoot` lässt `namePattern` bewusst stehen (dasselbe Wort in mehreren Ordnern
+zu suchen ist ein sinnvoller Arbeitsablauf – **automatisches Löschen wäre falsch**). Der
+Leerzustand nennt aber drei mögliche Gründe auf einmal, ohne zu sagen, welcher zutrifft:
+> „Im gewählten Zeitraum wurde nichts bearbeitet. Erhöhe die Tage, wähle einen anderen
+> Ordner oder passe den Filter an."
+
+**Konsistenzlücke:** Für den **Typ**-Filter haben wir in UX-06 genau dieses Problem gelöst
+(sichtbarer Hinweis „N Typen ausgeblendet" + „Zurücksetzen"). Der **Namens**-Filter hat kein
+Gegenstück – er steht zwar im Suchfeld, aber beim Ordnerwechsel liegt die Aufmerksamkeit
+woanders.
+
+**Lösung – Ursache benennen statt aufzählen.** Der Leerzustand unterscheidet:
+- *Filter schließt alles aus:* „Keine Treffer für **»studium«**" + Knopf **„Filter löschen"**.
+- *Zeitraum leer:* „In den letzten 30 Tagen wurde hier nichts bearbeitet" + Knopf **„90 Tage"**.
+- *Ordner wirklich leer:* schlichte Aussage ohne Handlungsvorschlag.
+
+**Jetzt billig zu diagnostizieren:** Seit v1.10.0 liegen alle Dateien im Speicher
+(`scannedFiles`). Die Gegenprobe „wie viele wären es **ohne** Filter?" kostet einen
+`filter`-Durchlauf – also lässt sich sogar beziffern:
+„Ohne den Namensfilter wären es **231 Ordner**."
+
+**Zusätzlich erwägen:** Analog zu UX-06 einen dezenten Dauerhinweis, solange ein
+Namensfilter aktiv ist – dann fällt es schon **vor** dem Ordnerwechsel auf.
+
+**Akzeptanz:** Bei leerer Liste nennt die Meldung die tatsächliche Ursache und bietet genau
+einen passenden Knopf an; der Filter wird beim Ordnerwechsel **nicht** automatisch gelöscht.
 
 ---
 

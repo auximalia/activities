@@ -5,7 +5,8 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 
 **Status:** ✅ erledigt · ⏳ offen
 **Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
-**Hotfix (v1.6.1):** UX-26. – Backlog umfasst 26 Einträge, davon 21 offen.
+**Hotfix (v1.6.1):** UX-26.
+**Nachgemeldet:** UX-27 (Betriebsbefund, messtechnisch belegt) – Backlog umfasst 27 Einträge, davon 22 offen.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -130,6 +131,88 @@ weiterhin zum Ziel.
 anderen Quellen kennzeichnen sich ausdrücklich. `scrollTo` jetzt ohne Anker (minimal).
 Regel im Konzept §4.3.5 festgehalten.
 
+### UX-27 · Dateityp-Farben sind nicht unterscheidbar
+**Aufwand:** M · **Nutzen:** sehr hoch · **Gefunden:** nach v1.6.1 im Betrieb
+Balkensegmente und Legenden-Chips lassen sich farblich nicht auseinanderhalten – besonders
+die vielen **grauen** Segmente. Das Diagramm ist die zentrale Darstellung der App; wenn
+Kategorien darin verschmelzen, verfehlt es seinen Zweck.
+
+**Messung (nachgerechnet, nicht geschätzt):**
+
+| Befund | Ergebnis |
+|---|---|
+| Identische Grautöne | 7 von 16 geprüften Endungen (`.md`, `.log`, `.txt`, `.csv`, `.command`, `.conf`, `.bak`) liefern **exakt** H 0° / S 0.00 / B 0.72 → **ΔE = 0.0** |
+| „Sonstige" | `systemGray` (B 0.62) liegt im selben Graubereich |
+| Blau-Cluster | `.swift`, `.pdf`, `.png`, `.json`, `.sh` alle zwischen 203–225°; `.pdf` ↔ `.png` **ΔE = 0.0** |
+| Gesamt | 5 von 45 Paaren unter **ΔE 25** (Unterscheidbarkeitsschwelle für Kategorien) |
+
+**Ursache:** `IconColor.dominant` leitet die Farbe aus dem **Datei-Icon** ab. macOS-Symbole
+sind aber bewusst einheitlich gestaltet (weißes Blatt, kleiner blauer Akzent). Man greift
+damit ein System ab, das auf *Ähnlichkeit* optimiert ist, und benötigt *Unterscheidbarkeit* –
+ein grundsätzlicher Zielkonflikt, den kein Nachjustieren der Sättigung löst. Generische
+Dokumente haben schlicht **keine** eigene Farbe.
+
+**Grau ist dreifach belegt – Schichtenmodell nötig.** Grau tragen aktuell: generische
+Dateitypen, „Sonstige" **und** die Wochenend-Bänder. Nachgemessen (L\*/ΔE, sRGB→CIELAB):
+
+| Paar | Dark | Light |
+|---|---|---|
+| Wochenend-Band ↔ „Sonstige" | 41.1 ✓ | 32.1 ✓ |
+| Wochenend-Band ↔ Typ-Grau | 52.7 ✓ | **16.5 ✗** |
+| „Sonstige" ↔ Typ-Grau | **12.0 ✗** | **15.7 ✗** |
+
+Der Störenfried ist das **generische Typ-Grau**: Es kollidiert in beiden Modi mit
+„Sonstige" und im Light Mode zusätzlich mit dem Wochenend-Band. Entfällt es (weil künftig
+nur noch „Sonstige" grau ist), lösen sich **alle drei** Konflikte auf. Die Wochenend-Bänder
+liegen mit ΔE ≈ 9–11 zum Hintergrund korrekt in der Kontextschicht.
+
+**Regel (im Konzept festzuhalten):**
+- **Datenschicht** (Balkensegmente, Legenden-Farbfelder): paarweise **ΔE ≥ 25**,
+  und ΔE ≥ 25 zum Hintergrund. Enthält genau **ein** Grau – „Sonstige".
+- **Kontextschicht** (Wochenend-Bänder, Rasterlinien, Achsen): bewusst **ΔE ≤ 15 zum
+  Hintergrund** – sie sollen als Modulation des Hintergrunds gelesen werden, nie als Datum.
+- Damit ist Grau als „12. Farbe" sauber geregelt: Kontextgrau und Datengrau leben in
+  verschiedenen Schichten und sind durch die Helligkeit getrennt, nicht durch den Farbton.
+
+**Lösung: feste kategoriale Palette, die die Icon-Farbe überschreibt.**
+
+Anforderungen an die Palette:
+1. **Genau 11 Plätze** – das deckt sich mit `legendTopCount` (10) + „Sonstige". Mehr ist
+   perzeptuell nicht sinnvoll: Für kategoriale Kodierung gelten rund 11–12 Farben als
+   Obergrenze (Boyntons 11 Grundfarbbegriffe; Ware, *Information Visualization*).
+   → **10 bunte Farben + 1 reserviertes Neutralgrau** für „Sonstige".
+2. **Grau ist reserviert.** Keine der 10 bunten Farben darf grau oder nahezu grau sein,
+   sonst kollidiert sie mit „Sonstige".
+3. **Mindestabstand ΔE ≥ 25** zwischen allen Paaren – als Prüfung in CoreChecks
+   automatisiert, damit die Zusage nachweisbar bleibt.
+4. **Stabil je Endung, nicht je Rang** *(wichtigster Punkt)*. Würde die Farbe nach
+   Häufigkeit vergeben, bekäme `.py` bei jeder Änderung des Zeitraums eine andere Farbe.
+   Das zerstört die gelernte Zuordnung („grün = Tabellen") und macht zwei Auswertungen
+   unvergleichbar. Die Zuordnung muss allein von der Endung abhängen.
+5. **Light und Dark Mode** gleichermaßen tragfähig.
+6. *Optional:* farbfehlsichtigen-tauglich (Deuteranopie betrifft ~8 % der Männer) – dann
+   nicht Rot/Grün als Hauptunterscheidung nebeneinander.
+
+**Entwurfsvarianten:**
+- **(a) Palette nach stabilem Hash der Endung.** Garantiert unterscheidbar und stabil, aber
+  willkürlich (`.pdf` könnte grün werden) – bricht mit Erwartungen.
+- **(b) Kuratierte Zuordnung + Palette als Rückfall *(empfohlen)*.** Häufige Endungen
+  bekommen eine erwartungskonforme Farbe (`.pdf` rot, `.xlsx` grün, `.docx` blau,
+  `.py` gelb …), alle übrigen deterministisch aus der Restpalette. Erhält die Assoziation,
+  wo sie existiert, und garantiert trotzdem Unterscheidbarkeit.
+- **(c) Icon-Farbe behalten, nur Kollisionen verschieben.** Unzureichend: Sieben identische
+  Grautöne lassen sich nicht sinnvoll „auseinanderschieben", und das Ergebnis wäre je nach
+  Kombination instabil.
+
+**Akzeptanz:** Alle 11 Legenden-Plätze sind paarweise ΔE ≥ 25; „Sonstige" ist die einzige
+graue Fläche der Datenschicht; Kontextschicht bleibt ΔE ≤ 15 zum Hintergrund; dieselbe
+Endung hat bei jedem Zeitraum dieselbe Farbe; automatisierte Palettenprüfung in CoreChecks
+**für Light und Dark**.
+
+**Konsistenz:** Widerspricht Konzept **§3.10** („Balkenfarbe = dominierende Farbe des
+Datei-Icons"). §3.10 ist mit diesem Punkt neu zu fassen: Icon-Farbe wird zur *Anregung*
+für die Kuratierung, ist aber nicht mehr die Quelle zur Laufzeit.
+
 ---
 
 ## P2 – Lesbarkeit und Gestaltung
@@ -157,10 +240,13 @@ Datum ist durch die Gruppierung bereits bekannt.
 **Folge:** Die feste Datumsspalte (150 pt) darf schmaler werden → mehr Platz für Namen.
 
 ### UX-11 · Wochenend-Bänder und Raster zurücknehmen
-**Aufwand:** S · **Nutzen:** mittel
+**Aufwand:** S · **Nutzen:** mittel · **Gehört zu:** UX-27 (Kontextschicht)
 Die grauen Wochenend-Flächen wirken visuell **stärker** als die Datenbalken. Kontext darf
 nie lauter sein als Inhalt.
 **Lösung:** Deckkraft deutlich senken, Rasterlinien dünner und heller.
+**Verzahnung:** Unterliegt der Kontextschicht-Regel aus UX-27 (ΔE ≤ 15 zum Hintergrund).
+Beide Punkte wirken **in dieselbe Richtung** – ein schwächeres Band vergrößert zugleich den
+Abstand zum „Sonstige"-Grau. Deshalb gemeinsam in Sprint 2a umsetzen.
 
 ### UX-12 · Light-Mode-Parität prüfen
 **Aufwand:** S · **Nutzen:** mittel
@@ -291,7 +377,12 @@ Arbeitsfläche und Statuszeile aufgeräumt. Kein Architektur-Eingriff.
 Behob eine Störung der häufigsten Interaktion; zusätzlich wird jetzt minimal statt
 zentriert gescrollt.
 
-**➡️ Sprint 2 – „Kopfzone und Toolbar"**
+**➡️ Sprint 2a – „Farbsystem" (vorgezogen)**
+UX-27 **und UX-11** (Datenschicht + Kontextschicht – dieselbe Entwurfsentscheidung).
+Eigener Sprint, weil eine Palette entworfen, kuratiert und automatisiert geprüft werden
+muss und weil §3.10 der Spezifikation dabei neu gefasst wird.
+
+**Sprint 2 – „Kopfzone und Toolbar"**
 UX-03, UX-04, UX-05, UX-15
 → Der große Gestaltungsschritt; danach wirkt die App native.
 

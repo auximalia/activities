@@ -5,6 +5,7 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 
 **Status:** ✅ erledigt · ⏳ offen
 **Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
+**Nachgemeldet:** UX-26 (Betriebsbefund nach v1.6.0) – damit 26 Einträge.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -94,6 +95,36 @@ Status und Aktionen fällt. Der Text steht bereits im „Über"-Fenster.
 bzw. bleibt im „Über"-Fenster.
 **Umgesetzt:** Credit entfernt. Versionsnummer bleibt **vorerst** oben rechts – sie wandert
 mit UX-05 (Sprint 2) in die Titelleiste; ein zweifaches Umbauen wäre Verschwendung.
+
+### UX-26 · Liste springt beim Mausklick weg
+**Aufwand:** S · **Nutzen:** sehr hoch · **Gefunden:** nach v1.6.0 im Betrieb
+Ein Klick auf eine Zeile zentriert die Tabelle sofort neu – die angeklickte Zeile rutscht
+unter dem Mauszeiger weg, man muss die Stelle erneut suchen. Betrifft die häufigste
+Interaktion der App überhaupt.
+
+**Ursache:** `ReportView.swift` scrollt bei **jeder** Änderung von `model.selection`
+(`proxy.scrollTo(selection, anchor: .center)`), unabhängig davon, woher die Auswahl kam.
+Die Auswahl hat vier Quellen, aber nur drei davon rechtfertigen ein Scrollen:
+
+| Quelle | Scrollen? | Begründung |
+|---|---|---|
+| Pfeiltasten (`moveSelection`) | ja | Ziel kann außerhalb des Sichtfelds liegen |
+| Klick auf ein Diagramm-Segment (`focus`) | ja | Ziel liegt fast immer weit entfernt |
+| QuickLook-Blättern (`quickLookNavigated`) | ja | dito |
+| **Mausklick auf die Zeile** | **nein** | Zeile ist bereits sichtbar |
+
+**Lösung (zweiteilig):**
+1. **Herkunft der Auswahl mitführen** (z. B. `SelectionOrigin { mouse, keyboard, chart, quickLook }`)
+   und **nur bei nicht-Maus-Quellen** scrollen. Deterministisch und billig.
+   *Verworfene Alternative:* Sichtbarkeit der Zeile messen (GeometryReader/PreferenceKey je
+   Zeile) – teuer und bei langen Listen fehleranfällig.
+2. **Minimal scrollen statt zentrieren:** `anchor: .center` zieht auch bei Tastaturnavigation
+   die ganze Liste bei jedem Tastendruck herum. `scrollTo(id)` ohne Anker scrollt nur so
+   weit, bis die Zeile sichtbar ist – das entspricht Finder und Mail.
+
+**Akzeptanz:** Klick auf eine sichtbare Zeile bewegt die Liste **überhaupt nicht**;
+Pfeiltasten an den Rändern scrollen weiterhin, aber minimal; Diagramm-Klick springt
+weiterhin zum Ziel.
 
 ---
 
@@ -252,7 +283,11 @@ UX-01, UX-06, UX-07, UX-16
 Arbeitsfläche und Statuszeile aufgeräumt. Kein Architektur-Eingriff.
 *Erkenntnis: UX-01 war nach Code-Prüfung kein Funktionsfehler – siehe Konsistenz-Punkt 7.*
 
-**➡️ Sprint 2 – „Kopfzone und Toolbar" (als Nächstes)**
+**🔥 Hotfix vor Sprint 2 – UX-26**
+Kleiner Aufwand, behebt eine Störung der häufigsten Interaktion. Sollte **nicht** bis
+Sprint 2 warten, weil es bei jeder Benutzung auffällt.
+
+**➡️ Sprint 2 – „Kopfzone und Toolbar"**
 UX-03, UX-04, UX-05, UX-15
 → Der große Gestaltungsschritt; danach wirkt die App native.
 

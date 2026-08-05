@@ -185,7 +185,14 @@ struct ReportView: View {
     }
 
     private func sectionHeader(_ bucket: BucketedEntries) -> some View {
-        Text("\(bucket.label) · \(bucket.entries.count)")
+        // Dateisumme live aus den sichtbaren Detaildateien der Ordner dieses
+        // Zeitabschnitts (gleiche Logik wie in der Ordnerzeile).
+        let folderCount = bucket.entries.count
+        let fileCount = bucket.entries.reduce(0) { sum, entry in
+            let live = model.visibleFileCount(in: entry.folder)
+            return sum + (live > 0 ? live : entry.fileCount)
+        }
+        return Text("\(bucket.label) · \(folderCount) Ordner / \(fileCount) \(fileCount == 1 ? "Datei" : "Dateien")")
             .font(.headline)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 4)

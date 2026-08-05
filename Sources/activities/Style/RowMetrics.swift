@@ -11,9 +11,11 @@ enum RowMetrics {
     static let disclosureWidth: CGFloat = 12
     /// Abstand zwischen den Elementen einer Zeile.
     static let itemSpacing: CGFloat = 8
+    /// Feste Kantenlaenge des Ordnersymbols (macht seine Mitte berechenbar).
+    static let folderIconSize: CGFloat = 18
+    /// Innenabstand um das Ordnersymbol herum (Klickflaeche).
+    static let folderIconPadding: CGFloat = 2
 
-    /// Zusaetzliche Einrueckung des gesamten Dateiblocks unter einem Ordner.
-    static let fileIndent: CGFloat = 22
     /// Breite der Rinne, in der die Baumlinien gezeichnet werden.
     static let connectorWidth: CGFloat = 22
     /// Eckenradius der abgerundeten Baumlinien ("Mind-Map"-Anmutung).
@@ -21,10 +23,16 @@ enum RowMetrics {
     /// Linienstaerke der Baumlinien.
     static let connectorLineWidth: CGFloat = 1.2
 
-    /// Waagerechte Position der senkrechten Baumlinie, gemessen vom linken Rand
-    /// eines Ordner-Blocks. Ordner-Stub und Datei-Konnektoren nutzen denselben
-    /// Wert, damit die Linien exakt fluchten.
-    static var connectorX: CGFloat { fileIndent + connectorWidth / 2 }
+    /// Waagerechte Position der senkrechten Baumlinie = **Mitte des
+    /// Ordnersymbols**, gemessen vom linken Rand eines Ordner-Blocks. Dadurch
+    /// haengt der Baum symmetrisch unter dem Ordner.
+    static var connectorX: CGFloat {
+        horizontalPadding + disclosureWidth + itemSpacing + folderIconPadding + folderIconSize / 2
+    }
+
+    /// Einrueckung des Dateiblocks, so gewaehlt, dass die Konnektor-Rinne mittig
+    /// unter dem Ordnersymbol sitzt.
+    static var fileIndent: CGFloat { max(connectorX - connectorWidth / 2, 0) }
 
     /// Feste Breite der Datumsspalte. Verhindert, dass der Zeitstempel bei
     /// breitem Fenster weit vom Namen abrueckt (Gesetz der Naehe).

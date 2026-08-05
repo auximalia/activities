@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.3.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.3.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -192,12 +192,12 @@ Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 Alle Maße zentral in `RowMetrics` (`Style/RowMetrics.swift`), damit Einrückung,
 Baumlinien und Datumsspalte zueinander passen.
 
-- **Ordnerzeile (einzeilig):** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion), dann **Name (fett) und Pfad (klein, sekundär) hintereinander in EINER Zeile** – nicht untereinander. Bei Platzmangel wird **der Pfad** mittig gekürzt (`truncationMode(.middle)`, `layoutPriority(-1)`), **nie der Name** (`fixedSize(horizontal: true)`). Rechts **Datum** (Monospace) + **Anzahl**.
+- **Ordnerzeile (einzeilig):** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion, feste 18×18 px), dann **Name (fett) und Pfad (klein, sekundär) hintereinander in EINER Zeile** – nicht untereinander. Bei Platzmangel wird **der Pfad** mittig gekürzt (`truncationMode(.middle)`, `layoutPriority(-1)`), **nie der Name** (`fixedSize(horizontal: true)`). Rechts nur das **Datum** (Monospace) – **keine** Dateianzahl (die steht im Zeitabschnitts-Kopf, siehe 4.3.3).
   - **Klick auf die Zeile (Text):** auf-/zuklappen, markieren **und den Ordnerpfad in die Zwischenablage kopieren**.
   - **Klick auf das Ordner-Symbol:** markieren **und** im Datei-Manager öffnen (+ Pfad in Zwischenablage).
   - **Doppelklick:** im Datei-Manager öffnen (+ kopieren).
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
-  - **Datum & Anzahl werden LIVE** aus den sichtbaren Detaildateien berechnet (nicht aus einem gecachten Wert) – siehe 6.
+  - **Datum wird LIVE** aus den sichtbaren Detaildateien berechnet (nicht aus einem gecachten Wert) – siehe 6.
 - **Dateizeile (eingerückt):** **Datei-Icon** (echtes Typ-Icon, feste 18×18 px), Name, rechts Datum (Monospace).
   - **Klick auf die Zeile:** markieren.
   - **Klick auf das Datei-Symbol / Doppelklick:** markieren **und** mit Standard-App öffnen.
@@ -208,11 +208,13 @@ Baumlinien und Datumsspalte zueinander passen.
 #### 4.3.1 Baumdarstellung (Mind-Map-Stil, keine ASCII-Zeichen)
 Dateien eines Ordners werden als **Baum** unter dem Ordner gezeigt – gezeichnete
 Linien (`Path`/`Canvas`), **nicht** `├──`/`└──`-Zeichen:
-- **Einrückung** des Dateiblocks: `fileIndent` = 22 pt, danach eine **Konnektor-Rinne** `connectorWidth` = 22 pt; das Datei-Icon beginnt also ~44 pt rechts vom Ordner (deutlich weiter eingerückt als der Ordner).
+- **Einrückung** des Dateiblocks: `fileIndent`, danach eine **Konnektor-Rinne** `connectorWidth` = 22 pt.
+- **Symmetrie unter dem Ordner (wichtig):** Die senkrechte Baumlinie sitzt **exakt in der Mitte des Ordnersymbols**. Deshalb wird sie *berechnet*, nicht fest gesetzt:
+  `connectorX = horizontalPadding + disclosureWidth + itemSpacing + folderIconPadding + folderIconSize/2` (= 8 + 12 + 8 + 2 + 9 = **39 pt**), und daraus abgeleitet `fileIndent = connectorX − connectorWidth/2` (= **28 pt**). Das Ordnersymbol braucht dafür eine **feste Kantenlänge** (`folderIconSize` = 18 pt), sonst ist seine Mitte nicht bestimmbar.
 - **Konnektor je Dateizeile** (`TreeConnector`): senkrechte Linie von oben bis zur Zeilenmitte, dann ein **abgerundeter Bogen** (`addQuadCurve`, Radius `connectorRadius` = 6) nach rechts zum Icon → weiche „Mind-Map"-Anmutung.
 - **Letzte Datei:** die Senkrechte endet am Bogen. **Alle anderen:** Senkrechte läuft bis zum unteren Zeilenrand durch.
-- **Ordner-Stub:** ist ein Ordner aufgeklappt, zeichnet die Ordnerzeile eine kurze Senkrechte von ihrer Mitte bis zum unteren Rand – sie leitet sichtbar in den Dateiblock über.
-- **Flucht:** Ordner-Stub und Datei-Konnektoren nutzen dieselbe X-Position `connectorX = fileIndent + connectorWidth/2` (= 33 pt vom linken Blockrand), damit die Linien exakt übereinanderliegen.
+- **Ordner-Stub:** ist ein Ordner aufgeklappt, zeichnet die Ordnerzeile eine kurze Senkrechte von ihrer Mitte bis zum unteren Rand – sie leitet sichtbar in den Dateiblock über und setzt **mittig unter dem Ordnersymbol** an.
+- **Flucht:** Ordner-Stub und Datei-Konnektoren nutzen dieselbe X-Position `connectorX`, damit die Linien exakt übereinanderliegen.
 - Linien: `connectorColor` (Sekundärfarbe ~45 %), Stärke 1,2 pt, runde Enden; rein dekorativ (`accessibilityHidden`, kein Hit-Testing).
 
 #### 4.3.2 Zeitstempel-Zuordnung (Gesetz der Nähe)
@@ -221,6 +223,13 @@ Zeitstempel dürfen **nicht** an den äußersten Fensterrand rutschen:
 - **Zebra-Streifen:** jede zweite Dateizeile erhält einen sehr dezenten Hintergrund (`zebraColor`, Sekundärfarbe ~7 %) als Lesehilfe über die Zeile hinweg. Reihenfolge der Hintergründe: **Auswahl vor Zebra** (`.background(Selection…)` zuerst, `.background(zebra)` danach), sonst überdeckt das Zebra die Markierung.
 - **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **gut erkennbare, aber ruhige horizontale Linie** (1 px, Sekundärfarbe ~50 % Deckkraft) als Lesehilfe.
 - **Markierung (Selektion):** dezente, moderne Tönung (Akzentfarbe ~12 % Füllung + feiner Rahmen, weiche Ecken) – **nicht** grell/vollflächig; Text bleibt normal lesbar.
+
+#### 4.3.3 Zeitabschnitts-Kopf (Sektionskopf)
+Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 Ordner / 11 Dateien".
+- `N` = Anzahl der Ordner im Abschnitt.
+- `M` = **Summe der sichtbaren Dateien aller Ordner dieses Abschnitts** – live über `visibleFileCount(in:)` berechnet, mit demselben Rückfall wie in der Ordnerzeile (`live > 0 ? live : entry.fileCount`), damit Kopf und Zeilen konsistent sind.
+- Zweck: die Mengeninformation steht **links** am Zeilenanfang; die Ordnerzeilen bleiben dadurch schlank (keine Anzahl mehr rechts).
+- Singular/Plural bei „Datei/Dateien" beachten.
 
 
 ### 4.4 Tastatur & QuickLook

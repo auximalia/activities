@@ -45,7 +45,7 @@ struct HelpView: View {
                 ])
 
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
-                    "Nach Zeitabschnitten gruppiert; Ordnerzeile mit Datum und Anzahl.",
+                    "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",
                     "Die datumstiftende Datei (neueste im Zeitfenster) ist fett.",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",

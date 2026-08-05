@@ -35,7 +35,8 @@ struct FolderRowView: View {
             } label: {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(.tint)
-                    .padding(2)
+                    .frame(width: RowMetrics.folderIconSize, height: RowMetrics.folderIconSize)
+                    .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -60,14 +61,10 @@ struct FolderRowView: View {
             Spacer(minLength: RowMetrics.itemSpacing)
 
             // Feste Datumsspalte: haelt den Zeitstempel nah am Inhalt.
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(DateFormatting.dateTime(displayDate))
-                    .font(.system(.callout, design: .monospaced))
-                Text("\(displayCount) \(displayCount == 1 ? "Datei" : "Dateien")")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: RowMetrics.dateColumnWidth, alignment: .trailing)
+            // Die Dateianzahl steht im Zeitabschnitts-Kopf (spart hier Platz).
+            Text(DateFormatting.dateTime(displayDate))
+                .font(.system(.callout, design: .monospaced))
+                .frame(width: RowMetrics.dateColumnWidth, alignment: .trailing)
         }
         .padding(.vertical, 5)
         .padding(.horizontal, RowMetrics.horizontalPadding)
@@ -107,7 +104,7 @@ struct FolderRowView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Ordner \(entry.folder.lastPathComponent)")
-        .accessibilityValue("\(entry.fileCount) Dateien, zuletzt \(DateFormatting.dateTime(entry.newestDate))")
+        .accessibilityValue("\(displayCount) Dateien, zuletzt \(DateFormatting.dateTime(displayDate))")
         .accessibilityHint("Zum Auf- und Zuklappen aktivieren")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {

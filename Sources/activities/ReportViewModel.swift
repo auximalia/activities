@@ -8,6 +8,28 @@ struct ChartFocus: Equatable, Sendable {
     let day: Date
 }
 
+/// Woher eine Auswahl stammt – Grundlage fuer die Frage, ob die Liste dorthin
+/// scrollen darf.
+///
+/// Nur bei einem **Mausklick** ist die Zeile garantiert schon sichtbar; ein
+/// Scrollen wuerde sie unter dem Zeiger wegziehen. Alle anderen Quellen koennen
+/// ein Ziel ausserhalb des Sichtfelds treffen und muessen scrollen.
+enum SelectionOrigin: Sendable {
+    /// Klick auf eine Zeile – **nicht** scrollen.
+    case mouse
+    /// Pfeiltasten-Navigation – scrollen (minimal).
+    case keyboard
+    /// Sprung aus dem Diagramm – scrollen.
+    case chart
+    /// Blaettern in der QuickLook-Vorschau – scrollen.
+    case quickLook
+    /// Vom Programm gesetzt (z. B. Zuruecksetzen) – scrollen.
+    case programmatic
+
+    /// Ob die Liste zu dieser Auswahl scrollen soll.
+    var shouldScroll: Bool { self != .mouse }
+}
+
 /// Haeufigkeit einer Dateiendung (fuer die Legende).
 struct ExtensionCount: Identifiable, Equatable {
     var id: String { ext }
@@ -93,6 +115,11 @@ final class ReportViewModel {
     var filterFocusToken = 0
     /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
     var scrollToTopToken = 0
+
+    /// Woher die letzte Auswahl stammt. Entscheidet, ob die Liste zur Auswahl
+    /// scrollen darf: Bei einem **Mausklick** ist die Zeile bereits sichtbar –
+    /// ein Scrollen wuerde sie unter dem Zeiger wegziehen.
+    private(set) var selectionOrigin: SelectionOrigin = .programmatic
 
     /// Aktuell markierte Zeile (Auswahl-Cursor fuer Tastatur und Klick).
     var selection: RowID?
@@ -370,10 +397,17 @@ final class ReportViewModel {
         if let folder = fileToFolder[fileURL] {
             expandedFolders.insert(folder)
         }
+        selectionOrigin = .quickLook
         selection = .file(fileURL)
     }
 
-    func select(_ id: RowID) { selection = id }
+    /// Setzt die Auswahl und merkt sich ihre Herkunft.
+    /// - Parameter origin: Standard ist ``SelectionOrigin/mouse`` – Zeilenklicks
+    ///   sind der haeufigste Aufrufer und duerfen **nicht** scrollen.
+    func select(_ id: RowID, origin: SelectionOrigin = .mouse) {
+        selectionOrigin = origin
+        selection = id
+    }
 
     /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
     var visibleRows: [RowID] {
@@ -381,6 +415,7 @@ final class ReportViewModel {
     }
 
     func moveSelection(_ delta: Int) {
+        selectionOrigin = .keyboard
         selection = RowNavigation.move(selection: selection, in: visibleRows, by: delta)
     }
 
@@ -521,6 +556,7 @@ final class ReportViewModel {
             chartFocus = nil
             expandedFolders.insert(target.folder)
             ensureLoaded(target.folder)
+            selectionOrigin = .chart
             selection = .file(target.url)
         } else {
             focusDay(day)
@@ -555,6 +591,7 @@ final class ReportViewModel {
 
         expandedFolders.insert(target.folder)
         chartFocus = ChartFocus(folder: target.folder, day: day)
+        selectionOrigin = .chart
         selection = .folder(target.folder)
         ensureLoaded(target.folder)
         applyChartFocus(for: target.folder)
@@ -565,7 +602,10 @@ final class ReportViewModel {
               let files = visibleFiles(in: folder) else { return }
         let calendar = Calendar.current
         let match = files.first { calendar.isDate($0.timestamp, inSameDayAs: focus.day) } ?? files.first
-        if let match { selection = .file(match.url) }
+        if let match {
+            selectionOrigin = .chart
+            selection = .file(match.url)
+        }
         chartFocus = nil
     }
 

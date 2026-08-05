@@ -5,7 +5,7 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 
 **Status:** ✅ erledigt · ⏳ offen
 **Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
-**Nachgemeldet:** UX-26 (Betriebsbefund nach v1.6.0) – damit 26 Einträge.
+**Hotfix (v1.6.1):** UX-26. – Backlog umfasst 26 Einträge, davon 21 offen.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -96,7 +96,7 @@ bzw. bleibt im „Über"-Fenster.
 **Umgesetzt:** Credit entfernt. Versionsnummer bleibt **vorerst** oben rechts – sie wandert
 mit UX-05 (Sprint 2) in die Titelleiste; ein zweifaches Umbauen wäre Verschwendung.
 
-### UX-26 · Liste springt beim Mausklick weg
+### ✅ UX-26 · Liste springt beim Mausklick weg *(erledigt, v1.6.1)*
 **Aufwand:** S · **Nutzen:** sehr hoch · **Gefunden:** nach v1.6.0 im Betrieb
 Ein Klick auf eine Zeile zentriert die Tabelle sofort neu – die angeklickte Zeile rutscht
 unter dem Mauszeiger weg, man muss die Stelle erneut suchen. Betrifft die häufigste
@@ -125,6 +125,10 @@ Die Auswahl hat vier Quellen, aber nur drei davon rechtfertigen ein Scrollen:
 **Akzeptanz:** Klick auf eine sichtbare Zeile bewegt die Liste **überhaupt nicht**;
 Pfeiltasten an den Rändern scrollen weiterhin, aber minimal; Diagramm-Klick springt
 weiterhin zum Ziel.
+**Umgesetzt:** `SelectionOrigin` (`mouse` / `keyboard` / `chart` / `quickLook` /
+`programmatic`) mit `shouldScroll`; `select(_:origin:)` hat `.mouse` als Vorgabe, alle
+anderen Quellen kennzeichnen sich ausdrücklich. `scrollTo` jetzt ohne Anker (minimal).
+Regel im Konzept §4.3.5 festgehalten.
 
 ---
 
@@ -283,9 +287,9 @@ UX-01, UX-06, UX-07, UX-16
 Arbeitsfläche und Statuszeile aufgeräumt. Kein Architektur-Eingriff.
 *Erkenntnis: UX-01 war nach Code-Prüfung kein Funktionsfehler – siehe Konsistenz-Punkt 7.*
 
-**🔥 Hotfix vor Sprint 2 – UX-26**
-Kleiner Aufwand, behebt eine Störung der häufigsten Interaktion. Sollte **nicht** bis
-Sprint 2 warten, weil es bei jeder Benutzung auffällt.
+**✅ Hotfix vor Sprint 2 – UX-26 (abgeschlossen, v1.6.1)**
+Behob eine Störung der häufigsten Interaktion; zusätzlich wird jetzt minimal statt
+zentriert gescrollt.
 
 **➡️ Sprint 2 – „Kopfzone und Toolbar"**
 UX-03, UX-04, UX-05, UX-15

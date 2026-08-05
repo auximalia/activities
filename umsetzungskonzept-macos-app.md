@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.6.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.6.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -259,6 +259,31 @@ Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 O
 **Regel:**
 - **Dateizeile:** Markieren über eine **simultane** `DragGesture(minimumDistance: 0)` (feuert beim Mausdruck, idempotent), Öffnen weiterhin per `onTapGesture(count: 2)`. Der Einfachklick-Handler entfällt.
 - **Ordnerzeile:** **nur** ein `onTapGesture` (markieren + auf-/zuklappen + Pfad kopieren) und **kein** konkurrierender Doppelklick ⇒ ohne Disambiguierung reagiert er unmittelbar. Öffnen im Datei-Manager über Ordner-Symbol/Kontextmenü.
+
+#### 4.3.5 Scrollen zur Auswahl – nur wenn nötig (wichtige Lehre)
+**Problem:** Wer eine Zeile anklickt, hat sie bereits vor Augen. Scrollt die Liste
+daraufhin zur Auswahl, rutscht die Zeile **unter dem Mauszeiger weg** – der Nutzer
+verliert seine Position bei der häufigsten Interaktion überhaupt.
+
+**Regel:** Die Auswahl führt ihre **Herkunft** mit (`SelectionOrigin`):
+
+| Quelle | `shouldScroll` | Begründung |
+|---|---|---|
+| `.mouse` (Klick auf eine Zeile) | **nein** | Zeile ist bereits sichtbar |
+| `.keyboard` (Pfeiltasten) | ja | Ziel kann außerhalb des Sichtfelds liegen |
+| `.chart` (Klick im Diagramm) | ja | Ziel liegt fast immer weit entfernt |
+| `.quickLook` (Blättern in der Vorschau) | ja | dito |
+| `.programmatic` | ja | Sicherer Standard |
+
+`select(_:origin:)` hat **`.mouse` als Vorgabewert**, weil Zeilenklicks der häufigste
+Aufrufer sind; alle anderen Quellen setzen die Herkunft ausdrücklich.
+
+**Zweite Regel – minimal scrollen:** `proxy.scrollTo(id)` **ohne Anker**. Mit
+`anchor: .center` würde die Liste bei *jedem* Tastendruck neu zentriert; Finder und Mail
+scrollen nur so weit, bis die Zeile sichtbar ist.
+
+*Verworfene Alternative:* Sichtbarkeit der Zeile zur Laufzeit messen
+(`GeometryReader`/`PreferenceKey` je Zeile) – teuer und bei langen Listen fehleranfällig.
 
 ### 4.4 Tastatur & QuickLook
 - **Pfeil hoch/runter:** Auswahl-Cursor über die flache Zeilenliste bewegen.

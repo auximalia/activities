@@ -139,8 +139,14 @@ struct ReportView: View {
             .onChange(of: model.selection) { _, selection in
                 if !quickLookActive { listFocused = true }
                 guard let selection else { return }
+                // Bei einem Mausklick ist die Zeile bereits sichtbar – Scrollen
+                // wuerde sie unter dem Zeiger wegziehen.
+                guard model.selectionOrigin.shouldScroll else { return }
+                // Ohne Anker scrollt SwiftUI nur so weit, bis die Zeile sichtbar
+                // ist (wie Finder/Mail). `.center` haette die Liste bei jedem
+                // Tastendruck neu zentriert.
                 withAnimation(.easeInOut(duration: 0.15)) {
-                    proxy.scrollTo(selection, anchor: .center)
+                    proxy.scrollTo(selection)
                 }
             }
             .onChange(of: model.scrollToTopToken) { _, _ in

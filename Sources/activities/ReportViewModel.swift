@@ -193,6 +193,23 @@ final class ReportViewModel {
 
     // MARK: - Zeitmodus (Tage / Zeitspanne)
 
+    /// Setzt die Tagesanzahl (geklemmt 1…3650), sichert sie und startet die Suche neu.
+    ///
+    /// **Wichtig – bewusst im Modell, nicht in der View:** Bis v1.8.0 hing der
+    /// Rescan an einem `onChange(of: model.days)` in der Steuerleiste. Mit deren
+    /// Umbau zur Toolbar verschwand der Auslöser stillschweigend und die Tabelle
+    /// aktualisierte sich nicht mehr. Alle übrigen Einstellungen haben längst
+    /// eine Modell-Methode (``setUseDateRange``, ``setAutoRefresh`` …); ``days``
+    /// war die Ausnahme. Zustandsänderungen gehören ins Modell, damit sie einen
+    /// Umbau der Oberfläche überleben.
+    func setDays(_ value: Int) {
+        let clamped = min(max(value, 1), 3650)
+        guard clamped != days else { return }
+        days = clamped
+        store.save(days: clamped, namePattern: namePattern)
+        rescan()
+    }
+
     func setUseDateRange(_ on: Bool) {
         useDateRange = on
         store.saveTimeMode(useDateRange: on, start: rangeStart, end: rangeEnd)

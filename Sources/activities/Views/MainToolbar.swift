@@ -200,7 +200,7 @@ struct MainToolbar: ToolbarContent {
         if value == -1 {
             showCustomDays = true
         } else {
-            model.days = value
+            model.setDays(value)
         }
     }
 
@@ -211,14 +211,14 @@ struct MainToolbar: ToolbarContent {
             Text("Tage:")
             TextField("", value: Binding(
                 get: { model.days },
-                set: { model.days = min(max($0, 1), 3650) }
+                set: { model.setDays($0) }
             ), format: .number)
             .textFieldStyle(.roundedBorder)
             .frame(width: 60)
             .multilineTextAlignment(.trailing)
             Stepper("", value: Binding(
                 get: { model.days },
-                set: { model.days = min(max($0, 1), 3650) }
+                set: { model.setDays($0) }
             ), in: 1...3650)
             .labelsHidden()
         }

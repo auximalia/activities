@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.8.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.8.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -390,6 +390,23 @@ scrollen nur so weit, bis die Zeile sichtbar ist.
 - **Export:** CSV (`;`-getrennt) und eigenständiges HTML, jeweils aus den angezeigten Ordnern (`displayBuckets`), über Speichern-Dialog.
 
 ## 5. Reaktivität, Nebenläufigkeit, Persistenz
+
+### 5.0 Zustandsänderungen gehören ins Modell (wichtige Lehre)
+**Vorfall (v1.8.0 → behoben in v1.8.1):** Nach dem Umbau der Steuerleiste zur Toolbar
+aktualisierte sich die Tabelle beim Ändern der Tagesanzahl nicht mehr – es war ein
+manueller Rescan nötig.
+
+**Ursache:** Der Auslöser hing als `onChange(of: model.days) { model.rescan() }` in der
+**View** (`ControlsView`). Mit deren Löschung verschwand das Verhalten stillschweigend –
+ohne Compilerfehler, ohne fehlgeschlagenen Test.
+
+**Regel:** Jede Einstellung wird über eine **Methode am Modell** geändert, die alles
+Nötige erledigt (klemmen, sichern, neu berechnen). Views schreiben Modell-Eigenschaften
+**nicht direkt**. `days` war die letzte Ausnahme (`setDays(_:)` ergänzt); alle anderen
+hatten längst `setUseDateRange`, `setAutoRefresh`, `setRoot`, `setShowOutOfWindowFiles` …
+
+**Prüfung:** `grep "model\.[a-z]* = " Sources/activities/Views/` darf nur noch
+Signal-Token liefern (`scrollToTopToken`), keine Einstellungen.
 
 ### 5.1 Reaktivität (wichtige Lehre)
 Alle vom Filter abhängigen Anzeigen müssen **aus der Model-Wahrheit live**

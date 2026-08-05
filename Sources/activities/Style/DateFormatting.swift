@@ -26,12 +26,32 @@ enum DateFormatting {
         return formatter
     }()
 
-    /// Formatiert einen Zeitstempel mit vorangestelltem Wochentagskuerzel,
-    /// z. B. "Mo 03.08.2026 15:37".
-    static func dateTime(_ date: Date, calendar: Calendar = .current) -> String {
-        let weekday = calendar.component(.weekday, from: date)
-        let symbol = weekdaySymbols[safe: weekday] ?? ""
-        return "\(symbol) \(dayTimeFormatter.string(from: date))"
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "de_DE")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    /// Zeitstempel **relativ zum heutigen Tag**, wie in Finder und Mail:
+    /// „Heute, 22:59" · „Gestern, 14:32" · „Mi., 05.08., 14:32" · „05.08.2025, 14:32".
+    ///
+    /// Das volle Datum an jeder Zeile zu wiederholen ist Rauschen – erst recht
+    /// unter einer Ueberschrift, die bereits „Heute" sagt. Kuerzere Angaben
+    /// sparen zugleich Breite fuer den Dateinamen.
+    static func dateTime(_ date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
+        let time = timeFormatter.string(from: date)
+        if calendar.isDateInToday(date) { return "Heute, \(time)" }
+        if calendar.isDateInYesterday(date) { return "Gestern, \(time)" }
+
+        let today = calendar.startOfDay(for: now)
+        let day = calendar.startOfDay(for: date)
+        let daysApart = calendar.dateComponents([.day], from: day, to: today).day ?? 0
+        let weekday = weekdaySymbols[safe: calendar.component(.weekday, from: date)] ?? ""
+        if (0...6).contains(daysApart) {
+            return "\(weekday)., \(dayMonthFormatter.string(from: date)) \(time)"
+        }
+        return "\(dayFormatter.string(from: date)), \(time)"
     }
 
     static func day(_ date: Date) -> String {

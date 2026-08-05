@@ -52,6 +52,40 @@ struct RootView: View {
     }
 
 
+    /// Leerzustand, der die **tatsächliche** Ursache nennt.
+    ///
+    /// Häufigster Fall im Alltag: Nach einem Ordnerwechsel steht noch ein
+    /// Suchbegriff im Feld und blendet alles aus – wer das nicht bemerkt, hält
+    /// den Ordner für leer oder die App für defekt.
+    @ViewBuilder
+    private var emptyState: some View {
+        switch model.emptyReason {
+        case let .nameFilter(pattern, foldersWithout):
+            EmptyStateView(
+                systemImage: "line.3.horizontal.decrease.circle",
+                title: "Keine Treffer für „\(pattern)“",
+                message: "Der Namensfilter blendet alles aus. Ohne ihn wären es \(foldersWithout) "
+                    + (foldersWithout == 1 ? "Ordner" : "Ordner") + " im gewählten Zeitraum.",
+                actionTitle: "Filter löschen",
+                action: { model.clearNameFilter() }
+            )
+        case let .timeWindow(total):
+            EmptyStateView(
+                systemImage: "calendar.badge.exclamationmark",
+                title: "Im Zeitraum wurde nichts bearbeitet",
+                message: "Der Ordner enthält \(total) Dateien, aber keine davon wurde im gewählten Zeitraum geändert.",
+                actionTitle: "Auf 90 Tage erweitern",
+                action: { model.setUseDateRange(false); model.setDays(90) }
+            )
+        case .emptyFolder:
+            EmptyStateView(
+                systemImage: "tray",
+                title: "Keine Dateien gefunden",
+                message: "In diesem Ordner liegen keine auswertbaren Dateien. Wähle über das Ordner-Menü einen anderen Ordner."
+            )
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
         if let message = model.errorMessage {
@@ -67,11 +101,7 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if !model.hasScanResults {
-            EmptyStateView(
-                systemImage: "tray",
-                title: "Keine Ordner gefunden",
-                message: "Im gewaehlten Zeitraum wurde nichts bearbeitet. Erhoehe die Tage, waehle einen anderen Ordner oder passe den Filter an."
-            )
+            emptyState
         } else {
             ReportView(model: model)
         }

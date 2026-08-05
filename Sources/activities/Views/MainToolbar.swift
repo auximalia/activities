@@ -34,7 +34,8 @@ struct MainToolbar: ToolbarContent {
             SearchField(
                 text: $model.namePattern,
                 prompt: "Name filtern, z. B. studium",
-                onSubmit: { model.applyWindowChange() }
+                onChange: { model.namePatternDidChange() },
+                onSubmit: { model.applyNameFilterNow() }
             )
             .frame(width: 220)
             .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")

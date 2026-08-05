@@ -750,6 +750,81 @@ final class ReportViewModel {
         }
     }
 
+    /// Pfad eines Ordners **relativ zum Wurzelordner**, z. B. `opencode/activities/dist`.
+    ///
+    /// Der absolute Pfad wiederholt in jeder Zeile den Wurzelpfad, der bereits in
+    /// der Statuszeile steht – das ist Rauschen. Der vollstaendige Pfad bleibt im
+    /// Tooltip und in der Zwischenablage erhalten.
+    func relativePath(of folder: URL) -> String {
+        let root = rootURL.standardizedFileURL.path
+        let path = folder.standardizedFileURL.path
+        guard path != root else { return "." }
+        guard path.hasPrefix(root + "/") else { return path }
+        return String(path.dropFirst(root.count + 1))
+    }
+
+    /// Warum die Ergebnisliste leer ist. Grundlage fuer eine Meldung, die die
+    /// **tatsaechliche** Ursache nennt, statt drei Moeglichkeiten aufzuzaehlen.
+    enum EmptyReason {
+        /// Der Namensfilter schliesst alles aus; ohne ihn gaebe es `folders` Ordner.
+        case nameFilter(pattern: String, foldersWithout: Int)
+        /// Im Zeitraum wurde nichts bearbeitet; insgesamt liegen `total` Dateien vor.
+        case timeWindow(total: Int)
+        /// Der Ordner enthaelt ueberhaupt keine auswertbaren Dateien.
+        case emptyFolder
+    }
+
+    /// Ermittelt die Ursache einer leeren Liste.
+    ///
+    /// Seit v1.10.0 liegen alle Dateien im Speicher – die Gegenprobe „wie viele
+    /// waeren es **ohne** Filter?" kostet nur einen Durchlauf und muss nicht
+    /// mehr durch einen zweiten Suchlauf erkauft werden.
+    var emptyReason: EmptyReason {
+        guard !scannedFiles.isEmpty else { return .emptyFolder }
+        let trimmed = namePattern.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            let w = window
+            let withoutFilter = scannedFiles.filter { $0.timestamp >= w.start && $0.timestamp < w.end }
+            if !withoutFilter.isEmpty {
+                return .nameFilter(pattern: trimmed, foldersWithout: Set(withoutFilter.map(\.folder)).count)
+            }
+        }
+        return .timeWindow(total: scannedFiles.count)
+    }
+
+    /// Laufende Entprellung der Filtereingabe.
+    private var filterDebounceTask: Task<Void, Never>?
+    /// Wartezeit, bis eine Filtereingabe wirkt.
+    ///
+    /// Ohne Entprellung wuerde jede Zwischenstufe („s", „st", „stu") eine
+    /// Neuberechnung samt Nachladen von Detaildateien ausloesen – beim Tippen
+    /// spuerbar ruckelig.
+    private static let filterDebounce = Duration.milliseconds(250)
+
+    /// Reagiert auf eine Aenderung im Suchfeld – **entprellt**.
+    func namePatternDidChange() {
+        filterDebounceTask?.cancel()
+        filterDebounceTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.filterDebounce)
+            guard !Task.isCancelled, let self else { return }
+            self.applyWindowChange()
+        }
+    }
+
+    /// Wendet den Filter sofort an (Enter im Suchfeld).
+    func applyNameFilterNow() {
+        filterDebounceTask?.cancel()
+        applyWindowChange()
+    }
+
+    /// Loescht den Namensfilter und rechnet neu (ohne Suchlauf).
+    func clearNameFilter() {
+        guard !namePattern.isEmpty else { return }
+        filterDebounceTask?.cancel()
+        namePattern = ""
+        applyWindowChange()
+    }
+
     /// Die Dateien des letzten Suchlaufs, eingegrenzt auf Zeitfenster und Namensmuster.
     private func filteredFromScan() -> [RelevantFile] {
         let w = window

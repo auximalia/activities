@@ -28,7 +28,7 @@ struct HelpView: View {
 
                 section("Nach Namen filtern", icon: "line.3.horizontal.decrease.circle", [
                     "Einfach einen Teil des Namens eingeben, z. B. studium.",
-                    "Groß-/Kleinschreibung spielt keine Rolle; Enter startet die Suche.",
+                    "Wirkt beim Tippen; Groß-/Kleinschreibung spielt keine Rolle.",
                     "Zusätzlich möglich: Platzhalter * und ?, z. B. *.pdf oder *Studium*.xls*.",
                 ])
 
@@ -51,6 +51,7 @@ struct HelpView: View {
 
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
+                    "Pfade sind relativ zum gewählten Ordner; Datum relativ („Heute, 14:32“).",
                     "Diagramm und Legende bleiben oben stehen; „Diagramm ausblenden“ schafft Platz.",
                     "Über dem Diagramm steht der angezeigte Zeitraum als Überschrift.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",

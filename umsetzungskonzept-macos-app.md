@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.10.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.11.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -290,7 +290,7 @@ wäre der Hinweis dauerhaft an und damit wertlos.
 Alle Maße zentral in `RowMetrics` (`Style/RowMetrics.swift`), damit Einrückung,
 Baumlinien und Datumsspalte zueinander passen.
 
-- **Ordnerzeile (einzeilig):** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion, feste 18×18 px), dann **Name (fett) und Pfad (klein, sekundär) hintereinander in EINER Zeile** – nicht untereinander. Bei Platzmangel wird **der Pfad** mittig gekürzt (`truncationMode(.middle)`, `layoutPriority(-1)`), **nie der Name** (`fixedSize(horizontal: true)`). Rechts nur das **Datum** (Monospace) – **keine** Dateianzahl (die steht im Zeitabschnitts-Kopf, siehe 4.3.3).
+- **Ordnerzeile (einzeilig):** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion, feste 18×18 px), dann **Name (fett) und Pfad (klein, sekundär) hintereinander in EINER Zeile**. Der Pfad ist **relativ zur Wurzel** (`opencode/activities/dist`) – der absolute Pfad wiederholte in jeder Zeile den Wurzelpfad, der ohnehin in der Statuszeile steht. Vollständiger Pfad im Tooltip und in der Zwischenablage – nicht untereinander. Bei Platzmangel wird **der Pfad** mittig gekürzt (`truncationMode(.middle)`, `layoutPriority(-1)`), **nie der Name** (`fixedSize(horizontal: true)`). Rechts nur das **Datum** (Monospace) – **keine** Dateianzahl (die steht im Zeitabschnitts-Kopf, siehe 4.3.3).
   - **Klick auf die Zeile (Text):** auf-/zuklappen, markieren **und den Ordnerpfad in die Zwischenablage kopieren** – reagiert **sofort** (siehe 4.3.4).
   - **Klick auf das Ordner-Symbol:** markieren **und** im Datei-Manager öffnen (+ Pfad in Zwischenablage).
   - **Kein Doppelklick auf der Ordnerzeile** – der Datei-Manager wird über das Ordner-Symbol oder das Kontextmenü geöffnet. Grund: siehe 4.3.4.
@@ -319,8 +319,9 @@ Linien (`Path`/`Canvas`), **nicht** `├──`/`└──`-Zeichen:
 #### 4.3.2 Zeitstempel-Zuordnung (Gesetz der Nähe)
 Zeitstempel dürfen **nicht** an den äußersten Fensterrand rutschen:
 - **Feste Datumsspalte** `dateColumnWidth` = 150 pt, rechtsbündig, für Ordner- **und** Dateizeilen. Statt `Spacer()` wird `Spacer(minLength:)` genutzt – die Spalte bleibt so nah am Inhalt und zugleich sauber ausgerichtet.
-- **Zebra-Streifen:** jede zweite Dateizeile erhält einen sehr dezenten Hintergrund (`zebraColor`, Sekundärfarbe ~7 %) als Lesehilfe über die Zeile hinweg. Reihenfolge der Hintergründe: **Auswahl vor Zebra** (`.background(Selection…)` zuerst, `.background(zebra)` danach), sonst überdeckt das Zebra die Markierung.
-- **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **gut erkennbare, aber ruhige horizontale Linie** (1 px, Sekundärfarbe ~50 % Deckkraft) als Lesehilfe.
+- **Genau EIN Trennsystem (ab v1.11.0):** Das **Zebra** führt das Auge (jede zweite Dateizeile, `zebraColor` ~7 %). Reihenfolge der Hintergründe: **Auswahl vor Zebra** (`.background(Selection…)` zuerst, `.background(zebra)` danach), sonst überdeckt das Zebra die Markierung.
+- **Trennung der Ordner-Blöcke: nur Abstand** (10 pt), **keine Linie mehr**. Zebra + Linien + Baumlinien waren drei konkurrierende Mittel für dieselbe Aufgabe; jedes für sich richtig, zusammen unruhig. Die Baumlinien bleiben, weil sie eine **andere** Aussage tragen (Hierarchie, nicht Zeilentrennung).
+- **Datumsformat relativ** (4.3.6).
 - **Markierung (Selektion):** dezente, moderne Tönung (Akzentfarbe ~12 % Füllung + feiner Rahmen, weiche Ecken) – **nicht** grell/vollflächig; Text bleibt normal lesbar.
 
 #### 4.3.3 Zeitabschnitts-Kopf (Sektionskopf)
@@ -330,6 +331,20 @@ Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 O
 - Zweck: die Mengeninformation steht **links** am Zeilenanfang; die Ordnerzeilen bleiben dadurch schlank (keine Anzahl mehr rechts).
 - Singular/Plural bei „Datei/Dateien" beachten.
 
+
+#### 4.3.6 Relative Datumsangaben
+„Heute, 22:59" · „Gestern, 14:32" · „Mi., 05.08. 14:32" (innerhalb 7 Tagen) · „05.08.2025, 14:32".
+Das volle Datum in jeder Zeile zu wiederholen ist Rauschen – erst recht unter einer
+Überschrift, die bereits „Heute" sagt. Nebeneffekt: Die Angaben sind kürzer, es bleibt mehr
+Breite für den Dateinamen.
+
+#### 4.3.7 Doppelte Zeitstempel sind gewollt (Entscheidung, nicht Mangel)
+Ordnerzeile und datumsstiftende Datei zeigen denselben Zeitstempel. Das wurde geprüft und
+**bewusst beibehalten**:
+- **Zugeklappt** ist das Ordnerdatum die **einzige** Datumsinformation; würde es beim
+  Aufklappen verschwinden, spränge der Wert und die Datumsspalte bekäme Lücken.
+- Die **Fettschrift** trifft eine *andere* Aussage als das Datum: Sie sagt, **welche** Datei
+  die Quelle ist.
 
 #### 4.3.4 Sofortige Klick-Reaktion (wichtige Lehre)
 **Problem:** Liegen auf derselben Zeile `onTapGesture(count: 2)` *und* `onTapGesture(count: 1)`, **muss** SwiftUI das Doppelklick-Intervall (`NSEvent.doubleClickInterval`, ~300 ms) abwarten, bevor der Einfachklick feuern darf – die Markierung erscheint spürbar verzögert.
@@ -378,6 +393,7 @@ scrollen nur so weit, bis die Zeile sichtbar ist.
 - **Scan läuft & noch keine Treffer:** „Durchsuche …" (mit Zähler + Abbrechen).
 - **Detaildateien laden noch:** im Listenbereich Fortschritt „Lade Ordner X von Y" (Diagramm/Legende sind da schon sichtbar).
 - **Kein In-Zeitraum-Treffer:** „Keine Ordner gefunden".
+- **Leerzustand nennt die Ursache (ab v1.11.0):** Statt drei Möglichkeiten aufzuzählen, unterscheidet `emptyReason` drei Fälle und bietet **genau einen** passenden Knopf: *Namensfilter* („Keine Treffer für „xyz" – ohne ihn wären es N Ordner", **Filter löschen**), *Zeitraum* („Der Ordner enthält N Dateien, aber keine im Zeitraum", **Auf 90 Tage erweitern**), *leerer Ordner* (ohne Knopf). Die Gegenprobe „wie viele ohne Filter?" kostet seit 5.-1 nur einen Durchlauf im Speicher. Der Filter wird beim Ordnerwechsel **bewusst nicht** gelöscht – dasselbe Wort in mehreren Ordnern zu suchen ist ein gültiger Arbeitsablauf.
 - **Filter blendet alles aus:** unter dem Diagramm dezent „Keine Treffer für den aktiven Filter" – **Diagramm & Legende bleiben sichtbar**, damit man wieder einblenden kann.
 
 ### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
@@ -429,6 +445,14 @@ Der **Diagramm-Schutz** (> 4000 Tage ⇒ leeres Diagramm) bleibt bestehen.
 
 **Folge für die Bedienung:** Auch die Datumsfelder der Zeitspanne wirken jetzt **sofort** –
 die frühere Regel „erst mit *Aktualisieren*" ist gegenstandslos.
+
+### 5.-0.5 Live-Filter mit Entprellung
+Der Namensfilter wirkt **beim Tippen** – entprellt mit **250 ms** im Modell
+(`namePatternDidChange()`); Enter und der Löschen-Knopf wirken **sofort**
+(`applyNameFilterNow()`, `clearNameFilter()`).
+**Warum entprellt:** Ohne Verzögerung löste jede Zwischenstufe („s", „st", „stu") eine
+Neuberechnung samt Nachladen von Detaildateien aus – beim Tippen spürbar ruckelig.
+Möglich wurde das erst durch 5.-1: Der Filter löst keinen Suchlauf mehr aus.
 
 ### 5.0 Zustandsänderungen gehören ins Modell (wichtige Lehre)
 **Vorfall (v1.8.0 → behoben in v1.8.1):** Nach dem Umbau der Steuerleiste zur Toolbar

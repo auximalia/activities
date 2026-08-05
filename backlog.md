@@ -14,8 +14,8 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 **v1.10.0 – Grundsatz „sparsam scannen":** Gescannt wird nur noch bei Start, Ordnerwechsel,
 ⌘R und Auto-Refresh; Zeitraum und Filter arbeiten im Speicher. Vorbedingung von UX-02 damit
 erledigt.
-**Nachgemeldet:** UX-29 (Betriebsbefund). – Backlog umfasst 29 Einträge, davon 18 offen
-(UX-02 nur noch Restaufwand).
+**Erledigt in Sprint 3 (v1.11.0):** UX-29, UX-02, UX-08, UX-09, UX-10, UX-12, UX-17.
+– Backlog umfasst 29 Einträge, davon **11 offen**.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -43,7 +43,7 @@ Glob nur noch im Tooltip und in der Hilfe als Zusatzmöglichkeit erwähnen.
 **Umgesetzt:** Platzhalter „Name filtern, z. B. studium"; Tooltip und Hilfe stellen den
 Teilstring als Normalfall dar, Glob als Zusatz.
 
-### ◐ UX-02 · Namensfilter wirkt sofort (ohne Neuscan) *(Vorbedingung erledigt, v1.10.0)*
+### ✅ UX-02 · Namensfilter wirkt sofort (ohne Neuscan) *(erledigt, v1.11.0)*
 **Aufwand:** S (Rest) · **Nutzen:** sehr hoch
 Der Filter löst heute einen kompletten Neuscan aus. Filtern ist aber eine reine
 Anzeigeoperation auf bereits geladenen Daten.
@@ -245,7 +245,7 @@ Ausschalter für die Zeitachse. Wirkung: `window` = unbegrenzt.
   sehr groß werden. Vorher an einem großen Baum messen.
 - Sinnvoll **nach** UX-02 (Live-Filter), weil beides denselben Pfad betrifft.
 
-### UX-29 · Leere Liste erklärt ihre Ursache nicht
+### ✅ UX-29 · Leere Liste erklärt ihre Ursache nicht *(erledigt, v1.11.0)*
 **Aufwand:** S · **Nutzen:** hoch · **Gefunden:** im Betrieb nach v1.10.1
 Steht ein Suchbegriff im Feld und man **wechselt den Ordner**, kann die Liste leer bleiben,
 weil der Filter alles ausschließt. Der Nutzer sieht nur einen leeren Ordner und hält die App
@@ -282,13 +282,13 @@ einen passenden Knopf an; der Filter wird beim Ordnerwechsel **nicht** automatis
 
 ## P2 – Lesbarkeit und Gestaltung
 
-### UX-08 · Pfade relativ zum Wurzelordner anzeigen
+### ✅ UX-08 · Pfade relativ zum Wurzelordner anzeigen *(erledigt, v1.11.0)*
 **Aufwand:** S · **Nutzen:** hoch
 `/Users/mtri/Documents/opencode/activities/dist` wiederholt in **jeder** Zeile den
 Wurzelpfad, der bereits in der Statuszeile steht.
 **Lösung:** `opencode/activities/dist`; vollständiger Pfad im Tooltip und in der Zwischenablage.
 
-### UX-09 · Nur ein Trennsystem in der Tabelle
+### ✅ UX-09 · Nur ein Trennsystem in der Tabelle *(erledigt, v1.11.0)*
 **Aufwand:** S · **Nutzen:** mittel
 Zebra-Streifen **+** horizontale Trennlinien **+** Baumlinien wirken gleichzeitig. Jede
 Hilfe für sich ist richtig, zusammen erzeugen sie Unruhe.
@@ -297,7 +297,7 @@ reduzieren. Baumlinien bleiben (andere Funktion: Hierarchie).
 **Konsistenz:** Widerspricht der aktuellen Spezifikation §4.3.2 – dort ist beides gefordert.
 §4.3.2 muss mit diesem Punkt angepasst werden.
 
-### UX-10 · Relative Datumsangaben
+### ✅ UX-10 · Relative Datumsangaben *(erledigt, v1.11.0)*
 **Aufwand:** S · **Nutzen:** mittel
 Unter der Überschrift „**Heute** · 18 Ordner" steht 19-mal „Mi 05.08.2026 22:59". Das
 Datum ist durch die Gruppierung bereits bekannt.
@@ -313,18 +313,23 @@ nie lauter sein als Inhalt.
 Beide Punkte wirken **in dieselbe Richtung** – ein schwächeres Band vergrößert zugleich den
 Abstand zum „Sonstige"-Grau. Deshalb gemeinsam in Sprint 2a umsetzen.
 
-### UX-12 · Light-Mode-Parität prüfen
+### ✅ UX-12 · Light-Mode-Parität prüfen *(erledigt, v1.11.0)*
 **Aufwand:** S · **Nutzen:** mittel
 Die Gestaltung ist im Dark Mode entstanden. Zebra (7 %), Baumlinien (45 %),
 Legenden-Chips und entsättigte Icons müssen im hellen Modus gegengeprüft werden.
 **Akzeptanz:** Screenshot-Vergleich beider Modi; kein Element „verschwindet" oder dominiert.
+**Ergebnis (v1.11.0):** Beide Modi geprüft (Screenshot) und Kontraste **gemessen**:
+Dateiname auf Zebra 13,6:1 (dark) / 18,0:1 (light); gedimmte Außerhalb-Dateien auf Zebra
+**8,4:1 / 9,5:1** – deutlich über WCAG-AA (4,5:1). Zebra liegt mit ΔE 7,6 / 6,2 dicht genug
+am Hintergrund, um nicht zu dominieren. Eine Palette trägt beide Modi.
 
-### UX-13 · Kontrast und Tastaturbedienung vervollständigen
+### UX-13 · Tastaturbedienung vervollständigen
 **Aufwand:** M · **Nutzen:** mittel
-Ausgeblendete Dateinamen (0,75 Deckkraft) **auf** Zebra-Hintergrund liegen vermutlich unter
-dem WCAG-Mindestkontrast. Zusätzlich sind Legenden-Chips nicht per Tabulator erreichbar.
-**Lösung:** Kontrast nachmessen und anheben; Chips und Toolbar in die Tab-Reihenfolge
-aufnehmen; VoiceOver-Beschriftungen vervollständigen.
+**Kontrast-Teil erledigt und widerlegt (v1.11.0):** Die Vermutung, gedimmte Namen auf Zebra
+lägen unter dem Mindestkontrast, war **falsch** – gemessen 8,4:1 (dark) / 9,5:1 (light) gegen
+4,5:1 gefordert. *Lehre: Kontrast messen, nicht schätzen.*
+**Offen bleibt:** Legenden-Chips und Toolbar sind nicht per Tabulator erreichbar;
+VoiceOver-Beschriftungen sind unvollständig.
 
 ### UX-14 · Kompakt-Layout für schmale Fenster
 **Aufwand:** M · **Nutzen:** mittel
@@ -345,12 +350,14 @@ alles zu quetschen.
 **Umgesetzt:** Aus der Statuszeile entfernt, als Tooltip der Ordner/Dateien-Anzeige
 weiterhin abrufbar.
 
-### UX-17 · Doppelte Zeitstempel prüfen
+### ✅ UX-17 · Doppelte Zeitstempel prüfen *(erledigt, v1.11.0)*
 **Aufwand:** S · **Nutzen:** gering
 Ordnerzeile und ihre datumsstiftende Datei zeigen exakt denselben Wert untereinander.
-**Bewusst zurückgestellt:** Ein ersatzloses Entfernen würde die Datumsspalte inkonsistent
-machen (Datei ohne Datum) oder beim Auf-/Zuklappen springen. Erst gestalterisch prüfen,
-ob eine dezentere Darstellung des Ordnerdatums genügt. **Nicht** ohne Entwurf umsetzen.
+**Ergebnis (v1.11.0): als bewusste Entscheidung geschlossen – kein Code.** Die Dopplung ist
+richtig: Zugeklappt ist das Ordnerdatum die **einzige** Datumsinformation; verschwände es
+beim Aufklappen, spränge der Wert und die Datumsspalte bekäme Lücken. Die Fettschrift trifft
+zudem eine *andere* Aussage als das Datum – sie sagt, **welche** Datei die Quelle ist.
+Dokumentiert in Konzept §4.3.7. *Mein ursprünglicher Kritikpunkt war unterkomplex.*
 
 ### UX-18 · App-Icon überarbeiten
 **Aufwand:** M · **Nutzen:** mittel
@@ -468,8 +475,10 @@ Mindesthöhe 520→600, Mindestbreite 1000→1180 (sonst kollabiert das Suchfeld
 *Nebenbefund:* `defaultSize` (980) war kleiner als `minWidth` (1000) – behoben.
 → Der große Gestaltungsschritt; danach wirkt die App native.
 
-**➡️ Sprint 3 – „Tabelle lesbar" (als Nächstes)**
-UX-08, UX-09, UX-10, UX-11, UX-12
+**✅ Sprint 3 – „Lesen und Finden" (abgeschlossen, v1.11.0)**
+UX-29, UX-02, UX-08, UX-09, UX-10, UX-17, UX-12
+*UX-17 als Entscheidung geschlossen statt umgesetzt; UX-12 hat den Kontrast-Verdacht aus
+UX-13 messtechnisch widerlegt.*
 
 **Sprint 4 – „Live-Filter"**
 UX-02 (inkl. Messung) – bewusst allein, wegen des Risikos.

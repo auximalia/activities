@@ -36,10 +36,12 @@ struct ReportView: View {
                                     detailRows(for: entry)
                                 }
 
-                                Rectangle()
-                                    .fill(Color.secondary.opacity(0.5))
-                                    .frame(height: 1)
-                                    .padding(.vertical, 2)
+                                // Nur EIN Trennsystem: Das Zebra der Dateizeilen
+                                // fuehrt das Auge bereits. Eine zusaetzliche
+                                // Linie je Ordnerblock waere ein drittes
+                                // konkurrierendes Mittel (neben Zebra und
+                                // Baumlinien) – stattdessen genuegt Abstand.
+                                Color.clear.frame(height: 10)
                             }
                         } header: {
                             sectionHeader(bucket)

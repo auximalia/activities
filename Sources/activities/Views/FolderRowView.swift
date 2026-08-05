@@ -50,12 +50,13 @@ struct FolderRowView: View {
                     .font(.headline)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
-                Text(entry.folder.path)
+                Text(model.relativePath(of: entry.folder))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .layoutPriority(-1)
+                    .help(entry.folder.path)
             }
 
             Spacer(minLength: RowMetrics.itemSpacing)

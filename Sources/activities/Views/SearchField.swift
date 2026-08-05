@@ -9,13 +9,16 @@ import AppKit
 /// eingebettete `NSSearchField` liefert die native Optik (Lupe, Löschen-Knopf,
 /// runde Form) bei freier Platzierung.
 ///
-/// Die Suche wird bewusst **erst mit Enter** ausgelöst (`sendsWholeSearchString`),
-/// weil jede Eingabe derzeit einen neuen Scan bedeutet. Sobald die Live-Filterung
-/// umgesetzt ist (Backlog UX-02), kann das auf „bei jeder Änderung" umgestellt werden.
+/// Die Eingabe wirkt **live** (entprellt im Modell, ~250 ms); Enter und der
+/// Löschen-Knopf wirken sofort. Möglich wurde das, weil der Filter seit v1.10.0
+/// keinen Suchlauf mehr auslöst, sondern im Speicher arbeitet.
 struct SearchField: NSViewRepresentable {
     @Binding var text: String
     var prompt: String
     var width: CGFloat = 220
+    /// Wird bei jeder Eingabe gerufen (das Modell entprellt).
+    var onChange: () -> Void
+    /// Wird bei Enter und beim Löschen-Knopf gerufen – ohne Verzögerung.
     var onSubmit: () -> Void
 
     func makeNSView(context: Context) -> NSSearchField {
@@ -52,6 +55,7 @@ struct SearchField: NSViewRepresentable {
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSSearchField else { return }
             parent.text = field.stringValue
+            parent.onChange()
         }
 
         /// Enter **oder** Klick auf den Löschen-Knopf.

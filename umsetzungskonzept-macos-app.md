@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.5.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.6.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -91,6 +91,8 @@ nicht ein Datum im Dateinamen.
 - Berechne Häufigkeit je Endung über `relevantFiles`. Zeige die **10 häufigsten** Endungen als Legenden-Chips (Endung + Icon + Anzahl). Sortierung: Anzahl absteigend, bei Gleichstand Endung alphabetisch. (Grenze zentral in `ReportViewModel.legendTopCount`.)
 - Gibt es **mehr als 10** Endungen, werden alle übrigen In-Zeitraum-Dateien unter einem neutralen **„Sonstige"**-Chip (grau) zusammengefasst; `otherCount` = Anzahl relevanter Dateien, deren Endung nicht in den Top-10 ist. Bei ≤10 Endungen: kein „Sonstige".
 - Jeder Chip ist **an-/ausblendbar** (Einfachklick = Toggle). Ausgeblendete Chips bleiben sichtbar, aber abgeblendet + durchgestrichen (damit wieder aktivierbar).
+- **Nicht persistiert (bewusste Entscheidung):** `hiddenExtensions` wird **nicht** gespeichert. Jede Sitzung startet mit vollständiger Anzeige, damit niemand mit einem vergessenen Filter weiterarbeitet. Als Ausgleich gibt es den Zustandshinweis (4.2.1).
+- **Zurücksetzen:** `resetTypeFilters()` blendet alle Typen wieder ein – erreichbar über den Hinweis (4.2.1) und den Menübefehl „Typ-Filter zurücksetzen" (⌥⌘R).
 - **Doppelklick auf einen Chip = „Solo"**: blendet alle anderen Endungen aus und zeigt nur die angeklickte (`soloExtension`). Ein erneuter Doppelklick auf den bereits isolierten Chip zeigt wieder **alle** Endungen (Toggle zurück). Umgesetzt in der Legende über zwei `onTapGesture(count: 2 bzw. 1)`.
 - **`isHidden(datei)`**: `true`, wenn die Endung in der Ausblend-Menge ist **oder** „Sonstige" ausgeblendet ist und die Endung nicht in den Top-10 liegt.
 - Der Typ-Filter wirkt **konsistent** auf: Diagramm, Ordner-Zugehörigkeit/-Datum, Detailzeilen, Tastatur-Navigation, QuickLook-Liste.
@@ -196,6 +198,16 @@ die volle Breite und erzeugt große Lücken.
 Ein **„An den Anfang"-Knopf** in der Steuerleiste (Symbol `arrow.up.to.line`,
 Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 
+#### 4.2.1 Zustandshinweis „Typen ausgeblendet"
+Ein Filter, den man nicht sieht, ist ein **stiller Zustand**: Die Ergebnisliste wirkt
+unerklärlich unvollständig. Deshalb erscheint unter der Legende – **nur wenn tatsächlich
+etwas ausgeblendet ist** – ein Hinweis „N Typen ausgeblendet" mit Knopf **„Zurücksetzen"**
+(getönte Fläche in Akzentfarbe, ~10 %).
+
+**Abgrenzung:** Der Zeitfenster-Schalter (3.6.1) zählt hier **nicht** mit. Er steht auf
+seinem Standardwert und ist durch seinen eigenen Schalter bereits sichtbar; andernfalls
+wäre der Hinweis dauerhaft an und damit wertlos.
+
 ### 4.3 Ordner- & Dateizeilen
 Alle Maße zentral in `RowMetrics` (`Style/RowMetrics.swift`), damit Einrückung,
 Baumlinien und Datumsspalte zueinander passen.
@@ -266,8 +278,9 @@ Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 O
 - **Filter blendet alles aus:** unter dem Diagramm dezent „Keine Treffer für den aktiven Filter" – **Diagramm & Legende bleiben sichtbar**, damit man wieder einblenden kann.
 
 ### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
-- **Statuszeile:** „N Ordner · M Dateien · X.XX s", Auto-Refresh-Indikator, Wurzelpfad.
-- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), „Dateien außerhalb des Zeitraums zeigen" (Umschalter), „Über activities", „Nach Updates suchen …", „Update installieren".
+- **Statuszeile:** „N Ordner · M Dateien", Auto-Refresh-Indikator, Wurzelpfad. Die **Scandauer** ist eine Diagnosegröße ohne Nutzerwert und steht nur noch im **Tooltip** der Ordner/Dateien-Anzeige.
+- **Keine Eigenwerbung auf der Arbeitsfläche:** Der Credit-Text steht ausschließlich im „Über"-Fenster. Oben rechts bleibt nur die Versionsnummer (Support/Update-Bezug).
+- **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), „Dateien außerhalb des Zeitraums zeigen" (Umschalter), Typ-Filter zurücksetzen (⌥⌘R), „Über activities", „Nach Updates suchen …", „Update installieren".
 - **Export liegt im Menü „Ablage"** (`CommandGroup(replacing: .saveItem)`): „Als CSV exportieren …" (⌘E) und „Als HTML exportieren …" (⇧⌘E). *Lehre:* vorher hing er in `CommandGroup(after: .toolbar)` und landete damit im Menü „Darstellung" – dort findet ihn niemand.
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
 - **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-

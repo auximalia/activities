@@ -1,7 +1,10 @@
 # Backlog – activities
 
-Priorisierte Sammlung der Verbesserungen aus dem Design-Review (Stand: App v1.5.0).
+Priorisierte Sammlung der Verbesserungen aus dem Design-Review (Stand: App v1.6.0).
 Aus diesem Backlog werden einzelne Sprints geschnitten.
+
+**Status:** ✅ erledigt · ⏳ offen
+**Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -14,17 +17,23 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 
 ## P1 – Zuerst
 
-### UX-01 · Namensfilter als Teilstring statt Glob
-**Aufwand:** S · **Nutzen:** sehr hoch
-Wer `studium` eingibt, bekommt **null Treffer**, obwohl viele Dateien passen – der Filter
-erwartet Glob-Syntax. Weder Finder noch Spotlight verhalten sich so.
-**Lösung:** Eingaben **ohne** `*` oder `?` intern als `*eingabe*` behandeln. Glob bleibt für
-Fortgeschrittene unverändert nutzbar.
-**Akzeptanz:** `studium` findet `Studium_2026.xlsx`; `*.pdf` verhält sich wie bisher.
-**Berührt:** `ActivitiesCore/NameFilter.swift` (+ CoreChecks).
+### ✅ UX-01 · Filterfeld kommuniziert das falsche Modell *(erledigt, v1.6.0)*
+**Aufwand:** S · **Nutzen:** hoch
+**Korrektur zum Design-Review:** Die ursprüngliche Annahme („`studium` findet nichts") war
+**falsch**. `NameFilter` behandelt Eingaben ohne Platzhalter bereits als Teilstring
+(`NameFilter.swift`, verifiziert). Funktional ist alles in Ordnung.
+**Das reale Problem:** Der Platzhaltertext `Filter, z. B. *Studium*.xls*` legt nahe, dass
+Glob-Syntax **erforderlich** ist. Wer das glaubt, tippt Sternchen, die er nicht braucht –
+oder benutzt den Filter gar nicht. Das ist ein Kommunikationsfehler, kein Funktionsfehler.
+**Lösung:** Platzhalter auf den Normalfall umstellen („Name filtern, z. B. studium"),
+Glob nur noch im Tooltip und in der Hilfe als Zusatzmöglichkeit erwähnen.
+**Akzeptanz:** Platzhalter zeigt eine Eingabe **ohne** Platzhalterzeichen; Tooltip nennt
+`*` und `?` als Option.
+**Umgesetzt:** Platzhalter „Name filtern, z. B. studium"; Tooltip und Hilfe stellen den
+Teilstring als Normalfall dar, Glob als Zusatz.
 
 ### UX-02 · Namensfilter wirkt sofort (ohne Neuscan)
-**Aufwand:** L · **Nutzen:** sehr hoch · **Abhängig von:** UX-01
+**Aufwand:** L · **Nutzen:** sehr hoch
 Der Filter löst heute einen kompletten Neuscan aus. Filtern ist aber eine reine
 Anzeigeoperation auf bereits geladenen Daten.
 **Technisches Risiko (bewusst entscheiden):** Der Scanner filtert derzeit **während** des
@@ -63,7 +72,7 @@ Zeitraum-Überschrift **zentriert** in einem sonst durchgängig linksbündigen U
 (`navigationSubtitle`). Die zentrierte Überschrift entfällt ersatzlos.
 **Achtung:** Sie trägt heute den Top-Anker für ⌘↑ – Anker muss auf die Tabelle wandern.
 
-### UX-06 · Filter-Reset und „Filter aktiv"-Anzeige
+### ✅ UX-06 · Filter-Reset und „Filter aktiv"-Anzeige *(erledigt, v1.6.0)*
 **Aufwand:** S · **Nutzen:** hoch
 Sind mehrere Dateitypen über die Legende ausgeblendet, gibt es **keinen globalen Hinweis**
 darauf. Ergebnisse wirken unerklärlich unvollständig – ein klassischer „stiller Zustand".
@@ -72,13 +81,19 @@ Legenden-Auswahl (`hiddenExtensions`) aber nicht.
 **Lösung:** Sichtbarer Indikator „3 Typen ausgeblendet" mit **Zurücksetzen**-Knopf;
 bewusste Entscheidung für/gegen Persistenz dokumentieren (Empfehlung: **nicht** persistieren,
 dafür Indikator).
+**Umgesetzt:** Hinweis unter der Legende (nur bei aktivem Filter), `resetTypeFilters()`,
+Menübefehl „Typ-Filter zurücksetzen" (⌥⌘R). Nicht-Persistenz ist jetzt als bewusste
+Entscheidung im Konzept §3.6 festgehalten; der Zeitfenster-Schalter zählt bewusst **nicht**
+als aktiver Filter (Konzept §4.2.1).
 
-### UX-07 · Vanity-Text aus der Arbeitsfläche entfernen
+### ✅ UX-07 · Vanity-Text aus der Arbeitsfläche entfernen *(erledigt, v1.6.0)*
 **Aufwand:** S · **Nutzen:** mittel
 „designed by matthias.riedel.dresden" belegt oben rechts die Fläche, auf die der Blick für
 Status und Aktionen fällt. Der Text steht bereits im „Über"-Fenster.
 **Lösung:** Aus der Steuerleiste entfernen. Versionsnummer wandert in die Titelleiste
 bzw. bleibt im „Über"-Fenster.
+**Umgesetzt:** Credit entfernt. Versionsnummer bleibt **vorerst** oben rechts – sie wandert
+mit UX-05 (Sprint 2) in die Titelleiste; ein zweifaches Umbauen wäre Verschwendung.
 
 ---
 
@@ -137,10 +152,12 @@ alles zu quetschen.
 „7 30 90" **und** Stepper „30 Tage" stehen nebeneinander – zwei Wege für dieselbe Größe.
 **Lösung:** Presets behalten, Feineinstellung hinter „Eigene …".
 
-### UX-16 · Statuszeile entrümpeln
+### ✅ UX-16 · Statuszeile entrümpeln *(erledigt, v1.6.0)*
 **Aufwand:** S · **Nutzen:** gering
 „0.38 s" ist eine Entwicklermetrik ohne Nutzen für den Anwender.
 **Lösung:** Scandauer entfernen (oder nur im Tooltip/Diagnosefall zeigen).
+**Umgesetzt:** Aus der Statuszeile entfernt, als Tooltip der Ordner/Dateien-Anzeige
+weiterhin abrufbar.
 
 ### UX-17 · Doppelte Zeitstempel prüfen
 **Aufwand:** S · **Nutzen:** gering
@@ -221,17 +238,21 @@ aus einem Guss bleibt:
    markiert, nicht als Fix.
 6. **UX-02 hat eine Architektur-Vorbedingung.** Live-Filterung erfordert einen
    ungefilterten Scan; das ist kein reiner UI-Umbau und braucht eine Messung.
+7. **UX-01 wurde nach Code-Prüfung entschärft.** Der vermutete Funktionsfehler existiert
+   nicht – der Teilstring-Filter ist implementiert. *Lehre: Annahmen aus der Oberfläche
+   am Code prüfen, bevor sie als Fehler ins Backlog wandern.*
 
 ---
 
 ## Sprint-Vorschlag
 
-**Sprint 1 – „Filter, der funktioniert" (klein, sehr hoher Nutzen)**
+**✅ Sprint 1 – „Der Nutzer sieht, was gerade wirkt" (abgeschlossen, v1.6.0)**
 UX-01, UX-06, UX-07, UX-16
-→ Behebt den Filter-Fallstrick, macht ausgeblendete Typen sichtbar, räumt auf.
-Kein Architektur-Eingriff.
+→ Filterfeld erklärt sich richtig, ausgeblendete Typen sind sichtbar und zurücksetzbar,
+Arbeitsfläche und Statuszeile aufgeräumt. Kein Architektur-Eingriff.
+*Erkenntnis: UX-01 war nach Code-Prüfung kein Funktionsfehler – siehe Konsistenz-Punkt 7.*
 
-**Sprint 2 – „Kopfzone und Toolbar"**
+**➡️ Sprint 2 – „Kopfzone und Toolbar" (als Nächstes)**
 UX-03, UX-04, UX-05, UX-15
 → Der große Gestaltungsschritt; danach wirkt die App native.
 

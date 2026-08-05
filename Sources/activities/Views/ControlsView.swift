@@ -78,12 +78,12 @@ struct ControlsView: View {
                 .fixedSize()
             }
 
-            TextField("Filter, z. B. *Studium*.xls*", text: $model.namePattern)
+            TextField("Name filtern, z. B. studium", text: $model.namePattern)
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 180, maxWidth: 300)
                 .focused($filterFocused)
                 .onSubmit { model.rescan() }
-                .help("Namensfilter (Glob-Muster * und ?) für Datei- und Ordnernamen · Enter startet die Suche")
+                .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
 
             Button {
                 model.rescan()
@@ -176,21 +176,16 @@ struct ControlsView: View {
                 .help("Update verfügbar (installiert \(BuildInfo.short), verfügbar \(latest.description)) – klicken zum Installieren")
             }
 
-            VStack(alignment: .trailing, spacing: 1) {
-                Text("designed by matthias.riedel.dresden")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Text(BuildInfo.short)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .help(BuildInfo.details)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .layoutPriority(-1)
+            // Nur die Version: sie hilft bei Support und Update-Hinweis.
+            // Der Credit-Text steht im „Über"-Fenster, nicht auf der Arbeitsfläche.
+            Text(BuildInfo.short)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .help(BuildInfo.details)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .layoutPriority(-1)
         }
         .padding(10)
         .onChange(of: model.days) { _, _ in model.rescan() }

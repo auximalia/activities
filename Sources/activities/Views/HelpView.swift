@@ -27,8 +27,9 @@ struct HelpView: View {
                 ])
 
                 section("Nach Namen filtern", icon: "line.3.horizontal.decrease.circle", [
-                    "Glob-Muster mit * und ?, z. B. *.pdf oder *Studium*.xls*.",
-                    "Wirkt auf Datei- und Ordnernamen; Enter startet die Suche.",
+                    "Einfach einen Teil des Namens eingeben, z. B. studium.",
+                    "Groß-/Kleinschreibung spielt keine Rolle; Enter startet die Suche.",
+                    "Zusätzlich möglich: Platzhalter * und ?, z. B. *.pdf oder *Studium*.xls*.",
                 ])
 
                 section("Aktualisieren & Auto-Refresh", icon: "arrow.clockwise", [
@@ -42,6 +43,7 @@ struct HelpView: View {
                     "Klick auf ein Segment springt zur passenden Datei.",
                     "Legende: jeder Eintrag ist ein Knopf – Klick blendet den Typ aus/ein.",
                     "Doppelklick = nur diesen Typ; erneuter Doppelklick = wieder alle.",
+                    "Sind Typen ausgeblendet, erscheint ein Hinweis mit „Zurücksetzen“ (⌥⌘R).",
                 ])
 
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
@@ -125,6 +127,7 @@ struct HelpView: View {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 4) {
                 shortcutRow("⌘R", "Aktualisieren")
                 shortcutRow("⌘F", "Filter fokussieren")
+                shortcutRow("⌥⌘R", "Typ-Filter zurücksetzen")
                 shortcutRow("⌘↑", "An den Anfang der Liste")
                 shortcutRow("⌘E", "Als CSV exportieren")
                 shortcutRow("⇧⌘E", "Als HTML exportieren")

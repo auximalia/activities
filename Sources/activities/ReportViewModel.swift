@@ -211,8 +211,27 @@ final class ReportViewModel {
         recomputeDisplayBuckets()
     }
 
-    /// Doppelklick in der Legende ("Solo"): blendet alle anderen Endungen aus und
-    /// zeigt nur die angeklickte. Ein erneuter Doppelklick auf den bereits
+    /// Anzahl der ueber die Legende ausgeblendeten Typen. Grundlage fuer den
+    /// sichtbaren Hinweis – ohne ihn waere das ein stiller Zustand, der die
+    /// Ergebnisliste unerklaerlich unvollstaendig wirken laesst.
+    var hiddenTypeCount: Int { hiddenExtensions.count }
+
+    /// Ob ueberhaupt Typen ausgeblendet sind.
+    var hasTypeFilter: Bool { !hiddenExtensions.isEmpty }
+
+    /// Setzt den Typ-Filter zurueck: alle Endungen wieder einblenden.
+    ///
+    /// Bewusst **nicht** persistiert (siehe Konzept 3.6): Jede Sitzung startet
+    /// mit vollstaendiger Anzeige, damit niemand mit einem vergessenen Filter
+    /// weiterarbeitet.
+    func resetTypeFilters() {
+        guard hasTypeFilter else { return }
+        hiddenExtensions.removeAll()
+        recomputeChart()
+        recomputeDisplayBuckets()
+    }
+
+    /// Doppelklick in der Legende ("Solo"): blendet alle anderen Endungen aus und    /// zeigt nur die angeklickte. Ein erneuter Doppelklick auf den bereits
     /// isolierten Eintrag zeigt wieder alle Endungen (Toggle zurueck).
     func soloExtension(_ ext: String) {
         let key = ext.lowercased()

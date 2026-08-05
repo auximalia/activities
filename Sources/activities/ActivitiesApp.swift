@@ -28,6 +28,9 @@ struct ActivitiesApp: App {
                     .keyboardShortcut("r", modifiers: .command)
                 Button("Filter fokussieren") { model.filterFocusToken += 1 }
                     .keyboardShortcut("f", modifiers: .command)
+                Button("Typ-Filter zurücksetzen") { model.resetTypeFilters() }
+                    .keyboardShortcut("r", modifiers: [.command, .option])
+                    .disabled(!model.hasTypeFilter)
                 Button("An den Anfang") { model.scrollToTopToken += 1 }
                     .keyboardShortcut(.upArrow, modifiers: .command)
                 Divider()

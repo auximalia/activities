@@ -50,6 +50,8 @@ struct ReportView: View {
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
 
+                    filterIndicator
+
                     ForEach(model.displayBuckets) { bucket in
                         Section {
                             ForEach(bucket.entries) { entry in
@@ -146,6 +148,39 @@ struct ReportView: View {
                     proxy.scrollTo(ReportView.topAnchorID, anchor: .top)
                 }
             }
+        }
+    }
+
+    /// Hinweis auf ausgeblendete Dateitypen samt Zuruecksetzen.
+    ///
+    /// Ohne diesen Hinweis waere der Typ-Filter ein **stiller Zustand**: Die
+    /// Ergebnisliste wirkt unvollstaendig, ohne dass erkennbar ist, warum.
+    /// Erscheint nur, wenn tatsaechlich etwas ausgeblendet ist.
+    @ViewBuilder
+    private var filterIndicator: some View {
+        if model.hasTypeFilter {
+            let count = model.hiddenTypeCount
+            HStack(spacing: 6) {
+                Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                    .foregroundStyle(.tint)
+                Text("\(count) \(count == 1 ? "Typ" : "Typen") ausgeblendet")
+                    .font(.callout)
+                Button("Zurücksetzen") { model.resetTypeFilters() }
+                    .buttonStyle(.link)
+                    .help("Alle Dateitypen wieder einblenden (⌥⌘R)")
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.10))
+            )
+            .padding(.horizontal, 4)
+            .padding(.bottom, 6)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(count) Dateitypen ausgeblendet")
+            .accessibilityHint("Zum Zurücksetzen aktivieren")
         }
     }
 

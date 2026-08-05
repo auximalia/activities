@@ -83,10 +83,11 @@ struct StatusBarView: View {
             Image(systemName: "folder")
                 .foregroundStyle(.secondary)
             Text("\(folderCount) Ordner · \(model.scannedFileCount) Dateien")
-            if model.lastScanDuration > 0 {
-                Text("· \(String(format: "%.2f s", model.lastScanDuration))")
-                    .foregroundStyle(.secondary)
-            }
+                // Scandauer ist eine Diagnosegroesse, kein Nutzerwert –
+                // deshalb im Tooltip statt dauerhaft im Blickfeld.
+                .help(model.lastScanDuration > 0
+                      ? String(format: "Letzte Suche: %.2f s", model.lastScanDuration)
+                      : "Noch keine Suche abgeschlossen")
             Spacer()
             if model.autoRefresh {
                 Label("Auto", systemImage: "arrow.triangle.2.circlepath")

@@ -28,6 +28,10 @@ struct FileRowView: View {
                     .resizable()
                     .interpolation(.high)
                     .frame(width: 18, height: 18)
+                    // Ausserhalb des Zeitraums: Icon entfaerben und leicht dimmen,
+                    // damit die farbigen Icons die relevanten Treffer markieren.
+                    .saturation(isInWindow ? 1 : RowMetrics.outOfWindowIconSaturation)
+                    .opacity(isInWindow ? 1 : RowMetrics.outOfWindowIconOpacity)
                     .padding(2)
                     .contentShape(Rectangle())
             }
@@ -38,6 +42,8 @@ struct FileRowView: View {
             Text(file.url.lastPathComponent)
                 .font(.callout)
                 .fontWeight(isDateSource ? .bold : .regular)
+                .foregroundStyle(isInWindow ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .opacity(isInWindow ? 1 : RowMetrics.outOfWindowTextOpacity)
                 .lineLimit(1)
                 .truncationMode(.middle)
 
@@ -54,6 +60,7 @@ struct FileRowView: View {
                 .font(.system(.callout, design: .monospaced))
                 .fontWeight(isDateSource ? .bold : .regular)
                 .foregroundStyle(.secondary)
+                .opacity(isInWindow ? 1 : RowMetrics.outOfWindowTextOpacity)
                 .frame(width: RowMetrics.dateColumnWidth, alignment: .trailing)
         }
         .padding(.vertical, 3)

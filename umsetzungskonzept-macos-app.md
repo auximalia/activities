@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.4.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.4.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -203,7 +203,8 @@ Baumlinien und Datumsspalte zueinander passen.
   - **Klick auf das Datei-Symbol / Doppelklick:** markieren **und** mit Standard-App öffnen.
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
   - **Hervorhebung datumstiftend:** die datumstiftende(n) Datei(en) (Zeitstempel == Ordner-Datum) werden **fett** dargestellt (Name **und** Datum); alle anderen normal. *(kein Ausgrauen)*
-  - **Außerhalb-des-Zeitraums-Hinweis:** liegt der Zeitstempel einer Datei **nicht** im gewählten Zeitfenster (`isInWindow == false`), erscheint rechts neben dem Namen das Symbol `clock.badge.xmark` mit MouseOver „Außerhalb des gewählten Zeitraums – zählt nicht zum Ordnerdatum". So ist erkennbar, warum solche Dateien nicht zum Ordnerdatum beitragen.
+  - **Außerhalb-des-Zeitraums-Hinweis:** liegt der Zeitstempel einer Datei **nicht** im gewählten Zeitfenster (`isInWindow == false`), erscheint rechts neben dem Namen das Symbol `clock.badge.xmark` mit MouseOver „Außerhalb des gewählten Zeitraums – zählt nicht zum Ordnerdatum".
+  - **Visuelle Abstufung (Farbe statt nur Dimmen):** Solche Dateien werden zusätzlich zurückgenommen – das **Icon wird entsättigt** (`saturation` 0 ⇒ Graustufen) und leicht gedimmt (`opacity` ~0,55), Name und Datum laufen auf ~0,75 Deckkraft bzw. Sekundärfarbe. *Begründung:* Farbe wirkt **präattentiv** – farbige Icons markieren so die relevanten Treffer, ohne dass man suchen muss. Reines Dimmen senkt den Kontrast aller Elemente gleichmäßig und kostet nur Lesbarkeit. Werte zentral in `RowMetrics.outOfWindow*`.
 
 #### 4.3.1 Baumdarstellung (Mind-Map-Stil, keine ASCII-Zeichen)
 Dateien eines Ordners werden als **Baum** unter dem Ordner gezeigt – gezeichnete

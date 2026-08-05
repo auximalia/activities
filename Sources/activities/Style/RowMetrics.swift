@@ -45,6 +45,15 @@ enum RowMetrics {
     static let connectorColor = Color.secondary.opacity(0.45)
     /// Hintergrund jeder zweiten Dateizeile (Zebra, als Lesehilfe).
     static let zebraColor = Color.secondary.opacity(0.07)
+
+    /// Saettigung des Datei-Icons bei Dateien **ausserhalb** des Zeitraums.
+    /// 0 = Graustufen: farbige Icons markieren so die relevanten Treffer
+    /// (Farbe wirkt praeattentiv, faellt also ohne Suchen auf).
+    static let outOfWindowIconSaturation: Double = 0
+    /// Deckkraft des Icons ausserhalb des Zeitraums (noch klar erkennbar).
+    static let outOfWindowIconOpacity: Double = 0.55
+    /// Deckkraft des Dateinamens ausserhalb des Zeitraums.
+    static let outOfWindowTextOpacity: Double = 0.75
 }
 
 /// Abgerundete Baumlinie vor einer Dateizeile ("Mind-Map"-Stil statt ASCII).

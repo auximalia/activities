@@ -48,6 +48,7 @@ struct HelpView: View {
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",
                     "Die datumstiftende Datei (neueste im Zeitfenster) ist fett.",
+                    "Dateien außerhalb des Zeitraums: graues Icon, gedimmt, Uhr-Symbol.",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",
                 ])
 

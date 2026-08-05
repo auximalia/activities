@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.2.2)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.3.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -189,7 +189,10 @@ Ein **„An den Anfang"-Knopf** in der Steuerleiste (Symbol `arrow.up.to.line`,
 Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 
 ### 4.3 Ordner- & Dateizeilen
-- **Ordnerzeile:** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion), Name (fett), Pfad (klein, gekürzt), rechts **Datum** (Monospace) + **Anzahl**.
+Alle Maße zentral in `RowMetrics` (`Style/RowMetrics.swift`), damit Einrückung,
+Baumlinien und Datumsspalte zueinander passen.
+
+- **Ordnerzeile (einzeilig):** Aufklapp-Pfeil (Indikator), **Ordner-Symbol** (Aktion), dann **Name (fett) und Pfad (klein, sekundär) hintereinander in EINER Zeile** – nicht untereinander. Bei Platzmangel wird **der Pfad** mittig gekürzt (`truncationMode(.middle)`, `layoutPriority(-1)`), **nie der Name** (`fixedSize(horizontal: true)`). Rechts **Datum** (Monospace) + **Anzahl**.
   - **Klick auf die Zeile (Text):** auf-/zuklappen, markieren **und den Ordnerpfad in die Zwischenablage kopieren**.
   - **Klick auf das Ordner-Symbol:** markieren **und** im Datei-Manager öffnen (+ Pfad in Zwischenablage).
   - **Doppelklick:** im Datei-Manager öffnen (+ kopieren).
@@ -201,8 +204,24 @@ Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
   - **Kontextmenü:** Öffnen / Im Datei-Manager anzeigen / Pfad kopieren.
   - **Hervorhebung datumstiftend:** die datumstiftende(n) Datei(en) (Zeitstempel == Ordner-Datum) werden **fett** dargestellt (Name **und** Datum); alle anderen normal. *(kein Ausgrauen)*
   - **Außerhalb-des-Zeitraums-Hinweis:** liegt der Zeitstempel einer Datei **nicht** im gewählten Zeitfenster (`isInWindow == false`), erscheint rechts neben dem Namen das Symbol `clock.badge.xmark` mit MouseOver „Außerhalb des gewählten Zeitraums – zählt nicht zum Ordnerdatum". So ist erkennbar, warum solche Dateien nicht zum Ordnerdatum beitragen.
-- **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **gut erkennbare, aber ruhige horizontale Linie** (1 px, Sekundärfarbe ~50 % Deckkraft) als Lesehilfe, damit der Blick beim Wandern zu den rechtsbündigen Zeitstempeln nicht in die Nachbarzeile verrutscht.
+
+#### 4.3.1 Baumdarstellung (Mind-Map-Stil, keine ASCII-Zeichen)
+Dateien eines Ordners werden als **Baum** unter dem Ordner gezeigt – gezeichnete
+Linien (`Path`/`Canvas`), **nicht** `├──`/`└──`-Zeichen:
+- **Einrückung** des Dateiblocks: `fileIndent` = 22 pt, danach eine **Konnektor-Rinne** `connectorWidth` = 22 pt; das Datei-Icon beginnt also ~44 pt rechts vom Ordner (deutlich weiter eingerückt als der Ordner).
+- **Konnektor je Dateizeile** (`TreeConnector`): senkrechte Linie von oben bis zur Zeilenmitte, dann ein **abgerundeter Bogen** (`addQuadCurve`, Radius `connectorRadius` = 6) nach rechts zum Icon → weiche „Mind-Map"-Anmutung.
+- **Letzte Datei:** die Senkrechte endet am Bogen. **Alle anderen:** Senkrechte läuft bis zum unteren Zeilenrand durch.
+- **Ordner-Stub:** ist ein Ordner aufgeklappt, zeichnet die Ordnerzeile eine kurze Senkrechte von ihrer Mitte bis zum unteren Rand – sie leitet sichtbar in den Dateiblock über.
+- **Flucht:** Ordner-Stub und Datei-Konnektoren nutzen dieselbe X-Position `connectorX = fileIndent + connectorWidth/2` (= 33 pt vom linken Blockrand), damit die Linien exakt übereinanderliegen.
+- Linien: `connectorColor` (Sekundärfarbe ~45 %), Stärke 1,2 pt, runde Enden; rein dekorativ (`accessibilityHidden`, kein Hit-Testing).
+
+#### 4.3.2 Zeitstempel-Zuordnung (Gesetz der Nähe)
+Zeitstempel dürfen **nicht** an den äußersten Fensterrand rutschen:
+- **Feste Datumsspalte** `dateColumnWidth` = 150 pt, rechtsbündig, für Ordner- **und** Dateizeilen. Statt `Spacer()` wird `Spacer(minLength:)` genutzt – die Spalte bleibt so nah am Inhalt und zugleich sauber ausgerichtet.
+- **Zebra-Streifen:** jede zweite Dateizeile erhält einen sehr dezenten Hintergrund (`zebraColor`, Sekundärfarbe ~7 %) als Lesehilfe über die Zeile hinweg. Reihenfolge der Hintergründe: **Auswahl vor Zebra** (`.background(Selection…)` zuerst, `.background(zebra)` danach), sonst überdeckt das Zebra die Markierung.
+- **Trennung der Ordner-Blöcke:** nach jedem Ordner-Block (Ordnerzeile + ggf. aufgeklappte Dateien) steht eine **gut erkennbare, aber ruhige horizontale Linie** (1 px, Sekundärfarbe ~50 % Deckkraft) als Lesehilfe.
 - **Markierung (Selektion):** dezente, moderne Tönung (Akzentfarbe ~12 % Füllung + feiner Rahmen, weiche Ecken) – **nicht** grell/vollflächig; Text bleibt normal lesbar.
+
 
 ### 4.4 Tastatur & QuickLook
 - **Pfeil hoch/runter:** Auswahl-Cursor über die flache Zeilenliste bewegen.
@@ -294,7 +313,8 @@ Sources/
                              FolderRowView, FileRowView, EmptyStateView, QuickLookHost
     Services/                FinderService, ClipboardService, SettingsStore,
                              FolderWatcher (FSEvents), ExportService, FileIconProvider
-    Style/                   IconColor (3.10), DateFormatting, SelectionBackground
+    Style/                   IconColor (3.10), DateFormatting, SelectionBackground,
+                             RowMetrics + TreeConnector (4.3.1/4.3.2)
     BuildInfo.swift          liest Version/Revision aus Info.plist
   CoreChecks/            ausführbarer Prüf-Runner (ersetzt XCTest ohne Xcode)
 Tests/ActivitiesCoreTests/   XCTest-Suite (mit vollem Xcode)

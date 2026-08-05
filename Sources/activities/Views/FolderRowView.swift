@@ -22,11 +22,11 @@ struct FolderRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: RowMetrics.itemSpacing) {
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .frame(width: 12)
+                .frame(width: RowMetrics.disclosureWidth)
 
             Button {
                 model.select(.folder(entry.folder))
@@ -42,18 +42,24 @@ struct FolderRowView: View {
             .help("Im Finder öffnen · Pfad kopieren")
             .accessibilityLabel("Ordner im Finder öffnen")
 
-            VStack(alignment: .leading, spacing: 2) {
+            // Name und Pfad stehen in EINER Zeile hintereinander; bei Platzmangel
+            // wird der Pfad gekuerzt, nicht der Name.
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(entry.folder.lastPathComponent)
                     .font(.headline)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Text(entry.folder.path)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .layoutPriority(-1)
             }
 
-            Spacer()
+            Spacer(minLength: RowMetrics.itemSpacing)
 
+            // Feste Datumsspalte: haelt den Zeitstempel nah am Inhalt.
             VStack(alignment: .trailing, spacing: 2) {
                 Text(DateFormatting.dateTime(displayDate))
                     .font(.system(.callout, design: .monospaced))
@@ -61,10 +67,27 @@ struct FolderRowView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+            .frame(width: RowMetrics.dateColumnWidth, alignment: .trailing)
         }
         .padding(.vertical, 5)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, RowMetrics.horizontalPadding)
         .background(SelectionBackground(isActive: isSelected))
+        // Baum-Stub: leitet vom aufgeklappten Ordner in den Dateiblock ueber.
+        .overlay(alignment: .bottom) {
+            if isExpanded {
+                GeometryReader { geometry in
+                    Path { path in
+                        path.move(to: CGPoint(x: RowMetrics.connectorX, y: geometry.size.height / 2))
+                        path.addLine(to: CGPoint(x: RowMetrics.connectorX, y: geometry.size.height))
+                    }
+                    .stroke(
+                        RowMetrics.connectorColor,
+                        style: StrokeStyle(lineWidth: RowMetrics.connectorLineWidth, lineCap: .round)
+                    )
+                }
+                .allowsHitTesting(false)
+            }
+        }
         .contentShape(Rectangle())
         .help("Klick: auf-/zuklappen & Pfad kopieren · Doppelklick: im Finder öffnen")
         .onTapGesture(count: 2) {

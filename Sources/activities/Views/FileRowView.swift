@@ -11,6 +11,8 @@ struct FileRowView: View {
     /// Ob diese Datei dem Ordner sein Datum stiftet (juengste sichtbare Datei).
     /// Datumstiftende Dateien werden fett dargestellt.
     var isDateSource: Bool = true
+    /// Jede zweite Zeile bekommt einen dezenten Hintergrund (Zebra, Lesehilfe).
+    var isAlternate: Bool = false
 
     private var isSelected: Bool { model.selection == .file(file.url) }
     /// Ob die Datei im gewaehlten Zeitfenster liegt (sonst: Hinweis-Symbol).
@@ -47,15 +49,17 @@ struct FileRowView: View {
                     .accessibilityLabel("Außerhalb des gewählten Zeitraums")
             }
 
-            Spacer()
+            Spacer(minLength: RowMetrics.itemSpacing)
             Text(DateFormatting.dateTime(file.timestamp))
                 .font(.system(.callout, design: .monospaced))
                 .fontWeight(isDateSource ? .bold : .regular)
                 .foregroundStyle(.secondary)
+                .frame(width: RowMetrics.dateColumnWidth, alignment: .trailing)
         }
         .padding(.vertical, 3)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, RowMetrics.horizontalPadding)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
+        .background(isAlternate ? RowMetrics.zebraColor : Color.clear)
         .contentShape(Rectangle())
         .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau")
         .onTapGesture(count: 2) {

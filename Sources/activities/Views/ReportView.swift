@@ -156,14 +156,22 @@ struct ReportView: View {
                 Text("Keine passenden Dateien in diesem Ordner.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                    .padding(.leading, 26)
+                    .padding(.leading, RowMetrics.fileIndent + RowMetrics.connectorWidth)
                     .padding(.vertical, 3)
             } else {
                 let sourceDate = model.newestVisibleDate(in: entry.folder) ?? entry.newestDate
-                ForEach(files) { file in
-                    FileRowView(file: file, model: model, isDateSource: file.timestamp == sourceDate)
-                        .id(RowID.file(file.url))
-                        .padding(.leading, 26)
+                ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
+                    HStack(spacing: 0) {
+                        TreeConnector(isLast: index == files.count - 1)
+                        FileRowView(
+                            file: file,
+                            model: model,
+                            isDateSource: file.timestamp == sourceDate,
+                            isAlternate: index.isMultiple(of: 2) == false
+                        )
+                    }
+                    .id(RowID.file(file.url))
+                    .padding(.leading, RowMetrics.fileIndent)
                 }
             }
         } else {
@@ -171,7 +179,7 @@ struct ReportView: View {
                 ProgressView().controlSize(.small)
                 Text("Lade Dateien …").font(.callout).foregroundStyle(.secondary)
             }
-            .padding(.leading, 26)
+            .padding(.leading, RowMetrics.fileIndent + RowMetrics.connectorWidth)
             .padding(.vertical, 3)
         }
     }

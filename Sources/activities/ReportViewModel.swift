@@ -84,7 +84,6 @@ final class ReportViewModel {
     var detailDone = 0
     var detailTotal = 0
     /// Zeigt die Warnung „sehr grosser Zeitraum" an (View bindet daran).
-    var confirmLargeScan = false
     var errorMessage: String?
     var scannedFileCount = 0
     /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
@@ -133,6 +132,15 @@ final class ReportViewModel {
     var expandedFolders: Set<URL> = []
     /// Detaildateien je Ordner (ALLE Dateien, nur namensgefiltert; nil = laedt noch).
     var filesByFolder: [URL: [RelevantFile]] = [:]
+
+    /// Rohergebnis des letzten Suchlaufs – **das gesamte gescannte Fenster**.
+    /// Grundlage dafuer, eine Verkleinerung des Zeitraums ohne neuen Scan zu bedienen.
+    private var scannedFiles: [RelevantFile] = []
+    /// Womit der letzte Suchlauf durchgefuehrt wurde (Wurzel, Muster, Fenster).
+    private var lastScanRoot: URL?
+    private var lastScanPattern: String = ""
+    private var lastScanStart: Date = .distantFuture
+    private var lastScanEnd: Date = .distantPast
 
     /// Alle im Zeitraum relevanten Dateien (Basis fuer Legende/Diagramm/Ordner).
     private var relevantFiles: [RelevantFile] = []
@@ -206,21 +214,20 @@ final class ReportViewModel {
         let clamped = min(max(value, 1), 3650)
         guard clamped != days else { return }
         days = clamped
-        store.save(days: clamped, namePattern: namePattern)
-        rescan()
+        applyWindowChange()
     }
 
     func setUseDateRange(_ on: Bool) {
         useDateRange = on
         store.saveTimeMode(useDateRange: on, start: rangeStart, end: rangeEnd)
-        rescan()
+        applyWindowChange()
     }
 
     func setRangeStart(_ date: Date) {
         let day = Calendar.current.startOfDay(for: date)
         rangeStart = min(day, rangeEnd)
         store.saveTimeMode(useDateRange: useDateRange, start: rangeStart, end: rangeEnd)
-        // Kein automatischer Rescan: erst "Aktualisieren" wendet die Zeitspanne an.
+        applyWindowChange()
     }
 
     func setRangeEnd(_ date: Date) {
@@ -228,7 +235,7 @@ final class ReportViewModel {
         let day = Calendar.current.startOfDay(for: date)
         rangeEnd = min(max(day, rangeStart), today)
         store.saveTimeMode(useDateRange: useDateRange, start: rangeStart, end: rangeEnd)
-        // Kein automatischer Rescan: erst "Aktualisieren" wendet die Zeitspanne an.
+        applyWindowChange()
     }
 
     /// Bricht einen laufenden Suchlauf (und das Laden der Detaildateien) ab.
@@ -358,7 +365,7 @@ final class ReportViewModel {
             end: w.end,
             countOnlyInWindow: !showOutOfWindowFiles
         ) { url in
-            !self.isHidden(url)
+            !self.isHidden(url) && self.nameFilter.matches(url.lastPathComponent)
         }
         displayBuckets = TimeBucket.group(entries)
         pruneSelection()
@@ -486,9 +493,13 @@ final class ReportViewModel {
     /// Schalter – die Zugehoerigkeit zum Zeitraum.
     private func isVisibleDetail(_ file: RelevantFile) -> Bool {
         if isHidden(file.url) { return false }
+        if !nameFilter.matches(file.url.lastPathComponent) { return false }
         if !showOutOfWindowFiles && !isInWindow(file) { return false }
         return true
     }
+
+    /// Aktueller Namensfilter (gepuffert, damit er nicht je Datei neu entsteht).
+    private var nameFilter: NameFilter { NameFilter(namePattern) }
 
     /// Sichtbare Dateien eines Ordners (ALLE Dateien, Typ-gefiltert).
     /// ``nil`` bedeutet "noch nicht geladen".
@@ -701,18 +712,59 @@ final class ReportViewModel {
     }
 
     /// Schwelle fuer die Warnung „sehr grosser Zeitraum" (~10 Jahre).
-    private let largeSpanThreshold = 3653
 
     /// Warnung bestaetigt: trotzdem suchen.
-    func confirmLargeScanAndProceed() {
-        confirmLargeScan = false
-        rescan(confirmedLarge: true)
+
+
+    /// Wendet eine geaenderte Zeitraum- oder Filtereinstellung an – **ohne Scan**.
+    ///
+    /// **Grundsatz: sparsam scannen.** Von der Platte gelesen wird nur bei
+    /// Programmstart, Ordnerwechsel, manuellem „Aktualisieren" und Auto-Refresh.
+    /// Alles andere (Tage, Zeitspanne, Namensfilter, Typ-Filter) arbeitet auf den
+    /// bereits eingelesenen Daten.
+    func applyWindowChange() {
+        guard lastScanRoot == rootURL, !scannedFiles.isEmpty else {
+            rescan()
+            return
+        }
+        store.save(days: days, namePattern: namePattern)
+        errorMessage = nil
+        relevantFiles = filteredFromScan()
+        scannedFileCount = relevantFiles.count
+        recomputeLegend()
+        recomputeChart()
+        selection = nil
+        chartFocus = nil
+
+        // Detaildateien nur fuer Ordner nachladen, die noch nicht im Zwischen-
+        // speicher liegen. Beim Verkleinern des Zeitraums ist das keiner.
+        let folders = Set(relevantFiles.map(\.folder))
+        filesByFolder = filesByFolder.filter { folders.contains($0.key) }
+        if folders.subtracting(filesByFolder.keys).isEmpty {
+            isLoadingDetails = false
+            detailTotal = 0
+            detailDone = 0
+            recomputeDisplayBuckets()
+        } else {
+            loadDetails(for: folders)
+        }
     }
 
-    func dismissLargeScan() {
-        confirmLargeScan = false
+    /// Die Dateien des letzten Suchlaufs, eingegrenzt auf Zeitfenster und Namensmuster.
+    private func filteredFromScan() -> [RelevantFile] {
+        let w = window
+        let filter = NameFilter(namePattern)
+        return scannedFiles.filter {
+            $0.timestamp >= w.start && $0.timestamp < w.end
+                && filter.matches($0.url.lastPathComponent)
+        }
     }
 
+    /// Liest den Ordner **von der Platte** neu ein.
+    ///
+    /// Ausgeloest durch: Programmstart, Ordnerwechsel, „Aktualisieren" (⌘R) und
+    /// Auto-Refresh. **Nicht** durch Aenderungen an Zeitraum oder Filter – die
+    /// bedient ``applyWindowChange()`` aus dem Speicher.
     func rescan(preservingState: Bool = false, confirmedLarge: Bool = false) {
         scanTask?.cancel()
         detailLoadTask?.cancel()
@@ -732,13 +784,18 @@ final class ReportViewModel {
             }
         }
 
-        // Warnung bei sehr grossem Zeitraum (nicht bei Live-Refresh / nach Bestaetigung).
-        if !preservingState && !confirmedLarge && windowSpanDays > largeSpanThreshold {
-            confirmLargeScan = true
-            return
-        }
 
-        let settings = ScanSettings(rootURL: rootURL, start: w.start, end: w.end, namePattern: namePattern)
+        // Der Suchlauf erfasst den Ordner **vollstaendig** – ohne Zeitfenster und
+        // ohne Namensmuster. Beides wird anschliessend im Speicher angewandt.
+        // Der Baumdurchlauf kostet dadurch nicht mehr Zeit (er lief schon immer
+        // durch alles; das Fenster entschied nur, was behalten wird) – es waechst
+        // nur der Speicherbedarf (~20 MB bei ~83.000 Dateien).
+        let settings = ScanSettings(
+            rootURL: rootURL,
+            start: .distantPast,
+            end: .distantFuture,
+            namePattern: ""
+        )
         store.save(days: days, namePattern: namePattern)
         errorMessage = nil
         isScanning = true
@@ -752,8 +809,10 @@ final class ReportViewModel {
             }
             if Task.isCancelled { return }
             guard let self else { return }
-            self.relevantFiles = result.files
-            self.scannedFileCount = result.files.count
+            self.scannedFiles = result.files
+            self.lastScanRoot = settings.rootURL
+            self.relevantFiles = self.filteredFromScan()
+            self.scannedFileCount = self.relevantFiles.count
             self.lastScanDuration = Date().timeIntervalSince(started)
             self.isScanning = false
             self.reconcileState(preservingState: preservingState)
@@ -788,7 +847,10 @@ final class ReportViewModel {
         }
 
         let scanner = self.scanner
-        let filter = NameFilter(namePattern)
+        // Ungefiltert lesen: Der Namensfilter wird erst bei der Anzeige
+        // angewandt (``isVisibleDetail``). Sonst muessten die Ordner bei jeder
+        // Filteraenderung erneut von der Platte gelesen werden.
+        let filter = NameFilter("")
         let list = Array(folders)
         detailLoadTask = Task { [weak self] in
             let loaded = await Self.listAll(scanner: scanner, filter: filter, folders: list) { done in
@@ -842,6 +904,8 @@ final class ReportViewModel {
         displayBuckets = []
         chartDays = []
         relevantFiles = []
+        scannedFiles = []
+        lastScanRoot = nil
         topExtensions = []
         topExtensionSet = []
         otherCount = 0

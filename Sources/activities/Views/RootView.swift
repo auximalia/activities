@@ -28,12 +28,6 @@ struct RootView: View {
         .navigationTitle("activities — \(model.rootURL.lastPathComponent)")
         .task { model.startInitialScanIfNeeded() }
         .task { await updates.check() }
-        .alert("Sehr grosser Zeitraum", isPresented: $model.confirmLargeScan) {
-            Button("Trotzdem suchen") { model.confirmLargeScanAndProceed() }
-            Button("Abbrechen", role: .cancel) { model.dismissLargeScan() }
-        } message: {
-            Text("Der gewaehlte Zeitraum umfasst mehr als 10 Jahre. Die Suche kann sehr lange dauern und viele Ordner liefern. Trotzdem starten?")
-        }
         .alert(
             updates.manualResult?.title ?? "",
             isPresented: Binding(

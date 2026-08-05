@@ -22,7 +22,7 @@ struct HelpView: View {
 
                 section("Zeitraum festlegen", icon: "calendar", [
                     "„Tage“: Schnellwahl 7/30/90; das Regler-Symbol öffnet die freie Eingabe.",
-                    "„Zeitspanne“: feste Von–Bis, bis max. heute – wirkt erst mit „Aktualisieren“.",
+                    "„Spanne“: feste Von–Bis, bis max. heute – wirkt sofort.",
                     "Ordner außerhalb des Zeitraums werden ausgeblendet.",
                 ])
 
@@ -33,7 +33,9 @@ struct HelpView: View {
                 ])
 
                 section("Aktualisieren & Auto-Refresh", icon: "arrow.clockwise", [
-                    "„Aktualisieren“ (⌘R) startet die Suche neu.",
+                    "Gelesen wird nur bei Start, Ordnerwechsel, ⌘R und Auto-Refresh.",
+                    "Zeitraum und Filter wirken sofort – ohne neuen Suchlauf.",
+                    "„Aktualisieren“ (⌘R) liest den Ordner neu von der Platte.",
                     "Roter Stopp-Knopf bricht einen laufenden Suchlauf ab.",
                     "Auto-Refresh lädt automatisch neu, wenn sich der Ordner ändert.",
                 ])

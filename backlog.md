@@ -10,7 +10,10 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 **Erledigt in Sprint 2 (v1.8.0):** UX-03, UX-04, UX-05, UX-15.
 **Nachjustiert (v1.9.0):** Toolbar nach Arbeitsablauf sortiert; UX-05 teilweise **revidiert**
 (Zeitraum zurück ans Diagramm – siehe Konsistenz-Punkt 8).
-**Nachgemeldet:** UX-28. – Backlog umfasst 28 Einträge, davon 17 offen.
+**Nachgemeldet:** UX-28.
+**v1.10.0 – Grundsatz „sparsam scannen":** Gescannt wird nur noch bei Start, Ordnerwechsel,
+⌘R und Auto-Refresh; Zeitraum und Filter arbeiten im Speicher. Vorbedingung von UX-02 damit
+erledigt. – Backlog umfasst 28 Einträge, davon 17 offen (UX-02 nur noch Restaufwand).
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -38,8 +41,8 @@ Glob nur noch im Tooltip und in der Hilfe als Zusatzmöglichkeit erwähnen.
 **Umgesetzt:** Platzhalter „Name filtern, z. B. studium"; Tooltip und Hilfe stellen den
 Teilstring als Normalfall dar, Glob als Zusatz.
 
-### UX-02 · Namensfilter wirkt sofort (ohne Neuscan)
-**Aufwand:** L · **Nutzen:** sehr hoch
+### ◐ UX-02 · Namensfilter wirkt sofort (ohne Neuscan) *(Vorbedingung erledigt, v1.10.0)*
+**Aufwand:** S (Rest) · **Nutzen:** sehr hoch
 Der Filter löst heute einen kompletten Neuscan aus. Filtern ist aber eine reine
 Anzeigeoperation auf bereits geladenen Daten.
 **Technisches Risiko (bewusst entscheiden):** Der Scanner filtert derzeit **während** des
@@ -47,6 +50,11 @@ Scans (`ScanSettings.namePattern`). Für Live-Filterung muss ungefiltert gescann
 bei der Anzeige gefiltert werden → mehr Dateien im Speicher. Vor der Umsetzung an einem
 großen Baum (> 200 k Dateien) messen; notfalls Live-Filter nur unterhalb einer Schwelle.
 **Akzeptanz:** Tippen filtert ohne Verzögerung; nur Ordnerwechsel und Zeitraum lösen einen Scan aus.
+**Stand v1.10.0:** Die **Architektur-Vorbedingung ist erledigt** – der Scan ist ungefiltert,
+der Namensfilter wirkt im Speicher und löst **keinen** Suchlauf mehr aus. Gemessen: ~83.000
+Dateien, ~20 MB, Baumdurchlauf unverändert ~1,3 s. **Offen bleibt nur** das Filtern *je
+Tastendruck* (heute: Enter). Dafür ist eine Entprellung nötig, weil beim Tippen sonst für
+jede Zwischenstufe Detaildateien neu geladen würden.
 
 ### ✅ UX-03 · Toolbar neu bauen (echte macOS-Toolbar) *(erledigt, v1.8.0)*
 **Aufwand:** L · **Nutzen:** sehr hoch

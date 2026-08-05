@@ -34,7 +34,7 @@ struct MainToolbar: ToolbarContent {
             SearchField(
                 text: $model.namePattern,
                 prompt: "Name filtern, z. B. studium",
-                onSubmit: { model.rescan() }
+                onSubmit: { model.applyWindowChange() }
             )
             .frame(width: 220)
             .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
@@ -46,7 +46,7 @@ struct MainToolbar: ToolbarContent {
         }
 
         // 4a. Anpassungen: Zustände (ändern die Darstellung, nicht die Datenmenge)
-        ToolbarItem {
+        ToolbarItem(placement: .navigation) {
             Toggle(isOn: Binding(
                 get: { model.allExpanded },
                 set: { model.setAllExpanded($0) }
@@ -57,7 +57,7 @@ struct MainToolbar: ToolbarContent {
             .help("Alle Ordner auf- oder zuklappen")
         }
 
-        ToolbarItem {
+        ToolbarItem(placement: .navigation) {
             Toggle(isOn: Binding(
                 get: { model.showOutOfWindowFiles },
                 set: { model.setShowOutOfWindowFiles($0) }
@@ -70,7 +70,7 @@ struct MainToolbar: ToolbarContent {
                   : "Dateien außerhalb des Zeitraums sind ausgeblendet")
         }
 
-        ToolbarItem {
+        ToolbarItem(placement: .navigation) {
             Toggle(isOn: Binding(
                 get: { model.autoRefresh },
                 set: { model.setAutoRefresh($0) }
@@ -82,7 +82,7 @@ struct MainToolbar: ToolbarContent {
         }
 
         // 4b. Anpassungen: Aktionen
-        ToolbarItem {
+        ToolbarItem(placement: .navigation) {
             Button {
                 model.scrollToTopToken += 1
             } label: {
@@ -91,7 +91,7 @@ struct MainToolbar: ToolbarContent {
             .help("An den Anfang der Liste springen (⌘↑)")
         }
 
-        ToolbarItem {
+        ToolbarItem(placement: .navigation) {
             Button {
                 model.rescan()
             } label: {
@@ -101,9 +101,12 @@ struct MainToolbar: ToolbarContent {
         }
 
         // --- Status ---
-        ToolbarItem {
-            if model.isScanning || model.isLoadingDetails {
-                HStack(spacing: 6) {
+        // Fester Platz: Der Block ist immer vorhanden und nur waehrend einer
+        // Suche sichtbar. Sonst wuerden die Nachbarelemente beim Ein- und
+        // Ausblenden hin- und herspringen.
+        ToolbarItem(placement: .navigation) {
+            HStack(spacing: 6) {
+                if model.isScanning || model.isLoadingDetails {
                     ProgressView().controlSize(.small)
                     Button {
                         model.cancelScan()
@@ -114,6 +117,7 @@ struct MainToolbar: ToolbarContent {
                     .help("Suche abbrechen")
                 }
             }
+            .frame(width: 44, alignment: .leading)
         }
 
         ToolbarItem {

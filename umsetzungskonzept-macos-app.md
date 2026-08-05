@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.9.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.10.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -205,8 +205,10 @@ Dark-Mode automatisch.
 
 **Toolbar (4.1.1):** Reihenfolge folgt dem **Arbeitsablauf**, nicht der Art der Elemente:
 `[1 Ort] [2 Suche] [3 Zeitraum]  ·Titel·  [4 Anpassungen: Zustände | Aktionen | Status]`.
-Die Schritte 1–3 liegen in der `.navigation`-Zone (links), damit Lese- und Arbeitsreihenfolge
-übereinstimmen.
+**Alle** Elemente liegen in der `.navigation`-Zone (links) und rücken damit zusammen; der
+Fenstertitel steht rechts daneben. So bleibt der Weg von Schritt 1 zu Schritt 4 kurz.
+Die **Fortschrittsanzeige** hat einen **festen Platz** (44 pt, immer vorhanden, nur während
+einer Suche sichtbar) – sonst verschöben sich beim Ein- und Ausblenden alle Nachbarelemente.
 - `Switch` ist laut HIG ein Element für Einstellungs-**Formulare**; in der Toolbar stehen
   **Toggle-Buttons** (`toggleStyle(.button)`) mit sichtbarem Aktiv-Zustand.
 - **Zustände und Aktionen sind getrennt** gruppiert – früher standen sie ununterscheidbar nebeneinander.
@@ -233,7 +235,7 @@ Er erscheint als **linksbündige Überschrift über dem Diagramm** in der Langfa
 - **Ordner-Menü** (Label = Ordnername): „Ordner wählen …" (Dialog) + Divider + **zuletzt genutzte Ordner** (max. 8).
 - **Zeitmodus-Umschalter** (Segmented): **„Tage" | „Spanne"**.
   - **Tage:** Presets **7 / 30 / 90** + Eintrag **„Eigene"** (Schieberegler-Symbol). Dieser öffnet ein **Popover** mit Zahlenfeld und Stepper (1…3650). *Früher standen Presets **und** Stepper dauerhaft nebeneinander – zwei Wege für dieselbe Größe; das war Redundanz, kein Komfort (UX-15).*
-  - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum), Grenzen über die Picker erzwungen, „bis" auf **heute** begrenzt. Änderungen wirken **erst mit „Aktualisieren"**.
+  - **Zeitspanne:** zwei **Datumsfelder** „von" – „bis" (nur Datum), Grenzen über die Picker erzwungen, „bis" auf **heute** begrenzt. Änderungen wirken **sofort** (seit v1.10.0 ohne Suchlauf, siehe 5.-1).
 - **Suchfeld** (`.searchable`), Enter = Rescan, ⌘F fokussiert.
 - **Drei Zustands-Toggles:** alles auf-/zuklappen · Dateien außerhalb des Zeitraums · Auto-Refresh (5.3). Bewusst **einzeln sichtbar** statt in einem Menü versteckt.
 - **Aktionen:** „An den Anfang" (⌘↑) und „Aktualisieren" (⌘R).
@@ -397,6 +399,36 @@ scrollen nur so weit, bis die Zeile sichtbar ist.
 - **Export:** CSV (`;`-getrennt) und eigenständiges HTML, jeweils aus den angezeigten Ordnern (`displayBuckets`), über Speichern-Dialog.
 
 ## 5. Reaktivität, Nebenläufigkeit, Persistenz
+
+### 5.-1 Sparsam scannen (Grundsatz, ab v1.10.0)
+**Von der Platte gelesen wird nur bei vier Anlässen:**
+Programmstart · Ordnerwechsel · „Aktualisieren" (⌘R) · Auto-Refresh (FSEvents).
+
+**Alles andere arbeitet im Speicher:** Tage, Zeitspanne, Namensfilter, Typ-Filter und die
+Anzeigeschalter lösen **keinen** Suchlauf mehr aus, sondern nur eine Neuberechnung
+(`applyWindowChange()`).
+
+**Voraussetzung – der Scan ist ungefiltert.** `ScanSettings` bekommt
+`start: .distantPast`, `end: .distantFuture`, `namePattern: ""`. Der Ordner wird also
+**vollständig** erfasst; Zeitfenster und Namensmuster werden erst danach angewandt
+(`filteredFromScan()`).
+
+**Warum das nichts kostet (gemessen):** Der Scanner lief schon immer durch den *ganzen*
+Baum – das Zeitfenster entschied nur, was er *behält*. Der Durchlauf dauert also
+unverändert lange (~1,3 s bei ~83.000 Dateien in `~/Documents`); es wächst allein der
+Speicherbedarf: **~20 MB** bei 83.000 Dateien, hochgerechnet ~100 MB bei ~415.000.
+
+**Detaildateien** werden ebenfalls **ungefiltert** je Ordner gelesen und zwischengespeichert;
+der Namensfilter wirkt erst bei der Anzeige (`isVisibleDetail`). Nachgeladen wird nur für
+Ordner, die noch nicht im Zwischenspeicher liegen – beim *Verkleinern* des Zeitraums ist
+das keiner.
+
+**Entfallen:** Die Warnung „Sehr grosser Zeitraum" (> 10 Jahre). Sie schützte vor teuren
+Suchläufen; da der Zeitraum den Scan nicht mehr beeinflusst, wäre sie ein Fehlalarm.
+Der **Diagramm-Schutz** (> 4000 Tage ⇒ leeres Diagramm) bleibt bestehen.
+
+**Folge für die Bedienung:** Auch die Datumsfelder der Zeitspanne wirken jetzt **sofort** –
+die frühere Regel „erst mit *Aktualisieren*" ist gegenstandslos.
 
 ### 5.0 Zustandsänderungen gehören ins Modell (wichtige Lehre)
 **Vorfall (v1.8.0 → behoben in v1.8.1):** Nach dem Umbau der Steuerleiste zur Toolbar

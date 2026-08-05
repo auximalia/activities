@@ -23,6 +23,7 @@ struct HelpView: View {
                 section("Zeitraum festlegen", icon: "calendar", [
                     "„Tage“: Schnellwahl 7/30/90; das Regler-Symbol öffnet die freie Eingabe.",
                     "„Spanne“: feste Von–Bis, bis max. heute – wirkt sofort.",
+                    "„Alle“: ohne Zeitgrenze – die App wird zum reinen Suchwerkzeug.",
                     "Ordner außerhalb des Zeitraums werden ausgeblendet.",
                 ])
 
@@ -43,7 +44,10 @@ struct HelpView: View {
                 section("Diagramm & Legende", icon: "chart.bar.xaxis", [
                     "Gestapelte Balken pro Tag nach Endung (Top 10 + graue „Sonstige“).",
                     "Jeder Typ hat eine feste, klar unterscheidbare Farbe – auch nach Zeitraumwechsel.",
+                    "Überfahren zeigt Datum, Anzahl und Aufschlüsselung nach Typ.",
                     "Klick auf ein Segment springt zur passenden Datei.",
+                    "Ziehen im Diagramm wählt einen Zeitraum aus.",
+                    "Lange Zeiträume werden nach Woche oder Monat gebündelt.",
                     "Legende: jeder Eintrag ist ein Knopf – Klick blendet den Typ aus/ein.",
                     "Doppelklick = nur diesen Typ; erneuter Doppelklick = wieder alle.",
                     "Sind Typen ausgeblendet, erscheint ein Hinweis mit „Zurücksetzen“ (⌥⌘R).",

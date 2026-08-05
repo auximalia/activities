@@ -30,7 +30,9 @@ struct ChartHeaderView: View {
                     onSelect: { day, ext in model.focus(day: day, ext: ext) },
                     onToggleExtension: { model.toggleExtension($0) },
                     onSoloExtension: { model.soloExtension($0) },
-                    colorAssignment: model.typeColorAssignment
+                    colorAssignment: model.typeColorAssignment,
+                    granularity: model.chartGranularity,
+                    onRangeSelect: { from, to in model.selectRange(from: from, to: to) }
                 )
                 .frame(height: Self.chartHeight)
                 .padding(.horizontal, 4)

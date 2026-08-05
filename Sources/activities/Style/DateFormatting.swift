@@ -69,6 +69,30 @@ enum DateFormatting {
         "\(weekdayShort(date, calendar: calendar))., \(day(date))"
     }
 
+    private static let monthYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "de_DE")
+        formatter.dateFormat = "LLLL yyyy"
+        return formatter
+    }()
+
+    private static let monthShortFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "de_DE")
+        formatter.dateFormat = "LLL yy"
+        return formatter
+    }()
+
+    /// Kurzer Monat mit Jahr, z. B. "Aug 26".
+    static func monthShort(_ date: Date) -> String {
+        monthShortFormatter.string(from: date)
+    }
+
+    /// Monat und Jahr, z. B. "August 2026".
+    static func monthYear(_ date: Date) -> String {
+        monthYearFormatter.string(from: date)
+    }
+
     /// Kurzes Datum ohne Jahr, z. B. "06.07.".
     static func dayMonth(_ date: Date) -> String {
         dayMonthFormatter.string(from: date)

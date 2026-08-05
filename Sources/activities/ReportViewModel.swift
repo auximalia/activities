@@ -8,6 +8,16 @@ struct ChartFocus: Equatable, Sendable {
     let day: Date
 }
 
+/// Zeitmodus der Auswertung.
+enum TimeMode: Hashable, Sendable {
+    /// Rollierendes Fenster ab heute (Tage).
+    case rolling
+    /// Feste Zeitspanne von–bis.
+    case range
+    /// Ohne Zeitgrenze – die App wird zum reinen Suchwerkzeug.
+    case all
+}
+
 /// Woher eine Auswahl stammt – Grundlage fuer die Frage, ob die Liste dorthin
 /// scrollen darf.
 ///
@@ -66,6 +76,9 @@ final class ReportViewModel {
     var namePattern: String
     /// Zeitmodus: false = rollierend (Tage), true = feste Zeitspanne (von–bis).
     var useDateRange: Bool
+    /// Kein Zeitfenster – die App arbeitet als reines Suchwerkzeug ueber den
+    /// gesamten Bestand. Hat Vorrang vor ``useDateRange``.
+    var ignoreTimeWindow: Bool = false
     /// Feste Zeitspanne (nur bei ``useDateRange``); auf Tagesbeginn normalisiert.
     var rangeStart: Date
     var rangeEnd: Date
@@ -73,6 +86,8 @@ final class ReportViewModel {
     // Ergebnisse und Status.
     /// Anzuzeigende Ordner (nach Zeitraum + Typ-Filter, ohne leere Ordner).
     var displayBuckets: [BucketedEntries] = []
+    /// Buendelung der Diagramm-Achse (automatisch nach Laenge des Zeitraums).
+    private(set) var chartGranularity: ChartGranularity = .day
     /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
     var chartDays: [DayExtensionCount] = []
     var isScanning = false
@@ -164,6 +179,7 @@ final class ReportViewModel {
         self.autoRefresh = saved.autoRefresh
         self.showOutOfWindowFiles = saved.showOutOfWindowFiles
         self.headerExpanded = saved.headerExpanded
+        self.ignoreTimeWindow = saved.ignoreTimeWindow
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
@@ -186,6 +202,19 @@ final class ReportViewModel {
     private var window: TimeWindow {
         let calendar = Calendar.current
         let now = Date()
+        if ignoreTimeWindow {
+            // Ohne Zeitfenster: Achse ueber den tatsaechlichen Datenbereich,
+            // damit das Diagramm nicht ins Leere laeuft.
+            let days = scannedFiles.map(\.timestamp)
+            let first = days.min() ?? now
+            let last = days.max() ?? now
+            return TimeWindow(
+                start: .distantPast,
+                end: .distantFuture,
+                chartStartDay: calendar.startOfDay(for: first),
+                chartEndDay: calendar.startOfDay(for: last)
+            )
+        }
         if useDateRange {
             let startDay = calendar.startOfDay(for: rangeStart)
             let endDay = calendar.startOfDay(for: rangeEnd)
@@ -214,10 +243,58 @@ final class ReportViewModel {
         let clamped = min(max(value, 1), 3650)
         guard clamped != days else { return }
         days = clamped
+        ignoreTimeWindow = false
+        store.saveIgnoreTimeWindow(false)
+        applyWindowChange()
+    }
+
+    /// Der gewaehlte Zeitmodus als **eine** Groesse fuer die Oberflaeche –
+    /// zwei getrennte Schalter (``useDateRange`` und ``ignoreTimeWindow``) waeren
+    /// dort nur verwirrend.
+    var timeMode: TimeMode {
+        if ignoreTimeWindow { return .all }
+        return useDateRange ? .range : .rolling
+    }
+
+    func setTimeMode(_ mode: TimeMode) {
+        switch mode {
+        case .all:     setIgnoreTimeWindow(true)
+        case .range:   setUseDateRange(true)
+        case .rolling: setUseDateRange(false)
+        }
+    }
+
+    /// Uebernimmt einen im Diagramm aufgezogenen Zeitraum.
+    ///
+    /// Die Grenzen werden auf **Buendel-Kanten** gerundet: Bei Monats-Buendelung
+    /// waere es willkuerlich, mitten in einen Balken zu schneiden.
+    func selectRange(from: Date, to: Date) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let start = chartGranularity.bucketStart(for: from, calendar: calendar)
+        let bucketOfEnd = chartGranularity.bucketStart(for: to, calendar: calendar)
+        let endExclusive = chartGranularity.next(after: bucketOfEnd, calendar: calendar) ?? bucketOfEnd
+        let end = min(calendar.date(byAdding: .day, value: -1, to: endExclusive) ?? bucketOfEnd, today)
+
+        ignoreTimeWindow = false
+        store.saveIgnoreTimeWindow(false)
+        useDateRange = true
+        rangeStart = start
+        rangeEnd = max(end, start)
+        store.saveTimeMode(useDateRange: true, start: rangeStart, end: rangeEnd)
+        applyWindowChange()
+    }
+
+    /// Schaltet das Zeitfenster ganz ab (reines Suchwerkzeug) oder wieder an.
+    func setIgnoreTimeWindow(_ on: Bool) {
+        ignoreTimeWindow = on
+        store.saveIgnoreTimeWindow(on)
         applyWindowChange()
     }
 
     func setUseDateRange(_ on: Bool) {
+        ignoreTimeWindow = false
+        store.saveIgnoreTimeWindow(false)
         useDateRange = on
         store.saveTimeMode(useDateRange: on, start: rangeStart, end: rangeEnd)
         applyWindowChange()
@@ -335,11 +412,9 @@ final class ReportViewModel {
         refreshWindowCache()
         displayRangeStart = w.chartStartDay
         displayRangeEnd = w.chartEndDay
-        // Schutz vor Riesen-Diagrammen (z. B. mehrere Jahrzehnte): leer lassen.
-        guard windowSpanDays <= 4000 else {
-            chartDays = []
-            return
-        }
+        // Statt das Diagramm bei langen Zeitraeumen leer zu lassen (bis v1.11.0),
+        // wird jetzt nach Woche bzw. Monat gebuendelt.
+        chartGranularity = ChartGranularity.automatic(spanDays: windowSpanDays)
         let visible = relevantFiles.filter { !isHidden($0.url) }
         let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
         chartDays = FolderAggregator.countFilesPerDayByType(
@@ -348,7 +423,8 @@ final class ReportViewModel {
             endDay: w.chartEndDay,
             individual: topExtensionSet,
             otherKey: showOther ? Self.otherKey : nil,
-            ignored: []
+            ignored: [],
+            granularity: chartGranularity
         )
     }
 
@@ -604,14 +680,25 @@ final class ReportViewModel {
     /// Jüngste sichtbare In-Zeitraum-Datei an ``day`` mit passender Endung (bzw.
     /// „Sonstige" = Endung nicht in den Top-Endungen).
     private func newestVisibleFile(on day: Date, ext: String) -> RelevantFile? {
-        let calendar = Calendar.current
+        let (from, to) = chartBucketRange(containing: day)
         return relevantFiles
             .filter { file in
                 !isHidden(file.url)
-                    && calendar.isDate(file.timestamp, inSameDayAs: day)
+                    && file.timestamp >= from && file.timestamp < to
                     && matchesExtensionBucket(file.url, ext: ext)
             }
             .max(by: { $0.timestamp < $1.timestamp })
+    }
+
+    /// Zeitspanne des Diagramm-Buendels, in das ``date`` faellt.
+    ///
+    /// Wird nach Woche oder Monat gebuendelt, steht ein Balken fuer mehr als
+    /// einen Tag – ein Klick darf dann nicht nur den Kalendertag betrachten.
+    private func chartBucketRange(containing date: Date) -> (Date, Date) {
+        let calendar = Calendar.current
+        let start = chartGranularity.bucketStart(for: date, calendar: calendar)
+        let end = chartGranularity.next(after: start, calendar: calendar) ?? start
+        return (start, end)
     }
 
     private func matchesExtensionBucket(_ url: URL, ext: String) -> Bool {
@@ -621,10 +708,10 @@ final class ReportViewModel {
     }
 
     func focusDay(_ day: Date) {
-        let calendar = Calendar.current
+        let (from, to) = chartBucketRange(containing: day)
         let entries = displayBuckets.flatMap(\.entries)
-        let target = entries.first { calendar.isDate($0.newestDate, inSameDayAs: day) }
-            ?? entries.first { $0.newestDate < calendar.startOfDay(for: day).addingTimeInterval(24 * 60 * 60) }
+        let target = entries.first { $0.newestDate >= from && $0.newestDate < to }
+            ?? entries.first { $0.newestDate < to }
         guard let target else { return }
 
         expandedFolders.insert(target.folder)
@@ -638,8 +725,8 @@ final class ReportViewModel {
     private func applyChartFocus(for folder: URL) {
         guard let focus = chartFocus, focus.folder == folder,
               let files = visibleFiles(in: folder) else { return }
-        let calendar = Calendar.current
-        let match = files.first { calendar.isDate($0.timestamp, inSameDayAs: focus.day) } ?? files.first
+        let (from, to) = chartBucketRange(containing: focus.day)
+        let match = files.first { $0.timestamp >= from && $0.timestamp < to } ?? files.first
         if let match {
             selectionOrigin = .chart
             selection = .file(match.url)

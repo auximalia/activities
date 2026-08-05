@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.11.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -138,6 +138,48 @@ in **aufeinanderfolgende** Abschnitte gruppiert. Jeder Abschnitt zeigt seine Anz
 - Je Tag gestapelt nach **Endung**: die Top-10-Endungen einzeln, alle übrigen unter **„Sonstige"** (falls sichtbar). Ausgeblendete Endungen erzeugen keine Segmente.
 - **Wochenenden** hell hinterlegt. **X-Achse:** nur **Montag und Freitag** beschriftet (bei ≤ 8 Tagen jeder Tag), Beschriftung = Wochentagskürzel + `TT.MM.`.
 - **Klick auf einen Balken:** wertet **x (Tag)** und **y (Höhe im Stapel)** aus. Trifft der Klick ein Segment, wird die **Endung** dieses Segments bestimmt (Stapel von unten nach oben in Legenden-/`chartKeys`-Reihenfolge, d. h. häufigster Typ unten) und zur **jüngsten sichtbaren Datei dieses Typs an diesem Tag** gesprungen (Ordner aufklappen + Datei markieren). Klick oberhalb des Stapels/ohne Segment → Rückfall auf den Tag: passender Ordner (3.11) + dessen datumstiftende Datei.
+
+### 3.9.1 Bündelung der Diagramm-Achse (adaptiv)
+Ein Balken je **Tag** ist nur bei kurzen Zeiträumen lesbar. `ChartGranularity.automatic`
+wählt daher nach Länge des Zeitraums:
+
+| Spanne | Bündelung | Balken (max.) |
+|---|---|---|
+| bis 92 Tage | Tag | ~92 |
+| bis 730 Tage | Woche | ~104 |
+| darüber | Monat | – |
+
+**Ersetzt die frühere Notlösung:** Bis v1.11.0 blieb das Diagramm ab ~4000 Tagen schlicht
+**leer**. Wer in „Spanne" fünf Jahre wählte, sah nichts.
+
+**Was mitziehen muss** (sonst bricht die Bedienung):
+- `BarMark`-Einheit und Achsen-Schrittweite (`calendarUnit`),
+- Beschriftungsdichte (Tag: Mo/Fr · Woche: jede 4. · Monat: quartalsweise),
+- **Wochenend-Bänder nur bei Tages-Bündelung** – sonst sinnlos,
+- **Klick-Auflösung**: `chartBucketRange(containing:)` statt „gleicher Kalendertag" –
+  ein Monatsbalken deckt viele Tage ab.
+
+### 3.9.2 Zeitmodus „Alle" – reines Suchwerkzeug
+Dritter Modus neben „Tage" und „Spanne" (`TimeMode`): Das Zeitfenster entfällt
+(`start: .distantPast`, `end: .distantFuture`). Die Diagramm-Achse spannt dann den
+**tatsächlichen Datenbereich** (ältester bis jüngster Zeitstempel), nicht die Unendlichkeit.
+
+**Zwingende Begleitmaßnahme:** `TimeBucket.label` war nach oben **offen** und hätte
+„Vor 260 Wochen" erzeugt. Jetzt gedeckelt: Wochen (< 5) → Monate (< 12) → Jahre.
+
+`timeMode` fasst die beiden Modell-Schalter (`useDateRange`, `ignoreTimeWindow`) für die
+Oberfläche zu **einer** Größe zusammen – zwei getrennte Schalter wären dort verwirrend.
+
+### 3.9.3 Rückmeldung und Auswahl im Diagramm
+- **Überfahren:** Fadenkreuz auf dem Bündel plus Kurzinfo (Datum, Gesamtzahl, Aufschlüsselung
+  nach Typ mit Farbfeld, max. 6 Zeilen + „+N weitere"). Die Kurzinfo kippt am rechten Rand
+  nach links, damit sie sichtbar bleibt. Vorher gab das Diagramm beim Überfahren **keinerlei**
+  Rückmeldung.
+- **Ziehen wählt einen Zeitraum:** `DragGesture(minimumDistance: 5)` trennt die Geste sauber
+  vom Klick (der zur Datei springt). Der gewählte Bereich wird während des Ziehens
+  hervorgehoben. Beim Loslassen wechselt die App in den Modus „Spanne"; die Grenzen werden
+  auf **Bündel-Kanten** gerundet (bei Monats-Bündelung wäre ein Schnitt mitten im Balken
+  willkürlich) und auf **heute** begrenzt. Zurück geht es über die Presets oder „Alle".
 
 ### 3.10 Farben der Endungen – feste kategoriale Palette
 **Verworfen (bis v1.6.1): Farbe aus dem Datei-Icon ableiten.** Der Ansatz scheitert

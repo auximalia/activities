@@ -337,6 +337,64 @@ do {
                 "Fallback: gross/klein egal und stabil")
 }
 
+// MARK: - Adaptive Granularitaet (UX-30)
+do {
+    expectEqual(ChartGranularity.automatic(spanDays: 30), .day, "Granularitaet: 30 Tage -> Tag")
+    expectEqual(ChartGranularity.automatic(spanDays: 92), .day, "Granularitaet: 92 Tage -> Tag")
+    expectEqual(ChartGranularity.automatic(spanDays: 93), .week, "Granularitaet: 93 Tage -> Woche")
+    expectEqual(ChartGranularity.automatic(spanDays: 730), .week, "Granularitaet: 2 Jahre -> Woche")
+    expectEqual(ChartGranularity.automatic(spanDays: 731), .month, "Granularitaet: > 2 Jahre -> Monat")
+
+    // Buendelanfaenge
+    let d = date(2026, 8, 5) // Mittwoch
+    // Achtung: `date(...)` liefert 12:00 Uhr, `bucketStart` Mitternacht.
+    expectEqual(ChartGranularity.month.bucketStart(for: d),
+                calendar.startOfDay(for: date(2026, 8, 1)),
+                "Monatsbuendel beginnt am Ersten (Mitternacht)")
+    let weekStart = ChartGranularity.week.bucketStart(for: d)
+    expect(weekStart <= d, "Wochenbuendel beginnt nicht nach dem Datum")
+    expect(calendar.dateComponents([.day], from: weekStart, to: d).day! < 7, "Wochenbuendel liegt innerhalb 7 Tagen")
+
+    // Zaehlung buendelt tatsaechlich zusammen
+    let folder = URL(fileURLWithPath: "/docs/A", isDirectory: true)
+    let files = [
+        RelevantFile(url: folder.appendingPathComponent("a.md"), folder: folder, timestamp: date(2026, 3, 2)),
+        RelevantFile(url: folder.appendingPathComponent("b.md"), folder: folder, timestamp: date(2026, 3, 20)),
+        RelevantFile(url: folder.appendingPathComponent("c.md"), folder: folder, timestamp: date(2026, 4, 4)),
+    ]
+    let monthly = FolderAggregator.countFilesPerDayByType(
+        files, startDay: date(2026, 3, 1), endDay: date(2026, 4, 30),
+        individual: ["md"], otherKey: nil, ignored: [], granularity: .month
+    )
+    expectEqual(monthly.count, 2, "Monatsbuendelung: zwei Balken (Maerz, April)")
+    expectEqual(monthly[0].total, 2, "Maerz buendelt zwei Dateien")
+    expectEqual(monthly[1].total, 1, "April buendelt eine Datei")
+
+    // Ein langer Zeitraum liefert eine handhabbare Balkenzahl – frueher war das Diagramm leer.
+    let longSpan = FolderAggregator.countFilesPerDayByType(
+        files, startDay: date(2020, 1, 1), endDay: date(2026, 12, 31),
+        individual: ["md"], otherKey: nil, ignored: [],
+        granularity: ChartGranularity.automatic(spanDays: 2557)
+    )
+    expect(!longSpan.isEmpty, "Langer Zeitraum liefert ein Diagramm (nicht leer)")
+    expect(longSpan.count <= 130, "Langer Zeitraum bleibt unter ~130 Balken (\(longSpan.count))")
+}
+
+// MARK: - Zeitabschnitte sind nach oben gedeckelt (UX-28)
+do {
+    let now = date(2026, 8, 6)
+    func label(daysAgo: Int) -> String {
+        TimeBucket.label(for: calendar.date(byAdding: .day, value: -daysAgo, to: now)!, now: now)
+    }
+    expectEqual(label(daysAgo: 0), "Heute", "Bucket: heute")
+    expectEqual(label(daysAgo: 1), "Gestern", "Bucket: gestern")
+    expectEqual(label(daysAgo: 3), "Diese Woche", "Bucket: diese Woche")
+    expectEqual(label(daysAgo: 14), "Vor 2 Wochen", "Bucket: Wochen")
+    expectEqual(label(daysAgo: 60), "Vor 2 Monaten", "Bucket: Monate statt 8 Wochen")
+    expectEqual(label(daysAgo: 400), "Vor 1 Jahr", "Bucket: Jahre statt 57 Wochen")
+    expectEqual(label(daysAgo: 1900), "Vor 5 Jahren", "Bucket: 5 Jahre statt 271 Wochen")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

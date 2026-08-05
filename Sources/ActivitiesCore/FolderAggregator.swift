@@ -151,10 +151,11 @@ public enum FolderAggregator {
         individual: Set<String>,
         otherKey: String?,
         ignored: Set<String> = [],
+        granularity: ChartGranularity = .day,
         calendar: Calendar = .current
     ) -> [DayExtensionCount] {
-        let start = calendar.startOfDay(for: startDay)
-        let end = calendar.startOfDay(for: endDay)
+        let start = granularity.bucketStart(for: startDay, calendar: calendar)
+        let end = granularity.bucketStart(for: endDay, calendar: calendar)
         guard start <= end else { return [] }
 
         var counts: [Date: [String: Int]] = [:]
@@ -169,7 +170,7 @@ public enum FolderAggregator {
             } else {
                 continue
             }
-            let day = calendar.startOfDay(for: file.timestamp)
+            let day = granularity.bucketStart(for: file.timestamp, calendar: calendar)
             if day >= start && day <= end {
                 counts[day, default: [:]][key, default: 0] += 1
             }
@@ -179,7 +180,7 @@ public enum FolderAggregator {
         var day = start
         while day <= end {
             result.append(DayExtensionCount(day: day, counts: counts[day] ?? [:]))
-            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            guard let next = granularity.next(after: day, calendar: calendar) else { break }
             day = next
         }
         return result

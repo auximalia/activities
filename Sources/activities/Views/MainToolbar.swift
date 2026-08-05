@@ -174,17 +174,20 @@ struct MainToolbar: ToolbarContent {
     private var timeRangeControls: some View {
         HStack(spacing: 8) {
             Picker("", selection: Binding(
-                get: { model.useDateRange },
-                set: { model.setUseDateRange($0) }
+                get: { model.timeMode },
+                set: { model.setTimeMode($0) }
             )) {
-                Text("Tage").tag(false)
-                Text("Spanne").tag(true)
+                Text("Tage").tag(TimeMode.rolling)
+                Text("Spanne").tag(TimeMode.range)
+                Text("Alle").tag(TimeMode.all)
             }
             .pickerStyle(.segmented)
             .fixedSize()
-            .help("Rollierende Tage oder feste Zeitspanne")
+            .help("Rollierende Tage, feste Zeitspanne oder ohne Zeitgrenze (reines Suchen)")
 
-            if model.useDateRange {
+            if model.ignoreTimeWindow {
+                EmptyView()
+            } else if model.useDateRange {
                 DatePicker("", selection: Binding(
                     get: { model.rangeStart },
                     set: { model.setRangeStart($0) }

@@ -15,7 +15,8 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 ⌘R und Auto-Refresh; Zeitraum und Filter arbeiten im Speicher. Vorbedingung von UX-02 damit
 erledigt.
 **Erledigt in Sprint 3 (v1.11.0):** UX-29, UX-02, UX-08, UX-09, UX-10, UX-12, UX-17.
-– Backlog umfasst 30 Einträge (UX-30 bei der Sprint-4-Planung ergänzt), davon **12 offen**.
+**Erledigt in Sprint 4 (v1.12.0):** UX-20, UX-30, UX-28, UX-21.
+– Backlog umfasst 30 Einträge, davon **8 offen**.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -227,7 +228,7 @@ Endung hat bei jedem Zeitraum dieselbe Farbe; automatisierte Palettenprüfung in
 Datei-Icons"). §3.10 ist mit diesem Punkt neu zu fassen: Icon-Farbe wird zur *Anregung*
 für die Kuratierung, ist aber nicht mehr die Quelle zur Laufzeit.
 
-### UX-28 · Zeitraum abschaltbar (reines Suchwerkzeug)
+### ✅ UX-28 · Zeitraum abschaltbar (reines Suchwerkzeug) *(erledigt, v1.12.0)*
 **Aufwand:** M · **Nutzen:** hoch · **Gemeldet:** beim Toolbar-Umbau v1.9.0
 Wer gezielt nach einem Namen sucht, will das **über den gesamten Bestand** tun – nicht
 begrenzt auf 30 Tage. Der Zeitraum ist dann keine Hilfe, sondern eine versteckte
@@ -369,7 +370,7 @@ Dock und transportiert „zuletzt bearbeitet" nicht.
 
 ## P3 – Erweiterungen
 
-### UX-30 · Adaptive Granularität im Diagramm
+### ✅ UX-30 · Adaptive Granularität im Diagramm *(erledigt, v1.12.0)*
 **Aufwand:** M · **Nutzen:** hoch · **Aufgenommen:** bei der Planung von Sprint 4
 Bei langen Zeiträumen bündelt das Diagramm nach **Woche** bzw. **Monat** statt nach Tag.
 
@@ -397,12 +398,12 @@ Achsenbeschriftung und die Klick-Auflösung (Segment → Datei) müssen mitziehe
 Es gibt keine Sortiermöglichkeit. Erwartet werden Datum, Name und Anzahl – idealerweise
 über anklickbare Spaltenköpfe.
 
-### UX-20 · Hover-Rückmeldung im Diagramm
+### ✅ UX-20 · Hover-Rückmeldung im Diagramm *(erledigt, v1.12.0)*
 **Aufwand:** M · **Nutzen:** hoch
 Beim Überfahren passiert nichts. Erwartet: Fadenkreuz und Kurzinfo
 „Mo 03.08. · 24 Dateien (12 .swift, 7 .md …)".
 
-### UX-21 · Zeitraum im Diagramm aufziehen
+### ✅ UX-21 · Zeitraum im Diagramm aufziehen *(erledigt, v1.12.0)*
 **Aufwand:** M · **Nutzen:** hoch · **Abhängig von:** UX-20
 Bei einem Zeitstrahl erwartet man, mit gedrückter Maus einen Bereich zu markieren und so
 den Zeitraum zu setzen.
@@ -506,11 +507,11 @@ UX-13 messtechnisch widerlegt.*
 **Sprint 4 – „Live-Filter"**
 UX-02 (inkl. Messung) – bewusst allein, wegen des Risikos.
 
-**➡️ Sprint 4 – „Zeitachse beherrschen" (in Arbeit)**
+**✅ Sprint 4 – „Zeitachse beherrschen" (abgeschlossen, v1.12.0)**
 AP1 UX-20 (Hover) → AP2 UX-30 (Granularität) → AP3 UX-28 („Alle") → AP4 UX-21 (Aufziehen).
 Reihenfolge zwingend: AP2 vor AP3 (sonst leeres Diagramm), AP1 vor AP4 (Rückmeldung vor Auswahl).
 
-**Sprint 5 – „Mit Treffern arbeiten"**
+**➡️ Sprint 5 – „Mit Treffern arbeiten" (als Nächstes)**
 UX-19 (Sortierung), UX-22 (Drag & Drop), UX-23 (Mehrfachauswahl)
 
 Danach nach Bedarf: UX-13, UX-14, UX-18, UX-22, UX-23, UX-24, UX-25.

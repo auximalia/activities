@@ -18,8 +18,19 @@ public enum TimeBucket {
         if daysAgo <= 0 { return "Heute" }
         if daysAgo == 1 { return "Gestern" }
         if daysAgo < 7 { return "Diese Woche" }
+
+        // Nach oben gedeckelt: Ohne Begrenzung entstuenden bei unbegrenztem
+        // Zeitraum Bezeichnungen wie "Vor 260 Wochen" statt "Vor 5 Jahren".
         let weeksAgo = daysAgo / 7
-        return weeksAgo == 1 ? "Vor 1 Woche" : "Vor \(weeksAgo) Wochen"
+        if weeksAgo < 5 {
+            return weeksAgo == 1 ? "Vor 1 Woche" : "Vor \(weeksAgo) Wochen"
+        }
+        let monthsAgo = daysAgo / 30
+        if monthsAgo < 12 {
+            return monthsAgo <= 1 ? "Vor 1 Monat" : "Vor \(monthsAgo) Monaten"
+        }
+        let yearsAgo = daysAgo / 365
+        return yearsAgo <= 1 ? "Vor 1 Jahr" : "Vor \(yearsAgo) Jahren"
     }
 
     /// Fasst bereits (nach Datum absteigend) sortierte Ordnereintraege in

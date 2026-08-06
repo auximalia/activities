@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.15.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.15.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -321,6 +321,9 @@ einer Suche sichtbar) – sonst verschöben sich beim Ein- und Ausblenden alle N
 Diagramm** – ohne ihn sind die Balken nicht deutbar – und gehört deshalb in dessen Nähe.
 Er erscheint als **linksbündige Überschrift über dem Diagramm** in der Langfassung
 („Fr., 31.07.2026 – Do., 06.08.2026 · 7 Tage") und bleibt auch **eingeklappt** sichtbar.
+Die Überschrift ist links um `yAxisGutter` (38 pt) eingerückt, damit sie **rechts neben der
+Y-Achsenbeschriftung** beginnt – bündig am Rand stießen der oberste Achsenwert („60") und
+der Textanfang optisch aneinander.
 
 
 ### 4.1 Toolbar im Einzelnen (`MainToolbar`)

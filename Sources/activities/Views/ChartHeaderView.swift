@@ -16,6 +16,8 @@ struct ChartHeaderView: View {
     /// Höhe des Diagramms. Bewusst kompakter als früher (260), damit die feste
     /// Kopfzone auch bei kleiner Fensterhöhe genügend Raum für die Liste lässt.
     private static let chartHeight: CGFloat = 180
+    /// Platz, den die Y-Achsenbeschriftung des Diagramms links einnimmt.
+    private static let yAxisGutter: CGFloat = 38
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -72,7 +74,11 @@ struct ChartHeaderView: View {
             Spacer(minLength: 8)
             collapseButton
         }
-        .padding(.horizontal, 8)
+        // Links so weit einruecken, dass die Ueberschrift rechts neben der
+        // Y-Achsenbeschriftung des Diagramms beginnt – sonst stossen „30" und
+        // der Anfang der Ueberschrift optisch aneinander.
+        .padding(.leading, Self.yAxisGutter)
+        .padding(.trailing, 8)
         .padding(.top, 6)
         .padding(.bottom, model.headerExpanded ? 0 : 6)
     }

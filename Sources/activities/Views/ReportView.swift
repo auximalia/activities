@@ -11,6 +11,20 @@ struct ReportView: View {
     @FocusState private var listFocused: Bool
     @StateObject private var quickLook = QuickLookController()
     @State private var quickLookActive = false
+    /// Auswahl, deren Zeile beim ersten Versuch noch nicht existierte
+    /// (Detaildateien luden noch). Wird nach dem Laden **einmal** nachgeholt.
+    @State private var pendingScroll: RowID?
+
+    /// Scrollt zur Auswahl – der Anker haengt von der Herkunft ab (siehe ``SelectionOrigin``).
+    private func scroll(_ proxy: ScrollViewProxy, to id: RowID) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if let anchor = model.selectionOrigin.scrollAnchor {
+                proxy.scrollTo(id, anchor: anchor)
+            } else {
+                proxy.scrollTo(id)
+            }
+        }
+    }
 
     /// Stabile ID der ersten Tabellenzeile für „an den Anfang springen".
     /// Lag früher auf der zentrierten Überschrift – die steht seit v1.8.0 als
@@ -118,12 +132,18 @@ struct ReportView: View {
                 // Bei einem Mausklick ist die Zeile bereits sichtbar – Scrollen
                 // wuerde sie unter dem Zeiger wegziehen.
                 guard model.selectionOrigin.shouldScroll else { return }
-                // Ohne Anker scrollt SwiftUI nur so weit, bis die Zeile sichtbar
-                // ist (wie Finder/Mail). `.center` haette die Liste bei jedem
-                // Tastendruck neu zentriert.
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    proxy.scrollTo(selection)
-                }
+                scroll(proxy, to: selection)
+                pendingScroll = selection
+            }
+            // Sprung aus dem Diagramm: Der Zielordner wird oft erst **asynchron**
+            // geladen – dann existiert die Zeile beim ersten Scrollversuch noch
+            // gar nicht. Sobald die Detaildateien da sind, erneut scrollen.
+            .onChange(of: model.isLoadingDetails) { _, loading in
+                // Genau EIN Nachversuch: Sonst rissen spaetere Ladevorgaenge
+                // (z. B. Auto-Refresh) die Ansicht immer wieder zur alten Auswahl.
+                guard !loading, let target = pendingScroll else { return }
+                pendingScroll = nil
+                DispatchQueue.main.async { scroll(proxy, to: target) }
             }
             .onChange(of: model.scrollToTopToken) { _, _ in
                 withAnimation(.easeInOut(duration: 0.25)) {

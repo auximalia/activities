@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.2)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.3)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -181,7 +181,9 @@ Oberfläche zu **einer** Größe zusammen – zwei getrennte Schalter wären dor
   stattdessen in der Kurzinfo selbst – also dort, wo die Aktion stattfindet. Vorher gab das Diagramm beim Überfahren **keinerlei**
   Rückmeldung.
 - **Ziehen wählt einen Zeitraum:** `DragGesture(minimumDistance: 5)` trennt die Geste sauber
-  vom Klick (der zur Datei springt). Der gewählte Bereich wird während des Ziehens
+  vom Klick (der zur Datei springt). **Während des Ziehens ruht die Hover-Auswertung** – ihre
+  Zustandsänderungen bauen die Ansicht laufend neu auf und brachen die Ziehgeste sonst ab.
+  Ein Klick blendet die Kurzinfo sofort aus (Klick hat Vorrang). Der gewählte Bereich wird während des Ziehens
   hervorgehoben. Beim Loslassen wechselt die App in den Modus „Spanne"; die Grenzen werden
   auf **Bündel-Kanten** gerundet (bei Monats-Bündelung wäre ein Schnitt mitten im Balken
   willkürlich) und auf **heute** begrenzt. Zurück geht es über die Presets oder „Alle".
@@ -418,9 +420,19 @@ verliert seine Position bei der häufigsten Interaktion überhaupt.
 `select(_:origin:)` hat **`.mouse` als Vorgabewert**, weil Zeilenklicks der häufigste
 Aufrufer sind; alle anderen Quellen setzen die Herkunft ausdrücklich.
 
-**Zweite Regel – minimal scrollen:** `proxy.scrollTo(id)` **ohne Anker**. Mit
-`anchor: .center` würde die Liste bei *jedem* Tastendruck neu zentriert; Finder und Mail
-scrollen nur so weit, bis die Zeile sichtbar ist.
+**Zweite Regel – Anker nach Herkunft** (`SelectionOrigin.scrollAnchor`):
+- **Tastatur → minimal** (`scrollTo(id)` ohne Anker). Mit `.center` würde die Liste bei
+  *jedem* Tastendruck neu zentriert; Finder und Mail scrollen nur so weit, bis die Zeile
+  sichtbar ist.
+- **Diagramm / QuickLook → `.center`.** Minimal zu scrollen setzt die Zeile genau an die
+  Oberkante – und dort **verdeckt sie der angeheftete Abschnittskopf** (`pinnedViews`).
+  Genau das war der Grund, warum ein Diagramm-Klick die Datei scheinbar „nicht fand".
+
+**Dritte Regel – ein Nachversuch nach dem Laden.** Ein Sprung aus dem Diagramm klappt den
+Zielordner auf und lädt dessen Detaildateien **asynchron**; beim ersten Scrollversuch
+existiert die Zeile also oft noch gar nicht. Sobald `isLoadingDetails` auf `false` fällt,
+wird **genau einmal** nachgescrollt (`pendingScroll`). Mehr wäre schädlich: Spätere
+Ladevorgänge (Auto-Refresh) rissen die Ansicht sonst immer wieder zur alten Auswahl.
 
 *Verworfene Alternative:* Sichtbarkeit der Zeile zur Laufzeit messen
 (`GeometryReader`/`PreferenceKey` je Zeile) – teuer und bei langen Listen fehleranfällig.

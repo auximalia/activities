@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 import ActivitiesCore
 
 /// Anfrage aus dem Diagramm: Ordner aufklappen und die Datei des Tages markieren.
@@ -38,6 +39,22 @@ enum SelectionOrigin: Sendable {
 
     /// Ob die Liste zu dieser Auswahl scrollen soll.
     var shouldScroll: Bool { self != .mouse }
+
+    /// Wohin die Zeile beim Scrollen gesetzt wird.
+    ///
+    /// - `nil` = **minimal** scrollen (nur so weit, bis die Zeile sichtbar ist).
+    ///   Richtig fuer die Tastatur: Sonst wuerde die Liste bei jedem Tastendruck
+    ///   neu zentriert.
+    /// - `.center` fuer **Spruenge aus der Ferne** (Diagramm, QuickLook). Minimal
+    ///   zu scrollen wuerde die Zeile genau an die Oberkante setzen – und dort
+    ///   verdeckt sie der angeheftete Abschnittskopf.
+    var scrollAnchor: UnitPoint? {
+        switch self {
+        case .keyboard: nil
+        case .mouse: nil
+        case .chart, .quickLook, .programmatic: .center
+        }
+    }
 }
 
 /// Haeufigkeit einer Dateiendung (fuer die Legende).

@@ -172,7 +172,14 @@ struct HistoryChartView: View {
                         .gesture(
                             DragGesture(minimumDistance: 5)
                                 .onChanged { value in
-                                    if dragFrom == nil { dragFrom = value.startLocation.x }
+                                    if dragFrom == nil {
+                                        dragFrom = value.startLocation.x
+                                        // Kurzinfo waehrend des Ziehens abschalten:
+                                        // Ihre Zustandsaenderungen bauen die Ansicht
+                                        // laufend neu auf und brechen dabei die
+                                        // Ziehgeste ab.
+                                        hoveredBucket = nil
+                                    }
                                     dragTo = value.location.x
                                 }
                                 .onEnded { value in
@@ -187,6 +194,8 @@ struct HistoryChartView: View {
                                 }
                         )
                         .onTapGesture { location in
+                            // Klick hat Vorrang vor der Kurzinfo.
+                            hoveredBucket = nil
                             guard let plotFrame = proxy.plotFrame else { return }
                             let origin = geometry[plotFrame].origin
                             guard let day: Date = proxy.value(atX: location.x - origin.x) else { return }
@@ -198,6 +207,8 @@ struct HistoryChartView: View {
                         .onContinuousHover { phase in
                             switch phase {
                             case .active(let location):
+                                // Waehrend einer Ziehgeste keine Hover-Auswertung.
+                                guard dragFrom == nil else { return }
                                 hoverPoint = location
                                 guard let plotFrame = proxy.plotFrame else { return }
                                 let origin = geometry[plotFrame].origin

@@ -77,7 +77,27 @@ struct FileRowView: View {
         // kommt nie zustande.
         .onDrag {
             model.select(.file(file.url))
-            return NSItemProvider(contentsOf: file.url) ?? NSItemProvider()
+            let provider = NSItemProvider(contentsOf: file.url)
+                ?? NSItemProvider(object: file.url as NSURL)
+            // **Ohne `suggestedName` benennt der Empfaenger die Datei nach ihrem
+            // TYP** („XMind Workbook.xmind") statt nach ihrem echten Namen.
+            provider.suggestedName = file.url.lastPathComponent
+            return provider
+        } preview: {
+            // Eigene Vorschau: Die Standardvorschau ist eine verkleinerte
+            // Abbildung der gesamten Zeile und damit unlesbar.
+            HStack(spacing: 6) {
+                Image(nsImage: FileIconProvider.icon(for: file.url))
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 16, height: 16)
+                Text(file.url.lastPathComponent)
+                    .font(.callout)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau · Ziehen: in andere Programme")
         // Markieren sofort beim Mausdruck: zwei konkurrierende onTapGesture

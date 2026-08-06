@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.13.3)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.14.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -332,7 +332,11 @@ Er erscheint als **linksbündige Überschrift über dem Diagramm** in der Langfa
 - **Drei Zustands-Toggles:** alles auf-/zuklappen · Dateien außerhalb des Zeitraums · Auto-Refresh (5.3). Bewusst **einzeln sichtbar** statt in einem Menü versteckt.
 - **Aktionen:** „An den Anfang" (⌘↑) und „Aktualisieren" (⌘R).
 - **Status:** Fortschrittsanzeige mit **Abbrechen** während einer Suche; **Update-Hinweis** (10.1), falls eine neuere Version vorliegt.
-- **Keine Eigenwerbung und keine Versionsnummer** mehr in der Arbeitsfläche – beides steht im „Über"-Fenster.
+- **Keine Eigenwerbung** in der Arbeitsfläche – der Credit-Text steht im „Über"-Fenster.
+  **Die Versionsnummer dagegen schon**, aber in der **Statuszeile** (4.6): Sie ist
+  *Statusinformation*, kein Schmuck – bei Rückfragen und Fehlermeldungen wird sie gebraucht
+  und muss ohne Umweg ablesbar sein. *(In v1.10.1 hatte ich beides zusammen entfernt; das
+  war zu pauschal.)*
 
 ### 4.2 Feste Kopfzone (Diagramm + Legende)
 **Warum fest?** Legende und Diagramm sind **Bedienelemente**, keine Inhalte. Scrollten sie
@@ -499,7 +503,7 @@ Ladevorgänge (Auto-Refresh) rissen die Ansicht sonst immer wieder zur alten Aus
 - **Filter blendet alles aus:** unter dem Diagramm dezent „Keine Treffer für den aktiven Filter" – **Diagramm & Legende bleiben sichtbar**, damit man wieder einblenden kann.
 
 ### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
-- **Statuszeile:** „N Ordner · M Dateien", Auto-Refresh-Indikator, Wurzelpfad. Die **Scandauer** ist eine Diagnosegröße ohne Nutzerwert und steht nur noch im **Tooltip** der Ordner/Dateien-Anzeige.
+- **Statuszeile:** „N Ordner · M Dateien", Auto-Refresh-Indikator, Wurzelpfad, ganz rechts die **Versionsnummer** („v1.14.0", auswählbar, Tooltip mit Revision und Build-Datum). Die **Scandauer** ist eine Diagnosegröße ohne Nutzerwert und steht nur noch im **Tooltip** der Ordner/Dateien-Anzeige.
 - **Keine Eigenwerbung auf der Arbeitsfläche:** Der Credit-Text steht ausschließlich im „Über"-Fenster. Oben rechts bleibt nur die Versionsnummer (Support/Update-Bezug).
 - **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), „Dateien außerhalb des Zeitraums zeigen" (Umschalter), Typ-Filter zurücksetzen (⌥⌘R), „Über activities", „Nach Updates suchen …", „Update installieren".
 - **Export liegt im Menü „Ablage"** (`CommandGroup(replacing: .saveItem)`): „Als CSV exportieren …" (⌘E) und „Als HTML exportieren …" (⇧⌘E). *Lehre:* vorher hing er in `CommandGroup(after: .toolbar)` und landete damit im Menü „Darstellung" – dort findet ihn niemand.

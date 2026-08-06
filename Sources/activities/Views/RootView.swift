@@ -154,6 +154,17 @@ struct StatusBarView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+
+            // Versionsnummer gehoert als **Statusinformation** hierher (nicht in
+            // die Arbeitsflaeche): Sie wird bei Rueckfragen und Fehlermeldungen
+            // gebraucht. Der Credit-Text dagegen steht im „Ueber"-Fenster.
+            Divider().frame(height: 10)
+            Text("v\(BuildInfo.short)")
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+                .textSelection(.enabled)
+                .help(BuildInfo.details)
+                .layoutPriority(1)
         }
         .font(.caption)
         .padding(.horizontal, 10)

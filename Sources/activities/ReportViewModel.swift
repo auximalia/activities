@@ -221,7 +221,11 @@ final class ReportViewModel {
     private var refreshDebounce: Task<Void, Never>?
     private var didInitialScan = false
     private var preserveOnNextLoad = false
-    private let scanner = FileScanner()
+    /// **Berechnet, nicht gespeichert.** Eine feste Instanz trug die Regeln vom
+    /// Programmstart – Aenderungen an den Ausschluessen blieben dann wirkungslos,
+    /// weil der Hauptsuchlauf weiter die alte Instanz benutzte. Als berechnete
+    /// Eigenschaft bekommt **jede** Aufrufstelle automatisch die aktuellen Regeln.
+    private var scanner: FileScanner { FileScanner(exclusions: currentExclusions) }
     private let store = SettingsStore()
     private let watcher = FolderWatcher()
 
@@ -958,7 +962,7 @@ final class ReportViewModel {
     }
 
     private func loadFilesNow(_ folder: URL) async -> [RelevantFile] {
-        let scanner = FileScanner(exclusions: currentExclusions)
+        let scanner = self.scanner
         let filter = NameFilter(namePattern)
         return await Task.detached(priority: .userInitiated) {
             scanner.listDirectoryFiles(folder, filter: filter)

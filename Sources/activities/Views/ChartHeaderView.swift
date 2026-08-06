@@ -169,7 +169,9 @@ struct ChartHeaderView: View {
         }
         var teile: [String] = []
         if model.skippedFolderCount > 0 {
-            teile.append("\(model.skippedFolderCount) Ordner als Werkzeug-Erzeugnis übersprungen")
+            // „samt Inhalt": Die Zahl nennt die uebersprungenen EINSTIEGE – darunter
+            // liegen meist deutlich mehr Ordner (46 Einstiege ≙ 168 Ordner gemessen).
+            teile.append("\(model.skippedFolderCount) Ordner samt Inhalt übersprungen")
         }
         if !model.excludedPaths.isEmpty {
             let n = model.excludedPaths.count

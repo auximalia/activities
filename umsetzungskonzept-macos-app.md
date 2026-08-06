@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.19.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.18.3)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -835,6 +835,17 @@ Ausschluss schlicht nicht. *Der Fehler fiel nur durch die Kernprüfung auf.*
 Die Kopfzone legt offen, wie viel gefiltert wurde: „46 Ordner als Werkzeug-Erzeugnis
 übersprungen“ mit Verweis in die Einstellungen. Dieselbe Lehre wie bei den Typ-Filtern
 (UX-06): Wer nicht sieht, dass etwas fehlt, hält die Auswertung für vollständig.
+
+**⚠️ Der Scanner muss die Regeln zur Laufzeit holen.** `scanner` ist eine **berechnete**
+Eigenschaft (`FileScanner(exclusions: currentExclusions)`), keine gespeicherte Instanz.
+Eine feste Instanz trug die Regeln vom Programmstart – Änderungen an Ausschlüssen blieben
+dann **wirkungslos**, weil der Hauptsuchlauf weiter die alte Instanz benutzte. Der Fehler
+war von außen kaum zu sehen: Die Vorgabe wirkte ja, nur ließ sich nichts ändern.
+
+**Die genannte Zahl sind Einstiege, nicht Ordner.** „46 Ordner samt Inhalt übersprungen"
+meint 46 **ausgeschlossene Einstiegspunkte**; darunter liegen deutlich mehr Ordner
+(gemessen: 46 Einstiege ≙ 168 Ordner, 128 → 1752 Dateien). Deshalb die Formulierung
+„samt Inhalt".
 
 **Das Auge ist ein Schalter.** Ein Klick zeigt die ausgeblendeten Ordner vorübergehend,
 ein zweiter blendet sie wieder aus (`revealHiddenFolders`). Bewusst **nicht gespeichert** –

@@ -26,6 +26,10 @@ struct StoredSettings {
     var excludedPaths: Set<String>
     /// Angeheftete Ordner (Favoriten).
     var pinnedFolders: [URL]
+    /// Ob das Dock-Symbol gezeigt wird (aus = nur Menüleiste).
+    var showsDockIcon: Bool
+    /// Ordner, die beim letzten Beenden aufgeklappt waren.
+    var expandedFolders: [URL]
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -52,6 +56,8 @@ final class SettingsStore {
     private let folderRulesKey = "activeFolderRules"
     private let excludedPathsKey = "excludedPaths"
     private let pinnedKey = "pinnedFolders"
+    private let dockIconKey = "showsDockIcon"
+    private let expandedKey = "expandedFolders"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -79,6 +85,9 @@ final class SettingsStore {
             activeFolderRules = ExclusionRules.unambiguousBuildFolders
         }
         let excludedPaths = Set(defaults.stringArray(forKey: excludedPathsKey) ?? [])
+        let showsDockIcon = defaults.object(forKey: dockIconKey) as? Bool ?? true
+        let expanded = (defaults.stringArray(forKey: expandedKey) ?? [])
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
         let pinned = (defaults.stringArray(forKey: pinnedKey) ?? [])
             .filter { FileManager.default.fileExists(atPath: $0) }
             .map { URL(fileURLWithPath: $0, isDirectory: true) }
@@ -108,7 +117,9 @@ final class SettingsStore {
             didShowIntro: didShowIntro,
             activeFolderRules: activeFolderRules,
             excludedPaths: excludedPaths,
-            pinnedFolders: pinned
+            pinnedFolders: pinned,
+            showsDockIcon: showsDockIcon,
+            expandedFolders: expanded
         )
     }
 
@@ -146,6 +157,14 @@ final class SettingsStore {
     func saveExclusions(folderRules: Set<String>, paths: Set<String>) {
         defaults.set(Array(folderRules).sorted(), forKey: folderRulesKey)
         defaults.set(Array(paths).sorted(), forKey: excludedPathsKey)
+    }
+
+    func saveShowsDockIcon(_ visible: Bool) {
+        defaults.set(visible, forKey: dockIconKey)
+    }
+
+    func saveExpandedFolders(_ folders: Set<URL>) {
+        defaults.set(folders.map(\.path).sorted(), forKey: expandedKey)
     }
 
     func savePinnedFolders(_ folders: [URL]) {

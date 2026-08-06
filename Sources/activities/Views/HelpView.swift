@@ -88,6 +88,12 @@ struct HelpView: View {
                     "Was übersprungen wurde, steht über der Liste – Einstellungen mit ⌘,.",
                 ])
 
+                section("Immer griffbereit", icon: "menubar.arrow.up.rectangle", [
+                    "Das Symbol in der Menüleiste zeigt die fünf zuletzt bearbeiteten Ordner.",
+                    "⌥⌘A holt das Fenster aus jedem Programm nach vorn.",
+                    "In den Einstellungen: Dock-Symbol ausblenden, beim Anmelden starten.",
+                ])
+
                 section("Updates", icon: "arrow.down.circle", [
                     "Beim Start prüft die App still, ob eine neuere Version vorliegt.",
                     "Gibt es eine, erscheint oben rechts „aktuell → neu“ – Klick installiert sie.",

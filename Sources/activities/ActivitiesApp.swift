@@ -2,6 +2,15 @@ import SwiftUI
 import AppKit
 import ActivitiesCore
 
+/// Holt das Hauptfenster nach vorn (Menueleiste und globales Kuerzel).
+private func activateMainWindow() {
+    NSApp.activate(ignoringOtherApps: true)
+    // Bei ausgeblendetem Dock-Symbol kann das Fenster geschlossen sein.
+    if let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.contentView != nil }) {
+        window.makeKeyAndOrderFront(nil)
+    }
+}
+
 /// Leitet eine Standardaktion an den First Responder weiter (Zwischenablage).
 private func sendToResponder(_ selector: String) {
     NSApp.sendAction(NSSelectorFromString(selector), to: nil, from: nil)
@@ -17,6 +26,10 @@ struct ActivitiesApp: App {
         WindowGroup("activities") {
             RootView(model: model, updates: updates)
                 .frame(minWidth: 820, minHeight: 560)
+                .onAppear {
+                    AppPresence.setDockIconVisible(model.showsDockIcon)
+                    GlobalHotKey.register(activateMainWindow)
+                }
         }
         .defaultSize(width: 1280, height: 780)
         // Kompakte Titelleiste: spart Hoehe gegenueber dem Standardstil, ohne
@@ -93,6 +106,14 @@ struct ActivitiesApp: App {
                 HelpMenuButton()
             }
         }
+
+        // Kurzansicht in der Menueleiste – der Kern von „taeglicher Begleiter":
+        // Die haeufigste Frage („woran habe ich zuletzt gearbeitet?") soll ohne
+        // Fensterwechsel beantwortet sein.
+        MenuBarExtra("activities", systemImage: "clock.badge.checkmark") {
+            MenuBarView(model: model, openMainWindow: activateMainWindow)
+        }
+        .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView(model: model)

@@ -12,13 +12,62 @@ import ActivitiesCore
 struct SettingsView: View {
     @Bindable var model: ReportViewModel
     @State private var newRule = ""
+    @State private var launchesAtLogin = AppPresence.launchesAtLogin
+    @State private var loginError: String?
 
     var body: some View {
         TabView {
+            generalTab
+                .tabItem { Label("Allgemein", systemImage: "gearshape") }
             noiseTab
                 .tabItem { Label("Rauschfilter", systemImage: "eye.slash") }
         }
         .frame(width: 560, height: 480)
+    }
+
+    private var generalTab: some View {
+        Form {
+            Section {
+                Toggle(isOn: Binding(
+                    get: { model.showsDockIcon },
+                    set: { model.setShowsDockIcon($0) }
+                )) {
+                    Text("Im Dock anzeigen")
+                    Text("Ausgeschaltet lebt activities nur in der Menüleiste.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                Toggle(isOn: Binding(
+                    get: { launchesAtLogin },
+                    set: { neu in
+                        loginError = AppPresence.setLaunchesAtLogin(neu)
+                        launchesAtLogin = AppPresence.launchesAtLogin
+                    }
+                )) {
+                    Text("Beim Anmelden starten")
+                    if let loginError {
+                        Text(loginError)
+                            .font(.caption).foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("Die App muss dafür in „Programme“ liegen.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Verhalten")
+            }
+
+            Section("Tastenkürzel") {
+                LabeledContent("Fenster nach vorn holen") {
+                    Text("⌥⌘A").font(.system(.body, design: .monospaced))
+                }
+                Text("Wirkt aus jedem Programm heraus – ohne zusätzliche Systemfreigabe.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
     }
 
     private var noiseTab: some View {

@@ -682,7 +682,7 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 | Release | Thema | Inhalt |
 |---|---|---|
 | **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
-| **v1.19** | Täglicher Begleiter | PR-07 … PR-10 |
+| **v1.19** ✅ | Täglicher Begleiter | PR-07 … PR-10 – **abgeschlossen** |
 | **v1.20** | Schneller wieder reinkommen | PR-11 … PR-14 |
 | **v1.21** | Rückblick und Bericht | PR-15 … PR-18 |
 | **v1.22** | Suchen und Finden | PR-19 … PR-21 |
@@ -732,21 +732,21 @@ Lehren aus Sprint 1.
 
 ## Thema B · Täglicher Begleiter (v1.19)
 
-### PR-07 · Menüleisten-Symbol mit Kurzansicht
+### ✅ PR-07 · Menüleisten-Symbol mit Kurzansicht *(erledigt, v1.19.0)*
 **Aufwand:** L · **Nutzen:** sehr hoch
 Klick zeigt die fünf zuletzt bearbeiteten Ordner mit Sprung dorthin. Senkt die Hürde von
 „App öffnen" auf „hinsehen" – der stärkste Hebel für tägliche Nutzung.
 
-### PR-08 · Beim Anmelden starten (optional)
+### ✅ PR-08 · Beim Anmelden starten (optional) *(erledigt, v1.19.0)*
 **Aufwand:** S · **Nutzen:** mittel · **braucht:** PR-07
 `SMAppService`. Sinnvoll erst mit Menüleisten-Symbol; ein unsichtbar startendes
 Fenster wäre aufdringlich.
 
-### PR-09 · Globales Tastenkürzel
+### ✅ PR-09 · Globales Tastenkürzel *(erledigt, v1.19.0)*
 **Aufwand:** M · **Nutzen:** mittel
 Frei belegbar, holt die App aus jeder Anwendung nach vorn.
 
-### PR-10 · Zustand über Neustarts erhalten
+### ✅ PR-10 · Zustand über Neustarts erhalten *(erledigt, v1.19.0)*
 **Aufwand:** S · **Nutzen:** mittel
 Aufgeklappte Ordner, Bildlaufposition und Auswahl wiederherstellen. Heute beginnt jede
 Sitzung bei null.

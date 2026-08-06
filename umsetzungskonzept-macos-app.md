@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.18.3)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.19.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -581,7 +581,8 @@ sonst erklärte er einen leeren Bildschirm.
 - **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), „Dateien außerhalb des Zeitraums zeigen" (Umschalter), Typ-Filter zurücksetzen (⌥⌘R), „Über activities", „Nach Updates suchen …", „Update installieren".
 - **Export liegt im Menü „Ablage"** (`CommandGroup(replacing: .saveItem)`): „Als CSV exportieren …" (⌘E) und „Als HTML exportieren …" (⇧⌘E). *Lehre:* vorher hing er in `CommandGroup(after: .toolbar)` und landete damit im Menü „Darstellung" – dort findet ihn niemand.
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
-- **Einstellungen (⌘,):** der **Rauschfilter** (9.5) vollständig an *einer* Stelle –
+- **Einstellungen (⌘,):** Bereich **Allgemein** (Dock-Symbol, Anmeldestart, Tastenkürzel – 9.6)
+  und Bereich **Rauschfilter** (9.5) vollständig an *einer* Stelle –
   die Regelliste (einzeln schaltbar, erweiterbar, zurücksetzbar), die selbst ausgeblendeten
   Ordner, **und** ein benannter Abschnitt „Immer übersprungen" für das, was sich nicht
   einstellen lässt (versteckte Objekte, Systemdateien, App-Bündel).
@@ -865,6 +866,40 @@ AppKit-Selektor (`showSettingsWindow:`) blieb wirkungslos.
 Eigener Abschnitt **„Angeheftet“** ganz oben, **unabhängig vom Zeitraum** – auch wenn dort
 länger nichts geschah. Kehrt die Logik der App um: nicht „was war zuletzt“, sondern „was ist
 mir wichtig“. Umschalten über das Kontextmenü der Ordnerzeile.
+
+## 9.6 Täglicher Begleiter (ab v1.19)
+
+### 9.6.1 Kurzansicht in der Menüleiste
+`MenuBarExtra` mit `menuBarExtraStyle(.window)`: Kopf (Wurzelordner), die **fünf zuletzt
+bearbeiteten Ordner** mit Zeit, dann „Fenster öffnen“, „Aktualisieren“ und „Beenden“.
+
+**Zweck:** Die Hürde senken von „App öffnen“ auf „hinsehen“. Die häufigste Frage –
+*woran habe ich zuletzt gearbeitet?* – ist damit ohne Fensterwechsel beantwortet.
+
+**Regel:** Die Liste stammt aus `mostRecentFolders(limit:)` und damit aus `displayBuckets`.
+Es gelten also **dieselben Filter** wie im Fenster – eine Kurzansicht, die etwas anderes
+zeigt als die Hauptansicht, wäre schlimmer als keine.
+
+### 9.6.2 Dock-Symbol abschaltbar
+`AppPresence.setDockIconVisible` schaltet zwischen `.regular` (Dock + Menüleiste) und
+`.accessory` (nur Menüleiste). Standard ist **mit** Dock-Symbol; wer es unauffällig mag,
+schaltet es in den Einstellungen ab.
+
+### 9.6.3 Anmeldestart
+Über `SMAppService.mainApp`. Schlägt fehl, wenn die App nicht in „Programme“ liegt – die
+Fehlermeldung des Systems wird **angezeigt** statt verschluckt.
+
+### 9.6.4 Globales Tastenkürzel ⌥⌘A
+Umgesetzt mit Carbon `RegisterEventHotKey`.
+
+**⚠️ Bewusst nicht `NSEvent.addGlobalMonitorForEvents`:** Der verlangt die Freigabe für
+**Bedienungshilfen** – der Anwender müsste der App erlauben, sämtliche Eingaben mitzulesen.
+Für ein Komfortmerkmal ist das unverhältnismäßig, zumal die App sonst nur Lesezugriff auf
+Dateien braucht. Die Carbon-API ist alt, kommt aber **ohne jede Freigabe** aus.
+
+### 9.6.5 Aufklappzustand über Neustarts
+Beim ersten Suchlauf werden die zuletzt aufgeklappten Ordner wiederhergestellt (nur die noch
+vorhandenen); danach gilt wieder „alles aufgeklappt“ als Vorgabe für neue Ordner.
 
 ## 10.2 Portabilität – Fernziel Windows
 

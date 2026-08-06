@@ -195,6 +195,11 @@ final class ReportViewModel {
     private(set) var activeFolderRules: Set<String>
     /// Vom Anwender ausgeblendete Pfade.
     private(set) var excludedPaths: Set<String>
+    /// Ob das Dock-Symbol gezeigt wird (aus = nur Menueleiste).
+    private(set) var showsDockIcon: Bool
+    /// Beim letzten Beenden aufgeklappte Ordner – werden nach dem ersten
+    /// Suchlauf wiederhergestellt.
+    private var restoredExpansion: [URL] = []
     /// Angeheftete Ordner – erscheinen in einem eigenen Abschnitt, unabhaengig
     /// vom Zeitraum („was ist mir wichtig" statt „was war zuletzt").
     private(set) var pinnedFolders: [URL] = []
@@ -243,6 +248,8 @@ final class ReportViewModel {
         self.activeFolderRules = saved.activeFolderRules
         self.excludedPaths = saved.excludedPaths
         self.pinnedFolders = saved.pinnedFolders
+        self.showsDockIcon = saved.showsDockIcon
+        self.restoredExpansion = saved.expandedFolders
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
@@ -394,6 +401,20 @@ final class ReportViewModel {
         activeFolderRules = ExclusionRules.unambiguousBuildFolders
         store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
         rescan()
+    }
+
+    /// Die zuletzt bearbeiteten Ordner fuer die Kurzansicht in der Menueleiste.
+    ///
+    /// Bewusst aus ``displayBuckets`` abgeleitet: Damit gelten dieselben Filter
+    /// und dieselbe Rauschunterdrueckung wie im Fenster – die Kurzansicht darf
+    /// nichts zeigen, was das Fenster verschweigt.
+    func mostRecentFolders(limit: Int = 5) -> [FolderEntry] {
+        Array(
+            displayBuckets
+                .flatMap(\.entries)
+                .sorted { $0.newestDate > $1.newestDate }
+                .prefix(limit)
+        )
     }
 
     /// Alle Regelnamen fuer die Liste: bekannte plus selbst ergaenzte.
@@ -923,6 +944,7 @@ final class ReportViewModel {
     func isExpanded(_ folder: URL) -> Bool { expandedFolders.contains(folder) }
 
     func toggleExpand(_ folder: URL) {
+        defer { persistExpansion() }
         if expandedFolders.contains(folder) {
             expandedFolders.remove(folder)
         } else {
@@ -1053,6 +1075,18 @@ final class ReportViewModel {
     }
 
     /// Klappt die Kopfzone auf/zu (nur Anzeige, keine Neuberechnung).
+    /// Dock-Symbol ein-/ausblenden (nur Menueleiste).
+    func setShowsDockIcon(_ visible: Bool) {
+        showsDockIcon = visible
+        store.saveShowsDockIcon(visible)
+        AppPresence.setDockIconVisible(visible)
+    }
+
+    /// Sichert den Aufklappzustand fuer die naechste Sitzung.
+    func persistExpansion() {
+        store.saveExpandedFolders(expandedFolders)
+    }
+
     func setHeaderExpanded(_ expanded: Bool) {
         headerExpanded = expanded
         store.saveHeaderExpanded(expanded)
@@ -1365,6 +1399,11 @@ final class ReportViewModel {
             if case .folder(let url) = cursor, !displayed.contains(url) {
                 cursor = nil
             }
+        } else if !restoredExpansion.isEmpty {
+            // Zustand der letzten Sitzung wiederherstellen – aber nur fuer
+            // Ordner, die es noch gibt.
+            expandedFolders = Set(restoredExpansion).intersection(displayed)
+            restoredExpansion = []
         } else {
             expandedFolders = displayed
         }

@@ -481,12 +481,26 @@ korrektem `suggestedName` (siehe Konzept 3.9.5).
 zusätzlich `pruneSelection`, `moveSelection`, `SelectionOrigin`/Scroll-Logik,
 `prepareFullFileList` und beide Zeilenansichten.
 
-**Vorab zu entscheiden:**
-- Dürfen **Ordner und Dateien gemischt** ausgewählt werden (unsere Liste ist ein Baum,
-  Finder kennt das so nicht)? Sonst: Auswahl auf Dateien beschränken.
-- Was wählt **⌘A** – nur die aufgeklappten sichtbaren Zeilen oder alle Dateien aller Ordner?
+**Entschieden (vor der Umsetzung festgelegt):**
+- **Mehrfachauswahl gilt nur für Dateien.** Ordner bleiben einwertig auswählbar (für
+  Aufklappen und Tastatur-Navigation); ein Klick auf eine Ordnerzeile **verwirft** eine
+  bestehende Mehrfachauswahl. Es gibt **keine gemischte** Auswahl aus Ordnern und Dateien.
+  *Begründung: Die Liste ist ein Baum – eine Auswahl aus Ast und Blatt zugleich hat keine
+  sinnvolle gemeinsame Aktion, und der Finder kennt das ebenfalls nicht. Zudem entfällt
+  damit die Frage, was beim Ziehen eines Ordners geschehen soll.*
+- **Nur Dateien sind ziehbar.** Ordnerzeilen bekommen kein `.onDrag`.
+- **⌘A wählt nur die sichtbaren Zeilen** – also die Dateien der aktuell **aufgeklappten**
+  Ordner in `displayBuckets`, nicht die Dateien zugeklappter Ordner.
+  *Begründung: „Alles auswählen" darf nur greifen, was man auch sieht – sonst zieht man
+  unbemerkt hunderte Dateien mit.*
+
+**Daraus folgt für das Modell:** `selectedFiles: Set<URL>` **neben** dem bestehenden
+einwertigen `selection: RowID?` (das weiterhin den Tastatur-Cursor und Ordner trägt) –
+statt `selection` selbst zu einer Menge zu machen. Das hält die Ordnerlogik unangetastet
+und verkleinert den Umbau spürbar.
 
 **Bleibt ein eigener Sprint:** Umbau des Auswahlmodells, nicht mit anderen Neuerungen mischen.
+*Durch die Beschränkung auf Dateien fällt der Aufwand von L auf **M–L**.*
 
 ### UX-24 · Einstellungen-Fenster (⌘,)
 **Aufwand:** M · **Nutzen:** mittel · **Abhängig von:** UX-03

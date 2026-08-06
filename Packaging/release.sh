@@ -1,8 +1,9 @@
 #!/bin/bash
 #
-# Release-Ablauf: erhoeht die Patch-Nummer in VERSION, committet, baut die App
-# (universell, mit eingebetteter Version), installiert sie nach /Applications,
-# erstellt das ZIP und pusht nach GitHub.
+# Release-Ablauf: erhoeht die Patch-Nummer in VERSION, stempelt die geaenderten
+# Dokumente mit Version und Datum, committet, baut die App (universell, mit
+# eingebetteter Version), installiert sie nach /Applications, erstellt das ZIP
+# und pusht nach GitHub.
 #
 # So wird – wie gewuenscht – VOR jedem Push die Patch-Nummer um eins erhoeht.
 #
@@ -29,6 +30,54 @@ patch=$((patch + 1))
 new="$major.$minor.$patch"
 echo "$new" > "$VERSION_FILE"
 echo "==> Version $current -> $new"
+
+# ---------------------------------------------------------------------------
+# Dokumente stempeln
+#
+# Warum ueberhaupt: Ohne Stempel laesst sich einem Dokument nicht ansehen, auf
+# welchen Stand es sich bezieht. Der Kopf der Spezifikation trug die Version
+# frueher von Hand – und war prompt drei Releases veraltet (v1.19.0 bei App
+# v1.19.3). Von Hand gepflegte Staende sind schlechter als gar keine, weil man
+# ihnen glaubt.
+#
+# ⚠️ Gestempelt wird NUR, was sich in diesem Release wirklich geaendert hat.
+# Alle Dokumente pauschal auf die neue Version zu setzen waere eine Luege: Ein
+# seit zehn Releases unberuehrtes Dokument behauptete dann, aktuell zu sein.
+# „Stand" heisst hier: zuletzt ueberarbeitet in dieser Version.
+#
+# Datum als ISO 8601 (YYYY-MM-DD, Hausregel). Keine Uhrzeit: Zwei Releases am
+# selben Tag unterscheiden sich bereits durch die Version, und die genaue
+# Sekunde steht ohnehin im Commit.
+# ---------------------------------------------------------------------------
+stamp_doc() {
+    local file="$1" stamp="$2"
+    if grep -q '^\*Stand: v' "$file"; then
+        # Vorhandenen Stempel ersetzen – nur den ersten, damit ein Zitat weiter
+        # unten im Text unangetastet bleibt.
+        awk -v s="$stamp" '!d && /^\*Stand: v/ { print s; d=1; next } { print }' "$file" > "$file.tmp"
+    elif grep -q '^# ' "$file"; then
+        awk -v s="$stamp" '{ print } !d && /^# / { print ""; print s; d=1 }' "$file" > "$file.tmp"
+    else
+        { echo "$stamp"; echo; cat "$file"; } > "$file.tmp"
+    fi
+    mv "$file.tmp" "$file"
+}
+
+stamp="*Stand: v$new · $(date +%F)*"
+# Geaenderte und neue Markdown-Dateien; Geloeschtes und Umbenennungs-Altnamen raus.
+changed_docs="$(git status --porcelain \
+    | grep -v '^ D' | grep -v '^D' \
+    | sed -e 's/^...//' -e 's/.* -> //' \
+    | grep -E '\.md$' || true)"
+
+if [ -n "$changed_docs" ]; then
+    echo "==> Dokumente stempeln ($stamp)"
+    while IFS= read -r doc; do
+        [ -f "$doc" ] || continue
+        stamp_doc "$doc" "$stamp"
+        echo "    $doc"
+    done <<< "$changed_docs"
+fi
 
 msg="${1:-chore: release v$new}"
 git add -A

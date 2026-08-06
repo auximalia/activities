@@ -1,4 +1,6 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.19.0)
+# activities – Spezifikation & Umsetzungskonzept
+
+*Stand: v1.19.4 · 2026-08-06*
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen

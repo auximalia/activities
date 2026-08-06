@@ -84,6 +84,36 @@ Major/Minor werden von Hand in `VERSION` angepasst (z. B. `1.1.0`). Zusaetzlich
 injiziert `build_app.sh` Git-Revision und Build-Datum als Diagnose in die
 Info.plist (im Ueber-Fenster sichtbar).
 
+## Dokumente tragen Version und Datum
+
+`release.sh` stempelt jedes Markdown-Dokument, das sich **in diesem Release
+geaendert hat**, direkt unter der Ueberschrift:
+
+```
+# activities – Spezifikation & Umsetzungskonzept
+
+*Stand: v1.19.4 · 2026-08-06*
+```
+
+**⚠️ Nur geaenderte Dokumente werden gestempelt.** Alle pauschal auf die neue
+Version zu setzen waere eine Luege – ein seit zehn Releases unberuehrtes
+Dokument behauptete dann, aktuell zu sein. „Stand" heisst hier: **zuletzt
+ueberarbeitet in dieser Version**.
+
+**Keine Staende von Hand pflegen.** Der Kopf der Spezifikation trug die Version
+frueher manuell und war prompt drei Releases veraltet (`v1.19.0` bei App
+`v1.19.3`). Von Hand gepflegte Staende sind schlechter als gar keine, weil man
+ihnen glaubt. Ein vorhandener Stempel wird ersetzt, ein fehlender eingefuegt –
+mehrfaches Stempeln erzeugt keine Dubletten.
+
+Datum als **ISO 8601** (`YYYY-MM-DD`, Hausregel aus `AGENTS.md`). Ohne Uhrzeit:
+Zwei Releases am selben Tag unterscheiden sich bereits durch die Version, und
+die genaue Sekunde steht ohnehin im Commit.
+
+**Folge:** Auch reine Doku-Aenderungen laufen ueber `release.sh` und erhoehen
+die Patch-Nummer – sonst gaebe es keine Version, auf die sich der Stempel
+beziehen koennte.
+
 ## GitHub (privates Repo)
 
 Zugangsdaten liegen in `.env` (aus `.env.example` erstellen; **nicht** einchecken):

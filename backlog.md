@@ -1,6 +1,8 @@
 # Backlog – activities
 
-Priorisierte Sammlung der Verbesserungen aus dem Design-Review (Stand: App v1.6.0).
+*Stand: v1.19.4 · 2026-08-06*
+
+Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
 
 **Status:** ✅ erledigt · ⏳ offen
@@ -683,7 +685,7 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 |---|---|---|
 | **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
 | **v1.19** ✅ | Täglicher Begleiter | PR-07 … PR-10 – **abgeschlossen** |
-| **v1.20** | Schneller wieder reinkommen | PR-11 … PR-14 |
+| **v1.20** | Schneller wieder reinkommen | PR-26, PR-11 … PR-14 – **Sprint 9 geplant** |
 | **v1.21** | Rückblick und Bericht | PR-15 … PR-18 |
 | **v1.22** | Suchen und Finden | PR-19 … PR-21 |
 | **v2.0** | Vertrauen und Verbreitung | PR-22 … PR-25 |
@@ -755,23 +757,181 @@ Sitzung bei null.
 
 ## Thema C · Schneller wieder reinkommen (v1.20)
 
+### Sprint 9 – Zuschnitt *(geplant nach Code-Durchsicht, Stand v1.19.3)*
+
+| AP | Eintrag | Aufwand |
+|---|---|---|
+| **AP1** | PR-26 · Massenöffnen begrenzen *(neu)* | S |
+| **AP2** | PR-11 · „Arbeit fortsetzen" | M |
+| **AP3** | PR-12 · Ordner in einem Programm eigener Wahl öffnen | M |
+| **AP4** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | M |
+| **AP5** | PR-13 · Typverteilung in der Ordnerzeile *(umformuliert)* | M |
+
+**AP1 zwingend vor AP2:** PR-11 würde einen bestehenden Mangel zu einem prominenten Knopf
+befördern. Die übrigen Punkte sind voneinander unabhängig.
+
+**Drei Befunde aus der Code-Durchsicht haben den Zuschnitt geändert:**
+
+1. **PR-11 hat die Datenbasis vollständig – aber es gibt keine Bremse.** `filesByFolder`
+   (`ReportViewModel.swift:192`), `visibleFiles(in:)` (`:908`), `chartBucketRange(containing:)`
+   (`:1027`) und der Begriff Ordner+Tag als `ChartFocus` (`:8`) liegen bereit; „mehrere URLs
+   öffnen" existiert zweimal (`:876`, `FileRowView.swift:150`). **Ohne jede Obergrenze** –
+   daraus wurde PR-26.
+2. **PR-13 stand auf einer falschen Prämisse** (siehe dort) – umformuliert.
+3. **PR-14 ist zur Hälfte vorhanden**, der interessantere Teil fehlt (siehe dort) – erweitert.
+
+**Zurückgezogene Vermutung:** Ich hatte angenommen, die Dateiauswahl überlebe einen
+Ordnerwechsel. **Falsch** – `pruneSelection()` (`ReportViewModel.swift:675`) schneidet die
+Auswahl bei jedem Neuaufbau auf die sichtbaren Dateien zurück. *Lehre erneut bestätigt:
+Vermutung am Code prüfen, bevor sie als Mangel ins Backlog wandert (Konsistenz-Punkt 7).*
+
+### PR-26 · Massenöffnen begrenzen *(neu, aufgenommen bei der Planung von Sprint 9)*
+**Aufwand:** S · **Nutzen:** hoch · **Vorbedingung für:** PR-11
+
+⌘A (`selectAllVisibleFiles()`, `ReportViewModel.swift:804`) plus Enter (`openSelection()`,
+`:876`) startet **für jede sichtbare Datei eine Anwendung** – ohne Rückfrage, ohne Obergrenze,
+ohne Drosselung. Dasselbe gilt für „Öffnen (n)" im Kontextmenü (`FileRowView.swift:150`).
+Die App besitzt heute **keinen einzigen** `confirmationDialog` und kein `NSAlert`; das einzige
+`.alert` ist die Update-Meldung (`RootView.swift:57`).
+
+Gemessen im Alltagsfall (`~/Documents`, 30 Tage): 3 Ordner · 3 Dateien – harmlos. Im
+„Alle"-Modus (UX-28) über einen großen Baum umfasst dieselbe Tastenfolge den **gesamten
+Bestand**; für diesen Baum sind ~83.000 Dateien gemessen (Konzept 10.1).
+
+**Lösung:** Ab einer Schwelle eine Rückfrage, die die **Anzahl nennt** („47 Dateien öffnen?")
+und **Abbrechen als Vorgabe** hat.
+
+**⚠️ Die Grenze gehört an genau eine Stelle** – in die Öffnen-Aktion selbst, nicht zu den
+Aufrufern. Sonst driften Enter, Kontextmenü und PR-11 auseinander, und der Schutz gilt je nach
+Weg oder nicht.
+
+**Akzeptanz:** Unterhalb der Schwelle öffnet es wie bisher ohne Rückfrage; oberhalb erscheint
+eine Rückfrage mit der genauen Anzahl; Abbrechen öffnet nichts. Gilt für alle drei Wege
+(Enter, Kontextmenü, PR-11).
+
 ### PR-11 · „Arbeit fortsetzen"
-**Aufwand:** M · **Nutzen:** hoch
-Ein Knopf öffnet alle Dateien, die an einem Tag in einem Ordner bearbeitet wurden – der
+**Aufwand:** M · **Nutzen:** hoch · **braucht:** PR-26
+Ein Befehl öffnet alle Dateien, die an einem Tag in einem Ordner bearbeitet wurden – der
 Zustand von gestern ist in Sekunden wieder da. **Das ist der eigentliche Zweck der App,
 zu Ende gedacht.**
 
+**Entschieden – Untermenü mit Tagen und Anzahl:**
+
+```
+Arbeit fortsetzen ▸  Heute (4)
+                     Gestern (2)
+                     Mi., 05.08. (7)
+```
+
+Bei genau einem Tag entfällt das Untermenü; der Eintrag heißt dann direkt
+„Arbeit fortsetzen (4 Dateien)".
+
+**Warum die Anzahl vorab im Menü steht:** Ohne sie ist der Befehl eine Wundertüte – man
+erfährt erst nach dem Klick, ob 3 oder 60 Programme starten. Die Zahl kostet nichts (sie
+liegt bereits vor) und macht die Rückfrage aus PR-26 im Normalfall überflüssig.
+
+**Warum die Ordnerzeile nicht genügt:** Sie kennt heute nur `newestVisibleDate`
+(`FolderRowView.swift:20`) – ein einzelnes Datum. Die Tage samt Anzahl entstehen aus
+`visibleFiles(in:)` (`ReportViewModel.swift:908`), gruppiert nach Kalendertag.
+
+**⚠️ Kalendertag, nicht Diagramm-Bündel.** `chartBucketRange(containing:)` (`:1027`) liefert
+bei langen Zeiträumen Wochen- oder Monatsgrenzen (UX-30). Für „an einem Tag gearbeitet" wäre
+das falsch: Der Tag ist eine **menschliche** Einheit, keine Darstellungsentscheidung. Sonst
+öffnete derselbe Befehl je nach eingestelltem Zeitraum eine andere Dateimenge.
+
+**Akzeptanz:** Das Untermenü nennt je Tag Beschriftung und Anzahl, absteigend nach Datum;
+der Befehl öffnet genau die Dateien dieses Kalendertags in diesem Ordner; die Auswahl der
+Dateimenge folgt denselben Filtern wie die Liste (Typ, Name, Rauschfilter); ab der Schwelle
+aus PR-26 wird zurückgefragt.
+
 ### PR-12 · Ordner in einem Programm eigener Wahl öffnen
-**Aufwand:** S · **Nutzen:** mittel
-Terminal, VS Code, Editor – einstellbar. Heute nur Finder.
-
-### PR-13 · Ordner-Vorschau ohne Aufklappen
 **Aufwand:** M · **Nutzen:** mittel
-Typverteilung und Anzahl beim Überfahren – Orientierung ohne Klick.
+Terminal, VS Code, Editor. Heute gibt es **nur** `FinderService.open` (`:8`,
+`NSWorkspace.shared.open`) – also immer die Standardzuordnung.
 
-### PR-14 · Zuletzt besuchte Ordner (Verlauf)
-**Aufwand:** S · **Nutzen:** mittel
-Vor/Zurück zwischen Wurzelordnern, wie im Browser.
+**Entschieden – genau *ein* bevorzugtes Programm.** „Im Finder öffnen" bleibt daneben
+bestehen. Eine Liste mehrerer Programme wäre eine Verwaltungsoberfläche für einen Bedarf,
+den es noch nicht gibt; sie kann jederzeit folgen, wenn er sich zeigt.
+
+**Vorhandenes Muster:** `UpdateChecker.swift:206-219` öffnet bereits gezielt mit einer
+bestimmten App (`urlForApplication(withBundleIdentifier:)` + `open([url],
+withApplicationAt:configuration:)`). `FinderService` bekommt eine zweite Variante mit Ziel-App.
+
+**⚠️ Bundle-ID speichern, nicht den Pfad.** Ein Pfad zeigt ins Leere, sobald das Programm
+verschoben oder umbenannt wird; die Bundle-ID überlebt das. Fehlt das Programm trotzdem,
+muss die Ursache **dastehen** statt still auf den Finder zurückzufallen – dieselbe Regel wie
+beim Anmeldestart (`SettingsView.swift:48-55`).
+
+**Ort:** Einstellungen → „Allgemein" → Abschnitt „Verhalten" (`SettingsView.swift:30-59`),
+Auswahl über `NSOpenPanel` auf „Programme". Muster für die Anbindung:
+`setShowsDockIcon` (`ReportViewModel.swift:1079`) – Property, `store.save…`, Nebenwirkung.
+Ein Eintrag „In *Programm* öffnen" kommt ins Ordner-Kontextmenü (`FolderRowView.swift:117`).
+
+**Akzeptanz:** Ohne eingestelltes Programm verhält sich alles wie heute (kein zusätzlicher
+Menüeintrag); mit Programm öffnet der Eintrag den Ordner dort; das Programm überlebt einen
+Neustart und ein Verschieben der App; ein fehlendes Programm erzeugt eine sichtbare Meldung.
+
+### PR-13 · Typverteilung in der Ordnerzeile *(umformuliert)*
+**Aufwand:** M · **Nutzen:** mittel
+
+**Ursprünglich:** „Typverteilung und Anzahl **beim Überfahren** – Orientierung ohne Klick."
+
+**⚠️ Zwei Einwände, beide am Code belegt:**
+1. **Die Prämisse stimmt nicht.** „Vorschau *ohne Aufklappen*" setzt voraus, dass Ordner
+   üblicherweise zugeklappt sind. `finishDetailLoad()` setzt nach jedem Scan
+   `expandedFolders = displayed` (`ReportViewModel.swift:1408`) – der Normalzustand ist
+   **alles aufgeklappt**. Die Vorschau löste einen Zustand, den man selten sieht.
+2. **Hover ist für VoiceOver unsichtbar.** Nach UX-13 und UX-31 wäre eine ausschließlich per
+   Maus erreichbare Information ein Rückschritt. Die Lehre aus UX-13 lautete ausdrücklich:
+   `.help` ist **kein** Ersatz für `accessibilityLabel`.
+
+**Neu:** Die Typverteilung steht **dauerhaft** in der Ordnerzeile – ein schmaler Streifen aus
+den Farben der `TypePalette`, also derselben Zuordnung wie Diagramm und Legende (3.10). Damit
+ist sie unabhängig vom Aufklappzustand sichtbar, ohne Maus erreichbar und beantwortet
+zusätzlich eine Frage, die die Hover-Fassung gar nicht stellte: *Was für Arbeit war das?*
+
+**⚠️ Der Streifen gehört zur Datenschicht** (UX-27): dieselben Farben wie die Legende, kein
+eigenes Grau neben „Sonstige". Er darf die Zeile nicht dominieren – die Zeile trägt weiterhin
+Name, Datum und Anzahl.
+
+**Akzeptanz:** Jede Ordnerzeile zeigt die Typverteilung ihrer sichtbaren Dateien in
+Legendenfarben; VoiceOver liest sie als Text („3 .swift, 2 .md"); ausgeblendete Typen
+(UX-06) erscheinen nicht; die Zeilenhöhe wächst nicht.
+
+### PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand
+**Aufwand:** M · **Nutzen:** mittel
+
+**Die Hälfte existiert schon:** `recentFolders` (max. 8, `SettingsStore.swift:61`, gefüllt in
+`setRoot`, `ReportViewModel.swift:1132`) steht im Toolbar-Ordnermenü
+(`MainToolbar.swift:167-175`). Reines Vor/Zurück wäre also nur eine Abkürzung für ein Menü,
+das einen Klick entfernt liegt – **das allein trägt keinen Sprintpunkt.**
+
+**Der eigentliche Mangel liegt daneben: Der Aufklappzustand ist global, nicht je
+Wurzelordner.** `saveExpandedFolders` (`SettingsStore.swift:166`) kennt genau **einen**
+Schlüssel. Wer von `Documents` nach `Projekte` und zurück wechselt, findet alles aufgeklappt
+vor (`ReportViewModel.swift:1408`), und die gemerkten Pfade des einen Ordners werden beim
+anderen gegen dessen Baum geschnitten. **Ein „Zurück" ohne den Zustand, den man dort verlassen
+hat, ist kein Zurück** – und genau darum geht es in diesem Thema.
+
+**Zwei Teile:**
+- **(a) Vor/Zurück** zwischen Wurzelordnern (⌘[ / ⌘]), Stapel wie im Browser.
+- **(b) Aufklappzustand je Wurzelordner** statt global.
+
+**⚠️ Der Vorwärtszweig muss abgeschnitten werden**, sobald von einer zurückliegenden Position
+aus ein neues Ziel angesteuert wird – sonst führt „Vorwärts" in eine Vergangenheit, die es
+nicht mehr gibt. Das ist der Punkt, an dem Verlaufsstapel üblicherweise falsch sind.
+
+**Prüfbarkeit – als Kernlogik anlegen.** Der Stapel (Push, Zurück, Vorwärts, Trunkierung,
+Deduplizierung, Obergrenze) gehört als Foundation-Typ nach `Sources/ActivitiesCore/`, analog
+`RowNavigation.swift`, und wird in `CoreChecks` geprüft. **Heute gibt es dort keine einzige
+Prüfung für Verlauf oder Persistenz** – `ReportViewModel` und `SettingsStore` liegen im
+App-Target und sind für `CoreChecks` unerreichbar (`Package.swift:26-29`).
+
+**Akzeptanz:** ⌘[ / ⌘] bewegen sich durch die besuchten Wurzelordner und sind am Rand des
+Stapels deaktiviert; ein neues Ziel von einer zurückliegenden Position verwirft den
+Vorwärtszweig; Zurückkehren stellt den Aufklappzustand *dieses* Ordners wieder her; der
+Stapel ist in `CoreChecks` geprüft.
+
 
 ---
 

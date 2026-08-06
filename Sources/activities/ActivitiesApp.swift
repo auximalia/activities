@@ -79,7 +79,14 @@ struct ActivitiesApp: App {
     @State private var updates = UpdateChecker()
 
     var body: some Scene {
-        WindowGroup("activities", id: MainWindow.id) {
+        // **`Window`, nicht `WindowGroup`:** Alle Ansichten teilen sich *ein*
+        // ``ReportViewModel``. Ein zweites Fenster waere daher kein zweites
+        // Dokument, sondern ein **Spiegel** – gemessen: ein Umschalten im einen
+        // Fenster aenderte sofort auch das andere. Zwei Fenster, die sich nicht
+        // unabhaengig bedienen lassen, sind kein Merkmal, sondern eine Falle.
+        // Nebenwirkung war ausserdem, dass ⌥⌘A nach dem Schliessen des zuletzt
+        // gemeldeten von zwei Fenstern ein **drittes** oeffnete.
+        Window("activities", id: MainWindow.id) {
             MainWindowHost(model: model, updates: updates)
         }
         .defaultSize(width: 1280, height: 780)
@@ -87,6 +94,16 @@ struct ActivitiesApp: App {
         // Bedienelemente zu verlieren.
         .windowToolbarStyle(.unifiedCompact)
         .commands {
+            // ⌘W fehlte bisher ganz: SwiftUI stellt „Schließen" nur zusammen mit
+            // „Neues Fenster" bereit, und beides entfaellt beim Einzelfenster.
+            // Ein Fenster, das sich nur ueber den roten Knopf schliessen laesst,
+            // ist auf dem Mac ein Fremdkoerper. Ueber die Responder-Kette, damit
+            // ⌘W auch das Ueber-, Hilfe- und Einstellungsfenster schliesst –
+            // dort ist es sogar der einzige gewohnte Weg.
+            CommandGroup(after: .newItem) {
+                Button("Schließen") { sendToResponder("performClose:") }
+                    .keyboardShortcut("w", modifiers: .command)
+            }
             CommandGroup(replacing: .appInfo) {
                 AboutMenuButton()
                 Divider()

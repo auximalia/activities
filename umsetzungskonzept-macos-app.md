@@ -956,6 +956,45 @@ Gemessen (Bedienungshilfen-Skript gegen die laufende App): Fenster geschlossen �
 **1** Fenster; Fenster im Dock abgelegt → ⌥⌘A ergibt **1** Fenster, nicht minimiert; nur das
 Über-Fenster offen → ⌥⌘A öffnet das Hauptfenster und macht es zum vordersten.
 
+### 9.6.7 Ein Fenster, kein Fensterrudel (`Window` statt `WindowGroup`)
+Alle Ansichten teilen sich **ein** `ReportViewModel`. Ein zweites Fenster über ⌘N war deshalb
+kein zweites Dokument, sondern ein **Spiegel**.
+
+**Gemessen statt vermutet:** Zwei Fenster geöffnet, in einem „Dateien außerhalb des Zeitraums
+zeigen“ umgeschaltet, danach die Bedienungshilfen-Bäume beider Fenster verglichen – **beide**
+änderten sich, die Inhalte waren vorher zeichengleich. Es gibt also keinen Zustand, in dem sich
+zwei Fenster unterscheiden könnten: Wurzelordner, Zeitraum, Typ-Filter, Suchtext, Auswahl,
+Cursor und Aufklappzustand liegen sämtlich im gemeinsamen Modell. Sogar `filterFocusToken` und
+`scrollToTopToken` sind gemeinsam – ⌘F und ⌘↑ hätten in beiden Fenstern gefeuert.
+
+**Zwei Fenster, die sich nicht unabhängig bedienen lassen, sind kein Merkmal, sondern eine
+Falle.** Wer sie nebeneinanderlegt, um zu vergleichen, sieht zweimal dasselbe und hält die App
+für kaputt, sobald eine Änderung links auch rechts erscheint.
+
+**Zusätzlich brach der Spiegel das Wiederfinden (9.6.6):** Bei zwei Fenstern und geschlossenem
+*gemeldetem* Fenster öffnete ⌥⌘A ein **drittes**, statt das verbliebene zu holen (gemessen:
+2 → schließen → 1 → ⌥⌘A → 2).
+
+**Deshalb `Window` statt `WindowGroup`.** Damit entfällt „Neues Fenster“ (⌘N), `openWindow` wird
+von sich aus eindeutig, und der Fensterbezug in `MainWindow` kann nicht mehr auf das falsche
+Fenster zeigen. Gemessen nach der Umstellung: ⌘N erzeugt kein Fenster mehr; wird die App mit
+geschlossenem Fenster beendet, startet sie dennoch **mit** Fenster (kein unsichtbarer Start).
+
+*Echte Mehrfenstrigkeit* – zwei Wurzelordner nebeneinander – wäre ein eigenes Vorhaben: Sie
+verlangt ein Modell **je Fenster** und damit einen zweiten vollständigen Suchlauf, einen zweiten
+Ordner-Beobachter und eine Regel, welches Fenster die Einstellungen (9.6.5) schreiben darf.
+Nichts davon fällt nebenbei ab.
+
+### 9.6.8 ⌘W – Schließen gehört ins Menü
+SwiftUI liefert „Schließen“ nur zusammen mit „Neues Fenster“; mit dem Einzelfenster entfällt
+beides. Das Fenster ließ sich dann **nur über den roten Knopf** schließen – auf dem Mac ein
+Fremdkörper, und für Über-, Hilfe- und Einstellungsfenster ist ⌘W sogar der gewohnte Weg.
+
+Der Befehl geht über die **Responder-Kette** (`performClose:`, wie schon Ausschneiden/Kopieren/
+Einsetzen), nicht über eine feste Fensterreferenz – so trifft er stets das vorderste Fenster.
+Gemessen: ⌘W schließt Haupt-, Über- und Einstellungsfenster; nach dem Schließen des
+Hauptfensters holt ⌥⌘A es zurück.
+
 ## 10.2 Portabilität – Fernziel Windows
 
 **Ziel:** Die Möglichkeit offenhalten, `activities` später auch unter Windows zu entwickeln.

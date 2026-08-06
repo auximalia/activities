@@ -139,5 +139,8 @@ Der Workflow baut auf `macos-14` und fuehrt `swift run CoreChecks` und
 - **Pfeil hoch/runter**: Auswahl bewegen · **links/rechts**: Ordner zu/auf · **Enter**: oeffnen.
 - **Leertaste**: QuickLook-Vorschau der markierten Datei.
 - **⌘R**: aktualisieren · **⌘F**: Filter fokussieren.
+- **⌘W**: Fenster schliessen · **⌥⌘A**: Fenster aus jedem Programm nach vorn holen.
+  Die App laeuft ohne Fenster weiter (Menueleisten-Symbol); es gibt bewusst **ein**
+  Hauptfenster, kein ⌘N (siehe Konzept 9.6.7).
 - Diagramm-Legende: Kategorie anklicken blendet sie ein/aus.
 

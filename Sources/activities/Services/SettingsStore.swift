@@ -1,4 +1,5 @@
 import Foundation
+import ActivitiesCore
 
 /// Zuletzt genutzte Einstellungen (Ordner, Tage, Filter, Auto-Refresh, Zeitspanne).
 struct StoredSettings {
@@ -15,6 +16,8 @@ struct StoredSettings {
     var headerExpanded: Bool
     /// Ob das Zeitfenster abgeschaltet ist (reines Suchwerkzeug).
     var ignoreTimeWindow: Bool
+    /// Reihenfolge innerhalb der Zeitabschnitte.
+    var sort: FolderSort
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -35,6 +38,8 @@ final class SettingsStore {
     private let showOutOfWindowKey = "showOutOfWindowFiles"
     private let headerExpandedKey = "headerExpanded"
     private let ignoreWindowKey = "ignoreTimeWindow"
+    private let sortFieldKey = "sortField"
+    private let sortAscendingKey = "sortAscending"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -50,6 +55,8 @@ final class SettingsStore {
         let showOutOfWindow = defaults.object(forKey: showOutOfWindowKey) as? Bool ?? false
         let headerExpanded = defaults.object(forKey: headerExpandedKey) as? Bool ?? true
         let ignoreWindow = defaults.object(forKey: ignoreWindowKey) as? Bool ?? false
+        let sortField = (defaults.string(forKey: sortFieldKey)).flatMap(SortField.init(rawValue:)) ?? .date
+        let sortAscending = defaults.object(forKey: sortAscendingKey) as? Bool ?? false
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -71,7 +78,8 @@ final class SettingsStore {
             rangeEnd: calendar.startOfDay(for: rangeEnd),
             showOutOfWindowFiles: showOutOfWindow,
             headerExpanded: headerExpanded,
-            ignoreTimeWindow: ignoreWindow
+            ignoreTimeWindow: ignoreWindow,
+            sort: FolderSort(field: sortField, ascending: sortAscending)
         )
     }
 
@@ -104,6 +112,11 @@ final class SettingsStore {
 
     func saveIgnoreTimeWindow(_ on: Bool) {
         defaults.set(on, forKey: ignoreWindowKey)
+    }
+
+    func saveSort(_ sort: FolderSort) {
+        defaults.set(sort.field.rawValue, forKey: sortFieldKey)
+        defaults.set(sort.ascending, forKey: sortAscendingKey)
     }
 
     // MARK: - Zuletzt genutzte Ordner

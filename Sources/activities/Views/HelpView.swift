@@ -63,6 +63,9 @@ struct HelpView: View {
                     "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",
                     "Der Uhr-Schalter oben zeigt sie bei Bedarf (grau/gedimmt, Uhr-Symbol).",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",
+                    "Sortieren nach Datum, Name oder Typ (⇅-Menü, ⌥⌘1/2/3).",
+                    "Dateien lassen sich in andere Programme ziehen.",
+                    "Einen Ordner aufs Fenster ziehen setzt ihn als neuen Wurzelordner.",
                 ])
 
                 section("Tastatur & Vorschau", icon: "keyboard", [

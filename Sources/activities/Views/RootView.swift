@@ -7,6 +7,8 @@ import AppKit
 struct RootView: View {
     @Bindable var model: ReportViewModel
     var updates: UpdateChecker
+    /// Ob gerade ein Ordner ueber dem Fenster schwebt (Abwurfziel hervorheben).
+    @State private var isDropTargeted = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,6 +19,23 @@ struct RootView: View {
             content
             Divider()
             StatusBarView(model: model)
+        }
+        // Ordner aufs Fenster ziehen = neuer Wurzelordner. Ziel ist bewusst das
+        // GANZE Fenster, nicht nur die Liste – beim Ziehen zielt man nicht genau.
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let folder = urls.first(where: \.hasDirectoryPath) else { return false }
+            model.setRoot(folder)
+            return true
+        } isTargeted: { targeted in
+            isDropTargeted = targeted
+        }
+        .overlay {
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.accentColor, lineWidth: 3)
+                    .padding(4)
+                    .allowsHitTesting(false)
+            }
         }
         .toolbar { MainToolbar(model: model, updates: updates) }
         // ⌘F: `.searchFocused` gibt es erst ab macOS 15 – Ziel ist macOS 14.

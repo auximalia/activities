@@ -1,4 +1,5 @@
 import SwiftUI
+import ActivitiesCore
 
 /// Einstiegspunkt der App: Hauptfenster, Menuebefehle und Ueber-Fenster.
 @main
@@ -36,6 +37,13 @@ struct ActivitiesApp: App {
                     .disabled(!model.hasTypeFilter)
                 Button("An den Anfang") { model.scrollToTopToken += 1 }
                     .keyboardShortcut(.upArrow, modifiers: .command)
+                Divider()
+                Button("Nach Datum sortieren") { model.setSortField(.date) }
+                    .keyboardShortcut("1", modifiers: [.command, .option])
+                Button("Nach Name sortieren") { model.setSortField(.name) }
+                    .keyboardShortcut("2", modifiers: [.command, .option])
+                Button("Nach Typ sortieren") { model.setSortField(.type) }
+                    .keyboardShortcut("3", modifiers: [.command, .option])
                 Divider()
                 Toggle("Dateien außerhalb des Zeitraums zeigen", isOn: Binding(
                     get: { model.showOutOfWindowFiles },

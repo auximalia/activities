@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import ActivitiesCore
 
 /// Die Bedienelemente in der Titelleiste.
 ///
@@ -47,7 +48,8 @@ struct MainToolbar: ToolbarContent {
         }
 
         // 4a. Anpassungen: Zustände (ändern die Darstellung, nicht die Datenmenge)
-        ToolbarItem(placement: .navigation) {
+        // Als Gruppe: SwiftUI erlaubt hoechstens zehn ToolbarItems je Builder.
+        ToolbarItemGroup(placement: .navigation) {
             Toggle(isOn: Binding(
                 get: { model.allExpanded },
                 set: { model.setAllExpanded($0) }
@@ -56,9 +58,7 @@ struct MainToolbar: ToolbarContent {
             }
             .toggleStyle(.button)
             .help("Alle Ordner auf- oder zuklappen")
-        }
 
-        ToolbarItem(placement: .navigation) {
             Toggle(isOn: Binding(
                 get: { model.showOutOfWindowFiles },
                 set: { model.setShowOutOfWindowFiles($0) }
@@ -69,9 +69,7 @@ struct MainToolbar: ToolbarContent {
             .help(model.showOutOfWindowFiles
                   ? "Dateien außerhalb des Zeitraums werden angezeigt"
                   : "Dateien außerhalb des Zeitraums sind ausgeblendet")
-        }
 
-        ToolbarItem(placement: .navigation) {
             Toggle(isOn: Binding(
                 get: { model.autoRefresh },
                 set: { model.setAutoRefresh($0) }
@@ -82,23 +80,41 @@ struct MainToolbar: ToolbarContent {
             .help("Automatisch aktualisieren, wenn sich der Ordner ändert")
         }
 
-        // 4b. Anpassungen: Aktionen
+        // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
         ToolbarItem(placement: .navigation) {
+            Menu {
+                ForEach(SortField.allCases, id: \.self) { field in
+                    Button {
+                        model.setSortField(field)
+                    } label: {
+                        if model.sort.field == field {
+                            Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
+                        } else {
+                            Text(field.label)
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+            }
+            .help("Sortierung innerhalb der Zeitabschnitte · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+        }
+
+        // 4b. Anpassungen: Aktionen
+        ToolbarItemGroup(placement: .navigation) {
             Button {
                 model.scrollToTopToken += 1
             } label: {
                 Image(systemName: "arrow.up.to.line")
             }
             .help("An den Anfang der Liste springen (⌘↑)")
-        }
 
-        ToolbarItem(placement: .navigation) {
             Button {
                 model.rescan()
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
-            .help("Suche neu starten (⌘R)")
+            .help("Ordner neu einlesen (⌘R)")
         }
 
         // --- Status ---

@@ -1,0 +1,121 @@
+import Foundation
+
+/// Sortierkriterium für Ordner- und Dateizeilen.
+public enum SortField: String, Sendable, CaseIterable {
+    /// Nach Zeitstempel.
+    case date
+    /// Nach Namen (Groß-/Kleinschreibung egal, natürliche Zahlenfolge).
+    case name
+    /// Nach Dateityp. Bei **Ordnern** ist das die *vorherrschende* Endung –
+    /// ein Ordner hat selbst keinen Typ.
+    case type
+
+    public var label: String {
+        switch self {
+        case .date: "Datum"
+        case .name: "Name"
+        case .type: "Typ"
+        }
+    }
+}
+
+/// Sortiervorgabe: Kriterium plus Richtung.
+public struct FolderSort: Sendable, Equatable {
+    public var field: SortField
+    public var ascending: Bool
+
+    public init(field: SortField = .date, ascending: Bool = false) {
+        self.field = field
+        self.ascending = ascending
+    }
+
+    /// Vorgabe der App: neueste zuerst.
+    public static let byNewest = FolderSort(field: .date, ascending: false)
+}
+
+/// Sortierung von Ordner- und Dateizeilen.
+///
+/// Bewusst im Kern und **rein** (keine Zustände, keine Oberfläche), damit die
+/// Reihenfolge in ``CoreChecks`` nachprüfbar bleibt.
+///
+/// **Wichtig:** Sortiert wird immer **innerhalb der Zeitabschnitte**, nie über
+/// sie hinweg. Die Gruppierung nach „Heute", „Diese Woche" … ist der Kern der
+/// Darstellung; eine globale Namenssortierung würde sie zerstören.
+public enum RowSorting {
+    /// Sortiert Ordner-Einträge.
+    ///
+    /// - Parameter dominantType: liefert die vorherrschende Endung eines Ordners
+    ///   (nur für ``SortField/type`` nötig). Ordner ohne Typ landen am Ende.
+    public static func folders(
+        _ entries: [FolderEntry],
+        by sort: FolderSort,
+        dominantType: (URL) -> String? = { _ in nil }
+    ) -> [FolderEntry] {
+        entries.sorted { first, second in
+            switch sort.field {
+            case .date:
+                if first.newestDate != second.newestDate {
+                    return sort.ascending
+                        ? first.newestDate < second.newestDate
+                        : first.newestDate > second.newestDate
+                }
+            case .name:
+                let a = first.folder.lastPathComponent
+                let b = second.folder.lastPathComponent
+                let order = a.localizedStandardCompare(b)
+                if order != .orderedSame {
+                    return sort.ascending ? order == .orderedAscending : order == .orderedDescending
+                }
+            case .type:
+                // Ordner ohne erkennbaren Typ ans Ende, unabhaengig von der Richtung.
+                let a = dominantType(first.folder)
+                let b = dominantType(second.folder)
+                if a != b {
+                    guard let a else { return false }
+                    guard let b else { return true }
+                    return sort.ascending ? a < b : a > b
+                }
+            }
+            // Gleichstand: stets neueste zuerst, danach der Pfad – so bleibt die
+            // Reihenfolge bei gleichen Schluesseln stabil und nachvollziehbar.
+            if first.newestDate != second.newestDate {
+                return first.newestDate > second.newestDate
+            }
+            return first.folder.path > second.folder.path
+        }
+    }
+
+    /// Sortiert die Dateien innerhalb eines Ordners.
+    public static func files(_ files: [RelevantFile], by sort: FolderSort) -> [RelevantFile] {
+        files.sorted { first, second in
+            switch sort.field {
+            case .date:
+                if first.timestamp != second.timestamp {
+                    return sort.ascending
+                        ? first.timestamp < second.timestamp
+                        : first.timestamp > second.timestamp
+                }
+            case .name:
+                let order = first.url.lastPathComponent
+                    .localizedStandardCompare(second.url.lastPathComponent)
+                if order != .orderedSame {
+                    return sort.ascending ? order == .orderedAscending : order == .orderedDescending
+                }
+            case .type:
+                let a = first.url.pathExtension.lowercased()
+                let b = second.url.pathExtension.lowercased()
+                if a != b {
+                    // Dateien ohne Endung ans Ende.
+                    if a.isEmpty { return false }
+                    if b.isEmpty { return true }
+                    return sort.ascending ? a < b : a > b
+                }
+            }
+            if first.timestamp != second.timestamp {
+                return first.timestamp > second.timestamp
+            }
+            return first.url.lastPathComponent
+                .localizedStandardCompare(second.url.lastPathComponent) == .orderedAscending
+        }
+    }
+}

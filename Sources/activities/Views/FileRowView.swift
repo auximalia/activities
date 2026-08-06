@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ActivitiesCore
 
 /// Eine Dateizeile in der Detailansicht.
@@ -68,7 +69,17 @@ struct FileRowView: View {
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         .background(isAlternate ? RowMetrics.zebraColor : Color.clear)
         .contentShape(Rectangle())
-        .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau")
+        // Herausziehen in andere Programme (Mail, Finder, Editor).
+        //
+        // **Reihenfolge ist wichtig:** `.onDrag` steht VOR der
+        // Sofort-Markierungsgeste. Andernfalls verschluckt die
+        // `DragGesture(minimumDistance: 0)` die Zugbewegung und das Ziehen
+        // kommt nie zustande.
+        .onDrag {
+            model.select(.file(file.url))
+            return NSItemProvider(contentsOf: file.url) ?? NSItemProvider()
+        }
+        .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau · Ziehen: in andere Programme")
         // Markieren sofort beim Mausdruck: zwei konkurrierende onTapGesture
         // (count 1 und 2) wuerden SwiftUI zwingen, das Doppelklick-Intervall
         // (~300 ms) abzuwarten, bevor der Einfachklick feuert.

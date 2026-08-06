@@ -16,7 +16,8 @@ Aus diesem Backlog werden einzelne Sprints geschnitten.
 erledigt.
 **Erledigt in Sprint 3 (v1.11.0):** UX-29, UX-02, UX-08, UX-09, UX-10, UX-12, UX-17.
 **Erledigt in Sprint 4 (v1.12.0):** UX-20, UX-30, UX-28, UX-21.
-– Backlog umfasst 30 Einträge, davon **8 offen**.
+**Erledigt in Sprint 5 (v1.13.0):** UX-19, UX-22.
+– Backlog umfasst 30 Einträge, davon **6 offen**.
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -393,7 +394,7 @@ Diagramm zu sehen.
 `startOfMonth`). `DayExtensionCount.day` bedeutet dann „Beginn des Bündels".
 Achsenbeschriftung und die Klick-Auflösung (Segment → Datei) müssen mitziehen.
 
-### UX-19 · Sortierung
+### ✅ UX-19 · Sortierung *(erledigt, v1.13.0)*
 **Aufwand:** M · **Nutzen:** hoch
 Es gibt keine Sortiermöglichkeit. Erwartet werden Datum, Name und Anzahl – idealerweise
 über anklickbare Spaltenköpfe.
@@ -411,7 +412,7 @@ den Zeitraum zu setzen.
 aufgeweicht werden – ein aufgezogener Bereich wirkt **sofort**. Regel in der
 Spezifikation entsprechend präzisieren.
 
-### UX-22 · Drag & Drop in beide Richtungen
+### ✅ UX-22 · Drag & Drop in beide Richtungen *(erledigt, v1.13.0)*
 **Aufwand:** M · **Nutzen:** hoch
 - Datei aus der Liste **herausziehen** (Mail, Finder, Editor).
 - Ordner **auf das Fenster ziehen** = neuer Wurzelordner.
@@ -511,7 +512,11 @@ UX-02 (inkl. Messung) – bewusst allein, wegen des Risikos.
 AP1 UX-20 (Hover) → AP2 UX-30 (Granularität) → AP3 UX-28 („Alle") → AP4 UX-21 (Aufziehen).
 Reihenfolge zwingend: AP2 vor AP3 (sonst leeres Diagramm), AP1 vor AP4 (Rückmeldung vor Auswahl).
 
-**➡️ Sprint 5 – „Mit Treffern arbeiten" (als Nächstes)**
-UX-19 (Sortierung), UX-22 (Drag & Drop), UX-23 (Mehrfachauswahl)
+**✅ Sprint 5 – „Mit Treffern arbeiten" (abgeschlossen, v1.13.0)**
+UX-19 (Sortierung, auch nach Typ), UX-22 (Drag & Drop).
+*UX-23 bewusst herausgelassen: Mehrfachauswahl ist ein Umbau des Auswahlmodells
+(20 betroffene Stellen) und bekommt einen eigenen Sprint.*
+
+**Offen:** UX-23 (Mehrfachauswahl, eigener Sprint) · UX-13, UX-14, UX-18, UX-24, UX-25 (Feinschliff)
 
 Danach nach Bedarf: UX-13, UX-14, UX-18, UX-22, UX-23, UX-24, UX-25.

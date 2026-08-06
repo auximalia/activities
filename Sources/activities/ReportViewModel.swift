@@ -140,6 +140,8 @@ final class ReportViewModel {
     private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
+    /// Reihenfolge innerhalb der Zeitabschnitte (Ordner **und** Dateien).
+    private(set) var sort: FolderSort = .byNewest
     /// Ob die Kopfzone (Diagramm + Legende) aufgeklappt ist. Eingeklappt bleibt
     /// deutlich mehr Platz fuer die Tabelle – wichtig bei kleinen Fenstern.
     var headerExpanded: Bool
@@ -197,6 +199,7 @@ final class ReportViewModel {
         self.showOutOfWindowFiles = saved.showOutOfWindowFiles
         self.headerExpanded = saved.headerExpanded
         self.ignoreTimeWindow = saved.ignoreTimeWindow
+        self.sort = saved.sort
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
@@ -300,6 +303,30 @@ final class ReportViewModel {
         rangeEnd = max(end, start)
         store.saveTimeMode(useDateRange: true, start: rangeStart, end: rangeEnd)
         applyWindowChange()
+    }
+
+    /// Setzt das Sortierkriterium; erneutes Waehlen desselben kehrt die Richtung um.
+    func setSortField(_ field: SortField) {
+        if sort.field == field {
+            sort.ascending.toggle()
+        } else {
+            sort = FolderSort(field: field, ascending: field != .date)
+        }
+        store.saveSort(sort)
+        recomputeDisplayBuckets()
+    }
+
+    /// Vorherrschende Endung eines Ordners – Grundlage der Sortierung nach Typ.
+    private func dominantExtension(of folder: URL) -> String? {
+        guard let files = visibleFiles(in: folder) else { return nil }
+        var counts: [String: Int] = [:]
+        for file in files {
+            let ext = file.url.pathExtension.lowercased()
+            if !ext.isEmpty { counts[ext, default: 0] += 1 }
+        }
+        return counts.max { a, b in
+            a.value != b.value ? a.value < b.value : a.key > b.key
+        }?.key
     }
 
     /// Schaltet das Zeitfenster ganz ab (reines Suchwerkzeug) oder wieder an.
@@ -460,7 +487,11 @@ final class ReportViewModel {
         ) { url in
             !self.isHidden(url) && self.nameFilter.matches(url.lastPathComponent)
         }
-        displayBuckets = TimeBucket.group(entries)
+        displayBuckets = TimeBucket.group(
+            entries,
+            sort: sort,
+            dominantType: { [weak self] in self?.dominantExtension(of: $0) }
+        )
         pruneSelection()
     }
 
@@ -598,8 +629,11 @@ final class ReportViewModel {
     /// ``nil`` bedeutet "noch nicht geladen".
     func visibleFiles(in folder: URL) -> [RelevantFile]? {
         guard let files = filesByFolder[folder] else { return nil }
-        guard !hiddenExtensions.isEmpty || !showOutOfWindowFiles else { return files }
-        return files.filter { isVisibleDetail($0) }
+        let filtered = (hiddenExtensions.isEmpty && showOutOfWindowFiles)
+            ? files
+            : files.filter { isVisibleDetail($0) }
+        guard sort != .byNewest else { return filtered }
+        return RowSorting.files(filtered, by: sort)
     }
 
     /// Datum, das der Ordner "erhält" = juengste sichtbare Datei **im Zeitfenster**.

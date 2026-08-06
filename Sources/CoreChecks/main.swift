@@ -395,6 +395,61 @@ do {
     expectEqual(label(daysAgo: 1900), "Vor 5 Jahren", "Bucket: 5 Jahre statt 271 Wochen")
 }
 
+// MARK: - Sortierung (UX-19)
+do {
+    let root = URL(fileURLWithPath: "/docs", isDirectory: true)
+    func f(_ name: String, _ y: Int, _ m: Int, _ d: Int) -> RelevantFile {
+        RelevantFile(url: root.appendingPathComponent(name), folder: root, timestamp: date(y, m, d))
+    }
+    let files = [f("beta.md", 2026, 8, 1), f("Alpha.pdf", 2026, 8, 3), f("gamma.md", 2026, 8, 2)]
+
+    let byName = RowSorting.files(files, by: FolderSort(field: .name, ascending: true))
+    expectEqual(byName.map { $0.url.lastPathComponent }, ["Alpha.pdf", "beta.md", "gamma.md"],
+                "Dateien nach Name: Gross-/Kleinschreibung egal")
+
+    let byType = RowSorting.files(files, by: FolderSort(field: .type, ascending: true))
+    expectEqual(byType.map { $0.url.pathExtension }, ["md", "md", "pdf"], "Dateien nach Typ")
+
+    let byDate = RowSorting.files(files, by: FolderSort(field: .date, ascending: false))
+    expectEqual(byDate.first?.url.lastPathComponent, "Alpha.pdf", "Dateien nach Datum: neueste zuerst")
+
+    // Natuerliche Zahlenfolge: "Datei2" vor "Datei10".
+    let numbered = [f("Datei10.md", 2026, 8, 1), f("Datei2.md", 2026, 8, 1)]
+    let natural = RowSorting.files(numbered, by: FolderSort(field: .name, ascending: true))
+    expectEqual(natural.map { $0.url.lastPathComponent }, ["Datei2.md", "Datei10.md"],
+                "Dateien nach Name: natuerliche Zahlenfolge")
+
+    // Ordner
+    let a = URL(fileURLWithPath: "/docs/Zebra", isDirectory: true)
+    let b = URL(fileURLWithPath: "/docs/Ameise", isDirectory: true)
+    let entries = [
+        FolderEntry(folder: a, newestDate: date(2026, 8, 3), fileCount: 2),
+        FolderEntry(folder: b, newestDate: date(2026, 8, 1), fileCount: 5),
+    ]
+    let foldersByName = RowSorting.folders(entries, by: FolderSort(field: .name, ascending: true))
+    expectEqual(foldersByName.first?.folder, b, "Ordner nach Name aufsteigend")
+
+    let types = [a: "pdf", b: "md"]
+    let foldersByType = RowSorting.folders(entries, by: FolderSort(field: .type, ascending: true)) { types[$0] }
+    expectEqual(foldersByType.first?.folder, b, "Ordner nach vorherrschendem Typ")
+
+    // Ordner ohne Typ landen am Ende – unabhaengig von der Richtung.
+    let partial = RowSorting.folders(entries, by: FolderSort(field: .type, ascending: true)) {
+        $0 == a ? "pdf" : nil
+    }
+    expectEqual(partial.last?.folder, b, "Ordner ohne Typ ans Ende")
+
+    // Sortierung wirkt INNERHALB der Zeitabschnitte, nie darueber hinweg.
+    let now = date(2026, 8, 6)
+    let mixed = [
+        FolderEntry(folder: a, newestDate: now, fileCount: 1),                      // Heute
+        FolderEntry(folder: b, newestDate: calendar.date(byAdding: .day, value: -20, to: now)!, fileCount: 1),
+    ]
+    let grouped = TimeBucket.group(mixed, sort: FolderSort(field: .name, ascending: true), now: now)
+    expectEqual(grouped.count, 2, "Abschnitte bleiben trotz Namenssortierung erhalten")
+    expectEqual(grouped[0].entries.first?.folder, a, "Erster Abschnitt bleibt der juengste")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.5)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.13.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -190,6 +190,37 @@ Oberfläche zu **einer** Größe zusammen – zwei getrennte Schalter wären dor
   hervorgehoben. Beim Loslassen wechselt die App in den Modus „Spanne"; die Grenzen werden
   auf **Bündel-Kanten** gerundet (bei Monats-Bündelung wäre ein Schnitt mitten im Balken
   willkürlich) und auf **heute** begrenzt. Zurück geht es über die Presets oder „Alle".
+
+### 3.9.4 Sortierung (`RowSorting`, `FolderSort`)
+Umschaltbar nach **Datum · Name · Typ**, jeweils auf-/absteigend. Erneutes Wählen
+desselben Kriteriums kehrt die Richtung um.
+
+- **Beide Ebenen:** Ordnerzeilen **und** Dateien innerhalb eines Ordners.
+- **„Typ" bei Ordnern** = die **vorherrschende** Endung (häufigste sichtbare); ein Ordner
+  hat selbst keinen Typ. Ordner/Dateien ohne Typ landen stets am Ende – unabhängig von der
+  Richtung, sonst stünden sie beim Umkehren plötzlich vorn.
+- **Name:** `localizedStandardCompare` – Groß-/Kleinschreibung egal und **natürliche
+  Zahlenfolge** („Datei2" vor „Datei10", nicht umgekehrt).
+- **Gleichstand** wird immer gleich aufgelöst (neuestes Datum, dann Pfad), damit die
+  Reihenfolge stabil bleibt.
+
+**Kernregel – nur innerhalb der Zeitabschnitte:** `TimeBucket.group` bildet die Abschnitte
+weiterhin chronologisch und sortiert **danach** je Abschnitt. Eine globale Namenssortierung
+würde die Zeitgliederung zerstören, die den Kern der Darstellung ausmacht.
+Umgesetzt im Kern (`RowSorting`), damit die Reihenfolge in CoreChecks nachprüfbar ist.
+
+**Bedienung:** Menü-Knopf `arrow.up.arrow.down` in der Toolbar (kein weiteres Dauer-Element –
+die Leiste ist voll) plus Menüleiste ⌥⌘1/2/3.
+
+### 3.9.5 Drag & Drop
+- **Herausziehen:** `.onDrag` an der Dateizeile liefert einen `NSItemProvider` mit der
+  Datei-URL (Mail, Finder, Editor).
+  **Reihenfolge ist entscheidend:** `.onDrag` steht **vor** der Sofort-Markierungsgeste
+  (`DragGesture(minimumDistance: 0)`, siehe 4.3.4). Andernfalls verschluckt diese die
+  Zugbewegung und das Ziehen kommt nie zustande.
+- **Hineinziehen:** `.dropDestination(for: URL.self)` am **ganzen Fenster** – beim Ziehen
+  zielt man nicht genau. Ein Ordner wird zum neuen Wurzelordner; das Fenster hebt sich
+  während des Schwebens mit einem Akzentrahmen hervor.
 
 ### 3.10 Farben der Endungen – feste kategoriale Palette
 **Verworfen (bis v1.6.1): Farbe aus dem Datei-Icon ableiten.** Der Ansatz scheitert
@@ -584,6 +615,8 @@ Sources/
     ReportExport.swift       csv(...)/html(...)
     Models.swift             RelevantFile/FolderEntry/BucketedEntries/DayExtensionCount/ScanSettings
     TypePalette.swift        PaletteColor + kategoriale Palette (3.10), ΔE-Rechnung
+    ChartGranularity.swift   Tag/Woche/Monat-Bündelung (3.9.1)
+    RowSorting.swift         FolderSort/SortField + Sortierung (3.9.4)
     FileCategory.swift       [legacy: alte Kategorien; von der App NICHT mehr genutzt]
   activities/            (SwiftUI-App)
     ActivitiesApp.swift      @main, Fenster, Menübefehle, Über-Fenster, Hilfe-Fenster

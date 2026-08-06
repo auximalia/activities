@@ -35,8 +35,19 @@ public enum TimeBucket {
 
     /// Fasst bereits (nach Datum absteigend) sortierte Ordnereintraege in
     /// aufeinanderfolgende Zeitabschnitte zusammen; die Reihenfolge bleibt erhalten.
+    /// - Parameter sort: Reihenfolge **innerhalb** jedes Zeitabschnitts. Die
+    ///   Abschnitte selbst bleiben immer chronologisch – eine globale
+    ///   Namenssortierung wuerde die Zeitgliederung zerstoeren, die den Kern der
+    ///   Darstellung ausmacht.
+    /// - Parameter dominantType: vorherrschende Endung eines Ordners (nur fuer
+    ///   ``SortField/type``).
+    ///
+    /// Erwartet ``entries`` nach Datum **absteigend** – nur so entstehen
+    /// zusammenhaengende Abschnitte.
     public static func group(
         _ entries: [FolderEntry],
+        sort: FolderSort = .byNewest,
+        dominantType: (URL) -> String? = { _ in nil },
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> [BucketedEntries] {
@@ -50,7 +61,13 @@ public enum TimeBucket {
                 buckets.append(BucketedEntries(label: label, entries: [entry]))
             }
         }
-        return buckets
+        guard sort != .byNewest else { return buckets }
+        return buckets.map {
+            BucketedEntries(
+                label: $0.label,
+                entries: RowSorting.folders($0.entries, by: sort, dominantType: dominantType)
+            )
+        }
     }
 }
 

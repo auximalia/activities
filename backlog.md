@@ -642,3 +642,211 @@ Portabilität (Kern von `fnmatch`/`os` befreit, Konzept 10.2), Dokumentation akt
 
 **Backlog abgearbeitet.** Neue Einträge entstehen künftig aus dem Betrieb – so wie
 UX-26 bis UX-31, die alle erst bei der Benutzung auffielen.
+
+---
+---
+
+# Teil 2 – Produkt-Roadmap (aufgenommen als PO/UX, Stand v1.17.0)
+
+## Kernbefund
+
+**Die App meldet heute Dateisystem-Ereignisse, nicht menschliche Arbeit.**
+
+Beleg aus dem eigenen Projekt: In den Bildschirmfotos der letzten Wochen erschienen
+wiederholt `dist/activities.app/Contents/_CodeSignature`, `.../MacOS` und `.../Resources`
+als „Ordner, in denen zuletzt gearbeitet wurde". Dort hat **niemand gearbeitet** – die
+Ordner entstanden beim Übersetzen. Dasselbe gilt für Zwischenstände von Werkzeugen,
+Sicherungen und Synchronisierungsdiensten (iCloud, Dropbox), die Zeitstempel setzen,
+ohne dass ein Mensch etwas getan hat.
+
+Für das Versprechen der App – *„Ich finde nicht wieder, woran ich gearbeitet habe"* – ist
+das die größte Schwäche: Das Signal steht neben Rauschen, und der Anwender muss selbst
+trennen. **Alles Weitere ist Kür, solange das nicht gelöst ist.**
+
+Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet**
+(`.default`) und decken typische Bau-Verzeichnisse nicht ab (`dist`, `.build`,
+`DerivedData`, `target`, `out`, `Pods`, `.gradle`, `*.app`).
+
+## Drei strategische Richtungen
+
+| Richtung | Kernfrage | Einschätzung |
+|---|---|---|
+| **A · Verlässlicher Finder** | „Zeig mir zuverlässig, woran *ich* gearbeitet habe." | **Empfohlen.** Schärft das bestehende Versprechen; ohne das trägt nichts anderes. |
+| **B · Täglicher Begleiter** | „Sei da, ohne dass ich dich öffne." | Menüleiste, Anmeldestart. Macht aus dem Werkzeug eine Gewohnheit. |
+| **C · Rückblick und Bericht** | „Was habe ich diese Woche gemacht?" | Neuer Nutzen (Zeiterfassung, Standup, Rechnungsstellung) – aber ein anderes Produkt. Erst nach A. |
+
+**Empfehlung:** A → B → C. Erst verlässlich, dann gewohnt, dann berichtsfähig.
+
+## Roadmap
+
+| Release | Thema | Inhalt |
+|---|---|---|
+| **v1.18** | Signal statt Rauschen | PR-01 … PR-06 |
+| **v1.19** | Täglicher Begleiter | PR-07 … PR-10 |
+| **v1.20** | Schneller wieder reinkommen | PR-11 … PR-14 |
+| **v1.21** | Rückblick und Bericht | PR-15 … PR-18 |
+| **v1.22** | Suchen und Finden | PR-19 … PR-21 |
+| **v2.0** | Vertrauen und Verbreitung | PR-22 … PR-25 |
+
+---
+
+## Thema A · Signal statt Rauschen (v1.18)
+
+### PR-01 · Bau- und Werkzeugordner standardmäßig ausschließen
+**Aufwand:** S · **Nutzen:** sehr hoch
+`ExclusionRules.default` um die üblichen Erzeugnisverzeichnisse erweitern: `dist`, `build`,
+`.build`, `out`, `target`, `DerivedData`, `Pods`, `.gradle`, `.next`, `.nuxt`, `vendor`,
+`.terraform`, `.pytest_cache`, `.mypy_cache`, `.tox`, `.parcel-cache`.
+**Vorsicht:** `build` und `out` sind auch legitime Ordnernamen. Deshalb PR-06 (sichtbar
+machen, was ausgeblendet wurde) **zusammen** ausliefern – stilles Verschlucken wäre schlimmer
+als Rauschen.
+
+### PR-02 · App-Bündel als eine Einheit behandeln
+**Aufwand:** S · **Nutzen:** sehr hoch
+`.app`, `.bundle`, `.framework`, `.photoslibrary`, `.rtfd` sind für macOS **Dokumente**,
+technisch aber Ordner. Der Scanner läuft heute hinein und meldet deren Innereien als Arbeit.
+**Lösung:** nicht betreten, sondern als **eine Datei** werten (Zeitstempel des Bündels).
+
+### PR-03 · Ausschlüsse einstellbar machen
+**Aufwand:** M · **Nutzen:** hoch · **braucht:** ein Einstellungen-Fenster
+Eigene Ordnernamen und Muster ergänzen/entfernen. *Damit bekäme das in UX-24 verworfene
+Einstellungen-Fenster erstmals einen echten Inhalt.*
+
+### PR-04 · „Diesen Ordner nicht mehr zeigen" im Kontextmenü
+**Aufwand:** S · **Nutzen:** hoch
+Ein Klick statt Konfiguration – die App lernt aus der Benutzung. Rücknahme über die
+Einstellungen (PR-03).
+
+### PR-05 · Ordner anheften (Favoriten)
+**Aufwand:** M · **Nutzen:** hoch
+Wichtige Projekte oben festhalten, unabhängig vom Zeitraum. Kehrt die Logik um: nicht
+„was war zuletzt", sondern „was ist mir wichtig".
+
+### PR-06 · Ausgeblendetes sichtbar machen
+**Aufwand:** S · **Nutzen:** hoch · **zwingend mit PR-01**
+Hinweis wie bei den Typ-Filtern (UX-06): „14 Ordner ausgeblendet (Bau-Artefakte)" mit
+Möglichkeit, sie einmalig einzublenden. **Kein stiller Zustand** – das ist eine der
+Lehren aus Sprint 1.
+
+---
+
+## Thema B · Täglicher Begleiter (v1.19)
+
+### PR-07 · Menüleisten-Symbol mit Kurzansicht
+**Aufwand:** L · **Nutzen:** sehr hoch
+Klick zeigt die fünf zuletzt bearbeiteten Ordner mit Sprung dorthin. Senkt die Hürde von
+„App öffnen" auf „hinsehen" – der stärkste Hebel für tägliche Nutzung.
+
+### PR-08 · Beim Anmelden starten (optional)
+**Aufwand:** S · **Nutzen:** mittel · **braucht:** PR-07
+`SMAppService`. Sinnvoll erst mit Menüleisten-Symbol; ein unsichtbar startendes
+Fenster wäre aufdringlich.
+
+### PR-09 · Globales Tastenkürzel
+**Aufwand:** M · **Nutzen:** mittel
+Frei belegbar, holt die App aus jeder Anwendung nach vorn.
+
+### PR-10 · Zustand über Neustarts erhalten
+**Aufwand:** S · **Nutzen:** mittel
+Aufgeklappte Ordner, Bildlaufposition und Auswahl wiederherstellen. Heute beginnt jede
+Sitzung bei null.
+
+---
+
+## Thema C · Schneller wieder reinkommen (v1.20)
+
+### PR-11 · „Arbeit fortsetzen"
+**Aufwand:** M · **Nutzen:** hoch
+Ein Knopf öffnet alle Dateien, die an einem Tag in einem Ordner bearbeitet wurden – der
+Zustand von gestern ist in Sekunden wieder da. **Das ist der eigentliche Zweck der App,
+zu Ende gedacht.**
+
+### PR-12 · Ordner in einem Programm eigener Wahl öffnen
+**Aufwand:** S · **Nutzen:** mittel
+Terminal, VS Code, Editor – einstellbar. Heute nur Finder.
+
+### PR-13 · Ordner-Vorschau ohne Aufklappen
+**Aufwand:** M · **Nutzen:** mittel
+Typverteilung und Anzahl beim Überfahren – Orientierung ohne Klick.
+
+### PR-14 · Zuletzt besuchte Ordner (Verlauf)
+**Aufwand:** S · **Nutzen:** mittel
+Vor/Zurück zwischen Wurzelordnern, wie im Browser.
+
+---
+
+## Thema D · Rückblick und Bericht (v1.21)
+
+### PR-15 · Wochenrückblick
+**Aufwand:** L · **Nutzen:** hoch
+Eigene Ansicht: „Deine Woche" – wichtigste Ordner, Verteilung nach Tagen und Typen,
+Vergleich zur Vorwoche. Macht aus Daten eine Aussage.
+
+### PR-16 · Zusammenfassung in die Zwischenablage
+**Aufwand:** S · **Nutzen:** hoch
+Ein Knopf erzeugt Text für Standup, Zeiterfassung oder Rechnung:
+„KW 32: PM2025 (14 Dateien), Lerngruppe (7) …" – der schnellste Weg von Daten zu Nutzen.
+
+### PR-17 · Berichte, die man zeigen kann
+**Aufwand:** M · **Nutzen:** mittel
+Der HTML-Export ist heute eine rohe Tabelle. Mit Diagramm, Kopfzeile und Zeitraum wird er
+vorzeigbar; PDF-Ausgabe ergänzen.
+
+### PR-18 · Zwei Zeiträume vergleichen
+**Aufwand:** M · **Nutzen:** mittel
+„Diese Woche gegen letzte" – zeigt Verlagerung statt nur Bestand.
+
+---
+
+## Thema E · Suchen und Finden (v1.22)
+
+### PR-19 · Mehrere Wurzelordner gleichzeitig
+**Aufwand:** L · **Nutzen:** hoch
+Heute genau ein Ordner. Wer in `Documents` **und** `Projekte` arbeitet, muss wechseln.
+
+### PR-20 · Weitere Filter: Größe und Alter
+**Aufwand:** M · **Nutzen:** mittel
+„Nur Dateien über 10 MB", „nur heute geändert" – zusätzlich zu Name und Typ.
+
+### PR-21 · Suchbegriffe merken
+**Aufwand:** S · **Nutzen:** gering–mittel
+Zuletzt verwendete Filter im Suchfeld anbieten.
+
+---
+
+## Thema F · Vertrauen und Verbreitung (v2.0)
+
+### PR-22 · Notarisierung
+**Aufwand:** M (plus Apple-Mitgliedschaft) · **Nutzen:** hoch
+`Packaging/notarize.sh` ist vorbereitet. Ohne sie muss jeder Empfänger den
+Gatekeeper-Dialog umgehen – die größte Hürde bei der Weitergabe.
+
+### PR-23 · Englische Sprachfassung
+**Aufwand:** L · **Nutzen:** mittel
+Heute **180 deutsche Zeichenketten** fest im Quelltext und `Locale(identifier: "de_DE")`
+fest verdrahtet. Ohne Lokalisierung bleibt die App auf den deutschen Sprachraum begrenzt.
+*Auch für Datums- und Zahlenformate relevant: Ein englischer Nutzer sähe heute deutsche
+Wochentagskürzel.*
+
+### PR-24 · Erklären, was gelesen wird
+**Aufwand:** S · **Nutzen:** hoch
+Die App liest den gesamten Dateibaum. Das ist harmlos (nichts verlässt das Gerät), aber es
+sollte **dastehen** – im Erstkontakt und in der Hilfe. Vertrauen entsteht durch Auskunft,
+nicht durch Schweigen.
+
+### PR-25 · Leistung bei sehr großen Bäumen absichern
+**Aufwand:** M · **Nutzen:** mittel
+Gemessen wurden ~83.000 Dateien (~20 MB, 1,3 s). Bei 500.000 Dateien ist das Verhalten
+**unbekannt**. Vor breiterer Verbreitung messen und, falls nötig, begrenzen –
+lieber vorher wissen als beim Anwender.
+
+---
+
+## Was ich bewusst **nicht** vorschlage
+
+- **Zeiterfassung im engeren Sinn** (Stoppuhr, Projektbuchung): Das wäre ein anderes
+  Produkt mit anderen Wettbewerbern. PR-15/PR-16 liefern den Nutzen ohne den Anspruch.
+- **Cloud-Abgleich zwischen Geräten:** Widerspricht der Stärke „liest nur lokal, sendet
+  nichts" (PR-24).
+- **Dateiverwaltung** (umbenennen, verschieben, löschen): Dafür gibt es den Finder. Die App
+  soll *finden*, nicht *verwalten*.

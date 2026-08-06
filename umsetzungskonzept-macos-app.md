@@ -931,6 +931,31 @@ Dateien braucht. Die Carbon-API ist alt, kommt aber **ohne jede Freigabe** aus.
 Beim ersten Suchlauf werden die zuletzt aufgeklappten Ordner wiederhergestellt (nur die noch
 vorhandenen); danach gilt wieder „alles aufgeklappt“ als Vorgabe für neue Ordner.
 
+### 9.6.6 „App aufrufen“ – das Fenster kennen statt raten
+Seit 9.6.1 lebt die App weiter, wenn man das Fenster schließt. Menüleisten-Eintrag und
+Tastenkürzel treffen dann auf einen laufenden Prozess **ohne** Fenster – es muss also
+notfalls eines **neu erzeugt** werden (`openWindow(id: "main")`), nicht bloß nach vorn geholt.
+
+**⚠️ Das Fenster wird gemeldet, nicht gesucht.** Der naheliegende Weg über
+`NSApp.windows.first { $0.canBecomeMain }` ist falsch: Über-, Hilfe- und Einstellungsfenster
+erfüllen dieselbe Bedingung. Stand nur das Über-Fenster offen, wurde **dieses** nach vorn
+geholt und das Hauptfenster blieb aus. `MainWindow` hält deshalb eine **schwache** Referenz,
+die `RootView` selbst über eine unsichtbare `NSViewRepresentable` (`WindowReader`) einträgt –
+wer sein Fenster von innen meldet, kann sich nicht irren. Schwach, damit die Referenz beim
+Schließen zerfällt statt ein totes Fenster am Leben zu halten.
+
+**⚠️ Ein abgelegtes Fenster meldet `isVisible == false`.** Wird nur darauf geprüft, entsteht
+neben dem im Dock liegenden Fenster ein **zweites**. Deshalb zusätzlich `isMiniaturized` prüfen
+und `deminiaturize(nil)` aufrufen.
+
+**⚠️ `@Environment` gilt im `App`-Typ nur für wenige Werte** – `openWindow` gehört nicht dazu.
+Der Wert wird darum in echten Ansichten gelesen (`MainWindowHost`, `MenuBarHost`) und von dort
+weitergereicht. `MenuBarView` bekommt die Aktion herein und muss selbst nichts über Fenster wissen.
+
+Gemessen (Bedienungshilfen-Skript gegen die laufende App): Fenster geschlossen → ⌥⌘A ergibt
+**1** Fenster; Fenster im Dock abgelegt → ⌥⌘A ergibt **1** Fenster, nicht minimiert; nur das
+Über-Fenster offen → ⌥⌘A öffnet das Hauptfenster und macht es zum vordersten.
+
 ## 10.2 Portabilität – Fernziel Windows
 
 **Ziel:** Die Möglichkeit offenhalten, `activities` später auch unter Windows zu entwickeln.

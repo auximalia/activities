@@ -11,13 +11,59 @@ import ActivitiesCore
 enum MainWindow {
     static let id = "main"
 
+    /// Das Fenster, das ``RootView`` traegt.
+    ///
+    /// **Warum gemeldet statt gesucht?** In `NSApp.windows` stehen auch das
+    /// Ueber-, Hilfe- und Einstellungsfenster; sie sind von aussen nicht
+    /// zuverlaessig zu unterscheiden (`canBecomeMain` trifft auf alle zu).
+    /// Wer das Fenster von innen meldet, kann sich nicht irren.
+    ///
+    /// **Warum schwach?** Wird das Fenster geschlossen, soll die Referenz
+    /// zerfallen – sonst hielten wir ein totes Fenster am Leben.
+    private(set) static weak var window: NSWindow?
+
+    /// Meldet das eigene Fenster an (siehe ``WindowReader``).
+    static func adopt(_ window: NSWindow) {
+        guard Self.window !== window else { return }
+        Self.window = window
+    }
+
+    /// Holt das Hauptfenster nach vorn – und erzeugt es, wenn keines mehr da ist.
     static func show(_ openWindow: OpenWindowAction) {
         NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }) {
+        // Ein im Dock **abgelegtes** Fenster meldet `isVisible == false`. Ohne
+        // die Abfrage auf `isMiniaturized` entstuende daneben ein zweites
+        // Fenster, statt das vorhandene zurueckzuholen.
+        if let window, window.isVisible || window.isMiniaturized {
+            window.deminiaturize(nil)
             window.makeKeyAndOrderFront(nil)
         } else {
             openWindow(id: id)
         }
+    }
+}
+
+/// Meldet das `NSWindow`, in dem diese Ansicht haengt, an ``MainWindow``.
+///
+/// Wird als `background` eingehaengt und zeichnet nichts – die Ansicht dient
+/// allein dazu, an ihr Fenster zu kommen.
+private struct WindowReader: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        // Beim Erzeugen haengt die Ansicht noch in keinem Fenster; erst im
+        // naechsten Durchlauf ist `view.window` gesetzt.
+        DispatchQueue.main.async { report(view) }
+        return view
+    }
+
+    /// Zweite Gelegenheit: Traegt das Fenster nach, falls es beim Erzeugen noch
+    /// fehlte oder die Ansicht spaeter in ein anderes Fenster gewandert ist.
+    func updateNSView(_ view: NSView, context: Context) {
+        report(view)
+    }
+
+    private func report(_ view: NSView) {
+        if let window = view.window { MainWindow.adopt(window) }
     }
 }
 
@@ -31,19 +77,10 @@ private func sendToResponder(_ selector: String) {
 struct ActivitiesApp: App {
     @State private var model = ReportViewModel()
     @State private var updates = UpdateChecker()
-    /// Wird gebraucht, um ein Fenster **neu zu erzeugen**, wenn keines mehr
-    /// offen ist – seit die App dank Menueleisten-Symbol ohne Fenster
-    /// weiterlebt, ist das der Regelfall und nicht die Ausnahme.
-    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         WindowGroup("activities", id: MainWindow.id) {
-            RootView(model: model, updates: updates)
-                .frame(minWidth: 820, minHeight: 560)
-                .onAppear {
-                    AppPresence.setDockIconVisible(model.showsDockIcon)
-                    GlobalHotKey.register { MainWindow.show(openWindow) }
-                }
+            MainWindowHost(model: model, updates: updates)
         }
         .defaultSize(width: 1280, height: 780)
         // Kompakte Titelleiste: spart Hoehe gegenueber dem Standardstil, ohne
@@ -125,7 +162,7 @@ struct ActivitiesApp: App {
         // Die haeufigste Frage („woran habe ich zuletzt gearbeitet?") soll ohne
         // Fensterwechsel beantwortet sein.
         MenuBarExtra("activities", systemImage: "clock.badge.checkmark") {
-            MenuBarView(model: model, openMainWindow: { MainWindow.show(openWindow) })
+            MenuBarHost(model: model)
         }
         .menuBarExtraStyle(.window)
 
@@ -142,6 +179,43 @@ struct ActivitiesApp: App {
             HelpView()
         }
         .defaultSize(width: 560, height: 680)
+    }
+}
+
+/// Inhalt des Hauptfensters.
+///
+/// **Warum eine eigene Ansicht und nicht direkt in ``ActivitiesApp``?**
+/// `@Environment` ist im `App`-Typ nur fuer wenige Werte zugesichert;
+/// `openWindow` gehoert nicht dazu. In einer echten Ansicht ist der Wert
+/// garantiert vorhanden. Zugleich meldet die Ansicht hier ihr Fenster an
+/// ``MainWindow`` – dort, wo es zweifelsfrei bekannt ist.
+private struct MainWindowHost: View {
+    @Bindable var model: ReportViewModel
+    var updates: UpdateChecker
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        RootView(model: model, updates: updates)
+            .frame(minWidth: 820, minHeight: 560)
+            .background(WindowReader())
+            .onAppear {
+                AppPresence.setDockIconVisible(model.showsDockIcon)
+                GlobalHotKey.register { MainWindow.show(openWindow) }
+            }
+    }
+}
+
+/// Inhalt der Menueleisten-Kurzansicht.
+///
+/// Reicht ``MenuBarView`` die Fensteraktion herein, statt sie dort aus dem
+/// Environment zu holen – aus demselben Grund wie ``MainWindowHost``, und damit
+/// ``MenuBarView`` selbst nichts ueber Fenster wissen muss.
+private struct MenuBarHost: View {
+    @Bindable var model: ReportViewModel
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        MenuBarView(model: model, openMainWindow: { MainWindow.show(openWindow) })
     }
 }
 

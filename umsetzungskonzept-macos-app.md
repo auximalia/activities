@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.2)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -174,7 +174,7 @@ Oberfläche zu **einer** Größe zusammen – zwei getrennte Schalter wären dor
 - **Überfahren:** Fadenkreuz auf dem Bündel plus Kurzinfo (Datum, Gesamtzahl, Aufschlüsselung
   nach Typ mit Farbfeld, max. 6 Zeilen + „+N weitere"). Die Kurzinfo kippt am rechten Rand
   nach links, damit sie sichtbar bleibt.
-  **Feste Breite (190 pt) ist Pflicht:** Die `Spacer` in den Typ-Zeilen dehnen die Karte
+  **Feste Breite (152 pt) ist Pflicht:** Die `Spacer` in den Typ-Zeilen dehnen die Karte
   sonst auf die gesamte Diagrammbreite – die Zahlen landen unsichtbar am Rand.
   Der **System-Tooltip (`.help`) auf dem Diagramm entfällt**: Zwei gleichzeitige
   Einblendungen konkurrieren; der Hinweis „Klick öffnet · Ziehen wählt Zeitraum" steht

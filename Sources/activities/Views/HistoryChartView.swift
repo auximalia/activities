@@ -267,7 +267,7 @@ struct HistoryChartView: View {
     }
 
     /// Breite der Kurzinfo-Karte.
-    private static let tooltipWidth: CGFloat = 190
+    private static let tooltipWidth: CGFloat = 152
 
     /// Haelt die Kurzinfo im sichtbaren Bereich (kippt am rechten Rand nach links).
     private func tooltipPosition(in size: CGSize) -> CGPoint {

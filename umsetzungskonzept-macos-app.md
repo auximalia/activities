@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.4)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.5)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -257,6 +257,9 @@ Dark-Mode automatisch.
 
 **Toolbar (4.1.1):** Reihenfolge folgt dem **Arbeitsablauf**, nicht der Art der Elemente:
 `[1 Ort] [2 Suche] [3 Zeitraum]  ·Titel·  [4 Anpassungen: Zustände | Aktionen | Status]`.
+**Kompakte Titelleiste:** `.windowToolbarStyle(.unifiedCompact)` – **38 pt statt 52 pt**
+(−27 %), ohne ein Bedienelement zu verlieren. Der Standardstil verschenkte Höhe, die der
+Tabelle fehlt.
 **Alle** Elemente liegen in der `.navigation`-Zone (links) und rücken damit zusammen; der
 Fenstertitel steht rechts daneben. So bleibt der Weg von Schritt 1 zu Schritt 4 kurz.
 Die **Fortschrittsanzeige** hat einen **festen Platz** (44 pt, immer vorhanden, nur während

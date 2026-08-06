@@ -12,6 +12,9 @@ struct ActivitiesApp: App {
                 .frame(minWidth: 1180, minHeight: 600)
         }
         .defaultSize(width: 1280, height: 780)
+        // Kompakte Titelleiste: spart Hoehe gegenueber dem Standardstil, ohne
+        // Bedienelemente zu verlieren.
+        .windowToolbarStyle(.unifiedCompact)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 AboutMenuButton()

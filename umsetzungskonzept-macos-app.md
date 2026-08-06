@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.18.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.18.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -823,6 +823,20 @@ Ausschluss schlicht nicht. *Der Fehler fiel nur durch die Kernprüfung auf.*
 Die Kopfzone legt offen, wie viel gefiltert wurde: „46 Ordner als Werkzeug-Erzeugnis
 übersprungen“ mit Verweis in die Einstellungen. Dieselbe Lehre wie bei den Typ-Filtern
 (UX-06): Wer nicht sieht, dass etwas fehlt, hält die Auswertung für vollständig.
+
+**Das Auge ist ein Schalter.** Ein Klick zeigt die ausgeblendeten Ordner vorübergehend,
+ein zweiter blendet sie wieder aus (`revealHiddenFolders`). Bewusst **nicht gespeichert** –
+das ist ein Blick hinter den Vorhang, kein Dauerzustand.
+Ausgesetzt werden dabei **Ordnerregeln und eigene Pfade**; Dateimuster (`.DS_Store`,
+Sperrdateien) und die Bündel-Behandlung bleiben, denn die blenden nichts aus, sondern
+werten richtig.
+
+**Grenze, die man kennen muss:** **Punkt-Ordner** (`.build`, `.git`, `.venv`) bleiben auch
+dann aus. Sie werden bereits durch `skipsHiddenFiles` übersprungen, bevor eine
+Ausschlussregel greift – und zählen deshalb auch nicht in der Zahl der ausgeblendeten Ordner.
+
+Der Verweis in die Einstellungen nutzt **`SettingsLink`** (macOS 14+). Ein zuvor verwendeter
+AppKit-Selektor (`showSettingsWindow:`) blieb wirkungslos.
 
 ### 9.5.5 Angeheftete Ordner (Favoriten)
 Eigener Abschnitt **„Angeheftet“** ganz oben, **unabhängig vom Zeitraum** – auch wenn dort

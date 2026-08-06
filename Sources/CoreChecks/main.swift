@@ -541,6 +541,22 @@ do {
     ).scan(settings: settings)
     expect(gefiltert.files.isEmpty, "Pfad-Ausschluss: Ordner samt Inhalt verschwindet")
 
+    // „Auge": Ausgeblendetes voruebergehend zeigen – Ordnerregeln ausgesetzt,
+    // Dateimuster und Buendel-Behandlung bleiben.
+    let enthuellt = FileScanner(
+        exclusions: ExclusionRules(folders: [], filePatterns: ExclusionRules.default.filePatterns)
+    ).scan(settings: settings)
+    let enthuelltNamen = Set(enthuellt.files.map { $0.url.lastPathComponent })
+    expect(enthuelltNamen.contains("index.js"), "Enthuellen: node_modules wird wieder gezeigt")
+    // Punkt-Ordner wie `.build` bleiben aus: Sie werden bereits durch
+    // `skipsHiddenFiles` uebersprungen, bevor eine Ausschlussregel greift –
+    // und zaehlen deshalb auch nicht als „ausgeblendet".
+    expect(!enthuelltNamen.contains("zwischenstand.o"),
+           "Enthuellen: versteckte Punkt-Ordner bleiben aus (eigene Regel)")
+    expect(!enthuelltNamen.contains("CodeResources"),
+           "Enthuellen: Buendel bleiben Einheit – das ist keine Ausblendung, sondern richtige Wertung")
+    expectEqual(enthuellt.skippedFolders, 0, "Enthuellen: nichts mehr uebersprungen")
+
     // Pfad-Ausschluss trifft nur den gemeinten Pfad, nicht gleichnamige
     let regeln = ExclusionRules.default.adding(
         ambiguousFolders: false, excludedPaths: ["/a/tmp"]

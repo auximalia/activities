@@ -127,35 +127,53 @@ struct ChartHeaderView: View {
     /// nicht sieht, dass etwas fehlt, hält die Auswertung für vollständig.
     @ViewBuilder
     private var noiseIndicator: some View {
-        if model.skippedFolderCount > 0 || !model.excludedPaths.isEmpty {
+        if model.revealHiddenFolders || model.skippedFolderCount > 0 || !model.excludedPaths.isEmpty {
             HStack(spacing: 6) {
-                Image(systemName: "eye.slash")
-                    .foregroundStyle(.secondary)
-                Text(noiseText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Button("Einstellungen …") {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                // Das Auge ist der Schalter: ein Klick zeigt das Ausgeblendete,
+                // ein zweiter blendet es wieder aus.
+                Button {
+                    model.toggleRevealHiddenFolders()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: model.revealHiddenFolders ? "eye" : "eye.slash")
+                        Text(noiseText).font(.caption)
+                    }
+                    .foregroundStyle(model.revealHiddenFolders ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(model.revealHiddenFolders
+                      ? "Ausgeblendete Ordner wieder ausblenden"
+                      : "Ausgeblendete Ordner vorübergehend anzeigen")
+                .accessibilityLabel(noiseText)
+                .accessibilityHint(model.revealHiddenFolders
+                                   ? "Blendet sie wieder aus"
+                                   : "Zeigt sie vorübergehend an")
+
+                SettingsLink {
+                    Text("Einstellungen …")
                 }
                 .buttonStyle(.link)
                 .font(.caption)
+
                 Spacer()
             }
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(noiseText)
         }
     }
 
     private var noiseText: String {
+        if model.revealHiddenFolders {
+            return "Ausgeblendete Ordner werden angezeigt"
+        }
         var teile: [String] = []
         if model.skippedFolderCount > 0 {
             teile.append("\(model.skippedFolderCount) Ordner als Werkzeug-Erzeugnis übersprungen")
         }
         if !model.excludedPaths.isEmpty {
             let n = model.excludedPaths.count
-            teile.append("\(n) \(n == 1 ? "Ordner" : "Ordner") von dir ausgeblendet")
+            teile.append("\(n) von dir ausgeblendet")
         }
         return teile.joined(separator: " · ")
     }

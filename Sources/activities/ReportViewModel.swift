@@ -344,12 +344,30 @@ final class ReportViewModel {
         applyWindowChange()
     }
 
+    /// Zeigt ausgeblendete Ordner voruebergehend doch an.
+    ///
+    /// Bewusst **nicht** gespeichert: Das ist ein Blick hinter den Vorhang, kein
+    /// Dauerzustand – nach einem Neustart gilt wieder der Filter.
+    private(set) var revealHiddenFolders = false
+
     /// Die aktuell gueltigen Ausschlussregeln.
     private var currentExclusions: ExclusionRules {
-        ExclusionRules.default.adding(
+        guard !revealHiddenFolders else {
+            // Ordnerregeln und eigene Pfade aussetzen. Dateimuster (.DS_Store,
+            // Sperrdateien) und die Buendel-Behandlung bleiben – die blenden
+            // nichts aus, sondern werten richtig.
+            return ExclusionRules(folders: [], filePatterns: ExclusionRules.default.filePatterns)
+        }
+        return ExclusionRules.default.adding(
             ambiguousFolders: excludeAmbiguousBuildFolders,
             excludedPaths: excludedPaths
         )
+    }
+
+    /// Schaltet die voruebergehende Anzeige ausgeblendeter Ordner um.
+    func toggleRevealHiddenFolders() {
+        revealHiddenFolders.toggle()
+        rescan()
     }
 
     // MARK: - Rauschfilter

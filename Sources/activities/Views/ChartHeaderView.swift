@@ -43,8 +43,7 @@ struct ChartHeaderView: View {
                 .padding(.bottom, 8)
             }
 
-            filterIndicator
-            noiseIndicator
+            statusRow
         }
         .background(.bar)
     }
@@ -121,45 +120,100 @@ struct ChartHeaderView: View {
         return rest > 0 ? "\(names) +\(rest)" : names
     }
 
+    /// **Eine** Statuszeile für alles gerade Ausgeblendete.
+    ///
+    /// **Warum zusammengefasst?** Typ-Filter und Rauschfilter beantworten dem
+    /// Anwender dieselbe Frage: „Warum sehe ich nicht alles?" Zwei gestapelte
+    /// Leisten kosteten doppelt Höhe und legten nahe, es seien zwei getrennte
+    /// Sachverhalte.
+    ///
+    /// **Warum der Rauschfilter links steht:** Er ist dauerhaft sichtbar, der
+    /// Typ-Filter kommt und geht. Stünde der Typ-Filter zuerst, spränge das
+    /// Auge bei jedem Ein- und Ausblenden nach rechts – ein ortsfestes
+    /// Bedienelement darf nicht von einem flüchtigen verschoben werden.
+    ///
+    /// **Warum `ViewThatFits`?** Nebeneinander ist schlanker – aber bei schmalem
+    /// Fenster würde Text abgeschnitten, und ein abgeschnittener Hinweis auf
+    /// Ausgeblendetes wäre schlimmer als eine zweite Zeile. Passt es nicht,
+    /// bricht die Zeile um, statt Information zu verlieren.
+    @ViewBuilder
+    private var statusRow: some View {
+        let zeigtRauschen = model.revealHiddenFolders
+            || model.skippedFolderCount > 0
+            || !model.excludedPaths.isEmpty
+        if model.hasTypeFilter || zeigtRauschen {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    if zeigtRauschen { noiseSegment }
+                    if model.hasTypeFilter && zeigtRauschen {
+                        Divider().frame(height: 11)
+                    }
+                    if model.hasTypeFilter { typeSegment }
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    if zeigtRauschen { noiseSegment }
+                    if model.hasTypeFilter { typeSegment }
+                }
+            }
+            .font(.caption)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 5)
+        }
+    }
+
+    /// Ausgeblendete Dateitypen.
+    ///
+    /// Ohne diesen Hinweis wäre der Typ-Filter ein **stiller Zustand**: Die
+    /// Ergebnisliste wirkt unvollständig, ohne dass erkennbar ist, warum.
+    /// Der Akzentton bleibt, weil dieser Zustand vom Anwender selbst gesetzt
+    /// wurde – anders als der dauerhaft laufende Rauschfilter.
+    private var typeSegment: some View {
+        let count = model.hiddenTypeCount
+        return HStack(spacing: 5) {
+            Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                .foregroundStyle(.tint)
+            Text("\(count) \(count == 1 ? "Typ" : "Typen") ausgeblendet")
+            Button("Zurücksetzen") { model.resetTypeFilters() }
+                .buttonStyle(.link)
+                .help("Alle Dateitypen wieder einblenden (⌥⌘R)")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(count) Dateitypen ausgeblendet")
+        .accessibilityHint("Zum Zurücksetzen aktivieren")
+    }
+
     /// Offenlegung, wie viel der Rauschfilter ausgeblendet hat.
     ///
     /// **Ausschlüsse dürfen kein stiller Zustand sein** (Lehre aus UX-06): Wer
     /// nicht sieht, dass etwas fehlt, hält die Auswertung für vollständig.
-    @ViewBuilder
-    private var noiseIndicator: some View {
-        if model.revealHiddenFolders || model.skippedFolderCount > 0 || !model.excludedPaths.isEmpty {
-            HStack(spacing: 6) {
-                // Das Auge ist der Schalter: ein Klick zeigt das Ausgeblendete,
-                // ein zweiter blendet es wieder aus.
-                Button {
-                    model.toggleRevealHiddenFolders()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: model.revealHiddenFolders ? "eye" : "eye.slash")
-                        Text(noiseText).font(.caption)
-                    }
-                    .foregroundStyle(model.revealHiddenFolders ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                    .contentShape(Rectangle())
+    private var noiseSegment: some View {
+        HStack(spacing: 5) {
+            // Das Auge ist der Schalter: ein Klick zeigt das Ausgeblendete,
+            // ein zweiter blendet es wieder aus.
+            Button {
+                model.toggleRevealHiddenFolders()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: model.revealHiddenFolders ? "eye" : "eye.slash")
+                    Text(noiseText)
                 }
-                .buttonStyle(.plain)
-                .help(model.revealHiddenFolders
-                      ? "Ausgeblendete Ordner wieder ausblenden"
-                      : "Ausgeblendete Ordner vorübergehend anzeigen")
-                .accessibilityLabel(noiseText)
-                .accessibilityHint(model.revealHiddenFolders
-                                   ? "Blendet sie wieder aus"
-                                   : "Zeigt sie vorübergehend an")
-
-                SettingsLink {
-                    Text("Einstellungen …")
-                }
-                .buttonStyle(.link)
-                .font(.caption)
-
-                Spacer()
+                .foregroundStyle(model.revealHiddenFolders ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 4)
+            .buttonStyle(.plain)
+            .help(model.revealHiddenFolders
+                  ? "Ausgeblendete Ordner wieder ausblenden"
+                  : "Ausgeblendete Ordner vorübergehend anzeigen")
+            .accessibilityLabel(noiseText)
+            .accessibilityHint(model.revealHiddenFolders
+                               ? "Blendet sie wieder aus"
+                               : "Zeigt sie vorübergehend an")
+
+            SettingsLink {
+                Text("Einstellungen …")
+            }
+            .buttonStyle(.link)
         }
     }
 
@@ -178,37 +232,5 @@ struct ChartHeaderView: View {
             teile.append("\(n) von dir ausgeblendet")
         }
         return teile.joined(separator: " · ")
-    }
-
-    /// Hinweis auf ausgeblendete Dateitypen samt Zurücksetzen.
-    ///
-    /// Ohne diesen Hinweis wäre der Typ-Filter ein **stiller Zustand**: Die
-    /// Ergebnisliste wirkt unvollständig, ohne dass erkennbar ist, warum.
-    @ViewBuilder
-    private var filterIndicator: some View {
-        if model.hasTypeFilter {
-            let count = model.hiddenTypeCount
-            HStack(spacing: 6) {
-                Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                    .foregroundStyle(.tint)
-                Text("\(count) \(count == 1 ? "Typ" : "Typen") ausgeblendet")
-                    .font(.callout)
-                Button("Zurücksetzen") { model.resetTypeFilters() }
-                    .buttonStyle(.link)
-                    .help("Alle Dateitypen wieder einblenden (⌥⌘R)")
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.10))
-            )
-            .padding(.horizontal, 4)
-            .padding(.bottom, 4)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(count) Dateitypen ausgeblendet")
-            .accessibilityHint("Zum Zurücksetzen aktivieren")
-        }
     }
 }

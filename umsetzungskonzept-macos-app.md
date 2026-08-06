@@ -379,14 +379,44 @@ gestreckten Spalten, kein adaptives Grid), mit **kleinen festen Abständen**
 (horizontal/vertikal je ~6 pt) und Umbruch in die nächste Zeile bei Platzmangel.
 Nicht verwenden: `LazyVGrid(.adaptive(minimum:))` – das streckt die Spalten auf
 die volle Breite und erzeugt große Lücken.
+
+**Alle Chips gleich hoch (`minHeight: 16`).** Das Datei-Symbol ist 16 pt hoch, die
+Beschriftung (`.caption`) nur ~13 pt. Der Chip **„Sonstige" führt kein Symbol** – seine
+Höhe richtete sich deshalb allein nach dem Text und er war gemessene **21 pt statt 24 pt**,
+also sichtbar niedriger als seine Nachbarn. Eine Mindesthöhe in Symbolhöhe gleicht das aus;
+`minHeight` statt `height`, damit vergrößerte Schrift den Chip weiterhin wachsen lässt.
 Ein **„An den Anfang"-Knopf** in der Steuerleiste (Symbol `arrow.up.to.line`,
 Kürzel ⌘↑) scrollt die Liste über einen Top-Anker wieder ganz nach oben.
 
-#### 4.2.1 Zustandshinweis „Typen ausgeblendet"
+#### 4.2.1 Statuszeile „was ist gerade ausgeblendet"
 Ein Filter, den man nicht sieht, ist ein **stiller Zustand**: Die Ergebnisliste wirkt
 unerklärlich unvollständig. Deshalb erscheint unter der Legende – **nur wenn tatsächlich
-etwas ausgeblendet ist** – ein Hinweis „N Typen ausgeblendet" mit Knopf **„Zurücksetzen"**
-(getönte Fläche in Akzentfarbe, ~10 %).
+etwas ausgeblendet ist** – ein Hinweis „N Typen ausgeblendet" mit Knopf **„Zurücksetzen"**.
+
+**Eine Zeile, nicht zwei.** Der Typ-Filter und der Rauschfilter (9.5) beantworten dem
+Anwender dieselbe Frage: „Warum sehe ich nicht alles?" Sie standen zunächst in zwei
+gestapelten Leisten übereinander – doppelte Höhe und der falsche Eindruck, es seien zwei
+getrennte Sachverhalte. Beide teilen sich nun **eine** Statuszeile, getrennt durch einen
+senkrechten Strich:
+
+```
+👁 47 Ordner samt Inhalt übersprungen  Einstellungen …  │  ⊜ 1 Typ ausgeblendet  Zurücksetzen
+```
+
+**Der Rauschfilter steht links, der Typ-Filter rechts.** Das Auge ist dauerhaft sichtbar,
+der Typ-Filter kommt und geht. Stünde der Typ-Filter zuerst, spränge das Auge bei jedem
+Ein- und Ausblenden nach rechts – ein ortsfestes Bedienelement darf nicht von einem
+flüchtigen verschoben werden. Gemessen: Die Statuszeile beginnt mit und ohne Typ-Filter
+am selben Bildpunkt.
+
+Die getönte Akzentfläche entfiel dabei; der Akzentton bleibt auf dem Sinnbild, weil dieser
+Zustand vom Anwender selbst gesetzt wurde – anders als der dauerhaft laufende Rauschfilter,
+der gedämpft bleibt.
+
+**Umbruch statt Abschneiden:** `ViewThatFits` stellt beide Teile nebeneinander, solange sie
+passen, sonst untereinander. Ein *abgeschnittener* Hinweis auf Ausgeblendetes wäre schlimmer
+als eine zweite Zeile. Bei Mindestbreite (820 pt) passt eine Zeile; der Umbruch ist die
+Rückfallebene für vergrößerte Schrift.
 
 **Abgrenzung:** Der Zeitfenster-Schalter (3.6.1) zählt hier **nicht** mit. Er steht auf
 seinem Standardwert und ist durch seinen eigenen Schalter bereits sichtbar; andernfalls

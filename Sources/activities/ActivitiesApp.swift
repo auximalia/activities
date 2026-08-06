@@ -2,12 +2,22 @@ import SwiftUI
 import AppKit
 import ActivitiesCore
 
-/// Holt das Hauptfenster nach vorn (Menueleiste und globales Kuerzel).
-private func activateMainWindow() {
-    NSApp.activate(ignoringOtherApps: true)
-    // Bei ausgeblendetem Dock-Symbol kann das Fenster geschlossen sein.
-    if let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.contentView != nil }) {
-        window.makeKeyAndOrderFront(nil)
+/// Zugriff auf das Hauptfenster.
+///
+/// **Warum eigens geregelt:** Seit dem Menueleisten-Symbol (9.6) lebt die App
+/// weiter, wenn man das Fenster schliesst. „App aufrufen" traf dann auf einen
+/// laufenden Prozess **ohne** Fenster – und es passierte scheinbar nichts.
+/// Deshalb wird ein Fenster notfalls **neu erzeugt**, nicht nur nach vorn geholt.
+enum MainWindow {
+    static let id = "main"
+
+    static func show(_ openWindow: OpenWindowAction) {
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }) {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            openWindow(id: id)
+        }
     }
 }
 
@@ -21,14 +31,18 @@ private func sendToResponder(_ selector: String) {
 struct ActivitiesApp: App {
     @State private var model = ReportViewModel()
     @State private var updates = UpdateChecker()
+    /// Wird gebraucht, um ein Fenster **neu zu erzeugen**, wenn keines mehr
+    /// offen ist – seit die App dank Menueleisten-Symbol ohne Fenster
+    /// weiterlebt, ist das der Regelfall und nicht die Ausnahme.
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        WindowGroup("activities") {
+        WindowGroup("activities", id: MainWindow.id) {
             RootView(model: model, updates: updates)
                 .frame(minWidth: 820, minHeight: 560)
                 .onAppear {
                     AppPresence.setDockIconVisible(model.showsDockIcon)
-                    GlobalHotKey.register(activateMainWindow)
+                    GlobalHotKey.register { MainWindow.show(openWindow) }
                 }
         }
         .defaultSize(width: 1280, height: 780)
@@ -111,7 +125,7 @@ struct ActivitiesApp: App {
         // Die haeufigste Frage („woran habe ich zuletzt gearbeitet?") soll ohne
         // Fensterwechsel beantwortet sein.
         MenuBarExtra("activities", systemImage: "clock.badge.checkmark") {
-            MenuBarView(model: model, openMainWindow: activateMainWindow)
+            MenuBarView(model: model, openMainWindow: { MainWindow.show(openWindow) })
         }
         .menuBarExtraStyle(.window)
 

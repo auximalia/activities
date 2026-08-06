@@ -476,6 +476,11 @@ private struct LegendChip: View {
         }
         .opacity(isHidden ? 0.4 : 1)
         .strikethrough(isHidden, color: .secondary)
+        // Ohne feste Mindesthöhe wäre „Sonstige" niedriger als die übrigen
+        // Plättchen: Dort fehlt das 16 pt hohe Datei-Symbol, und die Höhe
+        // richtete sich allein nach dem Text. `minHeight` statt `height`,
+        // damit vergrößerte Schrift das Plättchen weiterhin wachsen lässt.
+        .frame(minHeight: 16)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(

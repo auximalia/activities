@@ -111,7 +111,10 @@ struct HistoryChartView: View {
                 if let date: Date = value.as(Date.self), shouldLabel(date) {
                     AxisGridLine().foregroundStyle(Color.secondary.opacity(0.18))
                     AxisTick().foregroundStyle(Color.secondary.opacity(0.25))
-                    AxisValueLabel {
+                    // `centered: true` setzt die Beschriftung in die MITTE des
+                    // Intervalls – dort steht auch der Balken. Ohne das klebt sie
+                    // an der Intervallgrenze und wirkt gegenueber dem Balken versetzt.
+                    AxisValueLabel(centered: true) {
                         VStack(spacing: 1) {
                             switch granularity {
                             case .day:

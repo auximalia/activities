@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.3)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.12.4)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -154,6 +154,9 @@ wählt daher nach Länge des Zeitraums:
 
 **Was mitziehen muss** (sonst bricht die Bedienung):
 - `BarMark`-Einheit und Achsen-Schrittweite (`calendarUnit`),
+- **`AxisValueLabel(centered: true)`** – Achsenmarken sitzen auf der Intervall*grenze*,
+  Balken stehen aber in der Intervall*mitte*. Ohne `centered` wirkt die Beschriftung
+  gegenüber ihrem Balken nach links versetzt,
 - Beschriftungsdichte (Tag: Mo/Fr · Woche: jede 4. · Monat: quartalsweise),
 - **Wochenend-Bänder nur bei Tages-Bündelung** – sonst sinnlos,
 - **Klick-Auflösung**: `chartBucketRange(containing:)` statt „gleicher Kalendertag" –

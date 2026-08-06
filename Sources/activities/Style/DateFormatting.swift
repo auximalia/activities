@@ -54,6 +54,28 @@ enum DateFormatting {
         return "\(dayFormatter.string(from: date)), \(time)"
     }
 
+    /// Kurzfassung fuer das Kompakt-Layout: ohne Wochentag, Jahr nur bei
+    /// aelteren Eintraegen – „Heute, 14:45" · „03.08. 22:38" · „03.08.25 09:12".
+    ///
+    /// Das lange Format bricht in der schmalen Datumsspalte auf zwei Zeilen um
+    /// und macht die Zeile hoch.
+    static func dateTimeCompact(_ date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
+        let time = timeFormatter.string(from: date)
+        if calendar.isDateInToday(date) { return "Heute, \(time)" }
+        if calendar.isDateInYesterday(date) { return "Gestern, \(time)" }
+        let sameYear = calendar.component(.year, from: date) == calendar.component(.year, from: now)
+        return sameYear
+            ? "\(dayMonthFormatter.string(from: date)) \(time)"
+            : "\(shortYearFormatter.string(from: date)) \(time)"
+    }
+
+    private static let shortYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "de_DE")
+        formatter.dateFormat = "dd.MM.yy"
+        return formatter
+    }()
+
     static func day(_ date: Date) -> String {
         dayFormatter.string(from: date)
     }

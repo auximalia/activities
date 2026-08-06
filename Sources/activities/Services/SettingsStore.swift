@@ -18,6 +18,8 @@ struct StoredSettings {
     var ignoreTimeWindow: Bool
     /// Reihenfolge innerhalb der Zeitabschnitte.
     var sort: FolderSort
+    /// Ob der Erstkontakt-Hinweis bereits weggeklickt wurde.
+    var didShowIntro: Bool
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -40,6 +42,7 @@ final class SettingsStore {
     private let ignoreWindowKey = "ignoreTimeWindow"
     private let sortFieldKey = "sortField"
     private let sortAscendingKey = "sortAscending"
+    private let introKey = "didShowIntro"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -57,6 +60,7 @@ final class SettingsStore {
         let ignoreWindow = defaults.object(forKey: ignoreWindowKey) as? Bool ?? false
         let sortField = (defaults.string(forKey: sortFieldKey)).flatMap(SortField.init(rawValue:)) ?? .date
         let sortAscending = defaults.object(forKey: sortAscendingKey) as? Bool ?? false
+        let didShowIntro = defaults.bool(forKey: introKey)
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -79,7 +83,8 @@ final class SettingsStore {
             showOutOfWindowFiles: showOutOfWindow,
             headerExpanded: headerExpanded,
             ignoreTimeWindow: ignoreWindow,
-            sort: FolderSort(field: sortField, ascending: sortAscending)
+            sort: FolderSort(field: sortField, ascending: sortAscending),
+            didShowIntro: didShowIntro
         )
     }
 
@@ -112,6 +117,10 @@ final class SettingsStore {
 
     func saveIgnoreTimeWindow(_ on: Bool) {
         defaults.set(on, forKey: ignoreWindowKey)
+    }
+
+    func saveIntroShown() {
+        defaults.set(true, forKey: introKey)
     }
 
     func saveSort(_ sort: FolderSort) {

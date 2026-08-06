@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ActivitiesCore
 
 /// Kopfzeile eines Ordners in der flachen Liste.
@@ -9,6 +10,8 @@ import ActivitiesCore
 struct FolderRowView: View {
     let entry: FolderEntry
     @Bindable var model: ReportViewModel
+    /// Schmales Fenster: Pfad entfaellt, Datumsspalte kuerzer.
+    var isCompact: Bool = false
 
     private var isExpanded: Bool { model.isExpanded(entry.folder) }
     private var isSelected: Bool { model.selection == .folder(entry.folder) }
@@ -50,22 +53,26 @@ struct FolderRowView: View {
                     .font(.headline)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
-                Text(model.relativePath(of: entry.folder))
+                if !isCompact {
+                    Text(model.relativePath(of: entry.folder))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .layoutPriority(-1)
                     .help(entry.folder.path)
+                }
             }
+            .help(isCompact ? entry.folder.path : "")
 
             Spacer(minLength: RowMetrics.itemSpacing)
 
             // Feste Datumsspalte: haelt den Zeitstempel nah am Inhalt.
             // Die Dateianzahl steht im Zeitabschnitts-Kopf (spart hier Platz).
-            Text(DateFormatting.dateTime(displayDate))
+            Text(isCompact ? DateFormatting.dateTimeCompact(displayDate) : DateFormatting.dateTime(displayDate))
                 .font(.system(.callout, design: .monospaced))
-                .frame(width: RowMetrics.dateColumnWidth, alignment: .trailing)
+                .lineLimit(1)
+                .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
         }
         .padding(.vertical, 5)
         .padding(.horizontal, RowMetrics.horizontalPadding)

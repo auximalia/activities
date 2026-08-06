@@ -140,6 +140,11 @@ final class ReportViewModel {
     private var topExtensionSet: Set<String> = []
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
+    /// Ob der Erstkontakt-Hinweis noch angezeigt wird.
+    ///
+    /// Erscheint bewusst **erst nach dem ersten Suchlauf** – vorher erklaerte er
+    /// einen leeren Bildschirm.
+    var showsIntro = false
     /// Reihenfolge innerhalb der Zeitabschnitte (Ordner **und** Dateien).
     private(set) var sort: FolderSort = .byNewest
     /// Ob die Kopfzone (Diagramm + Legende) aufgeklappt ist. Eingeklappt bleibt
@@ -200,6 +205,7 @@ final class ReportViewModel {
         self.headerExpanded = saved.headerExpanded
         self.ignoreTimeWindow = saved.ignoreTimeWindow
         self.sort = saved.sort
+        self.showsIntro = !saved.didShowIntro
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
@@ -303,6 +309,12 @@ final class ReportViewModel {
         rangeEnd = max(end, start)
         store.saveTimeMode(useDateRange: true, start: rangeStart, end: rangeEnd)
         applyWindowChange()
+    }
+
+    /// Blendet den Erstkontakt-Hinweis dauerhaft aus.
+    func dismissIntro() {
+        showsIntro = false
+        store.saveIntroShown()
     }
 
     /// Setzt das Sortierkriterium; erneutes Waehlen desselben kehrt die Richtung um.

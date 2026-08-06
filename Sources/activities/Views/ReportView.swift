@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ActivitiesCore
 
 /// Die scrollende Ordner-/Dateiliste. Diagramm und Legende liegen seit v1.8.0
@@ -32,6 +33,19 @@ struct ReportView: View {
     static let topAnchorID = "list-top-anchor"
 
     var body: some View {
+        // Breite am Wurzelelement messen: Im Hintergrund der ScrollView lieferte
+        // die Messung nicht die Ansichtsbreite.
+        GeometryReader { geometry in
+            content(width: geometry.size.width)
+        }
+    }
+
+    /// Kompakt-Layout ist eine **reine Funktion der Breite** – kein
+    /// Zwischenzustand. Ein `@State`, das aus `onAppear`/`onChange` gesetzt
+    /// wurde, erreichte die Zeilen nicht zuverlaessig.
+    @ViewBuilder
+    private func content(width: CGFloat) -> some View {
+        let isCompact = width < RowMetrics.compactThreshold
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
@@ -43,11 +57,11 @@ struct ReportView: View {
                     ForEach(model.displayBuckets) { bucket in
                         Section {
                             ForEach(bucket.entries) { entry in
-                                FolderRowView(entry: entry, model: model)
+                                FolderRowView(entry: entry, model: model, isCompact: isCompact)
                                     .id(RowID.folder(entry.folder))
 
                                 if model.isExpanded(entry.folder) {
-                                    detailRows(for: entry)
+                                    detailRows(for: entry, isCompact: isCompact)
                                 }
 
                                 // Nur EIN Trennsystem: Das Zebra der Dateizeilen
@@ -154,7 +168,7 @@ struct ReportView: View {
     }
 
     @ViewBuilder
-    private func detailRows(for entry: FolderEntry) -> some View {
+    private func detailRows(for entry: FolderEntry, isCompact: Bool) -> some View {
         if let files = model.visibleFiles(in: entry.folder) {
             if files.isEmpty {
                 Text("Keine passenden Dateien in diesem Ordner.")
@@ -171,7 +185,8 @@ struct ReportView: View {
                             file: file,
                             model: model,
                             isDateSource: file.timestamp == sourceDate,
-                            isAlternate: index.isMultiple(of: 2) == false
+                            isAlternate: index.isMultiple(of: 2) == false,
+                            isCompact: isCompact
                         )
                     }
                     .id(RowID.file(file.url))

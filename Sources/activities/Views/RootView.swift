@@ -9,9 +9,14 @@ struct RootView: View {
     var updates: UpdateChecker
     /// Ob gerade ein Ordner ueber dem Fenster schwebt (Abwurfziel hervorheben).
     @State private var isDropTargeted = false
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
+            if model.showsIntro && model.hasScanResults {
+                introBanner
+                Divider()
+            }
             if model.hasScanResults && model.errorMessage == nil {
                 ChartHeaderView(model: model)
                 Divider()
@@ -70,6 +75,41 @@ struct RootView: View {
         }
     }
 
+
+    /// Erstkontakt: erklärt in drei Sätzen, was man sieht.
+    ///
+    /// Bewusst ein **Streifen** und kein Dialog: Er blockiert nicht und lässt die
+    /// Auswertung sofort sehen – gerade sie ist die beste Erklärung.
+    private var introBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "sparkles")
+                .foregroundStyle(.tint)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Willkommen bei activities")
+                    .font(.callout).fontWeight(.semibold)
+                Text("Hier siehst du, in welchen Ordnern zuletzt gearbeitet wurde. "
+                     + "Den Ordner wechselst du links oben, den Zeitraum daneben. "
+                     + "Ein Klick ins Diagramm springt zur passenden Datei.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            VStack(spacing: 6) {
+                Button("Verstanden") { model.dismissIntro() }
+                    .keyboardShortcut(.defaultAction)
+                Button("Hilfe öffnen") {
+                    model.dismissIntro()
+                    openWindow(id: "help")
+                }
+                .buttonStyle(.link)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.accentColor.opacity(0.08))
+    }
 
     /// Leerzustand, der die **tatsächliche** Ursache nennt.
     ///

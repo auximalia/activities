@@ -14,6 +14,8 @@ struct FileRowView: View {
     var isDateSource: Bool = true
     /// Jede zweite Zeile bekommt einen dezenten Hintergrund (Zebra, Lesehilfe).
     var isAlternate: Bool = false
+    /// Schmales Fenster: Datumsspalte kuerzer.
+    var isCompact: Bool = false
 
     private var isSelected: Bool { model.selection == .file(file.url) }
     /// Ob die Datei im gewaehlten Zeitfenster liegt (sonst: Hinweis-Symbol).
@@ -57,12 +59,13 @@ struct FileRowView: View {
             }
 
             Spacer(minLength: RowMetrics.itemSpacing)
-            Text(DateFormatting.dateTime(file.timestamp))
+            Text(isCompact ? DateFormatting.dateTimeCompact(file.timestamp) : DateFormatting.dateTime(file.timestamp))
                 .font(.system(.callout, design: .monospaced))
                 .fontWeight(isDateSource ? .bold : .regular)
                 .foregroundStyle(.secondary)
                 .opacity(isInWindow ? 1 : RowMetrics.outOfWindowTextOpacity)
-                .frame(width: RowMetrics.dateColumnWidth, alignment: .trailing)
+                .lineLimit(1)
+                .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
         }
         .padding(.vertical, 3)
         .padding(.horizontal, RowMetrics.horizontalPadding)

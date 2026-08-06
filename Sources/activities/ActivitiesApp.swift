@@ -10,7 +10,7 @@ struct ActivitiesApp: App {
     var body: some Scene {
         WindowGroup("activities") {
             RootView(model: model, updates: updates)
-                .frame(minWidth: 1180, minHeight: 600)
+                .frame(minWidth: 820, minHeight: 560)
         }
         .defaultSize(width: 1280, height: 780)
         // Kompakte Titelleiste: spart Hoehe gegenueber dem Standardstil, ohne

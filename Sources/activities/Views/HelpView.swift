@@ -56,6 +56,7 @@ struct HelpView: View {
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
                     "Pfade sind relativ zum gewählten Ordner; Datum relativ („Heute, 14:32“).",
+                    "Bei schmalem Fenster entfällt der Pfad – er bleibt im Tooltip.",
                     "Diagramm und Legende bleiben oben stehen; „Diagramm ausblenden“ schafft Platz.",
                     "Über dem Diagramm steht der angezeigte Zeitraum als Überschrift.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",

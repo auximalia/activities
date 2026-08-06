@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.14.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.15.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -283,7 +283,7 @@ erste Ordner mit `newestDate < Ende jenes Tages` (Liste ist absteigend sortiert)
 
 ## 4. Oberfläche & Interaktion
 
-Ein Fenster (Mindestbreite ~1180 pt, Mindesthöhe 600 pt, Vorgabe 1280×780), vier Bereiche:
+Ein Fenster (Mindestbreite **820 pt**, Mindesthöhe 560 pt, Vorgabe 1280×780), vier Bereiche:
 
 1. **Titelleisten-Toolbar** – alle Bedienelemente (seit v1.8.0; früher eine eigene Zeile).
 2. **Feste Kopfzone** – Diagramm, Legende, Filter-Hinweis. Scrollt **nicht** mit.
@@ -428,6 +428,25 @@ Format: **„<Label> · <N> Ordner / <M> Dateien"**, z. B. „Diese Woche · 3 O
 - Singular/Plural bei „Datei/Dateien" beachten.
 
 
+#### 4.3.8 Kompakt-Layout bei schmalem Fenster
+Unterhalb von `RowMetrics.compactThreshold` (**940 pt**) kostet die Zeile zu viel an festen
+Bestandteilen. Dann:
+- **Pfad entfällt** (bleibt im Tooltip der Namenszeile),
+- **Datumsspalte 150 → 108 pt**,
+- **kürzeres Datumsformat** (`dateTimeCompact`): „Heute, 14:45" · „03.08. 22:38" ·
+  „03.08.25 09:12". Ohne das bricht „Mo., 03.08. 22:38" in der schmalen Spalte **zweizeilig**
+  um und macht die Zeile hoch.
+
+Dadurch sinkt die **Mindestbreite von 1180 auf 820 pt** – das ist der eigentliche Gewinn
+(13″-Geräte).
+
+**Wichtige Lehre – kein Zwischenzustand:** Das Kompakt-Layout ist eine **reine Funktion der
+Breite**, berechnet direkt im `GeometryReader`. Ein erster Versuch mit `@State`, gesetzt aus
+`onAppear`/`onChange`, wurde **nicht zuverlässig an die Zeilen weitergereicht** – die
+Messung stimmte (nachgewiesen per Protokoll), doch die Zeilen rendered weiter mit dem alten
+Wert. Abgeleitete Darstellungsgrößen gehören nicht in einen Zustand, wenn sie sich direkt
+berechnen lassen.
+
 #### 4.3.6 Relative Datumsangaben
 „Heute, 22:59" · „Gestern, 14:32" · „Mi., 05.08. 14:32" (innerhalb 7 Tagen) · „05.08.2025, 14:32".
 Das volle Datum in jeder Zeile zu wiederholen ist Rauschen – erst recht unter einer
@@ -501,6 +520,14 @@ Ladevorgänge (Auto-Refresh) rissen die Ansicht sonst immer wieder zur alten Aus
 - **Kein In-Zeitraum-Treffer:** „Keine Ordner gefunden".
 - **Leerzustand nennt die Ursache (ab v1.11.0):** Statt drei Möglichkeiten aufzuzählen, unterscheidet `emptyReason` drei Fälle und bietet **genau einen** passenden Knopf: *Namensfilter* („Keine Treffer für „xyz" – ohne ihn wären es N Ordner", **Filter löschen**), *Zeitraum* („Der Ordner enthält N Dateien, aber keine im Zeitraum", **Auf 90 Tage erweitern**), *leerer Ordner* (ohne Knopf). Die Gegenprobe „wie viele ohne Filter?" kostet seit 5.-1 nur einen Durchlauf im Speicher. Der Filter wird beim Ordnerwechsel **bewusst nicht** gelöscht – dasselbe Wort in mehreren Ordnern zu suchen ist ein gültiger Arbeitsablauf.
 - **Filter blendet alles aus:** unter dem Diagramm dezent „Keine Treffer für den aktiven Filter" – **Diagramm & Legende bleiben sichtbar**, damit man wieder einblenden kann.
+
+#### 4.5.1 Erstkontakt (First Run)
+Beim ersten Start erscheint über der Liste ein **Hinweisstreifen** („Willkommen bei
+activities") mit drei Sätzen und den Knöpfen **Verstanden** und **Hilfe öffnen**;
+danach dauerhaft ausgeblendet (`didShowIntro`).
+Bewusst ein Streifen und kein Dialog: Er blockiert nicht und lässt die Auswertung sofort
+sehen – gerade sie ist die beste Erklärung. Er erscheint **erst nach dem ersten Suchlauf**,
+sonst erklärte er einen leeren Bildschirm.
 
 ### 4.6 Statuszeile / Menü / Über-Fenster / Hilfe
 - **Statuszeile:** „N Ordner · M Dateien", Auto-Refresh-Indikator, Wurzelpfad, ganz rechts die **Versionsnummer** („v1.14.0", auswählbar, Tooltip mit Revision und Build-Datum). Die **Scandauer** ist eine Diagnosegröße ohne Nutzerwert und steht nur noch im **Tooltip** der Ordner/Dateien-Anzeige.
@@ -677,7 +704,7 @@ Der Core kennt weder SwiftUI noch AppKit.
   Einzeiler: `curl -fsSL .../Packaging/web-install.sh | bash`. Ohne Entwickler-Tools,
   läuft auf Intel und Apple Silicon. `Packaging/install.command` ist die
   Offline-Variante (Doppelklick) für ein manuell kopiertes ZIP.
-- **`Packaging/build_app.sh`:** baut arm64 + x86_64 getrennt (ohne Xcode kein `--arch`), fügt mit `lipo` zusammen, packt `.app` (Info.plist, `AppIcon.icns` = blauer LED-Kreis), injiziert Git-Revision/Build-Datum, ad-hoc-Signatur.
+- **`Packaging/build_app.sh`:** baut arm64 + x86_64 getrennt (ohne Xcode kein `--arch`), fügt mit `lipo` zusammen, packt `.app` (Info.plist, `AppIcon.icns` = **Ordner mit Zifferblatt**, programmatisch in `make_icon.swift` gezeichnet: abgerundetes Quadrat, Inhalt auf ~82 %, heller Grund für helles wie dunkles Dock, trägt bis 16 px), injiziert Git-Revision/Build-Datum, ad-hoc-Signatur.
 - **`Packaging/notarize.sh`:** optionale Developer-ID-Signierung + Notarisierung (braucht Apple-Account; Zugangsdaten aus `.env`).
 - **`Packaging/git_setup.sh`:** legt privates GitHub-Repo an und pusht (Token aus `.env`).
 - **CI:** `Packaging/github-ci.yml` (nach `.github/workflows/` kopieren) baut auf `macos-14`, führt `swift run CoreChecks` und `swift test` aus.

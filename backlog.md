@@ -17,7 +17,10 @@ erledigt.
 **Erledigt in Sprint 3 (v1.11.0):** UX-29, UX-02, UX-08, UX-09, UX-10, UX-12, UX-17.
 **Erledigt in Sprint 4 (v1.12.0):** UX-20, UX-30, UX-28, UX-21.
 **Erledigt in Sprint 5 (v1.13.1):** UX-19, UX-22.
-– Backlog umfasst 30 Einträge, davon **6 offen**.
+**Erledigt in Sprint 6 (v1.15.0):** UX-25, UX-18, UX-14.
+– Backlog umfasst 30 Einträge, davon **3 offen**: UX-13 (Tastatur/VoiceOver),
+UX-24 (Einstellungen – Eintrag ist überholt und vor Umsetzung neu zu fassen),
+UX-23 (Mehrfachauswahl, Umbau).
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -333,7 +336,7 @@ lägen unter dem Mindestkontrast, war **falsch** – gemessen 8,4:1 (dark) / 9,5
 **Offen bleibt:** Legenden-Chips und Toolbar sind nicht per Tabulator erreichbar;
 VoiceOver-Beschriftungen sind unvollständig.
 
-### UX-14 · Kompakt-Layout für schmale Fenster
+### ✅ UX-14 · Kompakt-Layout für schmale Fenster *(erledigt, v1.15.0)*
 **Aufwand:** M · **Nutzen:** mittel
 Die Mindestbreite liegt bei 1000 pt. Auf einem 13″-Gerät bleibt neben Pfad und
 Datumsspalte wenig für den Namen.
@@ -361,7 +364,7 @@ beim Aufklappen, spränge der Wert und die Datumsspalte bekäme Lücken. Die Fet
 zudem eine *andere* Aussage als das Datum – sie sagt, **welche** Datei die Quelle ist.
 Dokumentiert in Konzept §4.3.7. *Mein ursprünglicher Kritikpunkt war unterkomplex.*
 
-### UX-18 · App-Icon überarbeiten
+### ✅ UX-18 · App-Icon überarbeiten *(erledigt, v1.15.0)*
 **Aufwand:** M · **Nutzen:** mittel
 Das Icon ist ein generierter blauer Kreis – ein Platzhalter. Es ist der erste Eindruck im
 Dock und transportiert „zuletzt bearbeitet" nicht.
@@ -428,7 +431,7 @@ Alle Optionen hängen in der Toolbar; sobald eine weitere dazukommt, platzt sie.
 Standard-Zeitraum, Ausschlüsse, Anzahl Legenden-Einträge und Update-Verhalten gehören
 in ein Einstellungen-Fenster.
 
-### UX-25 · Erstkontakt (First Run)
+### ✅ UX-25 · Erstkontakt (First Run) *(erledigt, v1.15.0)*
 **Aufwand:** S · **Nutzen:** mittel
 Beim ersten Start erscheint sofort ein Ergebnis, ohne dass erklärt wird, was die App tut
 und dass der Ordner wechselbar ist.

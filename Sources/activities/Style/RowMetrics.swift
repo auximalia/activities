@@ -40,6 +40,21 @@ enum RowMetrics {
     /// Feste Breite der Datumsspalte. Verhindert, dass der Zeitstempel bei
     /// breitem Fenster weit vom Namen abrueckt (Gesetz der Naehe).
     static let dateColumnWidth: CGFloat = 150
+    /// Schmalere Datumsspalte im Kompakt-Layout.
+    static let dateColumnWidthCompact: CGFloat = 108
+
+    /// Ab welcher Fensterbreite auf das Kompakt-Layout umgeschaltet wird.
+    ///
+    /// Darunter kostet die Zeile zu viel an feste Bestandteile (Datumsspalte,
+    /// Einrueckung, Pfad) und fuer den Dateinamen bleibt kaum Platz. Statt alles
+    /// zu quetschen, entfaellt dann der Pfad (bleibt im Tooltip) und die
+    /// Datumsspalte wird kuerzer.
+    static let compactThreshold: CGFloat = 940
+
+    /// Datumsspaltenbreite je Layout.
+    static func dateColumnWidth(compact: Bool) -> CGFloat {
+        compact ? dateColumnWidthCompact : dateColumnWidth
+    }
 
     /// Farbe der Baumlinien.
     static let connectorColor = Color.secondary.opacity(0.45)

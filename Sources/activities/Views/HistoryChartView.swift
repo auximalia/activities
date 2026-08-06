@@ -70,6 +70,23 @@ struct HistoryChartView: View {
         }
     }
 
+    /// Kurzfassung des Diagramms fuer VoiceOver.
+    private var accessibilitySummary: String {
+        let total = chartDays.reduce(0) { $0 + $1.total }
+        guard total > 0, let first = chartDays.first?.day, let last = chartDays.last?.day else {
+            return "Keine Daten im gewählten Zeitraum"
+        }
+        let unit: String
+        switch granularity {
+        case .day: unit = "nach Tag"
+        case .week: unit = "nach Woche"
+        case .month: unit = "nach Monat"
+        }
+        let top = topExtensions.prefix(3).map { ".\($0.ext) \($0.count)" }.joined(separator: ", ")
+        return "\(bucketLabel(first)) bis \(bucketLabel(last)), gebündelt \(unit). "
+            + "\(total) Dateien insgesamt. Häufigste Typen: \(top)."
+    }
+
     /// Vollstaendiger Zeitbereich der Achse – auch leere Randtage gehoeren dazu.
     private var axisDomain: ClosedRange<Date> {
         guard let first = chartDays.first?.day, let last = chartDays.last?.day else {
@@ -113,6 +130,13 @@ struct HistoryChartView: View {
                     y: .value("Anzahl", point.count)
                 )
                 .foregroundStyle(by: .value("Typ", point.ext))
+                // Je Segment ein sprechendes Element: Ohne das liest VoiceOver
+                // im Diagramm ueberhaupt nichts vor.
+                .accessibilityLabel(bucketLabel(point.day))
+                .accessibilityValue(
+                    "\(point.count) \(point.count == 1 ? "Datei" : "Dateien") "
+                    + (point.ext == otherKey ? "Sonstige" : ".\(point.ext)")
+                )
             }
         }
         // **Achsenbereich ausdruecklich vorgeben.** Sonst leitet Swift Charts ihn
@@ -120,6 +144,11 @@ struct HistoryChartView: View {
         // kein Wochenende ist, erzeugt keine Marke und fehlt dann ganz. Bei
         // „7 Tage" waren so nur 6 Balken zu sehen.
         .chartXScale(domain: axisDomain)
+        // Der Rahmen fasst die Segmente zusammen und nennt das Wesentliche
+        // vorab – sonst muesste man sich durch alle Balken hangeln.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Verlaufsdiagramm")
+        .accessibilityValue(accessibilitySummary)
         .chartForegroundStyleScale(domain: chartKeys, range: chartColors)
         .chartLegend(.hidden)
         .chartXAxis {

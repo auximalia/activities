@@ -45,6 +45,7 @@ struct HelpView: View {
                     "Gestapelte Balken pro Tag nach Endung (Top 10 + graue „Sonstige“).",
                     "Jeder Typ hat eine feste, klar unterscheidbare Farbe – auch nach Zeitraumwechsel.",
                     "Überfahren zeigt Datum, Anzahl und Aufschlüsselung nach Typ.",
+                    "Chips per Tabulator erreichbar: Leertaste schaltet, Enter zeigt nur diesen Typ.",
                     "Klick auf ein Segment springt zur passenden Datei.",
                     "Ziehen im Diagramm wählt einen Zeitraum aus.",
                     "Lange Zeiträume werden nach Woche oder Monat gebündelt.",

@@ -1,7 +1,4 @@
 import Foundation
-#if canImport(Darwin)
-import Darwin
-#endif
 
 /// Namensfilter fuer Dateinamen mit Glob-Semantik (case-insensitiv).
 ///
@@ -34,10 +31,6 @@ public struct NameFilter: Sendable, Equatable {
     /// Prueft, ob ein Dateiname dem Muster entspricht (Gross-/Kleinschreibung egal).
     public func matches(_ filename: String) -> Bool {
         if matchesAll { return true }
-        return pattern.withCString { patternPointer in
-            filename.withCString { namePointer in
-                fnmatch(patternPointer, namePointer, Int32(FNM_CASEFOLD)) == 0
-            }
-        }
+        return GlobMatcher.matches(filename, pattern: pattern, caseSensitive: false)
     }
 }

@@ -18,6 +18,18 @@ Englisch.
 - `Sources/CoreChecks/` – Pruef-Runner ohne XCTest (fuer Command Line Tools).
 - `Tests/ActivitiesCoreTests/` – XCTest-Suite (benoetigt volles Xcode).
 - `Packaging/` – Bundle-Skript, Icon-Generatoren, Info.plist, Git-Setup.
+
+## Regel für `ActivitiesCore`: nur Foundation
+
+Der Kern trägt die gesamte Fachlogik und muss **plattformunabhängig** bleiben –
+Fernziel ist die Möglichkeit, das Werkzeug später auch unter Windows zu entwickeln
+(Konzept 10.2). Deshalb:
+
+- **kein** `AppKit`, `SwiftUI`, `CoreGraphics`, `UniformTypeIdentifiers`,
+- **kein** `Darwin`/`Glibc` (Glob-Vergleiche laufen über `GlobMatcher`, nicht `fnmatch`),
+- Plattformabhängiges nur hinter `#if canImport(...)` **mit** funktionierendem Rückfall,
+- jede neue Kernlogik gehört in `CoreChecks` – diese Prüfungen sind zugleich der
+  Portabilitätsnachweis.
 - `legacy-python-cli/` – urspruengliches Python-Werkzeug (eingefroren).
 
 ## Bauen & Starten (Entwicklung)

@@ -1,44 +1,79 @@
 # activities – zuletzt verwendete Ordner
 
-> **Neu: native macOS-App (SwiftUI).** Dieses Repo enthaelt jetzt die App
-> **activities**. Das urspruengliche Python-Kommandozeilen-Werkzeug ist nach
-> `legacy-python-cli/` umgezogen und laeuft dort unveraendert weiter.
->
-> **App bauen und starten:**
->
-> ```
-> ./Packaging/build_app.sh        # erzeugt dist/activities.app
-> open dist/activities.app
-> ```
->
-> **Fachlogik testen (ohne Xcode):**
->
-> ```
-> swift run CoreChecks            # Unit-Pruefungen der Kernlogik
-> ```
->
-> Mit vollem Xcode zusaetzlich: `swift test` (XCTest-Suite unter
-> `Tests/ActivitiesCoreTests`). Details im `umsetzungskonzept-macos-app.md`.
->
-> Funktionen der App: Ordnerwahl per Dialog, Zeitraum und Namensfilter
-> (z. B. `*Studium*.xls*`, Gross-/Kleinschreibung egal) in der Oberflaeche,
-> Klick auf einen Ordner oeffnet ihn im Finder (und kopiert den Pfad), Klick auf
-> eine Datei oeffnet sie mit der Standard-App, Verlaufsdiagramm und Dark-Mode.
->
-> **Zum Testen auf einem anderen Mac (Intel oder Apple Silicon):**
-> Ein Befehl im Terminal laedt die neueste Version, installiert sie nach
-> `/Applications` und gibt sie frei (kein Xcode/Entwickler-Tool noetig):
->
-> ```
-> curl -fsSL https://raw.githubusercontent.com/auximalia/activities/main/Packaging/web-install.sh | bash
-> ```
->
-> Alternativ – wenn du die App bzw. das ZIP von Hand kopiert hast – liegt im
-> Paket `install.command` bei (Doppelklick: kopiert nach `/Applications` und
-> entfernt die Quarantaene). Wird `install.command` selbst blockiert, einmalig
-> per Rechtsklick -> „Oeffnen" starten.
->
+**Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
+gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
+Ordner. Das urspruengliche Python-Kommandozeilen-Werkzeug ist nach `legacy-python-cli/`
+umgezogen und laeuft dort unveraendert weiter.
+
+## Installieren (Intel oder Apple Silicon)
+
+Ein Befehl laedt die neueste Version, installiert sie nach `/Applications` und gibt sie
+frei – **ohne** Xcode oder Entwickler-Werkzeuge:
+
+```
+curl -fsSL https://raw.githubusercontent.com/auximalia/activities/main/Packaging/web-install.sh | bash
+```
+
+Die App prueft beim Start selbst auf Aktualisierungen; ein Hinweis oben rechts installiert
+sie auf Klick. Weitere Wege siehe `TEST_INSTALL.md`.
+
+## Was die App kann
+
+**Suchen und Eingrenzen**
+- **Ordner waehlen** ueber das Menue links oben; zuletzt genutzte Ordner sind hinterlegt.
+  Ein Ordner laesst sich auch **auf das Fenster ziehen**.
+- **Namensfilter**, der **beim Tippen** wirkt. Ein Wort genuegt (`studium`); Platzhalter
+  `*` und `?` sind zusaetzlich moeglich.
+- **Zeitraum** in drei Modi: **Tage** (7/30/90 oder frei), **Spanne** (von–bis) oder
+  **Alle** – letzteres macht das Werkzeug zur reinen Suche ueber den Gesamtbestand.
+- **Gescannt wird sparsam**: nur bei Programmstart, Ordnerwechsel, ⌘R und Auto-Refresh.
+  Zeitraum und Filter arbeiten auf den bereits eingelesenen Daten.
+
+**Verlaufsdiagramm**
+- Gestapelte Balken je Zeitpunkt, nach Dateiendung eingefaerbt – mit einer festen Palette,
+  deren Farben **nachweislich unterscheidbar** sind (Mindestabstand ΔE ≥ 25, in den
+  Pruefungen abgesichert).
+- **Ueberfahren** zeigt Datum, Anzahl und Aufschluesselung nach Typ.
+- **Klick** auf ein Segment springt zur passenden Datei, **Ziehen** waehlt einen Zeitraum.
+- Lange Zeitraeume werden automatisch nach **Woche** oder **Monat** gebuendelt.
+- Die **Legende** filtert: Klick blendet einen Typ aus, Doppelklick zeigt nur diesen.
+
+**Ergebnisliste**
+- Nach Zeitabschnitten gruppiert („Heute", „Diese Woche", „Vor 3 Monaten" …), als Baum
+  mit abgerundeten Verbindungslinien.
+- **Sortierung** nach Datum, Name oder Typ – innerhalb der Zeitabschnitte.
+- **Mehrfachauswahl** nach macOS-Standard: ⌘-Klick, ⇧-Klick, ⇧↑/⇧↓, ⌘A, Esc.
+- **Drag & Drop**: Dateien lassen sich einzeln oder mehrfach in andere Programme ziehen.
+- **QuickLook** mit der Leertaste, Kontextmenue fuer Oeffnen/Anzeigen/Pfad kopieren.
+- **Export** ueber „Ablage": CSV (⌘E) oder HTML (⇧⌘E) – exportiert wird das Sichtbare.
+
+**Bedienung**
+- Vollstaendig per Tastatur bedienbar; Bedienelemente und Legende sind fuer **VoiceOver**
+  beschriftet.
+- Kompakt-Layout bei schmalem Fenster, Dark- und Light-Mode.
+- Hilfe im Programm unter **Hilfe → activities Hilfe** (⌘?).
+
+## Selbst bauen
+
+```
+./Packaging/build_app.sh        # erzeugt dist/activities.app (universal)
+swift run CoreChecks            # Pruefungen der Fachlogik (ohne Xcode)
+```
+
+Mit vollem Xcode zusaetzlich `swift test`. Der Ablauf fuer Freigaben steht in
+`CONTRIBUTING.md`, die vollstaendige Spezifikation in `umsetzungskonzept-macos-app.md`,
+die Vorhabenliste in `backlog.md`.
+
+## Aufbau
+
+| Ziel | Inhalt |
+|---|---|
+| `ActivitiesCore` | Gesamte Fachlogik – **nur `Foundation`**, damit sie plattformunabhaengig bleibt (Fernziel Windows, siehe Konzept 10.2). |
+| `activities` | Die Oberflaeche (SwiftUI/AppKit, nur macOS). |
+| `CoreChecks` | 139 Pruefungen der Fachlogik, laufen ohne Apple-Frameworks. |
+
 > ---
+
 >
 > ## Alt: Python-Kommandozeile (`legacy-python-cli/`)
 >

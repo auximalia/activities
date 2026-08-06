@@ -450,6 +450,41 @@ do {
     expectEqual(grouped[0].entries.first?.folder, a, "Erster Abschnitt bleibt der juengste")
 }
 
+// MARK: - Portabler Glob-Vergleich (ersetzt fnmatch)
+do {
+    func m(_ name: String, _ pattern: String, cs: Bool = true) -> Bool {
+        GlobMatcher.matches(name, pattern: pattern, caseSensitive: cs)
+    }
+    expect(m("a.txt", "*.txt"), "Glob: Endung")
+    expect(!m("a.txt", "*.md"), "Glob: falsche Endung")
+    expect(m("abc", "a?c"), "Glob: ? trifft ein Zeichen")
+    expect(!m("ac", "a?c"), "Glob: ? verlangt ein Zeichen")
+    expect(m("abc", "*"), "Glob: Stern trifft alles")
+    expect(m("", "*"), "Glob: Stern trifft auch leer")
+    expect(m("abc", "abc"), "Glob: woertlich")
+    expect(!m("abcd", "abc"), "Glob: kein Teiltreffer ohne Stern")
+
+    // Ruecksprung: Der Stern muss sich dehnen, wenn es zunaechst passt.
+    expect(m("aXbXc", "a*b*c"), "Glob: mehrere Sterne")
+    expect(m("aaa.txt", "*a.txt"), "Glob: Ruecksprung noetig")
+    expect(m("xaaab", "*aab"), "Glob: Ruecksprung ueber Wiederholungen")
+    expect(!m("abc", "*d*"), "Glob: kein Treffer trotz Sternen")
+
+    // Rand: Muster nur aus Sternen, leeres Muster
+    expect(m("beliebig", "***"), "Glob: mehrere Sterne hintereinander")
+    expect(m("", ""), "Glob: leer auf leer")
+    expect(!m("x", ""), "Glob: leeres Muster trifft nichts Nichtleeres")
+
+    // Gross-/Kleinschreibung
+    expect(m("Studium.PDF", "*studium*", cs: false), "Glob: unempfindlich")
+    expect(!m("Studium.PDF", "*studium*", cs: true), "Glob: empfindlich")
+
+    // Ausschlussmuster wie "~$*" (Office-Sperrdateien)
+    expect(ExclusionRules.default.isExcludedFile("~$Bericht.docx"), "Ausschluss: ~$*")
+    expect(ExclusionRules.default.isExcludedFile(".DS_Store"), "Ausschluss: .DS_Store")
+    expect(!ExclusionRules.default.isExcludedFile("Bericht.docx"), "Ausschluss: normale Datei bleibt")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

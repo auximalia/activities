@@ -1,7 +1,4 @@
 import Foundation
-#if canImport(Darwin)
-import Darwin
-#endif
 
 /// Regeln zum Ausschluss von Ordnern und Dateien.
 ///
@@ -33,13 +30,8 @@ public struct ExclusionRules: Sendable {
 
     /// Prueft einen Dateinamen gegen die Ausschlussmuster (inkl. Glob wie ``~$*``).
     public func isExcludedFile(_ name: String) -> Bool {
-        for pattern in filePatterns {
-            let matched = pattern.withCString { patternPointer in
-                name.withCString { namePointer in
-                    fnmatch(patternPointer, namePointer, 0) == 0
-                }
-            }
-            if matched { return true }
+        for pattern in filePatterns where GlobMatcher.matches(name, pattern: pattern) {
+            return true
         }
         return false
     }

@@ -34,11 +34,10 @@ Terminal.
 > Zum spaeteren Aktualisieren einfach denselben Befehl erneut ausfuehren – es
 > kommt immer die aktuelle Version.
 >
-> **Noch einfacher:** Ab Version 1.4.0 prueft die App beim Start selbst, ob es
-> eine neuere Version gibt. Ist das der Fall, erscheint oben rechts ein Hinweis
-> „installiert → verfuegbar"; ein Klick darauf installiert die neue Version
-> (sichtbar im Terminal) und startet die App neu. Manuell geht das ueber das
-> Menue „Nach Updates suchen …".
+> **Noch einfacher:** Die App prueft beim Start selbst, ob es eine neuere Version
+> gibt. Ist das der Fall, erscheint oben rechts ein Hinweis „installiert → verfuegbar";
+> ein Klick darauf installiert die neue Version (sichtbar im Terminal) und startet die
+> App neu. Manuell geht das ueber das Menue „Nach Updates suchen …".
 
 ---
 
@@ -83,4 +82,15 @@ Falls du nicht per Terminal-Einzeiler installieren willst:
   auch auf Apple Silicon startet
 
 Das ist noetig, weil die App (noch) **nicht notarisiert** ist. Sobald die
-Notarisierung eingerichtet ist, entfaellt dieser Schritt komplett.
+Notarisierung eingerichtet ist, entfaellt dieser Schritt komplett
+(`Packaging/notarize.sh` ist vorbereitet, siehe Konzept 10).
+
+---
+
+## Systemanforderungen
+
+- **macOS 14** oder neuer
+- Intel **oder** Apple Silicon (universelles Programm)
+- Keine Entwickler-Werkzeuge noetig – `curl`, `ditto`, `xattr` und `codesign`
+  gehoeren zu macOS
+- Fenster ab **820 × 560 pt** (auch auf 13-Zoll-Geraeten nutzbar)

@@ -19,9 +19,8 @@ erledigt.
 **Erledigt in Sprint 5 (v1.13.1):** UX-19, UX-22.
 **Erledigt in Sprint 6 (v1.15.0):** UX-25, UX-18, UX-14.
 **Erledigt in Sprint 7 (v1.16.0):** UX-13, UX-23.
-– Backlog umfasst **31** Einträge, davon **2 offen**:
-UX-31 (Diagramm für VoiceOver, M) und
-UX-24 (Einstellungen – Eintrag ist überholt und vor Umsetzung neu zu fassen).
+**Sprint 8 (v1.17.0):** UX-31 erledigt, UX-24 **geschlossen ohne Umsetzung**.
+– **Alle 31 Einträge abgeschlossen** (30 umgesetzt, 1 begründet verworfen).
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -352,7 +351,7 @@ lägen unter dem Mindestkontrast, war **falsch** – gemessen 8,4:1 (dark) / 9,5
 **Akzeptanz:** Mit Tabulator sind Legenden-Chips erreichbar und mit Leertaste schaltbar;
 VoiceOver nennt für jeden Toolbar-Knopf eine sprechende Bezeichnung.
 
-### UX-31 · Diagramm für VoiceOver zugänglich machen
+### ✅ UX-31 · Diagramm für VoiceOver zugänglich machen *(erledigt, v1.17.0)*
 **Aufwand:** M · **Nutzen:** gering–mittel · **abgetrennt von UX-13**
 `HistoryChartView` hat **0** `accessibility`-Angaben – VoiceOver liest dort nichts. Die
 Hover-Kurzinfo ist rein visuell.
@@ -363,6 +362,10 @@ Hover-Kurzinfo ist rein visuell.
 **Bewusst getrennt:** Ein Balkendiagramm für Bedienungshilfen sinnvoll aufzubereiten ist
 ein eigenes Vorhaben und ungleich aufwendiger als UX-13. Zusammen in einem Eintrag hätte
 der kleine, wirksame Teil daran gehangen.
+**Umgesetzt (v1.17.0):** Jedes Balkensegment trägt Label und Wert
+(„Mo 03.08." / „12 Dateien .swift"); der Diagrammrahmen fasst vorab zusammen
+(Zeitraum, Bündelung, Gesamtzahl, drei häufigste Typen) – sonst müsste man sich durch
+alle Balken hangeln.
 
 ### ✅ UX-14 · Kompakt-Layout für schmale Fenster *(erledigt, v1.15.0)*
 **Aufwand:** M · **Nutzen:** mittel
@@ -516,11 +519,26 @@ heute getönt, Cursor nur mit feinem Rahmen.
 **Bleibt ein eigener Sprint:** Umbau des Auswahlmodells, nicht mit anderen Neuerungen mischen.
 *Durch die Beschränkung auf Dateien fällt der Aufwand von L auf **M–L**.*
 
-### UX-24 · Einstellungen-Fenster (⌘,)
-**Aufwand:** M · **Nutzen:** mittel · **Abhängig von:** UX-03
-Alle Optionen hängen in der Toolbar; sobald eine weitere dazukommt, platzt sie.
-Standard-Zeitraum, Ausschlüsse, Anzahl Legenden-Einträge und Update-Verhalten gehören
-in ein Einstellungen-Fenster.
+### ⛔️ UX-24 · Einstellungen-Fenster (⌘,) — *geschlossen ohne Umsetzung (v1.17.0)*
+**Aufwand:** M · **Nutzen:** — · **Begründung des Abschlusses:**
+
+Der Eintrag stammt aus dem Design-Review und ist überholt. Von den vier genannten Inhalten
+existieren zwei gar nicht, einer ist bewusst fest:
+
+| Genannter Inhalt | Stand |
+|---|---|
+| „Standard-Zeitraum" | Wird persistiert; ein separater Standard existiert nicht. |
+| „Ausschlüsse" | **Gibt es nicht** als Einstellung (`ExclusionRules.default` ist fest). |
+| „Anzahl Legenden-Einträge" | Fest auf 10 – **bewusst**, weil an die 11-Farben-Palette gekoppelt (3.10). Einstellbar zu machen hieße, die zugesicherte Unterscheidbarkeit aufzugeben. |
+| „Update-Verhalten" | Nicht einstellbar; die Prüfung läuft still beim Start (10.1). |
+
+Die im Eintrag genannte Sorge („sobald eine Option dazukommt, platzt die Toolbar") ist
+**eingetreten** – beim Sortier-Menü lief die Toolbar in die Grenze von zehn `ToolbarItem`s.
+Gelöst wurde das durch **Gruppierung**, nicht durch ein Einstellungen-Fenster.
+
+**Ein Fenster hätte derzeit fast nichts zu zeigen.** Entsteht später eine echte Option
+(z. B. eigene Ausschlussmuster), gehört sie als **neuer, eigens begründeter Eintrag**
+ins Backlog – nicht in diese Vorratshülle.
 
 ### ✅ UX-25 · Erstkontakt (First Run) *(erledigt, v1.15.0)*
 **Aufwand:** S · **Nutzen:** mittel
@@ -599,9 +617,6 @@ UX-29, UX-02, UX-08, UX-09, UX-10, UX-17, UX-12
 *UX-17 als Entscheidung geschlossen statt umgesetzt; UX-12 hat den Kontrast-Verdacht aus
 UX-13 messtechnisch widerlegt.*
 
-**Sprint 4 – „Live-Filter"**
-UX-02 (inkl. Messung) – bewusst allein, wegen des Risikos.
-
 **✅ Sprint 4 – „Zeitachse beherrschen" (abgeschlossen, v1.12.0)**
 AP1 UX-20 (Hover) → AP2 UX-30 (Granularität) → AP3 UX-28 („Alle") → AP4 UX-21 (Aufziehen).
 Reihenfolge zwingend: AP2 vor AP3 (sonst leeres Diagramm), AP1 vor AP4 (Rückmeldung vor Auswahl).
@@ -613,4 +628,17 @@ UX-19 (Sortierung, auch nach Typ), UX-22 (Drag & Drop).
 
 **Offen:** UX-23 (Mehrfachauswahl, eigener Sprint) · UX-13, UX-14, UX-18, UX-24, UX-25 (Feinschliff)
 
-Danach nach Bedarf: UX-13, UX-14, UX-18, UX-22, UX-23, UX-24, UX-25.
+**✅ Sprint 6 – „Weitergabereif" (abgeschlossen, v1.15.0)**
+UX-25 (Erstkontakt), UX-18 (App-Icon „Ordner + Uhr"), UX-14 (Kompakt-Layout;
+Mindestbreite 1180 → 820).
+
+**✅ Sprint 7 – „Auswahl und Zugänglichkeit" (abgeschlossen, v1.16.0)**
+UX-13 (Chips + Toolbar für Tastatur/VoiceOver), UX-23 (Mehrfachauswahl nach
+Apple-Standard inkl. Mehrfach-Ziehen).
+
+**✅ Sprint 8 – „Abschluss" (abgeschlossen, v1.17.0)**
+UX-31 (Diagramm für VoiceOver), UX-24 (geschlossen ohne Umsetzung),
+Portabilität (Kern von `fnmatch`/`os` befreit, Konzept 10.2), Dokumentation aktualisiert.
+
+**Backlog abgearbeitet.** Neue Einträge entstehen künftig aus dem Betrieb – so wie
+UX-26 bis UX-31, die alle erst bei der Benutzung auffielen.

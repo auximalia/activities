@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(os)
 import os
+#endif
 
 /// Durchsucht einen Verzeichnisbaum nach kuerzlich bearbeiteten Dateien.
 ///
@@ -9,7 +11,24 @@ import os
 /// verfolgt. Nicht lesbare Eintraege werden uebersprungen und protokolliert.
 public struct FileScanner: Sendable {
     private let exclusions: ExclusionRules
+    /// Protokollierung ist plattformabhaengig gekapselt: ``os.Logger`` gibt es
+    /// nur auf Apple-Systemen. Der Kern soll ohne Apple-Frameworks uebersetzbar
+    /// bleiben (siehe Konzept „Portabilitaet").
+    #if canImport(os)
     private static let logger = Logger(subsystem: "com.mtri.activities", category: "scanner")
+    #endif
+
+    /// Meldet einen uebersprungenen Eintrag – auf Apple-Systemen ueber
+    /// ``os.Logger``, sonst ueber die Standardfehlerausgabe.
+    private static func logSkipped(_ url: URL, _ error: Error) {
+        #if canImport(os)
+        logger.warning("Eintrag uebersprungen (\(url.path, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+        #else
+        FileHandle.standardError.write(
+            Data("Eintrag uebersprungen (\(url.path)): \(error.localizedDescription)\n".utf8)
+        )
+        #endif
+    }
 
     public init(exclusions: ExclusionRules = .default) {
         self.exclusions = exclusions
@@ -47,7 +66,7 @@ public struct FileScanner: Sendable {
             includingPropertiesForKeys: Array(keys),
             options: [.skipsHiddenFiles],
             errorHandler: { url, error in
-                Self.logger.warning("Eintrag uebersprungen (\(url.path, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+                Self.logSkipped(url, error)
                 return true
             }
         ) else {

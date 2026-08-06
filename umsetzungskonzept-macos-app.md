@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.16.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.17.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -702,6 +702,7 @@ Sources/
     RowNavigation.swift      RowID, flatten(...), move(...) (3.11)
     ReportExport.swift       csv(...)/html(...)
     Models.swift             RelevantFile/FolderEntry/BucketedEntries/DayExtensionCount/ScanSettings
+    GlobMatcher.swift        portabler Glob-Vergleich (10.2), ersetzt fnmatch
     TypePalette.swift        PaletteColor + kategoriale Palette (3.10), ΔE-Rechnung
     ChartGranularity.swift   Tag/Woche/Monat-Bündelung (3.9.1)
     RowSorting.swift         FolderSort/SortField + Sortierung (3.9.4)
@@ -775,6 +776,51 @@ Der Core kennt weder SwiftUI noch AppKit.
   Die App beendet sich ~0,7 s nach dem Start des Terminals selbst (`NSApp.terminate`).
 - **Warum dieser Umweg:** Eine laufende App kann sich **nicht selbst ersetzen**, und das abschließende `open` würde sonst nur die **alte** Instanz in den Vordergrund holen (gleiche Bundle-ID). Terminal macht außerdem den Fortschritt sichtbar und erlaubt eine etwaige Passwortabfrage.
 - **Rechte:** `/Applications` ist `drwxrwxr-x root:admin` → Admin-Nutzer schreiben **ohne sudo**; der Installer fragt nur im Ausnahmefall nach einem Passwort.
+
+## 10.2 Portabilität – Fernziel Windows
+
+**Ziel:** Die Möglichkeit offenhalten, `activities` später auch unter Windows zu entwickeln.
+Das ist **kein** aktuelles Vorhaben, sondern eine Randbedingung für alle künftigen Änderungen.
+
+### Was portabel ist – und was nicht
+
+| Schicht | Portabel? | Begründung |
+|---|---|---|
+| **`ActivitiesCore`** | **ja, verbindlich** | Enthält die gesamte Fachlogik. Darf **ausschließlich `Foundation`** benötigen. |
+| `CoreChecks` | ja | Nur `Foundation` + `ActivitiesCore`. Läuft damit auch auf Windows. |
+| `activities` (App) | **nein** | SwiftUI/AppKit gibt es unter Windows nicht. |
+| `Packaging/` | nein | `.app`-Bundle, `codesign`, `iconutil` sind macOS-Werkzeuge. |
+
+**Ehrliche Einordnung:** Ein Windows-Port ist **keine Neuübersetzung, sondern eine neue
+Oberfläche**. Portabel ist der Kern – und der ist mit Absicht groß gehalten (Zeitfenster,
+Ordnerlogik, Zeitabschnitte, Diagrammbündelung, Sortierung, Farbpalette, Export). Die
+Oberfläche wäre neu zu schreiben (WinUI o. ä.); die Fachlogik nicht.
+
+### Verbindliche Regeln für `ActivitiesCore`
+1. **Nur `import Foundation`.** Kein `AppKit`, `SwiftUI`, `CoreGraphics`, `UniformTypeIdentifiers`.
+2. **Kein `Darwin`/`Glibc`.** Plattform-C-Funktionen sind tabu – siehe Glob-Beispiel unten.
+3. **Plattformabhängiges nur gekapselt** hinter `#if canImport(...)` mit funktionierendem
+   Rückfall (siehe Protokollierung im `FileScanner`).
+4. **Farben als Zahlen**, nicht als `NSColor`/`Color` (`PaletteColor` in 3.10 hält das ein).
+5. **Keine Symbole/Icons** im Kern – die kommen aus `FileIconProvider` in der App-Schicht.
+6. **Jede neue Kernlogik ist in `CoreChecks` zu prüfen.** Diese Prüfungen sind zugleich der
+   Portabilitätsnachweis: Was dort läuft, läuft ohne Apple-Frameworks.
+
+### Bereits bereinigt (v1.17.0)
+| Vorher | Jetzt |
+|---|---|
+| `NameFilter` und `ExclusionRules` nutzten **`fnmatch`** aus `Darwin` | eigener `GlobMatcher` in reinem Swift (`*`, `?`, wahlweise unempfindlich), 20 zusätzliche Prüfungen |
+| `FileScanner` importierte **`os`** (Apple-`Logger`) fest | hinter `#if canImport(os)` gekapselt, Rückfall auf die Standardfehlerausgabe |
+
+### Vor einem Port zu klären
+- **`FileManager`/`URL.resourceValues`**: Werden im Scanner für Zeitstempel und
+  Verzeichniserkennung genutzt. In `swift-corelibs-foundation` vorhanden, aber der
+  Funktionsumfang einzelner `URLResourceKey` ist plattformabhängig – **vorher prüfen**.
+- **`localizedStandardCompare`** (Sortierung, 3.9.4): in Foundation vorhanden,
+  Verhalten der natürlichen Zahlenfolge unter Windows gegenprüfen.
+- **Pfadtrennzeichen**: Der Kern rechnet mit `URL`, nicht mit `String`-Pfaden – das trägt.
+  Ausnahme prüfen: `relativePath(of:)` in der App-Schicht schneidet über `String`.
+- **FSEvents** (Auto-Refresh) ist macOS-spezifisch und liegt bereits in der App-Schicht.
 
 ## 11. Tests
 - **CoreChecks** (`swift run CoreChecks`) ohne Xcode; **XCTest** mit Xcode. Abgedeckt u. a.:

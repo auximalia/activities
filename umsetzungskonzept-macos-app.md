@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.16.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.16.1)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -151,6 +151,13 @@ wählt daher nach Länge des Zeitraums:
 
 **Ersetzt die frühere Notlösung:** Bis v1.11.0 blieb das Diagramm ab ~4000 Tagen schlicht
 **leer**. Wer in „Spanne" fünf Jahre wählte, sah nichts.
+
+**Achsenbereich ausdrücklich vorgeben (`chartXScale(domain:)`) – Pflicht:**
+Ohne ihn leitet Swift Charts den Bereich aus den **vorhandenen Marken** ab. Ein Randtag
+**ohne Dateien**, der zudem **kein Wochenende** ist, erzeugt weder einen Balken (`points`
+filtert `count > 0`) noch ein Wochenendband – und fehlt dann vollständig. Sichtbare Folge:
+Bei „7 Tage" erschienen nur **6** Balken. Der Bereich reicht bis zum **Ende** des letzten
+Bündels, sonst fehlte dessen Balkenbreite.
 
 **Was mitziehen muss** (sonst bricht die Bedienung):
 - `BarMark`-Einheit und Achsen-Schrittweite (`calendarUnit`),
@@ -451,7 +458,11 @@ Wert. Abgeleitete Darstellungsgrößen gehören nicht in einen Zustand, wenn sie
 berechnen lassen.
 
 #### 4.3.6 Relative Datumsangaben
-„Heute, 22:59" · „Gestern, 14:32" · „Mi., 05.08. 14:32" (innerhalb 7 Tagen) · „05.08.2025, 14:32".
+„Heute, 22:59" · „Gestern, 14:32" · sonst **immer mit Wochentagskürzel**:
+„Mi., 05.08. 14:32" (gleiches Jahr) · „Mi., 05.08.2025 14:32" (älter).
+*Das Kürzel steht auch bei älteren Einträgen: Ein blosses Datum in der Vergangenheit sagt
+nicht, ob es ein Arbeitstag oder ein Wochenende war.* Im Kompakt-Layout ebenso
+(„Mo. 03.08. 20:38"); die Spalte wurde dafür auf 124 pt verbreitert.
 Das volle Datum in jeder Zeile zu wiederholen ist Rauschen – erst recht unter einer
 Überschrift, die bereits „Heute" sagt. Nebeneffekt: Die Angaben sind kürzer, es bleibt mehr
 Breite für den Dateinamen.

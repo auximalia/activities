@@ -41,7 +41,7 @@ enum RowMetrics {
     /// breitem Fenster weit vom Namen abrueckt (Gesetz der Naehe).
     static let dateColumnWidth: CGFloat = 150
     /// Schmalere Datumsspalte im Kompakt-Layout.
-    static let dateColumnWidthCompact: CGFloat = 108
+    static let dateColumnWidthCompact: CGFloat = 124
 
     /// Ab welcher Fensterbreite auf das Kompakt-Layout umgeschaltet wird.
     ///

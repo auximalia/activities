@@ -44,14 +44,15 @@ enum DateFormatting {
         if calendar.isDateInToday(date) { return "Heute, \(time)" }
         if calendar.isDateInYesterday(date) { return "Gestern, \(time)" }
 
-        let today = calendar.startOfDay(for: now)
-        let day = calendar.startOfDay(for: date)
-        let daysApart = calendar.dateComponents([.day], from: day, to: today).day ?? 0
+        // Wochentag **immer** voranstellen (ausser Heute/Gestern): Ein blosses
+        // Datum in der Vergangenheit sagt nichts darueber, ob es ein Arbeitstag
+        // oder ein Wochenende war.
         let weekday = weekdaySymbols[safe: calendar.component(.weekday, from: date)] ?? ""
-        if (0...6).contains(daysApart) {
-            return "\(weekday)., \(dayMonthFormatter.string(from: date)) \(time)"
-        }
-        return "\(dayFormatter.string(from: date)), \(time)"
+        let sameYear = calendar.component(.year, from: date) == calendar.component(.year, from: now)
+        let datePart = sameYear
+            ? dayMonthFormatter.string(from: date)
+            : dayFormatter.string(from: date)
+        return "\(weekday)., \(datePart) \(time)"
     }
 
     /// Kurzfassung fuer das Kompakt-Layout: ohne Wochentag, Jahr nur bei
@@ -63,10 +64,11 @@ enum DateFormatting {
         let time = timeFormatter.string(from: date)
         if calendar.isDateInToday(date) { return "Heute, \(time)" }
         if calendar.isDateInYesterday(date) { return "Gestern, \(time)" }
+        let weekday = weekdaySymbols[safe: calendar.component(.weekday, from: date)] ?? ""
         let sameYear = calendar.component(.year, from: date) == calendar.component(.year, from: now)
         return sameYear
-            ? "\(dayMonthFormatter.string(from: date)) \(time)"
-            : "\(shortYearFormatter.string(from: date)) \(time)"
+            ? "\(weekday). \(dayMonthFormatter.string(from: date)) \(time)"
+            : "\(weekday). \(shortYearFormatter.string(from: date)) \(time)"
     }
 
     private static let shortYearFormatter: DateFormatter = {

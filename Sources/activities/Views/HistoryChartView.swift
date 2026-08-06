@@ -70,6 +70,17 @@ struct HistoryChartView: View {
         }
     }
 
+    /// Vollstaendiger Zeitbereich der Achse – auch leere Randtage gehoeren dazu.
+    private var axisDomain: ClosedRange<Date> {
+        guard let first = chartDays.first?.day, let last = chartDays.last?.day else {
+            let now = Date()
+            return now...now.addingTimeInterval(86_400)
+        }
+        // Bis zum ENDE des letzten Buendels, sonst fehlt dessen Balkenbreite.
+        let end = granularity.next(after: last) ?? last.addingTimeInterval(86_400)
+        return first...end
+    }
+
     private var weekendDays: [Date] {
         let calendar = Calendar.current
         return chartDays.map(\.day).filter { calendar.isDateInWeekend($0) }
@@ -104,6 +115,11 @@ struct HistoryChartView: View {
                 .foregroundStyle(by: .value("Typ", point.ext))
             }
         }
+        // **Achsenbereich ausdruecklich vorgeben.** Sonst leitet Swift Charts ihn
+        // aus den vorhandenen Marken ab – und ein Randtag ohne Dateien, der auch
+        // kein Wochenende ist, erzeugt keine Marke und fehlt dann ganz. Bei
+        // „7 Tage" waren so nur 6 Balken zu sehen.
+        .chartXScale(domain: axisDomain)
         .chartForegroundStyleScale(domain: chartKeys, range: chartColors)
         .chartLegend(.hidden)
         .chartXAxis {

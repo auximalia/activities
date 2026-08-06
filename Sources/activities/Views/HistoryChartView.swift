@@ -195,7 +195,6 @@ struct HistoryChartView: View {
                         }
                         // Rueckmeldung beim Ueberfahren: Ohne sie muss man raten,
                         // wofuer ein Balken steht.
-                        .help("Klick springt zur Datei · Ziehen wählt einen Zeitraum")
                         .onContinuousHover { phase in
                             switch phase {
                             case .active(let location):
@@ -231,6 +230,7 @@ struct HistoryChartView: View {
         return VStack(alignment: .leading, spacing: 3) {
             Text(bucketLabel(bucket.day))
                 .font(.caption).fontWeight(.semibold)
+                .lineLimit(1).truncationMode(.tail)
             Text("\(bucket.total) \(bucket.total == 1 ? "Datei" : "Dateien")")
                 .font(.caption2).foregroundStyle(.secondary)
             ForEach(parts.prefix(6), id: \.0) { name, count in
@@ -240,7 +240,7 @@ struct HistoryChartView: View {
                               ? otherColor
                               : FileTypeColor.color(forExtension: String(name.dropFirst()), assignment: colorAssignment))
                         .frame(width: 8, height: 8)
-                    Text(name).font(.caption2)
+                    Text(name).font(.caption2).lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 6)
                     Text("\(count)").font(.caption2).monospacedDigit().foregroundStyle(.secondary)
                 }
@@ -248,9 +248,16 @@ struct HistoryChartView: View {
             if parts.count > 6 {
                 Text("+\(parts.count - 6) weitere").font(.caption2).foregroundStyle(.tertiary)
             }
+            Divider().padding(.vertical, 1)
+            Text("Klick öffnet · Ziehen wählt Zeitraum")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(8)
-        .frame(minWidth: 130, alignment: .leading)
+        // FESTE Breite: Die `Spacer` in den Typ-Zeilen wuerden die Karte sonst
+        // auf die gesamte Diagrammbreite dehnen (die Zahlen landeten am Rand).
+        .frame(width: Self.tooltipWidth, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -259,9 +266,12 @@ struct HistoryChartView: View {
         .shadow(radius: 6, y: 2)
     }
 
+    /// Breite der Kurzinfo-Karte.
+    private static let tooltipWidth: CGFloat = 190
+
     /// Haelt die Kurzinfo im sichtbaren Bereich (kippt am rechten Rand nach links).
     private func tooltipPosition(in size: CGSize) -> CGPoint {
-        let width: CGFloat = 150
+        let width = Self.tooltipWidth
         let x = hoverPoint.x + width / 2 + 14 > size.width
             ? hoverPoint.x - width / 2 - 14
             : hoverPoint.x + width / 2 + 14

@@ -28,9 +28,9 @@ public enum RowNavigation {
     }
 
     /// Liefert die neue Auswahl nach Verschieben um ``delta`` (geklemmt an den Rand).
-    public static func move(selection: RowID?, in rows: [RowID], by delta: Int) -> RowID? {
-        guard !rows.isEmpty else { return selection }
-        if let current = selection, let index = rows.firstIndex(of: current) {
+    public static func move(cursor: RowID?, in rows: [RowID], by delta: Int) -> RowID? {
+        guard !rows.isEmpty else { return cursor }
+        if let current = cursor, let index = rows.firstIndex(of: current) {
             let next = min(max(index + delta, 0), rows.count - 1)
             return rows[next]
         }

@@ -162,10 +162,10 @@ do {
     let expanded = RowNavigation.flatten(buckets: buckets, expanded: [a], filesByFolder: [a: [fa1, fa2]])
     expectEqual(expanded, [.folder(a), .file(fa1.url), .file(fa2.url), .folder(b)], "flatten expanded")
 
-    expectEqual(RowNavigation.move(selection: nil, in: expanded, by: 1), .folder(a), "move nil -> first")
-    expectEqual(RowNavigation.move(selection: .folder(a), in: expanded, by: 1), .file(fa1.url), "move into file")
-    expectEqual(RowNavigation.move(selection: .folder(a), in: expanded, by: -1), .folder(a), "clamp top")
-    expectEqual(RowNavigation.move(selection: .folder(b), in: expanded, by: 1), .folder(b), "clamp bottom")
+    expectEqual(RowNavigation.move(cursor: nil, in: expanded, by: 1), .folder(a), "move nil -> first")
+    expectEqual(RowNavigation.move(cursor: .folder(a), in: expanded, by: 1), .file(fa1.url), "move into file")
+    expectEqual(RowNavigation.move(cursor: .folder(a), in: expanded, by: -1), .folder(a), "clamp top")
+    expectEqual(RowNavigation.move(cursor: .folder(b), in: expanded, by: 1), .folder(b), "clamp bottom")
 }
 
 // MARK: - countFilesPerDayByExtension

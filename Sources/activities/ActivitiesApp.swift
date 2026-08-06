@@ -1,5 +1,11 @@
 import SwiftUI
+import AppKit
 import ActivitiesCore
+
+/// Leitet eine Standardaktion an den First Responder weiter (Zwischenablage).
+private func sendToResponder(_ selector: String) {
+    NSApp.sendAction(NSSelectorFromString(selector), to: nil, from: nil)
+}
 
 /// Einstiegspunkt der App: Hauptfenster, Menuebefehle und Ueber-Fenster.
 @main
@@ -56,6 +62,32 @@ struct ActivitiesApp: App {
                     .keyboardShortcut("e", modifiers: .command)
                 Button("Als HTML exportieren …") { ExportService.exportHTML(model.displayBuckets) }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
+            }
+            // Die Zwischenablage-Gruppe wird **ersetzt**, nicht ergaenzt:
+            // macOS' eigenes „Select All" verarbeitet ⌘A im Menue, bevor die
+            // Ansicht den Tastendruck sieht – ein zusaetzlicher Eintrag bliebe
+            // wirkungslos. Ausschneiden/Kopieren/Einsetzen muessen deshalb selbst
+            // bereitgestellt werden, sonst funktionierten sie im Suchfeld nicht.
+            CommandGroup(replacing: .pasteboard) {
+                Button("Ausschneiden") { sendToResponder("cut:") }
+                    .keyboardShortcut("x", modifiers: .command)
+                Button("Kopieren") { sendToResponder("copy:") }
+                    .keyboardShortcut("c", modifiers: .command)
+                Button("Einsetzen") { sendToResponder("paste:") }
+                    .keyboardShortcut("v", modifiers: .command)
+                Divider()
+                Button("Alles auswählen") {
+                    // Im Textfeld weiterhin den Text auswaehlen, sonst die Dateien.
+                    if NSApp.keyWindow?.firstResponder is NSText {
+                        sendToResponder("selectAll:")
+                    } else {
+                        model.selectAllVisibleFiles()
+                    }
+                }
+                .keyboardShortcut("a", modifiers: .command)
+                Button("Auswahl aufheben") { model.clearSelection() }
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
+                    .disabled(model.selectedFiles.isEmpty)
             }
             CommandGroup(replacing: .help) {
                 HelpMenuButton()

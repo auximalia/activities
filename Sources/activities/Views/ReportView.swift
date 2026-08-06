@@ -111,13 +111,20 @@ struct ReportView: View {
             .focused($listFocused)
             .onAppear { listFocused = true }
             .onMoveCommand { direction in
+                // ⇧ erweitert die Auswahl, sonst wird sie auf eine Zeile reduziert.
+                let extend = NSEvent.modifierFlags.contains(.shift)
                 switch direction {
-                case .up: model.moveSelection(-1)
-                case .down: model.moveSelection(1)
+                case .up: model.moveSelection(-1, extend: extend)
+                case .down: model.moveSelection(1, extend: extend)
                 case .left: model.collapseSelected()
                 case .right: model.expandSelected()
                 @unknown default: break
                 }
+            }
+            .onKeyPress(.escape) {
+                guard !model.selectedFiles.isEmpty else { return .ignored }
+                model.clearSelection()
+                return .handled
             }
             .onKeyPress(.return) {
                 model.openSelection()
@@ -127,7 +134,9 @@ struct ReportView: View {
                 guard let current = model.selectedFileURL else { return .ignored }
                 quickLookActive = true
                 Task {
-                    let files = await model.prepareFullFileList()
+                    // Bei Mehrfachauswahl nur durch die Auswahl blaettern.
+                    let selected = model.orderedSelection
+                    let files = selected.count > 1 ? selected : await model.prepareFullFileList()
                     quickLook.present(
                         files: files,
                         current: current,
@@ -140,14 +149,14 @@ struct ReportView: View {
                 }
                 return .handled
             }
-            .onChange(of: model.selection) { _, selection in
+            .onChange(of: model.cursor) { _, cursor in
                 if !quickLookActive { listFocused = true }
-                guard let selection else { return }
+                guard let cursor else { return }
                 // Bei einem Mausklick ist die Zeile bereits sichtbar – Scrollen
                 // wuerde sie unter dem Zeiger wegziehen.
                 guard model.selectionOrigin.shouldScroll else { return }
-                scroll(proxy, to: selection)
-                pendingScroll = selection
+                scroll(proxy, to: cursor)
+                pendingScroll = cursor
             }
             // Sprung aus dem Diagramm: Der Zielordner wird oft erst **asynchron**
             // geladen – dann existiert die Zeile beim ersten Scrollversuch noch

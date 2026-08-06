@@ -40,6 +40,7 @@ struct MainToolbar: ToolbarContent {
             )
             .frame(width: 220)
             .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
+            .accessibilityLabel("Name filtern")
         }
 
         // 3. Zeitraum
@@ -58,6 +59,7 @@ struct MainToolbar: ToolbarContent {
             }
             .toggleStyle(.button)
             .help("Alle Ordner auf- oder zuklappen")
+            .accessibilityLabel("Alle Ordner auf- oder zuklappen")
 
             Toggle(isOn: Binding(
                 get: { model.showOutOfWindowFiles },
@@ -69,6 +71,7 @@ struct MainToolbar: ToolbarContent {
             .help(model.showOutOfWindowFiles
                   ? "Dateien außerhalb des Zeitraums werden angezeigt"
                   : "Dateien außerhalb des Zeitraums sind ausgeblendet")
+            .accessibilityLabel("Dateien außerhalb des Zeitraums anzeigen")
 
             Toggle(isOn: Binding(
                 get: { model.autoRefresh },
@@ -78,6 +81,7 @@ struct MainToolbar: ToolbarContent {
             }
             .toggleStyle(.button)
             .help("Automatisch aktualisieren, wenn sich der Ordner ändert")
+            .accessibilityLabel("Automatisch aktualisieren bei Ordneränderung")
         }
 
         // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
@@ -98,6 +102,8 @@ struct MainToolbar: ToolbarContent {
                 Image(systemName: "arrow.up.arrow.down")
             }
             .help("Sortierung innerhalb der Zeitabschnitte · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .accessibilityLabel("Sortierung")
+            .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
         }
 
         // 4b. Anpassungen: Aktionen
@@ -108,6 +114,7 @@ struct MainToolbar: ToolbarContent {
                 Image(systemName: "arrow.up.to.line")
             }
             .help("An den Anfang der Liste springen (⌘↑)")
+            .accessibilityLabel("An den Anfang der Liste springen")
 
             Button {
                 model.rescan()
@@ -115,6 +122,7 @@ struct MainToolbar: ToolbarContent {
                 Image(systemName: "arrow.clockwise")
             }
             .help("Ordner neu einlesen (⌘R)")
+            .accessibilityLabel("Ordner neu einlesen")
         }
 
         // --- Status ---
@@ -132,6 +140,7 @@ struct MainToolbar: ToolbarContent {
                     }
                     .buttonStyle(.plain)
                     .help("Suche abbrechen")
+            .accessibilityLabel("Suche abbrechen")
                 }
             }
             .frame(width: 44, alignment: .leading)
@@ -145,6 +154,7 @@ struct MainToolbar: ToolbarContent {
                     Label("\(BuildInfo.short) → \(latest.description)", systemImage: "arrow.down.circle.fill")
                 }
                 .help("Update verfügbar – klicken zum Installieren")
+            .accessibilityLabel("Update installieren")
             }
         }
     }
@@ -171,6 +181,8 @@ struct MainToolbar: ToolbarContent {
         // verschweigt sie.
         .labelStyle(.titleAndIcon)
         .help("Wurzelordner wählen · aktuell: \(model.rootURL.path)")
+        .accessibilityLabel("Ordner wählen")
+        .accessibilityValue(model.rootURL.lastPathComponent)
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.folder],
@@ -200,6 +212,7 @@ struct MainToolbar: ToolbarContent {
             .pickerStyle(.segmented)
             .fixedSize()
             .help("Rollierende Tage, feste Zeitspanne oder ohne Zeitgrenze (reines Suchen)")
+            .accessibilityLabel("Zeitmodus")
 
             if model.ignoreTimeWindow {
                 EmptyView()
@@ -210,6 +223,7 @@ struct MainToolbar: ToolbarContent {
                 ), in: ...model.rangeEnd, displayedComponents: .date)
                 .datePickerStyle(.field).labelsHidden()
                 .help("Von (inklusive)")
+            .accessibilityLabel("Zeitraum von")
 
                 Text("–").foregroundStyle(.secondary)
 
@@ -219,6 +233,7 @@ struct MainToolbar: ToolbarContent {
                 ), in: model.rangeStart...Date(), displayedComponents: .date)
                 .datePickerStyle(.field).labelsHidden()
                 .help("Bis (inklusive ganzem Tag, max. heute)")
+            .accessibilityLabel("Zeitraum bis")
             } else {
                 Picker("", selection: Binding(
                     get: { presetSelection },
@@ -232,6 +247,7 @@ struct MainToolbar: ToolbarContent {
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .help("Zeitraum in Tagen")
+            .accessibilityLabel("Zeitraum in Tagen")
                 .popover(isPresented: $showCustomDays, arrowEdge: .bottom) {
                     customDaysEditor
                 }
@@ -272,5 +288,6 @@ struct MainToolbar: ToolbarContent {
         }
         .padding(12)
         .help("Tage manuell eingeben (1–3650)")
+            .accessibilityLabel("Tage manuell eingeben")
     }
 }

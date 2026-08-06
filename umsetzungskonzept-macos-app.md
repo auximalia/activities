@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.15.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.16.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -464,6 +464,38 @@ Ordnerzeile und datumsstiftende Datei zeigen denselben Zeitstempel. Das wurde ge
 - Die **Fettschrift** trifft eine *andere* Aussage als das Datum: Sie sagt, **welche** Datei
   die Quelle ist.
 
+#### 4.3.9 Cursor und Auswahl sind zweierlei
+- **Cursor** (`cursor: RowID?`) – die Zeile, auf der die Tastatur steht. Wandert über
+  **alle** Zeilen, auch Ordner. Ohne das ließen sich Ordner nicht mehr per ←/→ auf- und
+  zuklappen, und der Diagramm-Sprung auf einen Ordner verlöre sein Ziel.
+  Darstellung: **nur ein feiner Rahmen**.
+- **Auswahl** (`selectedFiles: Set<URL>`) – **ausschließlich Dateien**. Trägt Hervorhebung,
+  Kontextmenü, Enter, QuickLook und Drag & Drop. Darstellung: getönt wie bisher.
+
+Ordner sind bewusst **nicht** auswählbar: Die Liste ist ein Baum, und eine Auswahl aus Ast
+und Blatt zugleich hätte keine sinnvolle gemeinsame Aktion. Ein Klick auf eine Ordnerzeile
+**verwirft** die Dateiauswahl.
+
+| Eingabe | Wirkung |
+|---|---|
+| Klick | eine Datei auswählen |
+| ⌘-Klick | einzeln hinzu-/abwählen |
+| ⇧-Klick | Bereich ab dem Anker |
+| ↑ / ↓ | Cursor bewegen, Auswahl auf eine Zeile reduzieren |
+| ⇧↑ / ⇧↓ | Auswahl erweitern |
+| ⌘A | **nur sichtbare** Dateien (aufgeklappte Ordner) |
+| ⇧⌘A / Esc | Auswahl aufheben |
+
+**Finder-Regel für Aktionen und Ziehen** (`actionTargets(for:)`): Gehört die Zeile zur
+Auswahl, gilt die **gesamte** Auswahl; sonst nur diese Zeile.
+
+**⚠️ ⌘A erfordert `CommandGroup(replacing: .pasteboard)`:** macOS' eigenes „Select All"
+verarbeitet ⌘A **im Menü**, bevor die Ansicht den Tastendruck sieht – ein zusätzlicher
+Menüeintrag *oder* ein `onKeyPress` in der Liste bleiben wirkungslos (beides erprobt).
+Weil die Gruppe damit ersetzt wird, müssen **Ausschneiden/Kopieren/Einsetzen selbst
+bereitgestellt** werden (`NSApp.sendAction`), sonst funktionieren sie im Suchfeld nicht.
+Steht der Fokus in einem Textfeld, wählt ⌘A weiterhin den **Text** aus.
+
 #### 4.3.4 Sofortige Klick-Reaktion (wichtige Lehre)
 **Problem:** Liegen auf derselben Zeile `onTapGesture(count: 2)` *und* `onTapGesture(count: 1)`, **muss** SwiftUI das Doppelklick-Intervall (`NSEvent.doubleClickInterval`, ~300 ms) abwarten, bevor der Einfachklick feuern darf – die Markierung erscheint spürbar verzögert.
 
@@ -543,6 +575,11 @@ sonst erklärte er einen leeren Bildschirm.
   Blocktext) mit Abschnitten (Zweck, Ordnerwahl, Zeitraum, Filter,
   Aktualisieren/Auto-Refresh, Diagramm/Legende, Liste/Details, Tastatur/QuickLook,
   Export) und einer Tastenkürzel-Tabelle (`HelpView.swift`, Fenster-`id: "help"`).
+- **Bedienungshilfen:** Alle Toolbar-Bedienelemente tragen ein `accessibilityLabel`
+  (15 Stück) – ein `.help` ist **kein** Ersatz, es erreicht nur die Maus.
+  **Legenden-Chips** sind fokussierbar (Tabulator), mit **Leertaste** schaltbar und mit
+  **Eingabetaste** auf „nur diesen Typ"; dazu Label/Wert/Hinweis für VoiceOver.
+  *Bewusst **kein** `Button`: Der verschluckte den Doppelklick, mit dem „Solo" ausgelöst wird.*
 - **MouseOver-Tooltips (`.help`)** an wichtigen Elementen: Ordner-Menü (Aktion +
   aktueller Pfad), Zeitraum-Umschalter, Datumsfelder, Tage-Feld, **Filter**,
   **Aktualisieren** (⌘R), Auf-/Zuklappen, An-den-Anfang, Auto-Refresh, Abbrechen,

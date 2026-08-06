@@ -451,6 +451,22 @@ private struct LegendChip: View {
         .help(isHidden
               ? "Einblenden · Doppelklick: nur diesen"
               : "Ausblenden · Doppelklick: nur diesen")
+        // --- Tastatur ---
+        // Bewusst KEIN `Button`: Der wuerde den Doppelklick verschlucken, mit dem
+        // „Solo" ausgeloest wird. Stattdessen Fokus + Tastenbehandlung selbst –
+        // so bleiben Maus, Tastatur und VoiceOver gleichermassen bedienbar.
+        .focusable()
+        .focusEffectDisabled(false)
+        .onKeyPress(.space) { onToggle(); return .handled }
+        .onKeyPress(.return) { onSolo(); return .handled }
+        // --- VoiceOver ---
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Dateityp \(title), \(count) Dateien")
+        .accessibilityValue(isHidden ? "ausgeblendet" : "sichtbar")
+        .accessibilityHint("Leertaste blendet aus oder ein, Eingabetaste zeigt nur diesen Typ")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onToggle() }
+        .accessibilityAction(named: "Nur diesen Typ") { onSolo() }
     }
 }
 

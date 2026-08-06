@@ -17,7 +17,10 @@ struct FileRowView: View {
     /// Schmales Fenster: Datumsspalte kuerzer.
     var isCompact: Bool = false
 
-    private var isSelected: Bool { model.selection == .file(file.url) }
+    /// Ausgewaehlt (Aktionen wirken darauf) – nicht zu verwechseln mit dem Cursor.
+    private var isSelected: Bool { model.isSelected(file.url) }
+    /// Cursor-Zeile: nur Tastatur-Position, dezenter dargestellt.
+    private var isCursor: Bool { model.cursor == .file(file.url) }
     /// Ob die Datei im gewaehlten Zeitfenster liegt (sonst: Hinweis-Symbol).
     private var isInWindow: Bool { model.isInWindow(file) }
 
@@ -70,6 +73,14 @@ struct FileRowView: View {
         .padding(.vertical, 3)
         .padding(.horizontal, RowMetrics.horizontalPadding)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
+        // Cursor ohne Auswahl: nur ein feiner Rahmen – sonst waere nicht
+        // erkennbar, worauf eine Aktion wirkt.
+        .overlay {
+            if isCursor && !isSelected {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+            }
+        }
         .background(isAlternate ? RowMetrics.zebraColor : Color.clear)
         .contentShape(Rectangle())
         // Herausziehen in andere Programme (Mail, Finder, Editor).
@@ -79,7 +90,10 @@ struct FileRowView: View {
         // `DragGesture(minimumDistance: 0)` die Zugbewegung und das Ziehen
         // kommt nie zustande.
         .onDrag {
-            model.select(.file(file.url))
+            // Finder-Regel: Gehoert die gezogene Zeile zur Auswahl, werden ALLE
+            // ausgewaehlten Dateien gezogen; sonst wird sie zuerst allein
+            // ausgewaehlt und nur sie gezogen.
+            if !model.isSelected(file.url) { model.select(.file(file.url)) }
             let provider = NSItemProvider(contentsOf: file.url)
                 ?? NSItemProvider(object: file.url as NSURL)
             // **Ohne `suggestedName` benennt der Empfaenger die Datei nach ihrem
@@ -113,7 +127,16 @@ struct FileRowView: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
-                    if !isSelected { model.select(.file(file.url)) }
+                    // macOS-Standard: ⌘ waehlt einzeln zu/ab, ⇧ waehlt den
+                    // Bereich ab dem Anker, sonst einzeln auswaehlen.
+                    let flags = NSEvent.modifierFlags
+                    if flags.contains(.command) {
+                        if model.cursor != .file(file.url) { model.toggleSelection(of: file.url) }
+                    } else if flags.contains(.shift) {
+                        if model.cursor != .file(file.url) { model.extendSelection(to: file.url) }
+                    } else if !isSelected {
+                        model.select(.file(file.url))
+                    }
                 }
         )
         .onTapGesture(count: 2) {
@@ -121,9 +144,14 @@ struct FileRowView: View {
             FinderService.open(file.url)
         }
         .contextMenu {
-            Button("Öffnen") { FinderService.open(file.url) }
-            Button("Im Finder anzeigen") { FinderService.reveal(file.url) }
-            Button("Pfad kopieren") { ClipboardService.copy(file.url.path) }
+            // Aktionen wirken auf die gesamte Auswahl, wenn diese Zeile dazugehoert.
+            let targets = model.actionTargets(for: file.url)
+            let suffix = targets.count > 1 ? " (\(targets.count))" : ""
+            Button("Öffnen" + suffix) { targets.forEach { FinderService.open($0) } }
+            Button("Im Finder anzeigen" + suffix) { targets.forEach { FinderService.reveal($0) } }
+            Button((targets.count > 1 ? "Pfade kopieren" : "Pfad kopieren") + suffix) {
+                ClipboardService.copy(targets.map(\.path).joined(separator: "\n"))
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Datei \(file.url.lastPathComponent)")

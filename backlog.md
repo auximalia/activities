@@ -18,9 +18,9 @@ erledigt.
 **Erledigt in Sprint 4 (v1.12.0):** UX-20, UX-30, UX-28, UX-21.
 **Erledigt in Sprint 5 (v1.13.1):** UX-19, UX-22.
 **Erledigt in Sprint 6 (v1.15.0):** UX-25, UX-18, UX-14.
-– Backlog umfasst **31** Einträge, davon **4 offen**:
-UX-13 (Chips + Toolbar zugänglich, **S**), UX-31 (Diagramm für VoiceOver, M),
-UX-23 (Mehrfachauswahl inkl. Mehrfach-Ziehen, L),
+**Erledigt in Sprint 7 (v1.16.0):** UX-13, UX-23.
+– Backlog umfasst **31** Einträge, davon **2 offen**:
+UX-31 (Diagramm für VoiceOver, M) und
 UX-24 (Einstellungen – Eintrag ist überholt und vor Umsetzung neu zu fassen).
 
 **Prioritäten**
@@ -329,7 +329,7 @@ Dateiname auf Zebra 13,6:1 (dark) / 18,0:1 (light); gedimmte Außerhalb-Dateien 
 **8,4:1 / 9,5:1** – deutlich über WCAG-AA (4,5:1). Zebra liegt mit ΔE 7,6 / 6,2 dicht genug
 am Hintergrund, um nicht zu dominieren. Eine Palette trägt beide Modi.
 
-### UX-13 · Bedienelemente für Tastatur und VoiceOver zugänglich machen
+### ✅ UX-13 · Bedienelemente für Tastatur und VoiceOver zugänglich machen *(erledigt, v1.16.0)*
 **Aufwand:** S · **Nutzen:** hoch
 **Kontrast-Teil erledigt und widerlegt (v1.11.0):** Die Vermutung, gedimmte Namen auf Zebra
 lägen unter dem Mindestkontrast, war **falsch** – gemessen 8,4:1 (dark) / 9,5:1 (light) gegen
@@ -448,7 +448,7 @@ Spezifikation entsprechend präzisieren.
 - Datei aus der Liste **herausziehen** (Mail, Finder, Editor).
 - Ordner **auf das Fenster ziehen** = neuer Wurzelordner.
 
-### UX-23 · Mehrfachauswahl nach Apple-Standard
+### ✅ UX-23 · Mehrfachauswahl nach Apple-Standard *(erledigt, v1.16.0)*
 **Aufwand:** L · **Nutzen:** hoch *(aufgewertet: Mehrfach-Ziehen ist ein eigener Zweck)*
 
 Heute ist die Auswahl **einwertig** (`selection: RowID?`). Gefordert ist das gewohnte

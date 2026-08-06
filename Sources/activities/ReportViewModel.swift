@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Observation
 import SwiftUI
 import ActivitiesCore
@@ -165,8 +166,26 @@ final class ReportViewModel {
     /// ein Scrollen wuerde sie unter dem Zeiger wegziehen.
     private(set) var selectionOrigin: SelectionOrigin = .programmatic
 
-    /// Aktuell markierte Zeile (Auswahl-Cursor fuer Tastatur und Klick).
-    var selection: RowID?
+    /// **Cursor** – die Zeile, auf der die Tastatur steht. Wandert ueber
+    /// **alle** Zeilen, auch Ordner (sonst liessen sich Ordner nicht mehr per
+    /// ←/→ auf- und zuklappen und der Diagramm-Sprung auf einen Ordner verloere
+    /// sein Ziel).
+    ///
+    /// Nicht zu verwechseln mit ``selectedFiles``: Der Cursor ist **einwertig**
+    /// und dient der Navigation, die **Auswahl** enthaelt nur Dateien und traegt
+    /// die Aktionen (Kontextmenue, QuickLook, Ziehen).
+    var cursor: RowID?
+
+    /// **Auswahl** – ausschliesslich Dateien. Traegt Hervorhebung, Kontextmenue,
+    /// QuickLook und Drag & Drop.
+    ///
+    /// Ordner sind bewusst **nicht** auswaehlbar: Die Liste ist ein Baum, und
+    /// eine Auswahl aus Ast und Blatt zugleich haette keine sinnvolle gemeinsame
+    /// Aktion.
+    private(set) var selectedFiles: Set<URL> = []
+
+    /// Ankerpunkt fuer Bereichsauswahl mit ⇧-Klick bzw. ⇧↑/⇧↓.
+    private var selectionAnchor: URL?
     /// Aufgeklappte Ordner.
     var expandedFolders: Set<URL> = []
     /// Detaildateien je Ordner (ALLE Dateien, nur namensgefiltert; nil = laedt noch).
@@ -509,15 +528,23 @@ final class ReportViewModel {
 
     /// Verwirft die Auswahl, wenn ihr Ordner/ihre Datei nicht mehr sichtbar ist.
     private func pruneSelection() {
+        // Ausgewaehlte Dateien, die nicht mehr sichtbar sind, entfallen.
+        if !selectedFiles.isEmpty {
+            let visible = Set(visibleFileOrder)
+            selectedFiles.formIntersection(visible)
+            if let anchor = selectionAnchor, !visible.contains(anchor) {
+                selectionAnchor = selectedFiles.first
+            }
+        }
         let displayed = Set(displayBuckets.flatMap { $0.entries.map(\.folder) })
-        switch selection {
+        switch cursor {
         case .folder(let url):
-            if !displayed.contains(url) { selection = nil }
+            if !displayed.contains(url) { cursor = nil }
         case .file(let url):
             let folder = url.deletingLastPathComponent()
             // Auch der Zeitfenster-Schalter kann die markierte Datei ausblenden.
             let stillVisible = visibleFiles(in: folder)?.contains { $0.url == url } ?? false
-            if !displayed.contains(folder) || !stillVisible { selection = nil }
+            if !displayed.contains(folder) || !stillVisible { cursor = nil }
         case nil:
             break
         }
@@ -526,7 +553,7 @@ final class ReportViewModel {
     // MARK: - Auswahl / QuickLook
 
     var selectedFileURL: URL? {
-        if case .file(let url) = selection { return url }
+        if case .file(let url) = cursor { return url }
         return nil
     }
 
@@ -568,7 +595,7 @@ final class ReportViewModel {
             expandedFolders.insert(folder)
         }
         selectionOrigin = .quickLook
-        selection = .file(fileURL)
+        cursor = .file(fileURL)
     }
 
     /// Setzt die Auswahl und merkt sich ihre Herkunft.
@@ -576,7 +603,86 @@ final class ReportViewModel {
     ///   sind der haeufigste Aufrufer und duerfen **nicht** scrollen.
     func select(_ id: RowID, origin: SelectionOrigin = .mouse) {
         selectionOrigin = origin
-        selection = id
+        cursor = id
+        // Ordner sind nicht auswaehlbar – ein Klick darauf verwirft die Auswahl.
+        switch id {
+        case .file(let url):
+            selectedFiles = [url]
+            selectionAnchor = url
+        case .folder:
+            selectedFiles = []
+            selectionAnchor = nil
+        }
+    }
+
+    // MARK: - Mehrfachauswahl (nur Dateien)
+
+    /// Alle Dateien in der sichtbaren Reihenfolge – Grundlage fuer Bereiche.
+    private var visibleFileOrder: [URL] {
+        visibleRows.compactMap {
+            if case .file(let url) = $0 { return url }
+            return nil
+        }
+    }
+
+    /// ⌘-Klick: einzelne Datei hinzufuegen oder abwaehlen.
+    func toggleSelection(of url: URL) {
+        selectionOrigin = .mouse
+        cursor = .file(url)
+        if selectedFiles.contains(url) {
+            selectedFiles.remove(url)
+            if selectionAnchor == url { selectionAnchor = selectedFiles.first }
+        } else {
+            selectedFiles.insert(url)
+            selectionAnchor = url
+        }
+    }
+
+    /// ⇧-Klick bzw. ⇧↑/⇧↓: Bereich vom Anker bis ``url``.
+    func extendSelection(to url: URL) {
+        selectionOrigin = .mouse
+        cursor = .file(url)
+        let order = visibleFileOrder
+        guard let anchor = selectionAnchor ?? order.first,
+              let from = order.firstIndex(of: anchor),
+              let to = order.firstIndex(of: url) else {
+            selectedFiles = [url]
+            selectionAnchor = url
+            return
+        }
+        selectedFiles = Set(order[min(from, to)...max(from, to)])
+    }
+
+    /// ⌘A – **nur die sichtbaren** Dateien (aufgeklappte Ordner), nicht die
+    /// Dateien zugeklappter Ordner: „Alles auswaehlen" darf nur greifen, was man
+    /// auch sieht.
+    func selectAllVisibleFiles() {
+        let order = visibleFileOrder
+        guard !order.isEmpty else { return }
+        selectedFiles = Set(order)
+        selectionAnchor = order.first
+        if cursor == nil, let first = order.first { cursor = .file(first) }
+    }
+
+    /// Esc – Auswahl aufheben (der Cursor bleibt stehen).
+    func clearSelection() {
+        selectedFiles = []
+        selectionAnchor = nil
+    }
+
+    /// Ob eine Datei ausgewaehlt ist.
+    func isSelected(_ url: URL) -> Bool { selectedFiles.contains(url) }
+
+    /// Auswahl in sichtbarer Reihenfolge – fuer Aktionen und Ziehen.
+    var orderedSelection: [URL] {
+        let chosen = selectedFiles
+        return visibleFileOrder.filter { chosen.contains($0) }
+    }
+
+    /// Dateien, auf die eine Aktion an ``url`` wirkt (Finder-Regel): Gehoert die
+    /// Zeile zur Auswahl, gilt die **ganze** Auswahl; sonst nur diese Zeile.
+    func actionTargets(for url: URL) -> [URL] {
+        selectedFiles.contains(url) ? orderedSelection : [url]
     }
 
     /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
@@ -584,30 +690,45 @@ final class ReportViewModel {
         RowNavigation.flatten(buckets: displayBuckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
     }
 
-    func moveSelection(_ delta: Int) {
+    /// Pfeiltasten: Cursor bewegen. ``extend`` (⇧) erweitert die Auswahl,
+    /// sonst wird sie auf die neue Zeile reduziert.
+    func moveSelection(_ delta: Int, extend: Bool = false) {
         selectionOrigin = .keyboard
-        selection = RowNavigation.move(selection: selection, in: visibleRows, by: delta)
+        let next = RowNavigation.move(cursor: cursor, in: visibleRows, by: delta)
+        cursor = next
+        guard case .file(let url)? = next else {
+            if !extend { clearSelection() }
+            return
+        }
+        if extend {
+            extendSelection(to: url)
+            selectionOrigin = .keyboard
+        } else {
+            selectedFiles = [url]
+            selectionAnchor = url
+        }
     }
 
     func collapseSelected() {
-        if case .folder(let folder) = selection, expandedFolders.contains(folder) {
+        if case .folder(let folder) = cursor, expandedFolders.contains(folder) {
             expandedFolders.remove(folder)
         }
     }
 
     func expandSelected() {
-        if case .folder(let folder) = selection, !expandedFolders.contains(folder) {
+        if case .folder(let folder) = cursor, !expandedFolders.contains(folder) {
             toggleExpand(folder)
         }
     }
 
     func openSelection() {
-        switch selection {
+        switch cursor {
         case .folder(let url):
             FinderService.open(url)
             ClipboardService.copy(url.path)
         case .file(let url):
-            FinderService.open(url)
+            // Enter oeffnet die gesamte Auswahl, wenn die Cursorzeile dazugehoert.
+            actionTargets(for: url).forEach { FinderService.open($0) }
         case nil:
             break
         }
@@ -734,7 +855,7 @@ final class ReportViewModel {
             expandedFolders.insert(target.folder)
             ensureLoaded(target.folder)
             selectionOrigin = .chart
-            selection = .file(target.url)
+            cursor = .file(target.url)
         } else {
             focusDay(day)
         }
@@ -780,7 +901,7 @@ final class ReportViewModel {
         expandedFolders.insert(target.folder)
         chartFocus = ChartFocus(folder: target.folder, day: day)
         selectionOrigin = .chart
-        selection = .folder(target.folder)
+        cursor = .folder(target.folder)
         ensureLoaded(target.folder)
         applyChartFocus(for: target.folder)
     }
@@ -792,7 +913,7 @@ final class ReportViewModel {
         let match = files.first { $0.timestamp >= from && $0.timestamp < to } ?? files.first
         if let match {
             selectionOrigin = .chart
-            selection = .file(match.url)
+            cursor = .file(match.url)
         }
         chartFocus = nil
     }
@@ -883,7 +1004,7 @@ final class ReportViewModel {
         scannedFileCount = relevantFiles.count
         recomputeLegend()
         recomputeChart()
-        selection = nil
+        cursor = nil
         chartFocus = nil
 
         // Detaildateien nur fuer Ordner nachladen, die noch nicht im Zwischen-
@@ -1051,7 +1172,7 @@ final class ReportViewModel {
         recomputeChart()
         preserveOnNextLoad = preservingState
         if !preservingState {
-            selection = nil
+            cursor = nil
             chartFocus = nil
         }
         loadDetails(for: Set(relevantFiles.map(\.folder)))
@@ -1116,8 +1237,8 @@ final class ReportViewModel {
         let displayed = Set(displayedFolders())
         if preserveOnNextLoad {
             expandedFolders = expandedFolders.intersection(displayed)
-            if case .folder(let url) = selection, !displayed.contains(url) {
-                selection = nil
+            if case .folder(let url) = cursor, !displayed.contains(url) {
+                cursor = nil
             }
         } else {
             expandedFolders = displayed
@@ -1134,7 +1255,7 @@ final class ReportViewModel {
         topExtensions = []
         topExtensionSet = []
         otherCount = 0
-        selection = nil
+        cursor = nil
         expandedFolders = []
         filesByFolder = [:]
         isLoadingDetails = false

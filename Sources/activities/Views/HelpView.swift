@@ -149,6 +149,11 @@ struct HelpView: View {
                 shortcutRow("← / →", "Ordner zu-/aufklappen")
                 shortcutRow("↩︎", "Auswahl öffnen")
                 shortcutRow("Leertaste", "QuickLook-Vorschau")
+                shortcutRow("⌘-Klick", "Datei zur Auswahl hinzu/abwählen")
+                shortcutRow("⇧-Klick", "Bereich auswählen")
+                shortcutRow("⇧↑ / ⇧↓", "Auswahl erweitern")
+                shortcutRow("⌘A", "Alle sichtbaren Dateien auswählen")
+                shortcutRow("Esc", "Auswahl aufheben")
             }
         }
     }

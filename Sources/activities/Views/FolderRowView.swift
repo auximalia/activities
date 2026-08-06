@@ -14,7 +14,7 @@ struct FolderRowView: View {
     var isCompact: Bool = false
 
     private var isExpanded: Bool { model.isExpanded(entry.folder) }
-    private var isSelected: Bool { model.selection == .folder(entry.folder) }
+    private var isSelected: Bool { model.cursor == .folder(entry.folder) }
 
     /// Live berechnetes Ordner-Datum (juengste sichtbare Datei) – filterabhaengig.
     private var displayDate: Date { model.newestVisibleDate(in: entry.folder) ?? entry.newestDate }

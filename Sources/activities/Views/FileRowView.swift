@@ -81,7 +81,11 @@ struct FileRowView: View {
                 ?? NSItemProvider(object: file.url as NSURL)
             // **Ohne `suggestedName` benennt der Empfaenger die Datei nach ihrem
             // TYP** („XMind Workbook.xmind") statt nach ihrem echten Namen.
-            provider.suggestedName = file.url.lastPathComponent
+            //
+            // **Ohne Endung uebergeben:** Der Empfaenger haengt die zum Typ
+            // passende Endung selbst an – mit „name.xmind" entstuende
+            // „name.xmind.xmind".
+            provider.suggestedName = file.url.deletingPathExtension().lastPathComponent
             return provider
         } preview: {
             // Eigene Vorschau: Die Standardvorschau ist eine verkleinerte

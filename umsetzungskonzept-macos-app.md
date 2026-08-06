@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.13.2)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.13.3)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -215,9 +215,10 @@ die Leiste ist voll) plus Menüleiste ⌥⌘1/2/3.
 ### 3.9.5 Drag & Drop
 - **Herausziehen:** `.onDrag` an der Dateizeile liefert einen `NSItemProvider` mit der
   Datei-URL (Mail, Finder, Editor).
-  **`suggestedName` ist Pflicht:** Ohne ihn benennt der Empfänger die Datei nach ihrem
-  **Typ** („XMind Workbook.xmind") statt nach ihrem echten Namen – `NSItemProvider(contentsOf:)`
-  reicht den Dateinamen nicht von selbst weiter.
+  **`suggestedName` ist Pflicht – und zwar OHNE Endung:** Ohne ihn benennt der Empfänger die
+  Datei nach ihrem **Typ** („XMind Workbook.xmind"); mit Endung übergeben entsteht dagegen
+  eine Verdopplung („name.xmind.xmind"), weil der Empfänger die zum Typ passende Endung
+  selbst anhängt. Richtig ist `url.deletingPathExtension().lastPathComponent`.
   **Eigene Vorschau (`preview:`):** Die Standardvorschau ist eine verkleinerte Abbildung der
   gesamten Zeile und dadurch unlesbar; stattdessen Icon + Dateiname als kleine Karte.
   **Reihenfolge ist entscheidend:** `.onDrag` steht **vor** der Sofort-Markierungsgeste

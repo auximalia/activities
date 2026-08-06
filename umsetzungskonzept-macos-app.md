@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.18.1)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.19.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -581,8 +581,11 @@ sonst erklärte er einen leeren Bildschirm.
 - **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), „Dateien außerhalb des Zeitraums zeigen" (Umschalter), Typ-Filter zurücksetzen (⌥⌘R), „Über activities", „Nach Updates suchen …", „Update installieren".
 - **Export liegt im Menü „Ablage"** (`CommandGroup(replacing: .saveItem)`): „Als CSV exportieren …" (⌘E) und „Als HTML exportieren …" (⇧⌘E). *Lehre:* vorher hing er in `CommandGroup(after: .toolbar)` und landete damit im Menü „Darstellung" – dort findet ihn niemand.
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
-- **Einstellungen (⌘,):** derzeit ausschließlich der **Rauschfilter** (9.5) – mehrdeutige
-  Erzeugnis-Ordner zuschalten und selbst ausgeblendete Ordner wieder einblenden.
+- **Einstellungen (⌘,):** der **Rauschfilter** (9.5) vollständig an *einer* Stelle –
+  die Regelliste (einzeln schaltbar, erweiterbar, zurücksetzbar), die selbst ausgeblendeten
+  Ordner, **und** ein benannter Abschnitt „Immer übersprungen" für das, was sich nicht
+  einstellen lässt (versteckte Objekte, Systemdateien, App-Bündel).
+  *Auch Unveränderliches gehört benannt – sonst bleibt es ein stiller Zustand.*
   *Ein Einstellungen-Fenster war als UX-24 verworfen worden, weil es nichts zu zeigen hatte;
   mit den Ausschlussregeln gibt es nun einen echten Inhalt.*
 - **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-
@@ -799,15 +802,24 @@ Erkennung über `URLResourceKey.isPackageKey` – das erfasst **alle registriert
 nicht nur eine geratene Liste. Rückfall auf `ExclusionRules.packageExtensions`, falls der
 Schlüssel fehlt (Portabilität, 10.2).
 
-### 9.5.2 Zwei Klassen von Erzeugnis-Ordnern
-| Klasse | Beispiele | Standard |
-|---|---|---|
-| **eindeutig** | `node_modules`, `.build`, `DerivedData`, `Pods`, `.gradle`, `__pycache__`, `.venv` | immer ausgeschlossen |
-| **mehrdeutig** | `build`, `dist`, `out`, `target`, `vendor`, `bin`, `obj` | **sichtbar**, zuschaltbar in den Einstellungen |
+### 9.5.2 EINE Liste von Ordnerregeln
+Es gibt **genau eine** Liste aktiver Ordnernamen (`activeFolderRules`). Die interne
+Unterscheidung dient nur noch als **Voreinstellung**:
 
-*Begründung der Trennung:* Niemand legt einen eigenen Ordner namens `node_modules` an – aber
-sehr wohl einen namens `build` oder `dist`. Ein stiller Verlust eines echten Projektordners
-wäre schlimmer als etwas Rauschen.
+| Klasse | Beispiele | vorangekreuzt? |
+|---|---|---|
+| eindeutig | `node_modules`, `DerivedData`, `Pods`, `.gradle`, `__pycache__`, `.venv` | ja |
+| mehrdeutig | `build`, `dist`, `out`, `target`, `vendor`, `bin`, `obj` | **nein** |
+
+*Begründung:* Niemand legt einen eigenen Ordner namens `node_modules` an – aber sehr wohl
+einen namens `build`. Ein stiller Verlust eines echten Projektordners wäre schlimmer als
+etwas Rauschen.
+
+**Entwurfslehre (Korrektur an v1.18):** Zuerst waren „eindeutig" und „mehrdeutig" **zwei
+Sorten Regel**, und die Oberfläche zeigte dafür ein Häkchen „Auch mehrdeutige … ausblenden".
+Damit schlug eine **Code-Kategorie in die Bedienung durch**. Aus Anwendersicht darf es nur
+*eine* Antwort auf „warum sehe ich diesen Ordner nicht?" geben. Jetzt: eine Liste, jede
+Regel einzeln abwählbar, eigene Namen ergänzbar, „Auf Empfehlung zurücksetzen".
 
 ### 9.5.3 Ordner ausblenden ist **pfadgenau**
 `excludedPaths` speichert vollständige Pfade, nicht Namen: Der Menüeintrag verspricht

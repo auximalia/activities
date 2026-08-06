@@ -1,42 +1,64 @@
 import SwiftUI
 import ActivitiesCore
 
-/// Einstellungen (⌘,) – bislang ausschließlich der **Rauschfilter**.
+/// Einstellungen (⌘,) – **alle** Regeln des Rauschfilters an einer Stelle.
 ///
-/// Ein Einstellungen-Fenster war im Backlog lange als UX-24 geführt und wurde
-/// dort **verworfen**, weil es nichts zu zeigen gehabt hätte. Mit den
-/// Ausschlussregeln gibt es nun einen echten Inhalt – das ist der Grund, warum
-/// es jetzt entsteht und vorher nicht.
+/// **Entwurfsgrundsatz:** Aus Anwendersicht darf es nur *eine* Antwort auf die
+/// Frage „warum sehe ich diesen Ordner nicht?" geben. Vorher entschieden fünf
+/// Mechanismen darüber, von denen nur zwei sichtbar waren – die interne
+/// Unterscheidung „eindeutig/mehrdeutig" war in die Oberfläche durchgeschlagen.
+/// Jetzt steht **eine Liste**; die mehrdeutigen Namen sind darin lediglich nicht
+/// vorangekreuzt. Was sich nicht ändern lässt, wird wenigstens **benannt**.
 struct SettingsView: View {
     @Bindable var model: ReportViewModel
+    @State private var newRule = ""
 
     var body: some View {
         TabView {
             noiseTab
                 .tabItem { Label("Rauschfilter", systemImage: "eye.slash") }
         }
-        .frame(width: 520, height: 400)
+        .frame(width: 560, height: 480)
     }
 
     private var noiseTab: some View {
         Form {
             Section {
-                Toggle(isOn: Binding(
-                    get: { model.excludeAmbiguousBuildFolders },
-                    set: { model.setExcludeAmbiguousBuildFolders($0) }
-                )) {
-                    Text("Auch mehrdeutige Erzeugnis-Ordner ausblenden")
-                    Text(ExclusionRules.ambiguousBuildFolders.sorted().joined(separator: ", "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                ForEach(model.allFolderRuleNames, id: \.self) { name in
+                    Toggle(isOn: Binding(
+                        get: { model.activeFolderRules.contains(name) },
+                        set: { model.setFolderRule(name, active: $0) }
+                    )) {
+                        HStack(spacing: 6) {
+                            Text(name).font(.system(.body, design: .monospaced))
+                            if ExclusionRules.ambiguousBuildFolders.contains(name) {
+                                Text("kann auch ein echter Projektordner sein")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                HStack {
+                    TextField("Weiterer Ordnername …", text: $newRule)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { addRule() }
+                    Button("Hinzufügen", action: addRule)
+                        .disabled(newRule.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             } header: {
-                Text("Werkzeug-Erzeugnisse")
+                HStack {
+                    Text("Ordner, die übersprungen werden")
+                    Spacer()
+                    Button("Auf Empfehlung zurücksetzen") { model.resetFolderRules() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                }
             } footer: {
-                Text("Ordner wie \(ExclusionRules.unambiguousBuildFolders.sorted().prefix(4).joined(separator: ", ")) "
-                     + "und App-Bündel werden immer übersprungen – dort arbeitet niemand. "
-                     + "Namen wie „build\" oder „dist\" können dagegen auch echte Projektordner sein "
-                     + "und bleiben deshalb standardmäßig sichtbar.")
+                Text("Namen wie „build\" oder „dist\" sind nicht vorangekreuzt – sie können auch "
+                     + "echte Projektordner sein. Ordner mit diesen Namen werden samt Inhalt "
+                     + "übersprungen.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -64,7 +86,35 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            // Was sich nicht einstellen lässt, wird wenigstens benannt – sonst
+            // bleibt es ein stiller Zustand.
+            Section("Immer übersprungen") {
+                labelled("Versteckte Objekte",
+                         "Alles, was mit einem Punkt beginnt (.git, .build, .venv) sowie "
+                         + "vom System als versteckt markierte Objekte.")
+                labelled("Systemdateien",
+                         ExclusionRules.default.filePatterns.joined(separator: ", "))
+                labelled("App-Bündel",
+                         "Programme und Dokumentbündel (.app, .rtfd, .photoslibrary …) zählen "
+                         + "als eine Datei – ihr Innenleben ist keine Arbeit.")
+            }
         }
         .formStyle(.grouped)
+    }
+
+    private func labelled(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func addRule() {
+        model.addFolderRule(newRule)
+        newRule = ""
     }
 }

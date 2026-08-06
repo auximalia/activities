@@ -20,8 +20,8 @@ struct StoredSettings {
     var sort: FolderSort
     /// Ob der Erstkontakt-Hinweis bereits weggeklickt wurde.
     var didShowIntro: Bool
-    /// Ob auch mehrdeutige Bau-Ordner (build, dist, out …) ausgeschlossen werden.
-    var excludeAmbiguousBuildFolders: Bool
+    /// Aktive Ordner-Ausschlussregeln (eine Liste, keine zwei Sorten).
+    var activeFolderRules: Set<String>
     /// Vom Anwender ausgeblendete Pfade („Diesen Ordner nicht mehr zeigen").
     var excludedPaths: Set<String>
     /// Angeheftete Ordner (Favoriten).
@@ -49,7 +49,7 @@ final class SettingsStore {
     private let sortFieldKey = "sortField"
     private let sortAscendingKey = "sortAscending"
     private let introKey = "didShowIntro"
-    private let ambiguousKey = "excludeAmbiguousBuildFolders"
+    private let folderRulesKey = "activeFolderRules"
     private let excludedPathsKey = "excludedPaths"
     private let pinnedKey = "pinnedFolders"
     private let maxRecent = 8
@@ -70,7 +70,14 @@ final class SettingsStore {
         let sortField = (defaults.string(forKey: sortFieldKey)).flatMap(SortField.init(rawValue:)) ?? .date
         let sortAscending = defaults.object(forKey: sortAscendingKey) as? Bool ?? false
         let didShowIntro = defaults.bool(forKey: introKey)
-        let ambiguous = defaults.bool(forKey: ambiguousKey)
+        // Beim ersten Start gelten die eindeutigen Regeln; danach zaehlt die
+        // gespeicherte Liste – auch wenn sie leer ist (bewusst abgewaehlt).
+        let activeFolderRules: Set<String>
+        if let stored = defaults.array(forKey: folderRulesKey) as? [String] {
+            activeFolderRules = Set(stored)
+        } else {
+            activeFolderRules = ExclusionRules.unambiguousBuildFolders
+        }
         let excludedPaths = Set(defaults.stringArray(forKey: excludedPathsKey) ?? [])
         let pinned = (defaults.stringArray(forKey: pinnedKey) ?? [])
             .filter { FileManager.default.fileExists(atPath: $0) }
@@ -99,7 +106,7 @@ final class SettingsStore {
             ignoreTimeWindow: ignoreWindow,
             sort: FolderSort(field: sortField, ascending: sortAscending),
             didShowIntro: didShowIntro,
-            excludeAmbiguousBuildFolders: ambiguous,
+            activeFolderRules: activeFolderRules,
             excludedPaths: excludedPaths,
             pinnedFolders: pinned
         )
@@ -136,8 +143,8 @@ final class SettingsStore {
         defaults.set(on, forKey: ignoreWindowKey)
     }
 
-    func saveExclusions(ambiguous: Bool, paths: Set<String>) {
-        defaults.set(ambiguous, forKey: ambiguousKey)
+    func saveExclusions(folderRules: Set<String>, paths: Set<String>) {
+        defaults.set(Array(folderRules).sorted(), forKey: folderRulesKey)
         defaults.set(Array(paths).sorted(), forKey: excludedPathsKey)
     }
 

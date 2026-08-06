@@ -528,7 +528,11 @@ do {
 
     // Mehrdeutige zuschaltbar
     let strenger = FileScanner(
-        exclusions: ExclusionRules.default.adding(ambiguousFolders: true, excludedPaths: [])
+        exclusions: ExclusionRules.with(
+            activeFolders: ExclusionRules.unambiguousBuildFolders
+                .union(ExclusionRules.ambiguousBuildFolders),
+            excludedPaths: []
+        )
     ).scan(settings: settings)
     let strengeNamen = Set(strenger.files.map { $0.url.lastPathComponent })
     expect(!strengeNamen.contains("ergebnis.txt"), "Rauschfilter: „build\" zugeschaltet ausgeschlossen")
@@ -537,7 +541,10 @@ do {
     // Pfadgenauer Ausschluss („Diesen Ordner nicht mehr zeigen")
     let versteckt = base.appendingPathComponent("projekt").path
     let gefiltert = FileScanner(
-        exclusions: ExclusionRules.default.adding(ambiguousFolders: false, excludedPaths: [versteckt])
+        exclusions: ExclusionRules.with(
+            activeFolders: ExclusionRules.unambiguousBuildFolders,
+            excludedPaths: [versteckt]
+        )
     ).scan(settings: settings)
     expect(gefiltert.files.isEmpty, "Pfad-Ausschluss: Ordner samt Inhalt verschwindet")
 
@@ -557,9 +564,20 @@ do {
            "Enthuellen: Buendel bleiben Einheit – das ist keine Ausblendung, sondern richtige Wertung")
     expectEqual(enthuellt.skippedFolders, 0, "Enthuellen: nichts mehr uebersprungen")
 
+    // Eine einzige Liste steuert die Ordnerregeln – auch das Abwaehlen einer
+    // sonst empfohlenen Regel muss wirken.
+    let ohneNodeModules = FileScanner(
+        exclusions: ExclusionRules.with(
+            activeFolders: ExclusionRules.unambiguousBuildFolders.subtracting(["node_modules"]),
+            excludedPaths: []
+        )
+    ).scan(settings: settings)
+    expect(ohneNodeModules.files.contains { $0.url.lastPathComponent == "index.js" },
+           "Regelliste: abgewaehlte Regel wird nicht mehr angewandt")
+
     // Pfad-Ausschluss trifft nur den gemeinten Pfad, nicht gleichnamige
-    let regeln = ExclusionRules.default.adding(
-        ambiguousFolders: false, excludedPaths: ["/a/tmp"]
+    let regeln = ExclusionRules.with(
+        activeFolders: ExclusionRules.unambiguousBuildFolders, excludedPaths: ["/a/tmp"]
     )
     expect(regeln.isExcludedPath("/a/tmp"), "Pfad-Ausschluss: genau dieser Pfad")
     expect(regeln.isExcludedPath("/a/tmp/unterordner"), "Pfad-Ausschluss: auch darunter")

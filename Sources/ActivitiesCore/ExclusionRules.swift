@@ -79,11 +79,22 @@ public struct ExclusionRules: Sendable, Equatable {
         filePatterns: [".DS_Store", "Thumbs.db", "desktop.ini", "~$*"]
     )
 
-    /// Vorgabe erweitert um die mehrdeutigen Ordnernamen und eigene Pfade.
-    public func adding(ambiguousFolders: Bool, excludedPaths: Set<String>) -> ExclusionRules {
+    /// Alle Ordnernamen, die zur Auswahl stehen – die Grundmenge der Liste in
+    /// den Einstellungen.
+    public static var knownFolderRules: [String] {
+        (unambiguousBuildFolders.union(ambiguousBuildFolders)).sorted()
+    }
+
+    /// Baut Regeln aus einer **einzigen** Liste aktiver Ordnernamen.
+    ///
+    /// Die Unterscheidung „eindeutig/mehrdeutig" ist damit nur noch eine
+    /// **Voreinstellung**, keine zweite Sorte Regel: In der Oberfläche steht
+    /// eine Liste, in der die mehrdeutigen Namen lediglich nicht vorangekreuzt
+    /// sind.
+    public static func with(activeFolders: Set<String>, excludedPaths: Set<String>) -> ExclusionRules {
         ExclusionRules(
-            folders: ambiguousFolders ? folders.union(Self.ambiguousBuildFolders) : folders,
-            filePatterns: filePatterns,
+            folders: activeFolders,
+            filePatterns: ExclusionRules.default.filePatterns,
             excludedPaths: excludedPaths
         )
     }

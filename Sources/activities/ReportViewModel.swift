@@ -191,8 +191,8 @@ final class ReportViewModel {
     /// Detaildateien je Ordner (ALLE Dateien, nur namensgefiltert; nil = laedt noch).
     var filesByFolder: [URL: [RelevantFile]] = [:]
 
-    /// Ob auch mehrdeutige Bau-Ordner (build, dist, out …) ausgeschlossen werden.
-    private(set) var excludeAmbiguousBuildFolders: Bool
+    /// Aktive Ordner-Ausschlussregeln – **eine** Liste, keine zwei Sorten.
+    private(set) var activeFolderRules: Set<String>
     /// Vom Anwender ausgeblendete Pfade.
     private(set) var excludedPaths: Set<String>
     /// Angeheftete Ordner – erscheinen in einem eigenen Abschnitt, unabhaengig
@@ -236,7 +236,7 @@ final class ReportViewModel {
         self.ignoreTimeWindow = saved.ignoreTimeWindow
         self.sort = saved.sort
         self.showsIntro = !saved.didShowIntro
-        self.excludeAmbiguousBuildFolders = saved.excludeAmbiguousBuildFolders
+        self.activeFolderRules = saved.activeFolderRules
         self.excludedPaths = saved.excludedPaths
         self.pinnedFolders = saved.pinnedFolders
         self.recentFolders = store.loadRecentFolders()
@@ -358,10 +358,7 @@ final class ReportViewModel {
             // nichts aus, sondern werten richtig.
             return ExclusionRules(folders: [], filePatterns: ExclusionRules.default.filePatterns)
         }
-        return ExclusionRules.default.adding(
-            ambiguousFolders: excludeAmbiguousBuildFolders,
-            excludedPaths: excludedPaths
-        )
+        return ExclusionRules.with(activeFolders: activeFolderRules, excludedPaths: excludedPaths)
     }
 
     /// Schaltet die voruebergehende Anzeige ausgeblendeter Ordner um.
@@ -372,24 +369,48 @@ final class ReportViewModel {
 
     // MARK: - Rauschfilter
 
-    func setExcludeAmbiguousBuildFolders(_ on: Bool) {
-        excludeAmbiguousBuildFolders = on
-        store.saveExclusions(ambiguous: on, paths: excludedPaths)
+    /// Schaltet eine einzelne Ordnerregel an oder aus.
+    func setFolderRule(_ name: String, active: Bool) {
+        if active { activeFolderRules.insert(name) } else { activeFolderRules.remove(name) }
+        store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
         rescan()
+    }
+
+    /// Eigene Ordnerregel ergaenzen.
+    func addFolderRule(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        activeFolderRules.insert(trimmed)
+        store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
+        rescan()
+    }
+
+    /// Auf die empfohlene Voreinstellung zuruecksetzen.
+    func resetFolderRules() {
+        activeFolderRules = ExclusionRules.unambiguousBuildFolders
+        store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
+        rescan()
+    }
+
+    /// Alle Regelnamen fuer die Liste: bekannte plus selbst ergaenzte.
+    var allFolderRuleNames: [String] {
+        Set(ExclusionRules.knownFolderRules).union(activeFolderRules).sorted {
+            $0.localizedStandardCompare($1) == .orderedAscending
+        }
     }
 
     /// „Diesen Ordner nicht mehr zeigen" – **pfadgenau**, nicht namensbasiert.
     func hideFolder(_ url: URL) {
         excludedPaths.insert(ExclusionRules.normalize(url.path))
         pinnedFolders.removeAll { $0.standardizedFileURL == url.standardizedFileURL }
-        store.saveExclusions(ambiguous: excludeAmbiguousBuildFolders, paths: excludedPaths)
+        store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
         store.savePinnedFolders(pinnedFolders)
         rescan()
     }
 
     func showFolderAgain(_ path: String) {
         excludedPaths.remove(path)
-        store.saveExclusions(ambiguous: excludeAmbiguousBuildFolders, paths: excludedPaths)
+        store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
         rescan()
     }
 

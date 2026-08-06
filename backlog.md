@@ -18,9 +18,10 @@ erledigt.
 **Erledigt in Sprint 4 (v1.12.0):** UX-20, UX-30, UX-28, UX-21.
 **Erledigt in Sprint 5 (v1.13.1):** UX-19, UX-22.
 **Erledigt in Sprint 6 (v1.15.0):** UX-25, UX-18, UX-14.
-– Backlog umfasst 30 Einträge, davon **3 offen**: UX-13 (Tastatur/VoiceOver),
-UX-24 (Einstellungen – Eintrag ist überholt und vor Umsetzung neu zu fassen),
-UX-23 (Mehrfachauswahl, Umbau).
+– Backlog umfasst **31** Einträge, davon **4 offen**:
+UX-13 (Chips + Toolbar zugänglich, **S**), UX-31 (Diagramm für VoiceOver, M),
+UX-23 (Mehrfachauswahl inkl. Mehrfach-Ziehen, L),
+UX-24 (Einstellungen – Eintrag ist überholt und vor Umsetzung neu zu fassen).
 
 **Prioritäten**
 - **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
@@ -328,13 +329,40 @@ Dateiname auf Zebra 13,6:1 (dark) / 18,0:1 (light); gedimmte Außerhalb-Dateien 
 **8,4:1 / 9,5:1** – deutlich über WCAG-AA (4,5:1). Zebra liegt mit ΔE 7,6 / 6,2 dicht genug
 am Hintergrund, um nicht zu dominieren. Eine Palette trägt beide Modi.
 
-### UX-13 · Tastaturbedienung vervollständigen
-**Aufwand:** M · **Nutzen:** mittel
+### UX-13 · Bedienelemente für Tastatur und VoiceOver zugänglich machen
+**Aufwand:** S · **Nutzen:** hoch
 **Kontrast-Teil erledigt und widerlegt (v1.11.0):** Die Vermutung, gedimmte Namen auf Zebra
 lägen unter dem Mindestkontrast, war **falsch** – gemessen 8,4:1 (dark) / 9,5:1 (light) gegen
 4,5:1 gefordert. *Lehre: Kontrast messen, nicht schätzen.*
-**Offen bleibt:** Legenden-Chips und Toolbar sind nicht per Tabulator erreichbar;
-VoiceOver-Beschriftungen sind unvollständig.
+
+**Am Code nachgeprüft (Stand v1.15.0) – der ursprüngliche Eintrag war untertrieben:**
+
+| Ort | Befund |
+|---|---|
+| **Legenden-Chips** | Nur `onTapGesture` auf einem `HStack` – **kein `Button`, kein `focusable`, keine `accessibility`-Angabe**. Für Bedienungshilfen sind sie reiner Text: Dateitypen lassen sich **ohne Maus überhaupt nicht** aus-/einblenden. |
+| **Toolbar** (`MainToolbar`) | **0** `accessibility`-Angaben. Reine Symbolknöpfe; VoiceOver liest bestenfalls den Symbolnamen. `.help` ist **kein** Ersatz für `accessibilityLabel`. |
+| Zeilen | Gut versorgt (Label/Value/Hint vorhanden). |
+
+**Lösung (klein und wirksam):**
+1. `LegendChip` zu einem **echten `Button`** machen – löst Tastatur *und* VoiceOver in einem
+   Schritt. Solo bleibt auf Doppelklick; für die Tastatur ein zusätzlicher Weg (z. B. ⌥+Klick
+   bzw. Kontextmenü „Nur diesen Typ").
+2. Je Toolbar-Knopf ein **`accessibilityLabel`** ergänzen (14 Elemente).
+
+**Akzeptanz:** Mit Tabulator sind Legenden-Chips erreichbar und mit Leertaste schaltbar;
+VoiceOver nennt für jeden Toolbar-Knopf eine sprechende Bezeichnung.
+
+### UX-31 · Diagramm für VoiceOver zugänglich machen
+**Aufwand:** M · **Nutzen:** gering–mittel · **abgetrennt von UX-13**
+`HistoryChartView` hat **0** `accessibility`-Angaben – VoiceOver liest dort nichts. Die
+Hover-Kurzinfo ist rein visuell.
+
+**Lösung:** `accessibilityRepresentation` bzw. je Bündel ein Element mit Text
+„Mo 03.08., 24 Dateien, davon 12 .swift, 7 .md".
+
+**Bewusst getrennt:** Ein Balkendiagramm für Bedienungshilfen sinnvoll aufzubereiten ist
+ein eigenes Vorhaben und ungleich aufwendiger als UX-13. Zusammen in einem Eintrag hätte
+der kleine, wirksame Teil daran gehangen.
 
 ### ✅ UX-14 · Kompakt-Layout für schmale Fenster *(erledigt, v1.15.0)*
 **Aufwand:** M · **Nutzen:** mittel
@@ -420,10 +448,45 @@ Spezifikation entsprechend präzisieren.
 - Datei aus der Liste **herausziehen** (Mail, Finder, Editor).
 - Ordner **auf das Fenster ziehen** = neuer Wurzelordner.
 
-### UX-23 · Mehrfachauswahl
-**Aufwand:** L · **Nutzen:** mittel
-⌘-/⇧-Klick für mehrere Dateien, danach gemeinsam öffnen, im Finder anzeigen oder Pfade
-kopieren.
+### UX-23 · Mehrfachauswahl nach Apple-Standard
+**Aufwand:** L · **Nutzen:** hoch *(aufgewertet: Mehrfach-Ziehen ist ein eigener Zweck)*
+
+Heute ist die Auswahl **einwertig** (`selection: RowID?`). Gefordert ist das gewohnte
+macOS-Verhalten – mit Maus **und** Tastatur:
+
+| Eingabe | Verhalten |
+|---|---|
+| Klick | einzeln auswählen |
+| ⌘-Klick | einzelnes Element hinzu/abwählen |
+| ⇧-Klick | Bereich vom Anker bis hierher |
+| ↑ / ↓ | Auswahl auf eines reduzieren und bewegen |
+| ⇧↑ / ⇧↓ | Auswahl per Tastatur erweitern |
+| **⌘A** | alles Sichtbare auswählen |
+| **Esc** | Auswahl aufheben |
+
+**Alle Aktionen wirken auf die gesamte Auswahl:** Kontextmenü (Öffnen, Im Finder anzeigen,
+Pfade kopieren), Enter, QuickLook (Leertaste blättert durch die Auswahl) – und
+**Drag & Drop mit mehreren Dateien**.
+
+**Ziehen mit Mehrfachauswahl (Finder-Regel):** Gehört die gezogene Zeile **zur** Auswahl,
+werden **alle** ausgewählten Dateien gezogen; gehört sie **nicht** dazu, wird sie zuerst
+allein ausgewählt und nur sie gezogen. Technisch: `.onDrag` liefert heute **einen**
+`NSItemProvider` – nötig ist `.draggable`/`itemProviders` mit mehreren, jeweils mit
+korrektem `suggestedName` (siehe Konzept 3.9.5).
+
+**Umfang – am Code gezählt (v1.15.0):** **46 Fundstellen** in **6 Dateien**
+(`ReportViewModel` 27, `ReportView` 7, `MainToolbar` 4, `RowNavigation` 3,
+`FileRowView` 3, `FolderRowView` 2). *Frühere Schätzung „20 Stellen" war zu niedrig.*
+`selection: RowID?` wird zu `Set<RowID>` plus **Anker** für ⇧-Bereiche; betroffen sind
+zusätzlich `pruneSelection`, `moveSelection`, `SelectionOrigin`/Scroll-Logik,
+`prepareFullFileList` und beide Zeilenansichten.
+
+**Vorab zu entscheiden:**
+- Dürfen **Ordner und Dateien gemischt** ausgewählt werden (unsere Liste ist ein Baum,
+  Finder kennt das so nicht)? Sonst: Auswahl auf Dateien beschränken.
+- Was wählt **⌘A** – nur die aufgeklappten sichtbaren Zeilen oder alle Dateien aller Ordner?
+
+**Bleibt ein eigener Sprint:** Umbau des Auswahlmodells, nicht mit anderen Neuerungen mischen.
 
 ### UX-24 · Einstellungen-Fenster (⌘,)
 **Aufwand:** M · **Nutzen:** mittel · **Abhängig von:** UX-03

@@ -49,6 +49,12 @@ struct FolderRowView: View {
             // Name und Pfad stehen in EINER Zeile hintereinander; bei Platzmangel
             // wird der Pfad gekuerzt, nicht der Name.
             HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if model.isPinned(entry.folder) {
+                    Image(systemName: "pin.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.tint)
+                        .help("Angeheftet")
+                }
                 Text(entry.folder.lastPathComponent)
                     .font(.headline)
                     .lineLimit(1)
@@ -112,6 +118,11 @@ struct FolderRowView: View {
             Button("Im Finder öffnen") { FinderService.open(entry.folder) }
             Button("Im Finder anzeigen") { FinderService.reveal(entry.folder) }
             Button("Pfad kopieren") { ClipboardService.copy(entry.folder.path) }
+            Divider()
+            Button(model.isPinned(entry.folder) ? "Nicht mehr anheften" : "Anheften") {
+                model.togglePinned(entry.folder)
+            }
+            Button("Diesen Ordner nicht mehr zeigen") { model.hideFolder(entry.folder) }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Ordner \(entry.folder.lastPathComponent)")

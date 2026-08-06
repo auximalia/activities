@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ActivitiesCore
 
 /// Feste Kopfzone über der Tabelle: Diagramm, Legende und der Hinweis auf
@@ -43,6 +44,7 @@ struct ChartHeaderView: View {
             }
 
             filterIndicator
+            noiseIndicator
         }
         .background(.bar)
     }
@@ -117,6 +119,45 @@ struct ChartHeaderView: View {
         let names = model.topExtensions.prefix(4).map { ".\($0.ext)" }.joined(separator: ", ")
         let rest = model.topExtensions.count - min(4, model.topExtensions.count)
         return rest > 0 ? "\(names) +\(rest)" : names
+    }
+
+    /// Offenlegung, wie viel der Rauschfilter ausgeblendet hat.
+    ///
+    /// **Ausschlüsse dürfen kein stiller Zustand sein** (Lehre aus UX-06): Wer
+    /// nicht sieht, dass etwas fehlt, hält die Auswertung für vollständig.
+    @ViewBuilder
+    private var noiseIndicator: some View {
+        if model.skippedFolderCount > 0 || !model.excludedPaths.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "eye.slash")
+                    .foregroundStyle(.secondary)
+                Text(noiseText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Einstellungen …") {
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(noiseText)
+        }
+    }
+
+    private var noiseText: String {
+        var teile: [String] = []
+        if model.skippedFolderCount > 0 {
+            teile.append("\(model.skippedFolderCount) Ordner als Werkzeug-Erzeugnis übersprungen")
+        }
+        if !model.excludedPaths.isEmpty {
+            let n = model.excludedPaths.count
+            teile.append("\(n) \(n == 1 ? "Ordner" : "Ordner") von dir ausgeblendet")
+        }
+        return teile.joined(separator: " · ")
     }
 
     /// Hinweis auf ausgeblendete Dateitypen samt Zurücksetzen.

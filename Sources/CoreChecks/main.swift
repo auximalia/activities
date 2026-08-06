@@ -124,7 +124,7 @@ do {
     makeFile("alt/veraltet.txt", modified: Date().addingTimeInterval(-60 * 60 * 24 * 40))
 
     let scanStart = Date().addingTimeInterval(-60 * 60 * 24 * 30)
-    let all = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart, end: .distantFuture, namePattern: ""))
+    let all = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart, end: .distantFuture, namePattern: "")).files
     let allNames = names(all)
     expect(allNames.contains("gut.txt"), "findet regulaere Datei")
     expect(allNames.contains("main.py"), "findet Datei in code")
@@ -135,7 +135,7 @@ do {
     expect(!allNames.contains("config"), ".git geprunt")
     expect(!allNames.contains("veraltet.txt"), "alte Datei ausserhalb Zeitraum")
 
-    let filtered = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart, end: .distantFuture, namePattern: "*Studium*.xls*"))
+    let filtered = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart, end: .distantFuture, namePattern: "*Studium*.xls*")).files
     expectEqual(names(filtered), ["Studium Noten.xlsx"], "Namensfilter im Scan")
 
     let folder = root.appendingPathComponent("uni")
@@ -483,6 +483,71 @@ do {
     expect(ExclusionRules.default.isExcludedFile("~$Bericht.docx"), "Ausschluss: ~$*")
     expect(ExclusionRules.default.isExcludedFile(".DS_Store"), "Ausschluss: .DS_Store")
     expect(!ExclusionRules.default.isExcludedFile("Bericht.docx"), "Ausschluss: normale Datei bleibt")
+}
+
+// MARK: - Signal statt Rauschen (PR-01/PR-02/PR-04)
+do {
+    let base = FileManager.default.temporaryDirectory
+        .appendingPathComponent("activities-noise-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: base) }
+
+    func make(_ path: String) {
+        let url = base.appendingPathComponent(path)
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
+        FileManager.default.createFile(atPath: url.path, contents: Data("x".utf8))
+    }
+    // Echte Arbeit
+    make("projekt/bericht.md")
+    // Werkzeug-Erzeugnisse
+    make("projekt/node_modules/paket/index.js")
+    make("projekt/.build/zwischenstand.o")
+    make("projekt/DerivedData/kram.txt")
+    // Mehrdeutig: standardmaessig NICHT ausgeschlossen
+    make("projekt/build/ergebnis.txt")
+    // App-Buendel: Innereien duerfen nicht als Arbeit gelten
+    make("projekt/Programm.app/Contents/MacOS/Programm")
+    make("projekt/Programm.app/Contents/_CodeSignature/CodeResources")
+
+    let settings = ScanSettings(
+        rootURL: base, start: .distantPast, end: .distantFuture, namePattern: ""
+    )
+
+    let standard = FileScanner().scan(settings: settings)
+    let namen = Set(standard.files.map { $0.url.lastPathComponent })
+    expect(namen.contains("bericht.md"), "Rauschfilter: echte Arbeit bleibt")
+    expect(!namen.contains("index.js"), "Rauschfilter: node_modules ausgeschlossen")
+    expect(!namen.contains("zwischenstand.o"), "Rauschfilter: .build ausgeschlossen")
+    expect(!namen.contains("kram.txt"), "Rauschfilter: DerivedData ausgeschlossen")
+    expect(namen.contains("ergebnis.txt"), "Rauschfilter: mehrdeutiges „build\" bleibt standardmaessig")
+    expect(!namen.contains("CodeResources"), "Buendel: Innereien nicht gemeldet")
+    expect(!namen.contains("Programm"), "Buendel: Innereien nicht gemeldet (MacOS)")
+    expect(namen.contains("Programm.app"), "Buendel: als EINE Einheit gezaehlt")
+    expect(standard.skippedFolders > 0, "Rauschfilter: uebersprungene Ordner werden gezaehlt")
+
+    // Mehrdeutige zuschaltbar
+    let strenger = FileScanner(
+        exclusions: ExclusionRules.default.adding(ambiguousFolders: true, excludedPaths: [])
+    ).scan(settings: settings)
+    let strengeNamen = Set(strenger.files.map { $0.url.lastPathComponent })
+    expect(!strengeNamen.contains("ergebnis.txt"), "Rauschfilter: „build\" zugeschaltet ausgeschlossen")
+    expect(strengeNamen.contains("bericht.md"), "Rauschfilter: echte Arbeit bleibt auch streng")
+
+    // Pfadgenauer Ausschluss („Diesen Ordner nicht mehr zeigen")
+    let versteckt = base.appendingPathComponent("projekt").path
+    let gefiltert = FileScanner(
+        exclusions: ExclusionRules.default.adding(ambiguousFolders: false, excludedPaths: [versteckt])
+    ).scan(settings: settings)
+    expect(gefiltert.files.isEmpty, "Pfad-Ausschluss: Ordner samt Inhalt verschwindet")
+
+    // Pfad-Ausschluss trifft nur den gemeinten Pfad, nicht gleichnamige
+    let regeln = ExclusionRules.default.adding(
+        ambiguousFolders: false, excludedPaths: ["/a/tmp"]
+    )
+    expect(regeln.isExcludedPath("/a/tmp"), "Pfad-Ausschluss: genau dieser Pfad")
+    expect(regeln.isExcludedPath("/a/tmp/unterordner"), "Pfad-Ausschluss: auch darunter")
+    expect(!regeln.isExcludedPath("/b/tmp"), "Pfad-Ausschluss: gleichnamiger anderswo bleibt")
 }
 
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")

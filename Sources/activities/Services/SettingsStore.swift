@@ -20,6 +20,12 @@ struct StoredSettings {
     var sort: FolderSort
     /// Ob der Erstkontakt-Hinweis bereits weggeklickt wurde.
     var didShowIntro: Bool
+    /// Ob auch mehrdeutige Bau-Ordner (build, dist, out …) ausgeschlossen werden.
+    var excludeAmbiguousBuildFolders: Bool
+    /// Vom Anwender ausgeblendete Pfade („Diesen Ordner nicht mehr zeigen").
+    var excludedPaths: Set<String>
+    /// Angeheftete Ordner (Favoriten).
+    var pinnedFolders: [URL]
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -43,6 +49,9 @@ final class SettingsStore {
     private let sortFieldKey = "sortField"
     private let sortAscendingKey = "sortAscending"
     private let introKey = "didShowIntro"
+    private let ambiguousKey = "excludeAmbiguousBuildFolders"
+    private let excludedPathsKey = "excludedPaths"
+    private let pinnedKey = "pinnedFolders"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -61,6 +70,11 @@ final class SettingsStore {
         let sortField = (defaults.string(forKey: sortFieldKey)).flatMap(SortField.init(rawValue:)) ?? .date
         let sortAscending = defaults.object(forKey: sortAscendingKey) as? Bool ?? false
         let didShowIntro = defaults.bool(forKey: introKey)
+        let ambiguous = defaults.bool(forKey: ambiguousKey)
+        let excludedPaths = Set(defaults.stringArray(forKey: excludedPathsKey) ?? [])
+        let pinned = (defaults.stringArray(forKey: pinnedKey) ?? [])
+            .filter { FileManager.default.fileExists(atPath: $0) }
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -84,7 +98,10 @@ final class SettingsStore {
             headerExpanded: headerExpanded,
             ignoreTimeWindow: ignoreWindow,
             sort: FolderSort(field: sortField, ascending: sortAscending),
-            didShowIntro: didShowIntro
+            didShowIntro: didShowIntro,
+            excludeAmbiguousBuildFolders: ambiguous,
+            excludedPaths: excludedPaths,
+            pinnedFolders: pinned
         )
     }
 
@@ -117,6 +134,15 @@ final class SettingsStore {
 
     func saveIgnoreTimeWindow(_ on: Bool) {
         defaults.set(on, forKey: ignoreWindowKey)
+    }
+
+    func saveExclusions(ambiguous: Bool, paths: Set<String>) {
+        defaults.set(ambiguous, forKey: ambiguousKey)
+        defaults.set(Array(paths).sorted(), forKey: excludedPathsKey)
+    }
+
+    func savePinnedFolders(_ folders: [URL]) {
+        defaults.set(folders.map(\.path), forKey: pinnedKey)
     }
 
     func saveIntroShown() {

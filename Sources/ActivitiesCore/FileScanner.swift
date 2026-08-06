@@ -3,6 +3,19 @@ import Foundation
 import os
 #endif
 
+/// Ergebnis eines Suchlaufs.
+public struct ScanOutcome: Sendable {
+    public let files: [RelevantFile]
+    /// Wie viele Ordner wegen einer Ausschlussregel uebersprungen wurden.
+    /// Grundlage dafuer, die Ausblendung offenzulegen statt sie zu verschweigen.
+    public let skippedFolders: Int
+
+    public init(files: [RelevantFile], skippedFolders: Int = 0) {
+        self.files = files
+        self.skippedFolders = skippedFolders
+    }
+}
+
 /// Durchsucht einen Verzeichnisbaum nach kuerzlich bearbeiteten Dateien.
 ///
 /// Ausgewertet werden ausschliesslich Dateien. Das massgebliche Datum je Datei
@@ -51,14 +64,14 @@ public struct FileScanner: Sendable {
         settings: ScanSettings,
         shouldCancel: () -> Bool = { false },
         onProgress: (Int) -> Void = { _ in }
-    ) -> [RelevantFile] {
+    ) -> ScanOutcome {
         let filter = NameFilter(settings.namePattern)
         let start = settings.start
         let end = settings.end
 
         let keys: Set<URLResourceKey> = [
             .creationDateKey, .contentModificationDateKey, .isDirectoryKey,
-            .isRegularFileKey, .isSymbolicLinkKey, .nameKey,
+            .isRegularFileKey, .isSymbolicLinkKey, .nameKey, .isPackageKey,
         ]
         let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(
@@ -70,11 +83,14 @@ public struct FileScanner: Sendable {
                 return true
             }
         ) else {
-            return []
+            return ScanOutcome(files: [])
         }
 
         var results: [RelevantFile] = []
         var examined = 0
+        // Zaehlt uebersprungene Ordner, damit die App offenlegen kann, wie viel
+        // sie ausblendet – Ausschluesse duerfen kein stiller Zustand sein.
+        var skippedFolders = 0
         for case let fileURL as URL in enumerator {
             if shouldCancel() { break }
             examined += 1
@@ -89,10 +105,42 @@ public struct FileScanner: Sendable {
                 continue
             }
 
-            // Ausgeschlossene Ordner nicht betreten.
             if values.isDirectory == true {
+                // Ausgeschlossene Ordner und ausgeblendete Pfade nicht betreten.
                 if exclusions.isExcludedFolder(name) {
+                    skippedFolders += 1
                     enumerator.skipDescendants()
+                    continue
+                }
+                if exclusions.isExcludedPath(fileURL.path) {
+                    skippedFolders += 1
+                    enumerator.skipDescendants()
+                    continue
+                }
+
+                // **App-Buendel sind Dokumente, keine Ordner.** Ohne diese
+                // Behandlung meldete die App deren Innereien
+                // (`.../Contents/_CodeSignature`) als „bearbeitete Ordner" –
+                // dort hat nie ein Mensch gearbeitet.
+                let isPackage = values.isPackage
+                    ?? ExclusionRules.isPackage(extension: fileURL.pathExtension)
+                if isPackage {
+                    enumerator.skipDescendants()
+                    if !exclusions.isExcludedFile(name), filter.matches(name) {
+                        let timestamp = effectiveTimestamp(
+                            creation: values.creationDate,
+                            modification: values.contentModificationDate
+                        )
+                        if timestamp >= start && timestamp < end {
+                            results.append(
+                                RelevantFile(
+                                    url: fileURL,
+                                    folder: fileURL.deletingLastPathComponent(),
+                                    timestamp: timestamp
+                                )
+                            )
+                        }
+                    }
                 }
                 continue
             }
@@ -116,7 +164,7 @@ public struct FileScanner: Sendable {
             }
         }
         onProgress(examined)
-        return results
+        return ScanOutcome(files: results, skippedFolders: skippedFolders)
     }
 
     /// Listet die Dateien direkt im Ordner - ohne Zeitraumgrenze, aber mit

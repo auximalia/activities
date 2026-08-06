@@ -94,6 +94,10 @@ struct ActivitiesApp: App {
             }
         }
 
+        Settings {
+            SettingsView(model: model)
+        }
+
         Window("Über activities", id: "about") {
             AboutView()
         }

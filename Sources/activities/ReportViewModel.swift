@@ -191,6 +191,17 @@ final class ReportViewModel {
     /// Detaildateien je Ordner (ALLE Dateien, nur namensgefiltert; nil = laedt noch).
     var filesByFolder: [URL: [RelevantFile]] = [:]
 
+    /// Ob auch mehrdeutige Bau-Ordner (build, dist, out …) ausgeschlossen werden.
+    private(set) var excludeAmbiguousBuildFolders: Bool
+    /// Vom Anwender ausgeblendete Pfade.
+    private(set) var excludedPaths: Set<String>
+    /// Angeheftete Ordner – erscheinen in einem eigenen Abschnitt, unabhaengig
+    /// vom Zeitraum („was ist mir wichtig" statt „was war zuletzt").
+    private(set) var pinnedFolders: [URL] = []
+    /// Wie viele Ordner der letzte Suchlauf wegen einer Ausschlussregel
+    /// uebersprungen hat. Wird offengelegt (siehe Kopfzone), damit die
+    /// Ausblendung kein stiller Zustand ist.
+    private(set) var skippedFolderCount = 0
     /// Rohergebnis des letzten Suchlaufs – **das gesamte gescannte Fenster**.
     /// Grundlage dafuer, eine Verkleinerung des Zeitraums ohne neuen Scan zu bedienen.
     private var scannedFiles: [RelevantFile] = []
@@ -225,6 +236,9 @@ final class ReportViewModel {
         self.ignoreTimeWindow = saved.ignoreTimeWindow
         self.sort = saved.sort
         self.showsIntro = !saved.didShowIntro
+        self.excludeAmbiguousBuildFolders = saved.excludeAmbiguousBuildFolders
+        self.excludedPaths = saved.excludedPaths
+        self.pinnedFolders = saved.pinnedFolders
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
@@ -328,6 +342,53 @@ final class ReportViewModel {
         rangeEnd = max(end, start)
         store.saveTimeMode(useDateRange: true, start: rangeStart, end: rangeEnd)
         applyWindowChange()
+    }
+
+    /// Die aktuell gueltigen Ausschlussregeln.
+    private var currentExclusions: ExclusionRules {
+        ExclusionRules.default.adding(
+            ambiguousFolders: excludeAmbiguousBuildFolders,
+            excludedPaths: excludedPaths
+        )
+    }
+
+    // MARK: - Rauschfilter
+
+    func setExcludeAmbiguousBuildFolders(_ on: Bool) {
+        excludeAmbiguousBuildFolders = on
+        store.saveExclusions(ambiguous: on, paths: excludedPaths)
+        rescan()
+    }
+
+    /// „Diesen Ordner nicht mehr zeigen" – **pfadgenau**, nicht namensbasiert.
+    func hideFolder(_ url: URL) {
+        excludedPaths.insert(ExclusionRules.normalize(url.path))
+        pinnedFolders.removeAll { $0.standardizedFileURL == url.standardizedFileURL }
+        store.saveExclusions(ambiguous: excludeAmbiguousBuildFolders, paths: excludedPaths)
+        store.savePinnedFolders(pinnedFolders)
+        rescan()
+    }
+
+    func showFolderAgain(_ path: String) {
+        excludedPaths.remove(path)
+        store.saveExclusions(ambiguous: excludeAmbiguousBuildFolders, paths: excludedPaths)
+        rescan()
+    }
+
+    // MARK: - Favoriten
+
+    func isPinned(_ url: URL) -> Bool {
+        pinnedFolders.contains { $0.standardizedFileURL == url.standardizedFileURL }
+    }
+
+    func togglePinned(_ url: URL) {
+        if isPinned(url) {
+            pinnedFolders.removeAll { $0.standardizedFileURL == url.standardizedFileURL }
+        } else {
+            pinnedFolders.append(url)
+        }
+        store.savePinnedFolders(pinnedFolders)
+        recomputeDisplayBuckets()
     }
 
     /// Blendet den Erstkontakt-Hinweis dauerhaft aus.
@@ -518,11 +579,31 @@ final class ReportViewModel {
         ) { url in
             !self.isHidden(url) && self.nameFilter.matches(url.lastPathComponent)
         }
-        displayBuckets = TimeBucket.group(
+        var grouped = TimeBucket.group(
             entries,
             sort: sort,
             dominantType: { [weak self] in self?.dominantExtension(of: $0) }
         )
+        // Angeheftete Ordner in einen eigenen Abschnitt ganz oben ziehen –
+        // unabhaengig davon, wann dort zuletzt gearbeitet wurde.
+        if !pinnedFolders.isEmpty {
+            let pinnedSet = Set(pinnedFolders.map(\.standardizedFileURL))
+            var pinnedEntries: [FolderEntry] = []
+            grouped = grouped.compactMap { bucket in
+                let (mine, rest) = bucket.entries.reduce(into: ([FolderEntry](), [FolderEntry]())) {
+                    pinnedSet.contains($1.folder.standardizedFileURL) ? $0.0.append($1) : $0.1.append($1)
+                }
+                pinnedEntries.append(contentsOf: mine)
+                return rest.isEmpty ? nil : BucketedEntries(label: bucket.label, entries: rest)
+            }
+            if !pinnedEntries.isEmpty {
+                let ordered = RowSorting.folders(pinnedEntries, by: sort) { [weak self] in
+                    self?.dominantExtension(of: $0)
+                }
+                grouped.insert(BucketedEntries(label: "Angeheftet", entries: ordered), at: 0)
+            }
+        }
+        displayBuckets = grouped
         pruneSelection()
     }
 
@@ -838,7 +919,7 @@ final class ReportViewModel {
     }
 
     private func loadFilesNow(_ folder: URL) async -> [RelevantFile] {
-        let scanner = self.scanner
+        let scanner = FileScanner(exclusions: currentExclusions)
         let filter = NameFilter(namePattern)
         return await Task.detached(priority: .userInitiated) {
             scanner.listDirectoryFiles(folder, filter: filter)
@@ -1156,6 +1237,7 @@ final class ReportViewModel {
             if Task.isCancelled { return }
             guard let self else { return }
             self.scannedFiles = result.files
+            self.skippedFolderCount = result.skippedFolders
             self.lastScanRoot = settings.rootURL
             self.relevantFiles = self.filteredFromScan()
             self.scannedFileCount = self.relevantFiles.count
@@ -1266,6 +1348,7 @@ final class ReportViewModel {
 
     private struct ScanResult: Sendable {
         let files: [RelevantFile]
+        let skippedFolders: Int
     }
 
     nonisolated private static func runScan(
@@ -1273,7 +1356,7 @@ final class ReportViewModel {
         settings: ScanSettings,
         onProgress: (Int) -> Void
     ) async -> ScanResult {
-        let files = scanner.scan(settings: settings, shouldCancel: { Task.isCancelled }, onProgress: onProgress)
-        return ScanResult(files: files)
+        let outcome = scanner.scan(settings: settings, shouldCancel: { Task.isCancelled }, onProgress: onProgress)
+        return ScanResult(files: outcome.files, skippedFolders: outcome.skippedFolders)
     }
 }

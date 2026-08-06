@@ -81,6 +81,13 @@ struct HelpView: View {
                     "Exportiert wird genau das, was gerade angezeigt wird.",
                 ])
 
+                section("Rauschfilter", icon: "eye.slash", [
+                    "Erzeugnisse von Werkzeugen (node_modules, .build …) werden übersprungen.",
+                    "App-Bündel zählen als eine Datei, nicht als Ordner voller Dateien.",
+                    "Kontextmenü: Ordner anheften oder dauerhaft ausblenden.",
+                    "Was übersprungen wurde, steht über der Liste – Einstellungen mit ⌘,.",
+                ])
+
                 section("Updates", icon: "arrow.down.circle", [
                     "Beim Start prüft die App still, ob eine neuere Version vorliegt.",
                     "Gibt es eine, erscheint oben rechts „aktuell → neu“ – Klick installiert sie.",

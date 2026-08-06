@@ -681,7 +681,7 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 
 | Release | Thema | Inhalt |
 |---|---|---|
-| **v1.18** | Signal statt Rauschen | PR-01 … PR-06 |
+| **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
 | **v1.19** | Täglicher Begleiter | PR-07 … PR-10 |
 | **v1.20** | Schneller wieder reinkommen | PR-11 … PR-14 |
 | **v1.21** | Rückblick und Bericht | PR-15 … PR-18 |
@@ -692,7 +692,7 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 
 ## Thema A · Signal statt Rauschen (v1.18)
 
-### PR-01 · Bau- und Werkzeugordner standardmäßig ausschließen
+### ✅ PR-01 · Bau- und Werkzeugordner standardmäßig ausschließen *(erledigt, v1.18.0)*
 **Aufwand:** S · **Nutzen:** sehr hoch
 `ExclusionRules.default` um die üblichen Erzeugnisverzeichnisse erweitern: `dist`, `build`,
 `.build`, `out`, `target`, `DerivedData`, `Pods`, `.gradle`, `.next`, `.nuxt`, `vendor`,
@@ -701,28 +701,28 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 machen, was ausgeblendet wurde) **zusammen** ausliefern – stilles Verschlucken wäre schlimmer
 als Rauschen.
 
-### PR-02 · App-Bündel als eine Einheit behandeln
+### ✅ PR-02 · App-Bündel als eine Einheit behandeln *(erledigt, v1.18.0)*
 **Aufwand:** S · **Nutzen:** sehr hoch
 `.app`, `.bundle`, `.framework`, `.photoslibrary`, `.rtfd` sind für macOS **Dokumente**,
 technisch aber Ordner. Der Scanner läuft heute hinein und meldet deren Innereien als Arbeit.
 **Lösung:** nicht betreten, sondern als **eine Datei** werten (Zeitstempel des Bündels).
 
-### PR-03 · Ausschlüsse einstellbar machen
+### ✅ PR-03 · Ausschlüsse einstellbar machen *(erledigt, v1.18.0)*
 **Aufwand:** M · **Nutzen:** hoch · **braucht:** ein Einstellungen-Fenster
 Eigene Ordnernamen und Muster ergänzen/entfernen. *Damit bekäme das in UX-24 verworfene
 Einstellungen-Fenster erstmals einen echten Inhalt.*
 
-### PR-04 · „Diesen Ordner nicht mehr zeigen" im Kontextmenü
+### ✅ PR-04 · „Diesen Ordner nicht mehr zeigen" im Kontextmenü *(erledigt, v1.18.0)*
 **Aufwand:** S · **Nutzen:** hoch
 Ein Klick statt Konfiguration – die App lernt aus der Benutzung. Rücknahme über die
 Einstellungen (PR-03).
 
-### PR-05 · Ordner anheften (Favoriten)
+### ✅ PR-05 · Ordner anheften (Favoriten) *(erledigt, v1.18.0)*
 **Aufwand:** M · **Nutzen:** hoch
 Wichtige Projekte oben festhalten, unabhängig vom Zeitraum. Kehrt die Logik um: nicht
 „was war zuletzt", sondern „was ist mir wichtig".
 
-### PR-06 · Ausgeblendetes sichtbar machen
+### ✅ PR-06 · Ausgeblendetes sichtbar machen *(erledigt, v1.18.0)*
 **Aufwand:** S · **Nutzen:** hoch · **zwingend mit PR-01**
 Hinweis wie bei den Typ-Filtern (UX-06): „14 Ordner ausgeblendet (Bau-Artefakte)" mit
 Möglichkeit, sie einmalig einzublenden. **Kein stiller Zustand** – das ist eine der

@@ -1,4 +1,4 @@
-# activities – Spezifikation & Umsetzungskonzept (Stand v1.17.0)
+# activities – Spezifikation & Umsetzungskonzept (Stand v1.18.0)
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -581,6 +581,10 @@ sonst erklärte er einen leeren Bildschirm.
 - **Menübefehle:** Aktualisieren (⌘R), Filter fokussieren (⌘F), An den Anfang (⌘↑), „Dateien außerhalb des Zeitraums zeigen" (Umschalter), Typ-Filter zurücksetzen (⌥⌘R), „Über activities", „Nach Updates suchen …", „Update installieren".
 - **Export liegt im Menü „Ablage"** (`CommandGroup(replacing: .saveItem)`): „Als CSV exportieren …" (⌘E) und „Als HTML exportieren …" (⇧⌘E). *Lehre:* vorher hing er in `CommandGroup(after: .toolbar)` und landete damit im Menü „Darstellung" – dort findet ihn niemand.
 - **Über-Fenster:** Icon, Name, Version, Revision, Build-Datum, „Version kopieren".
+- **Einstellungen (⌘,):** derzeit ausschließlich der **Rauschfilter** (9.5) – mehrdeutige
+  Erzeugnis-Ordner zuschalten und selbst ausgeblendete Ordner wieder einblenden.
+  *Ein Einstellungen-Fenster war als UX-24 verworfen worden, weil es nichts zu zeigen hatte;
+  mit den Ausschlussregeln gibt es nun einen echten Inhalt.*
 - **Hilfe-Fenster:** eigener Menüpunkt „activities Hilfe" (⌘?, ersetzt den Standard-
   Eintrag im **Hilfe**-Menü). Scrollbare Kurzanleitung, **stichpunktartig** (wenig
   Blocktext) mit Abschnitten (Zweck, Ordnerwahl, Zeitraum, Filter,
@@ -776,6 +780,54 @@ Der Core kennt weder SwiftUI noch AppKit.
   Die App beendet sich ~0,7 s nach dem Start des Terminals selbst (`NSApp.terminate`).
 - **Warum dieser Umweg:** Eine laufende App kann sich **nicht selbst ersetzen**, und das abschließende `open` würde sonst nur die **alte** Instanz in den Vordergrund holen (gleiche Bundle-ID). Terminal macht außerdem den Fortschritt sichtbar und erlaubt eine etwaige Passwortabfrage.
 - **Rechte:** `/Applications` ist `drwxrwxr-x root:admin` → Admin-Nutzer schreiben **ohne sudo**; der Installer fragt nur im Ausnahmefall nach einem Passwort.
+
+## 9.5 Rauschfilter – Arbeit statt Dateisystem-Ereignisse (ab v1.18)
+
+**Grundsatz:** Die App soll melden, woran **Menschen** gearbeitet haben. Ohne Filterung
+meldet sie Dateisystem-Ereignisse – darunter Erzeugnisse von Übersetzern, Paketverwaltungen
+und Sicherungen, die Zeitstempel setzen, ohne dass jemand etwas getan hat.
+
+*Beleg aus dem eigenen Projekt: Vor v1.18 erschienen `dist/activities.app/Contents/_CodeSignature`,
+`.../MacOS` und `.../Resources` als „zuletzt bearbeitete Ordner“. Dort hat nie ein Mensch
+gearbeitet.*
+
+### 9.5.1 App-Bündel sind Dokumente, keine Ordner
+`.app`, `.rtfd`, `.photoslibrary`, `.xcodeproj` … sind für macOS **Dokumente**, technisch
+aber Verzeichnisse. Der Scanner betritt sie **nicht**, sondern zählt sie als **eine Datei**
+(Zeitstempel des Bündels).
+Erkennung über `URLResourceKey.isPackageKey` – das erfasst **alle registrierten** Bündeltypen,
+nicht nur eine geratene Liste. Rückfall auf `ExclusionRules.packageExtensions`, falls der
+Schlüssel fehlt (Portabilität, 10.2).
+
+### 9.5.2 Zwei Klassen von Erzeugnis-Ordnern
+| Klasse | Beispiele | Standard |
+|---|---|---|
+| **eindeutig** | `node_modules`, `.build`, `DerivedData`, `Pods`, `.gradle`, `__pycache__`, `.venv` | immer ausgeschlossen |
+| **mehrdeutig** | `build`, `dist`, `out`, `target`, `vendor`, `bin`, `obj` | **sichtbar**, zuschaltbar in den Einstellungen |
+
+*Begründung der Trennung:* Niemand legt einen eigenen Ordner namens `node_modules` an – aber
+sehr wohl einen namens `build` oder `dist`. Ein stiller Verlust eines echten Projektordners
+wäre schlimmer als etwas Rauschen.
+
+### 9.5.3 Ordner ausblenden ist **pfadgenau**
+`excludedPaths` speichert vollständige Pfade, nicht Namen: Der Menüeintrag verspricht
+*diesen* Ordner – nicht ungefragt alle gleichnamigen anderswo. Unterordner sind
+eingeschlossen.
+
+**⚠️ Pfade müssen vereinheitlicht werden.** Dieselbe Stelle hat auf macOS zwei Schreibweisen:
+`/var/…` (Symlink) und `/private/var/…`. Der Verzeichnis-Enumerator liefert die aufgelöste
+Fassung, eine gespeicherte Regel meist die kurze – ohne `ExclusionRules.normalize` greift der
+Ausschluss schlicht nicht. *Der Fehler fiel nur durch die Kernprüfung auf.*
+
+### 9.5.4 Ausblenden ist **kein stiller Zustand**
+Die Kopfzone legt offen, wie viel gefiltert wurde: „46 Ordner als Werkzeug-Erzeugnis
+übersprungen“ mit Verweis in die Einstellungen. Dieselbe Lehre wie bei den Typ-Filtern
+(UX-06): Wer nicht sieht, dass etwas fehlt, hält die Auswertung für vollständig.
+
+### 9.5.5 Angeheftete Ordner (Favoriten)
+Eigener Abschnitt **„Angeheftet“** ganz oben, **unabhängig vom Zeitraum** – auch wenn dort
+länger nichts geschah. Kehrt die Logik der App um: nicht „was war zuletzt“, sondern „was ist
+mir wichtig“. Umschalten über das Kontextmenü der Ordnerzeile.
 
 ## 10.2 Portabilität – Fernziel Windows
 

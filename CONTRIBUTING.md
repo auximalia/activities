@@ -1,5 +1,7 @@
 # Entwicklung & Build
 
+*Stand: v1.19.5 · 2026-08-06*
+
 Kurzanleitung zum Bauen, Testen, Paketieren und Veroeffentlichen der macOS-App
 **activities**. Sprachkonvention: Prosa auf Deutsch, Code-Bezeichner/Commits auf
 Englisch.
@@ -42,7 +44,8 @@ swift run activities   # startet die App (ohne Bundle; Version zeigt "dev")
 ## Testen
 
 ```
-swift run CoreChecks   # Unit-Pruefungen der Fachlogik (ohne Xcode)
+swift run CoreChecks        # Unit-Pruefungen der Fachlogik (ohne Xcode)
+./Packaging/check_stamp.sh  # Doku-Stempelung aus release.sh
 # mit vollem Xcode zusaetzlich:
 swift test             # XCTest-Suite
 ```
@@ -105,6 +108,21 @@ frueher manuell und war prompt drei Releases veraltet (`v1.19.0` bei App
 `v1.19.3`). Von Hand gepflegte Staende sind schlechter als gar keine, weil man
 ihnen glaubt. Ein vorhandener Stempel wird ersetzt, ein fehlender eingefuegt –
 mehrfaches Stempeln erzeugt keine Dubletten.
+
+**⚠️ Der Stempel wird ueber seine Position gefunden, nicht ueber sein Muster.**
+Er steht direkt unter der ersten Ueberschrift. Die erste Fassung suchte per
+`grep '^\*Stand: v'` – und traf damit das *Beispiel* im Codeblock oben: Diese
+Datei bekam keinen Stempel, dafuer wurde ihre Dokumentation umgeschrieben. Ein
+Muster, das ein Dokument auch nur zitieren kann, taugt nicht als Anker.
+
+Gegen genau diesen Rueckfall laeuft eine Pruefung:
+
+```
+./Packaging/check_stamp.sh   # 14 Pruefungen, ohne Xcode und ohne Swift
+```
+
+Sie loest `stamp_doc` aus `release.sh` heraus und prueft **das Original**, nicht
+eine Kopie, die auseinanderlaufen koennte.
 
 Datum als **ISO 8601** (`YYYY-MM-DD`, Hausregel aus `AGENTS.md`). Ohne Uhrzeit:
 Zwei Releases am selben Tag unterscheiden sich bereits durch die Version, und

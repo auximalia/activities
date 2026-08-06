@@ -48,17 +48,43 @@ echo "==> Version $current -> $new"
 # Datum als ISO 8601 (YYYY-MM-DD, Hausregel). Keine Uhrzeit: Zwei Releases am
 # selben Tag unterscheiden sich bereits durch die Version, und die genaue
 # Sekunde steht ohnehin im Commit.
+#
+# ⚠️ Der Stempel wird ueber seine POSITION gefunden (direkt unter der ersten
+# Ueberschrift), nicht ueber sein Muster. Die erste Fassung suchte per
+# `grep '^\*Stand: v'` – und traf damit das *Beispiel* im Codeblock von
+# CONTRIBUTING.md: Die Datei bekam keinen Stempel, dafuer wurde ihre
+# Dokumentation umgeschrieben. Ein Muster, das ein Dokument auch nur zitieren
+# kann, taugt nicht als Anker.
 # ---------------------------------------------------------------------------
 stamp_doc() {
-    local file="$1" stamp="$2"
-    if grep -q '^\*Stand: v' "$file"; then
-        # Vorhandenen Stempel ersetzen – nur den ersten, damit ein Zitat weiter
-        # unten im Text unangetastet bleibt.
-        awk -v s="$stamp" '!d && /^\*Stand: v/ { print s; d=1; next } { print }' "$file" > "$file.tmp"
-    elif grep -q '^# ' "$file"; then
-        awk -v s="$stamp" '{ print } !d && /^# / { print ""; print s; d=1 }' "$file" > "$file.tmp"
-    else
+    local file="$1" stamp="$2" head_line slot cand line
+    head_line="$(grep -n -m1 '^# ' "$file" | cut -d: -f1 || true)"
+
+    # Ohne Ueberschrift bleibt nur der Dateianfang.
+    if [ -z "$head_line" ]; then
         { echo "$stamp"; echo; cat "$file"; } > "$file.tmp"
+        mv "$file.tmp" "$file"
+        return
+    fi
+
+    # Nur die ein bis zwei Zeilen direkt unter der Ueberschrift kommen als
+    # vorhandener Stempel infrage – sonst nichts.
+    slot=""
+    for cand in $((head_line + 1)) $((head_line + 2)); do
+        line="$(sed -n "${cand}p" "$file")"
+        case "$line" in
+            \*Stand:\ v*) slot="$cand"; break ;;
+        esac
+    done
+
+    if [ -n "$slot" ]; then
+        awk -v s="$stamp" -v n="$slot" 'NR == n { print s; next } { print }' "$file" > "$file.tmp"
+    else
+        awk -v s="$stamp" -v h="$head_line" '
+            NR == h                 { print; print ""; print s; print ""; next }
+            NR == h + 1 && $0 == "" { next }
+            { print }
+        ' "$file" > "$file.tmp"
     fi
     mv "$file.tmp" "$file"
 }

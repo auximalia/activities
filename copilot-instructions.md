@@ -1,5 +1,7 @@
 # copilot-instructions.md
 
+*Stand: v1.19.5 · 2026-08-06*
+
 Architecture, coding, and collaboration guidelines. All rules are binding for every code change.
 Existing patterns take precedence in conflicts.
 
@@ -137,6 +139,11 @@ When a change would increase complexity beyond the module's current level, propo
 - **Abbreviations:** Spell out on first use with the abbreviation in parentheses; short form allowed thereafter. No implicit domain knowledge.
 - **Code formatting in docs:** Use backtick formatting for filenames, paths, commands, and config keys in all documentation.
 - **File naming:** No version suffixes (`_final`, `_v2`, `_neu`). Version history belongs in VCS. Use `YYYY-MM-DD` (ISO 8601) for date-based naming.
+- **Document stamp:** every Markdown document carries version and date directly below its top-level heading — `*Stand: v1.19.4 · 2026-08-06*`. Without it, a reader cannot tell which state of the software a document describes.
+- **Stamp only what changed:** the release stamps exactly those documents it modified. Stamping all of them would claim a currency that does not exist — a document untouched for ten releases would then assert it is up to date.
+- **Never maintain stamps by hand:** the release tooling writes them. A hand-kept stamp goes stale silently, and a stale stamp is worse than none, because readers believe it.
+- **Anchor the stamp by position, not by pattern:** it lives directly below the first heading. A pattern search hits the *example* inside any document that documents the stamp itself.
+- **Documentation changes go through the release:** a stamp needs a version to refer to, so even doc-only changes bump the patch number.
 - **Term consistency:** One concept — one term throughout all docs. Synonyms confuse. Create a shared glossary when multiple documents share vocabulary.
 
 > **Bad comment:** `# increment counter` — **Good:** `# retry limit reached; route to dead-letter queue`
@@ -146,6 +153,8 @@ When a change would increase complexity beyond the module's current level, propo
 > **Bad abbreviation:** `SVN speichert jede Version.` — **Good:** `Apache Subversion (SVN) speichert jede Version. SVN ist damit …`
 >
 > **Bad filename:** `konzept_final_v3_neu.md` — **Good:** `2026-06-07_kgv_archivierungskonzept.md`
+>
+> **Bad stamp:** a heading that reads `# Spezifikation (Stand v1.19.0)` while the software is at `v1.19.3` — hand-kept and three releases behind. **Good:** `*Stand: v1.19.4 · 2026-08-06*` written by the release tooling, only for documents that release actually changed.
 
 ---
 

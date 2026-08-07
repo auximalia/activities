@@ -82,6 +82,22 @@ enum DateFormatting {
         dayFormatter.string(from: date)
     }
 
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "de_DE")
+        formatter.unitsStyle = .full
+        return formatter
+    }()
+
+    /// Abstand zu ``now`` in Worten, z. B. „vor 13 Stunden".
+    ///
+    /// Ergaenzt ``dateTime`` dort, wo nicht der Zeitpunkt zaehlt, sondern das
+    /// **Alter**: „Gestern, 23:09" beantwortet die Frage „ist das noch aktuell?"
+    /// deutlich schlechter als „vor 13 Stunden".
+    static func relative(_ date: Date, now: Date = Date()) -> String {
+        relativeFormatter.localizedString(for: date, relativeTo: now)
+    }
+
     /// Wochentagskuerzel, z. B. "Mo".
     static func weekdayShort(_ date: Date, calendar: Calendar = .current) -> String {
         let weekday = calendar.component(.weekday, from: date)

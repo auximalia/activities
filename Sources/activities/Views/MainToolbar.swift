@@ -51,37 +51,48 @@ struct MainToolbar: ToolbarContent {
         // 4a. Anpassungen: Zustände (ändern die Darstellung, nicht die Datenmenge)
         // Als Gruppe: SwiftUI erlaubt hoechstens zehn ToolbarItems je Builder.
         ToolbarItemGroup(placement: .navigation) {
-            Toggle(isOn: Binding(
-                get: { model.allExpanded },
-                set: { model.setAllExpanded($0) }
-            )) {
-                Image(systemName: "chevron.up.chevron.down")
-            }
-            .toggleStyle(.button)
-            .help("Alle Ordner auf- oder zuklappen")
-            .accessibilityLabel("Alle Ordner auf- oder zuklappen")
+            ToolbarStateToggle(
+                isOn: Binding(
+                    get: { model.allExpanded },
+                    set: { model.setAllExpanded($0) }
+                ),
+                onSymbol: "list.bullet.indent",
+                offSymbol: "list.bullet",
+                label: "Alle Ordner auf- oder zuklappen",
+                onState: "alle aufgeklappt",
+                offState: "nicht alle aufgeklappt"
+            )
 
-            Toggle(isOn: Binding(
-                get: { model.showOutOfWindowFiles },
-                set: { model.setShowOutOfWindowFiles($0) }
-            )) {
-                Image(systemName: "clock.badge.xmark")
-            }
-            .toggleStyle(.button)
-            .help(model.showOutOfWindowFiles
-                  ? "Dateien außerhalb des Zeitraums werden angezeigt"
-                  : "Dateien außerhalb des Zeitraums sind ausgeblendet")
-            .accessibilityLabel("Dateien außerhalb des Zeitraums anzeigen")
+            ToolbarStateToggle(
+                isOn: Binding(
+                    get: { model.showOutOfWindowFiles },
+                    set: { model.setShowOutOfWindowFiles($0) }
+                ),
+                onSymbol: "clock.badge.checkmark",
+                offSymbol: "clock.badge.xmark",
+                label: "Dateien außerhalb des Zeitraums anzeigen",
+                onState: "werden angezeigt",
+                offState: "sind ausgeblendet"
+            )
 
-            Toggle(isOn: Binding(
-                get: { model.autoRefresh },
-                set: { model.setAutoRefresh($0) }
-            )) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-            }
-            .toggleStyle(.button)
-            .help("Automatisch aktualisieren, wenn sich der Ordner ändert")
-            .accessibilityLabel("Automatisch aktualisieren bei Ordneränderung")
+            // **Kein zweiter Kreispfeil.** Bis v1.19.5 trug dieser Schalter
+            // `arrow.triangle.2.circlepath` und stand drei Symbole neben dem
+            // Knopf „Ordner neu einlesen" (`arrow.clockwise`) – gemessen an
+            // einem echten Missgriff: Der Anwender hielt den Schalter fuer den
+            // Knopf und wunderte sich, dass nichts neu eingelesen wurde. Die
+            // Antenne zeigt, was hier wirklich passiert: Der Ordner wird
+            // **beobachtet** (FSEvents), nicht auf Zuruf gelesen.
+            ToolbarStateToggle(
+                isOn: Binding(
+                    get: { model.autoRefresh },
+                    set: { model.setAutoRefresh($0) }
+                ),
+                onSymbol: "antenna.radiowaves.left.and.right",
+                offSymbol: "antenna.radiowaves.left.and.right.slash",
+                label: "Automatisch aktualisieren bei Ordneränderung",
+                onState: "ein",
+                offState: "aus"
+            )
         }
 
         // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
@@ -100,6 +111,7 @@ struct MainToolbar: ToolbarContent {
                 }
             } label: {
                 Image(systemName: "arrow.up.arrow.down")
+                    .foregroundStyle(ToolbarStateToggle.idleTint)
             }
             .help("Sortierung innerhalb der Zeitabschnitte · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
             .accessibilityLabel("Sortierung")
@@ -112,6 +124,7 @@ struct MainToolbar: ToolbarContent {
                 model.scrollToTopToken += 1
             } label: {
                 Image(systemName: "arrow.up.to.line")
+                    .foregroundStyle(ToolbarStateToggle.idleTint)
             }
             .help("An den Anfang der Liste springen (⌘↑)")
             .accessibilityLabel("An den Anfang der Liste springen")
@@ -120,6 +133,7 @@ struct MainToolbar: ToolbarContent {
                 model.rescan()
             } label: {
                 Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(ToolbarStateToggle.idleTint)
             }
             .help("Ordner neu einlesen (⌘R)")
             .accessibilityLabel("Ordner neu einlesen")
@@ -289,5 +303,56 @@ struct MainToolbar: ToolbarContent {
         .padding(12)
         .help("Tage manuell eingeben (1–3650)")
             .accessibilityLabel("Tage manuell eingeben")
+    }
+}
+
+/// Ein Zustandsschalter in der Titelleiste.
+///
+/// **Warum nicht einfach `toggleStyle(.button)`?** Der Standard traegt den
+/// Zustand allein in einem minimal dunkleren Hintergrund. Auf der getoenten
+/// Titelleiste ist das kaum zu sehen – und in einem **Hintergrundfenster**
+/// blasst macOS saemtliche Bedienelemente ohnehin aus, sodass grau auf grau
+/// uebrig bleibt. Genau dort wird die App aber meist nur „im Vorbeigehen"
+/// gelesen.
+///
+/// Der Zustand steckt deshalb in **drei** Traegern, von denen keiner allein auf
+/// Kontrast angewiesen ist:
+/// 1. ein **eigenes Symbol** je Zustand (kein Fuell-Unterschied, sondern eine
+///    andere Form – lesbar auch ohne Farbe),
+/// 2. die **Akzentfarbe** bei „ein"; ausdruecklich gesetzte Farben bleiben
+///    auch im inaktiven Fenster erhalten, Systemfarben nicht,
+/// 3. der gewohnte Knopfhintergrund des Systems.
+///
+/// Zusaetzlich melden Tooltip und Bedienhilfen denselben Zustand im Klartext –
+/// ein Symbol, das man deuten muss, ist keine Auskunft.
+struct ToolbarStateToggle: View {
+    @Binding var isOn: Bool
+    /// Symbol im Zustand „ein" bzw. „aus" – bewusst **zwei verschiedene** Formen.
+    let onSymbol: String
+    let offSymbol: String
+    /// Was der Schalter steuert (unveraenderlich, fuer die Bedienhilfen).
+    let label: String
+    /// Was der jeweilige Zustand bedeutet – im Klartext, nicht als „ein/aus",
+    /// wo sich etwas Besseres sagen laesst.
+    let onState: String
+    let offState: String
+
+    /// Farbe untaetiger Titelleisten-Symbole.
+    ///
+    /// ``Color/primary`` statt der System-Steuerfarbe: Letztere wird im
+    /// inaktiven Fenster bis zur Unlesbarkeit aufgehellt.
+    static let idleTint = Color.primary
+
+    private var stateText: String { isOn ? onState : offState }
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            Image(systemName: isOn ? onSymbol : offSymbol)
+                .foregroundStyle(isOn ? Color.accentColor : Self.idleTint)
+        }
+        .toggleStyle(.button)
+        .help("\(label) · aktuell: \(stateText)")
+        .accessibilityLabel(label)
+        .accessibilityValue(stateText)
     }
 }

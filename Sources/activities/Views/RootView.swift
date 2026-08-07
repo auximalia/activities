@@ -167,7 +167,7 @@ struct RootView: View {
     }
 }
 
-/// Statuszeile: Anzahl Ordner/Dateien, Auto-Refresh-Zustand, Wurzelpfad.
+/// Statuszeile: Anzahl Ordner/Dateien, Stand der Daten, Auto-Refresh, Wurzelpfad.
 struct StatusBarView: View {
     @Bindable var model: ReportViewModel
 
@@ -180,14 +180,13 @@ struct StatusBarView: View {
             Image(systemName: "folder")
                 .foregroundStyle(.secondary)
             Text("\(folderCount) Ordner · \(model.scannedFileCount) Dateien")
-                // Scandauer ist eine Diagnosegroesse, kein Nutzerwert –
-                // deshalb im Tooltip statt dauerhaft im Blickfeld.
-                .help(model.lastScanDuration > 0
-                      ? String(format: "Letzte Suche: %.2f s", model.lastScanDuration)
-                      : "Noch keine Suche abgeschlossen")
+
+            Divider().frame(height: 10)
+            scanAge
+
             Spacer()
             if model.autoRefresh {
-                Label("Auto", systemImage: "arrow.triangle.2.circlepath")
+                Label("Auto", systemImage: "antenna.radiowaves.left.and.right")
                     .foregroundStyle(.secondary)
             }
             Text(model.rootURL.path)
@@ -209,6 +208,41 @@ struct StatusBarView: View {
         .font(.caption)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
+    }
+
+    /// Wann zuletzt **von der Platte** gelesen wurde.
+    ///
+    /// **Sichtbar statt im Tooltip.** Hier stand frueher nur die Scan-*Dauer*,
+    /// und die auch nur als Kurzhinweis – sie beantwortet die einzige Frage,
+    /// auf die es ankommt („darf ich dem Gezeigten glauben?"), gerade nicht.
+    /// Zeitraum-Ueberschrift und Abschnittsnamen sagen „heute", der Bestand
+    /// kann aber von gestern sein (siehe ``ReportViewModel/lastScanAt``).
+    @ViewBuilder
+    private var scanAge: some View {
+        if let readAt = model.lastScanAt {
+            // **Eigener Takt.** Die Warnung wird genau dann gebraucht, wenn
+            // niemand etwas tut – ein unberuehrtes Fenster zeichnet sonst nie
+            // neu und bliebe ewig unauffaellig gruen.
+            TimelineView(.periodic(from: readAt, by: 60)) { context in
+                let age = context.date.timeIntervalSince(readAt)
+                let isStale = age >= ReportViewModel.stalenessLimit
+                HStack(spacing: 4) {
+                    Image(systemName: isStale ? "exclamationmark.triangle.fill" : "clock.arrow.circlepath")
+                    Text("Stand: \(DateFormatting.dateTime(readAt))")
+                }
+                .foregroundStyle(isStale ? Color.orange : Color.secondary)
+                .help(isStale
+                      ? "Zuletzt eingelesen \(DateFormatting.relative(readAt)) – seitdem kann sich einiges geändert haben. ⌘R liest den Ordner neu ein."
+                      : String(
+                          format: "Zuletzt eingelesen: %@ (Suchlauf %.2f s). ⌘R liest den Ordner neu ein.",
+                          DateFormatting.dateTime(readAt),
+                          model.lastScanDuration
+                      ))
+            }
+        } else {
+            Text("Noch nicht eingelesen")
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

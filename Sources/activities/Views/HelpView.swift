@@ -36,9 +36,12 @@ struct HelpView: View {
                 section("Aktualisieren & Auto-Refresh", icon: "arrow.clockwise", [
                     "Gelesen wird nur bei Start, Ordnerwechsel, ⌘R und Auto-Refresh.",
                     "Zeitraum und Filter wirken sofort – ohne neuen Suchlauf.",
-                    "„Aktualisieren“ (⌘R) liest den Ordner neu von der Platte.",
+                    "„Aktualisieren“ (⌘R, Symbol ↻) liest den Ordner neu von der Platte.",
+                    "Die Statuszeile nennt unter „Stand“ den Zeitpunkt dieses Lesevorgangs – "
+                        + "sie färbt sich orange, sobald er über eine Stunde zurückliegt.",
                     "Roter Stopp-Knopf bricht einen laufenden Suchlauf ab.",
-                    "Auto-Refresh lädt automatisch neu, wenn sich der Ordner ändert.",
+                    "Auto-Refresh (Antennensymbol) lädt automatisch neu, wenn sich der Ordner ändert; "
+                        + "durchgestrichen bedeutet: aus.",
                 ])
 
                 section("Diagramm & Legende", icon: "chart.bar.xaxis", [

@@ -121,6 +121,22 @@ final class ReportViewModel {
     var scannedFileCount = 0
     /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
     var lastScanDuration: Double = 0
+    /// Zeitpunkt des letzten **Plattenzugriffs**; ``nil`` = noch nie eingelesen.
+    ///
+    /// **Warum sichtbar und nicht nur Diagnose:** Zeitraum-Ueberschrift,
+    /// Diagramm und Abschnittsnamen („Heute", „Gestern") werden bei jeder
+    /// Filter- und Zeitraumaenderung **aus dem Speicher** neu gerechnet, ohne
+    /// die Platte erneut zu lesen (siehe ``applyWindowChange()``). Ein Fenster
+    /// kann dadurch stundenlang eine tagesaktuelle Ueberschrift ueber altem
+    /// Bestand zeigen – gemessen: 13 Stunden alte Zeitstempel unter der
+    /// Ueberschrift des heutigen Tages. Ohne diesen Zeitpunkt waere das Alter
+    /// der Daten ein stiller Zustand, dem man auch noch glaubt.
+    private(set) var lastScanAt: Date?
+    /// Ab wann ein Bestand als „alt" gilt und die Statuszeile warnt.
+    ///
+    /// Eine Stunde: kurz genug, um einen vergessenen Suchlauf aufzudecken, lang
+    /// genug, um bei normaler Arbeit nicht dauernd zu mahnen.
+    static let stalenessLimit: TimeInterval = 3600
     /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
     var hiddenExtensions: Set<String> = []
     /// Die haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm), max. ``legendTopCount``.
@@ -1269,9 +1285,19 @@ final class ReportViewModel {
     /// Ausgeloest durch: Programmstart, Ordnerwechsel, „Aktualisieren" (⌘R) und
     /// Auto-Refresh. **Nicht** durch Aenderungen an Zeitraum oder Filter – die
     /// bedient ``applyWindowChange()`` aus dem Speicher.
+    ///
+    /// Das Ergebnis ersetzt Rohbestand **und** Detaildateien vollstaendig; die
+    /// Tabelle wird also aus frisch gelesenen Zeitstempeln neu aufgebaut.
     func rescan(preservingState: Bool = false, confirmedLarge: Bool = false) {
         scanTask?.cancel()
         detailLoadTask?.cancel()
+        // **Haengende Filtereingabe verwerfen.** Eine noch laufende Entprellung
+        // wuerde 250 ms spaeter ``applyWindowChange()`` ausloesen und die
+        // Tabelle mitten im frischen Suchlauf aus dem **alten** Speicherbestand
+        // neu aufbauen. Wer „neu einlesen" auslaest, will die Platte sehen –
+        // das aktuell im Feld stehende Muster wirkt ohnehin, denn der Suchlauf
+        // wertet es am Ende ueber ``filteredFromScan()`` aus.
+        filterDebounceTask?.cancel()
 
         let w = window
         if useDateRange {
@@ -1318,7 +1344,11 @@ final class ReportViewModel {
             self.lastScanRoot = settings.rootURL
             self.relevantFiles = self.filteredFromScan()
             self.scannedFileCount = self.relevantFiles.count
-            self.lastScanDuration = Date().timeIntervalSince(started)
+            let finished = Date()
+            self.lastScanDuration = finished.timeIntervalSince(started)
+            // Erst hier gesetzt – ein abgebrochener Lauf kehrt oben um und darf
+            // keinen frischen Stand behaupten.
+            self.lastScanAt = finished
             self.isScanning = false
             self.reconcileState(preservingState: preservingState)
         }
@@ -1416,6 +1446,7 @@ final class ReportViewModel {
         relevantFiles = []
         scannedFiles = []
         lastScanRoot = nil
+        lastScanAt = nil
         topExtensions = []
         topExtensionSet = []
         otherCount = 0

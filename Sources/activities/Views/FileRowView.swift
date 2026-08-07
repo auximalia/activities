@@ -78,7 +78,7 @@ struct FileRowView: View {
                 .lineLimit(1)
                 .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
         }
-        .padding(.vertical, RowMetrics.fileRowPadding)
+        .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         // Cursor ohne Auswahl: nur ein feiner Rahmen – sonst waere nicht

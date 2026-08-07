@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.21 · 2026-08-07*
+*Stand: v1.19.23 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1301,6 +1301,13 @@ aus, Xcode mit ~22.
 **Umgesetzt:** Symbole 18 → 16 pt, Innenabstand 2 → 1, Zeilenabstand 5/3 → 3/2, Fuge zwischen
 den Zeilen 2 → 1 pt. Ergebnis **24 pt je Zeile** – im selben Fenster 21 statt 15 Zeilen
 (+40 %). Die Schrift bleibt unveraendert; es verschwindet nur Luft, die niemand gebraucht hat.
+
+**Nachgezogen (v1.19.23): eine Höhe für alle Zeilen.** Ordner- und Dateizeile hatten 3 bzw.
+2 pt Innenabstand – bei gleichem Symbol 24 gegen 22 pt. In einer langen Liste liest sich das
+als Stocken. Statt die Abstände anzugleichen steht jetzt eine **feste Zeilenhöhe** (22 pt):
+Sie hält auch dann, wenn später jemand eine Schrift oder ein Symbol ändert – der häufigste
+Weg, wie so eine Angleichung wieder verlorengeht. Die **Abschnittsköpfe** der Zeitansicht
+bleiben mit 30 pt bewusst höher: Sie gliedern die Liste, sie sind kein Eintrag darin.
 
 **Folgewirkung, die man leicht uebersieht:** `connectorX` (die Mitte des Ordnersymbols, an der
 die Verzweigungslinie haengt) sank dadurch von 39 auf 37 pt. Damit fiel die **Untergrenze fuer

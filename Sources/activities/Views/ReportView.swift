@@ -320,7 +320,7 @@ struct ReportView: View {
                 .font(.headline)
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
+        .frame(height: RowMetrics.sectionHeaderHeight)
         .padding(.horizontal, 8)
         .background {
             if bucket.isPinned {

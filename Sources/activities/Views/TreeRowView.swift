@@ -224,7 +224,7 @@ struct TreeFolderRowView: View {
             }
             .padding(.leading, RowMetrics.itemSpacing)
         }
-        .padding(.vertical, RowMetrics.folderRowPadding)
+        .frame(height: RowMetrics.rowHeight)
         .padding(.trailing, RowMetrics.horizontalPadding)
     }
 

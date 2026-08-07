@@ -24,10 +24,21 @@ enum RowMetrics {
     /// Kantenlaenge der Dateisymbole – dieselbe Hoehe wie die Ordnersymbole,
     /// damit Ordner- und Dateizeilen gleich hoch werden.
     static let fileIconSize: CGFloat = 16
-    /// Senkrechter Innenabstand einer Ordnerzeile.
-    static let folderRowPadding: CGFloat = 3
-    /// Senkrechter Innenabstand einer Dateizeile.
-    static let fileRowPadding: CGFloat = 2
+    /// Hoehe **jeder** Zeile – Ordner wie Datei, Baum wie Liste.
+    ///
+    /// **⚠️ Feste Hoehe statt Innenabstand.** Vorher hatte die Ordnerzeile 3 pt
+    /// und die Dateizeile 2 pt Innenabstand; bei gleichem Symbol ergab das 24
+    /// gegen 22 pt. Der Unterschied faellt in einer langen Liste als Stocken
+    /// auf. Mit einer festen Hoehe bleibt es gleich, auch wenn spaeter jemand
+    /// eine Schrift oder ein Symbol aendert – der haeufigste Weg, wie so eine
+    /// Angleichung wieder verlorengeht.
+    static let rowHeight: CGFloat = 22
+
+    /// Hoehe eines Abschnittskopfs in der Zeitansicht.
+    ///
+    /// Bewusst hoeher als eine Zeile: Der Kopf gliedert die Liste, er ist kein
+    /// Eintrag darin. Gleiche Hoehe liesse ihn als eine weitere Zeile lesen.
+    static let sectionHeaderHeight: CGFloat = 30
     /// Abstand zwischen zwei Zeilen in der Liste.
     ///
     /// 1 pt statt 2: Bei 0 stossen die Zebra-Streifen aneinander und die Liste

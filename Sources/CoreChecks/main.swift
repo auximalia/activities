@@ -584,6 +584,172 @@ do {
     expect(!regeln.isExcludedPath("/b/tmp"), "Pfad-Ausschluss: gleichnamiger anderswo bleibt")
 }
 
+// MARK: - FolderTree
+do {
+    let root = URL(fileURLWithPath: "/r", isDirectory: true)
+    func url(_ p: String) -> URL { URL(fileURLWithPath: "/r/" + p, isDirectory: true) }
+    func entry(_ p: String, _ d: Date, _ n: Int = 1) -> FolderEntry {
+        FolderEntry(folder: p.isEmpty ? root : url(p), newestDate: d, fileCount: n)
+    }
+    /// Alle Knoten in Tiefensuche – erleichtert das Nachschlagen in den Pruefungen.
+    func walk(_ nodes: [FolderNode]) -> [FolderNode] {
+        nodes.flatMap { [$0] + walk($0.children) }
+    }
+    func find(_ nodes: [FolderNode], _ path: String) -> FolderNode? {
+        walk(nodes).first { $0.folder.path == (path.isEmpty ? "/r" : "/r/" + path) }
+    }
+
+    let t1 = date(2026, 8, 1)
+    let t2 = date(2026, 8, 5)
+    let t3 = date(2026, 8, 7)
+
+    // Leere Eingabe
+    expect(FolderTree.build(from: [], root: root).isEmpty, "Baum: keine Eintraege -> kein Knoten")
+
+    // Eintraege ausserhalb der Wurzel werden uebergangen, nicht verbogen
+    let fremd = FolderTree.build(from: [FolderEntry(folder: URL(fileURLWithPath: "/anderswo/x"), newestDate: t1, fileCount: 1)], root: root)
+    expect(fremd.isEmpty, "Baum: Eintrag ausserhalb der Wurzel wird uebergangen")
+
+    // /r/bc darf NICHT als Kind von /r/b gelten (Praefix ohne Schraegstrich)
+    expect(!FolderTree.isRootOrBelow("/r/bc", root: "/r/b"), "Baum: /r/bc liegt nicht unter /r/b")
+    expect(FolderTree.isRootOrBelow("/r/b/c", root: "/r/b"), "Baum: /r/b/c liegt unter /r/b")
+    expect(FolderTree.isRootOrBelow("/x", root: "/"), "Baum: alles liegt unter dem Dateisystem-Wurzelverzeichnis")
+
+    // Schachtelung: dist unter activities (der Fall aus dem Fehlerbild)
+    do {
+        let nodes = FolderTree.build(
+            from: [entry("opencode/activities", t3, 5), entry("opencode/activities/dist", t2, 1)],
+            root: root
+        )
+        expectEqual(nodes.count, 1, "Baum: eine oberste Ebene")
+        expectEqual(nodes[0].label, "opencode/activities", "Baum: Durchgangskette wird verdichtet")
+        expect(nodes[0].hasOwnFiles, "Baum: verdichteter Knoten behaelt die Treffer des Kindes")
+        expectEqual(nodes[0].children.count, 1, "Baum: dist haengt unter activities")
+        expectEqual(nodes[0].children[0].label, "dist", "Baum: Kindbeschriftung")
+        expectEqual(nodes[0].subtreeFileCount, 6, "Baum: Teilbaumzaehlung summiert")
+        expectEqual(nodes[0].subtreeNewestDate, t3, "Baum: Teilbaumdatum ist das Maximum")
+    }
+
+    // Durchgangsknoten: Elternteil ohne eigene Treffer, aber mit zwei Kindern
+    do {
+        let nodes = FolderTree.build(
+            from: [entry("p/a", t1), entry("p/b", t2)],
+            root: root
+        )
+        expectEqual(nodes.count, 1, "Baum: p ist der einzige oberste Knoten")
+        expectEqual(nodes[0].label, "p", "Baum: Verzweigung wird NICHT verdichtet")
+        expect(nodes[0].isPassThrough, "Baum: p ist Durchgangsknoten")
+        expectEqual(nodes[0].ownFileCount, 0, "Baum: Durchgangsknoten zaehlt nichts Eigenes")
+        expectEqual(nodes[0].subtreeFileCount, 2, "Baum: Durchgangsknoten zaehlt seinen Teilbaum")
+        expectEqual(nodes[0].subtreeNewestDate, t2, "Baum: Durchgangsknoten erbt das juengste Datum")
+        expectEqual(nodes[0].children.count, 2, "Baum: beide Kinder haengen an p")
+    }
+
+    // Ein Knoten MIT eigenen Treffern und genau einem Kind wird nicht gefaltet
+    do {
+        let nodes = FolderTree.build(from: [entry("p", t1), entry("p/a", t2)], root: root)
+        expectEqual(nodes[0].label, "p", "Baum: Knoten mit eigenen Treffern bleibt eigene Zeile")
+        expect(nodes[0].hasOwnFiles, "Baum: p hat eigene Treffer")
+        expectEqual(nodes[0].children.count, 1, "Baum: a bleibt Kind von p")
+    }
+
+    // Lange Kette aus Durchgangsknoten faellt zu EINER Zeile zusammen
+    do {
+        let nodes = FolderTree.build(from: [entry("a/b/c/d", t1)], root: root)
+        expectEqual(nodes.count, 1, "Baum: lange Kette ergibt eine Zeile")
+        expectEqual(nodes[0].label, "a/b/c/d", "Baum: Kette wird vollstaendig verdichtet")
+        expectEqual(nodes[0].folder.path, "/r/a/b/c/d", "Baum: Identitaet ist der tiefste Ordner")
+        expect(nodes[0].children.isEmpty, "Baum: verdichtete Kette hat keine Kinder")
+    }
+
+    // Verzweigung mitten in der Kette bricht die Verdichtung genau dort
+    do {
+        let nodes = FolderTree.build(from: [entry("a/b/c", t1), entry("a/b/d", t2)], root: root)
+        expectEqual(nodes[0].label, "a/b", "Baum: Verdichtung endet am Verzweigungspunkt")
+        expectEqual(nodes[0].children.count, 2, "Baum: beide Zweige haengen daran")
+    }
+
+    // Wurzel mit eigenen Treffern bekommt eine Zeile, ohne nicht
+    do {
+        let mit = FolderTree.build(from: [entry("", t1), entry("a", t2)], root: root)
+        expectEqual(mit.count, 1, "Baum: Wurzel mit Treffern ist eine Zeile")
+        expectEqual(mit[0].folder.path, "/r", "Baum: Wurzelzeile ist die Wurzel")
+        expectEqual(mit[0].children.count, 1, "Baum: a haengt unter der Wurzel")
+
+        let ohne = FolderTree.build(from: [entry("a", t1), entry("b", t2)], root: root)
+        expectEqual(ohne.count, 2, "Baum: Wurzel ohne Treffer bekommt keine Zeile")
+        expect(!ohne.contains { $0.folder.path == "/r" }, "Baum: Wurzelname taucht nicht auf")
+    }
+
+    // ⚠️ Wurzelname darf nie in eine verdichtete Beschriftung geraten
+    do {
+        let nodes = FolderTree.build(from: [entry("a/b", t1)], root: root)
+        expectEqual(nodes[0].label, "a/b", "Baum: Verdichtung faengt unterhalb der Wurzel an")
+        expect(!nodes[0].label.hasPrefix("r/"), "Baum: Wurzelname steht nicht in der Beschriftung")
+    }
+
+    // ⚠️ Der Kernpunkt der Sortierung: Elternteil sortiert nach dem TEILBAUM
+    do {
+        // p/x ist heute bearbeitet, p selbst vor langer Zeit; q liegt dazwischen.
+        let nodes = FolderTree.build(
+            from: [entry("p", t1), entry("p/x", t3), entry("q", t2)],
+            root: root
+        )
+        expectEqual(nodes.map(\.label), ["p", "q"],
+                    "Baum: Elternteil sortiert nach juengster Datei im Teilbaum, nicht nach eigener")
+        // Gegenprobe: nach eigenem Datum waere p hinter q gelandet.
+        expectEqual(find(nodes, "p")?.entry?.newestDate, t1, "Baum: eigenes Datum bleibt unangetastet")
+        expectEqual(find(nodes, "p")?.subtreeNewestDate, t3, "Baum: Teilbaumdatum ist das juengste")
+    }
+
+    // Sortierrichtung und Namenssortierung wirken unter Geschwistern
+    do {
+        let auf = FolderTree.build(
+            from: [entry("p", t1), entry("q", t3)],
+            root: root, sort: FolderSort(field: .date, ascending: true)
+        )
+        expectEqual(auf.map(\.label), ["p", "q"], "Baum: aufsteigend nach Datum")
+
+        let name = FolderTree.build(
+            from: [entry("zeta", t3), entry("alpha", t1)],
+            root: root, sort: FolderSort(field: .name, ascending: true)
+        )
+        expectEqual(name.map(\.label), ["alpha", "zeta"], "Baum: aufsteigend nach Name")
+    }
+
+    // Ergebnis ist deterministisch – die Reihenfolge der Eingabe aendert nichts
+    do {
+        let a = [entry("p/a", t1), entry("p/b", t2), entry("q", t3), entry("p", t1)]
+        let vorwaerts = FolderTree.build(from: a, root: root)
+        let rueckwaerts = FolderTree.build(from: a.reversed(), root: root)
+        expectEqual(walk(vorwaerts).map(\.folder.path), walk(rueckwaerts).map(\.folder.path),
+                    "Baum: Reihenfolge der Eingabe aendert das Ergebnis nicht")
+    }
+
+    // Jeder Ordner kommt genau einmal vor – der Kern der Entscheidung gegen
+    // „Baum je Zeitabschnitt".
+    do {
+        let nodes = FolderTree.build(
+            from: [entry("p", t3), entry("p/a", t1), entry("p/a/b", t2), entry("q", t2)],
+            root: root
+        )
+        let paths = walk(nodes).map(\.folder.path)
+        expectEqual(paths.count, Set(paths).count, "Baum: kein Ordner erscheint doppelt")
+        expectEqual(walk(nodes).count, 4, "Baum: so viele Zeilen wie Ordner (nichts erfunden)")
+    }
+
+    // Teilbaumsummen ueber mehrere Ebenen
+    do {
+        let nodes = FolderTree.build(
+            from: [entry("p", t1, 2), entry("p/a", t2, 3), entry("p/a/b", t3, 4)],
+            root: root
+        )
+        expectEqual(nodes[0].subtreeFileCount, 9, "Baum: Summe ueber drei Ebenen")
+        expectEqual(find(nodes, "p/a")?.subtreeFileCount, 7, "Baum: Summe ab mittlerer Ebene")
+        expectEqual(find(nodes, "p/a/b")?.subtreeFileCount, 4, "Baum: Blatt zaehlt sich selbst")
+    }
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

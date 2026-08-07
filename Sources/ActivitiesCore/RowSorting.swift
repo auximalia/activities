@@ -85,6 +85,58 @@ public enum RowSorting {
         }
     }
 
+    /// Sortiert **Geschwister** im Ordnerbaum.
+    ///
+    /// Bewusst eine eigene Fassung neben ``folders(_:by:dominantType:)`` – sie
+    /// unterscheidet sich in genau einem, aber entscheidenden Punkt:
+    ///
+    /// **⚠️ Der Datumsschluessel ist ``FolderNode/subtreeNewestDate``, nicht das
+    /// eigene Datum.** Ein Ordner mit alten eigenen Dateien, dessen Kind heute
+    /// bearbeitet wurde, gehoert nach oben – sonst sortierte sich das Elternteil
+    /// unter Geschwister, die aelter sind als sein eigener Inhalt, und der
+    /// Anwender fände das Neueste ganz unten. Durchgangsknoten haben ueberhaupt
+    /// kein eigenes Datum; für sie ist der Teilbaum die einzige Auskunft.
+    ///
+    /// Die Tie-Break-Regel ist absichtlich dieselbe wie in der flachen Liste
+    /// (juengste zuerst, dann Pfad), damit beide Ansichten bei Gleichstand
+    /// dieselbe Reihenfolge zeigen.
+    public static func nodes(
+        _ nodes: [FolderNode],
+        by sort: FolderSort,
+        dominantType: (URL) -> String? = { _ in nil }
+    ) -> [FolderNode] {
+        nodes.sorted { first, second in
+            switch sort.field {
+            case .date:
+                if first.subtreeNewestDate != second.subtreeNewestDate {
+                    return sort.ascending
+                        ? first.subtreeNewestDate < second.subtreeNewestDate
+                        : first.subtreeNewestDate > second.subtreeNewestDate
+                }
+            case .name:
+                // Die **Beschriftung**, nicht der Ordnername: Bei verdichteten
+                // Ketten steht dort `ChatGPT/pdf_cleanup` – danach sucht das
+                // Auge, also danach wird sortiert.
+                let order = first.label.localizedStandardCompare(second.label)
+                if order != .orderedSame {
+                    return sort.ascending ? order == .orderedAscending : order == .orderedDescending
+                }
+            case .type:
+                let a = dominantType(first.folder)
+                let b = dominantType(second.folder)
+                if a != b {
+                    guard let a else { return false }
+                    guard let b else { return true }
+                    return sort.ascending ? a < b : a > b
+                }
+            }
+            if first.subtreeNewestDate != second.subtreeNewestDate {
+                return first.subtreeNewestDate > second.subtreeNewestDate
+            }
+            return first.folder.path > second.folder.path
+        }
+    }
+
     /// Sortiert die Dateien innerhalb eines Ordners.
     public static func files(_ files: [RelevantFile], by sort: FolderSort) -> [RelevantFile] {
         files.sorted { first, second in

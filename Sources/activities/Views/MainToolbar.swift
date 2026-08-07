@@ -34,16 +34,25 @@ struct MainToolbar: ToolbarContent {
         ToolbarItem(placement: .navigation) {
             SearchField(
                 text: $model.namePattern,
-                prompt: "Name filtern",
+                prompt: "Name filtern, z. B. studium",
                 onChange: { model.namePatternDidChange() },
                 onSubmit: { model.applyNameFilterNow() }
             )
-            // 220 pt kosteten drei Zustandsschalter den Platz in der Leiste –
-            // gemessen bei 1280 pt Fensterbreite. Der Hinweistext ist dafuer
-            // kuerzer; das ausfuehrliche Beispiel steht im Tooltip.
-            .frame(width: 170)
-            .help("Teil des Dateinamens eingeben, z. B. studium. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
+            .frame(width: 210)
+            // **Ein gesetzter Filter muss auffallen.** Ein Suchfeld mit Text
+            // sieht sonst fast aus wie eines ohne – und dann wundert man sich
+            // ueber eine unerklaerlich kurze Liste. Derselbe Grundsatz wie beim
+            // Typ-Filter (UX-06): kein stiller Zustand.
+            .overlay {
+                if model.hasNameFilter {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .allowsHitTesting(false)
+                }
+            }
+            .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
             .accessibilityLabel("Name filtern")
+            .accessibilityValue(model.hasNameFilter ? "Filter aktiv: \(model.namePattern)" : "kein Filter")
         }
 
         // 3. Zeitraum
@@ -178,7 +187,7 @@ struct MainToolbar: ToolbarContent {
         // 4d. Zuletzt: der Sprung an den Listenanfang. Von allem hier der
         // entbehrlichste Knopf – er hat mit ⌘↑ ein Kuerzel und einen Menuepunkt,
         // darf also als Erster ins Ueberlaufmenue wandern.
-        ToolbarItem(placement: .navigation) {
+        ToolbarItem(placement: .primaryAction) {
             Button {
                 model.scrollToTopToken += 1
             } label: {
@@ -408,7 +417,21 @@ struct ToolbarStateToggle: View {
     var body: some View {
         Toggle(isOn: $isOn) {
             Image(systemName: isOn ? onSymbol : offSymbol)
-                .foregroundStyle(isOn ? Color.accentColor : Self.idleTint)
+                // **Gefuellt, nicht nur getoent.** Der Systemhintergrund eines
+                // eingeschalteten Knopfes ist ein Hauch dunkleres Grau – auf der
+                // getoenten Titelleiste kaum zu sehen und im Hintergrundfenster
+                // gar nicht. Ein aktiver Zustand, den man suchen muss, ist ein
+                // stiller Zustand (Akzeptanz aus UX-03: Symbol **und**
+                // erkennbarer Zustand).
+                .foregroundStyle(isOn ? AnyShapeStyle(.white) : AnyShapeStyle(Self.idleTint))
+                .padding(.horizontal, 5)
+                .padding(.vertical, 3)
+                .background {
+                    if isOn {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(Color.accentColor)
+                    }
+                }
         }
         .toggleStyle(.button)
         .help("\(label) · aktuell: \(stateText)")

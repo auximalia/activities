@@ -141,9 +141,13 @@ struct ChartHeaderView: View {
         let zeigtRauschen = model.revealHiddenFolders
             || model.skippedFolderCount > 0
             || !model.excludedPaths.isEmpty
-        if model.hasTypeFilter || zeigtRauschen {
+        if model.hasNameFilter || model.hasTypeFilter || zeigtRauschen {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 10) {
+                    if model.hasNameFilter { nameSegment }
+                    if model.hasNameFilter && (model.hasTypeFilter || zeigtRauschen) {
+                        Divider().frame(height: 11)
+                    }
                     if zeigtRauschen { noiseSegment }
                     if model.hasTypeFilter && zeigtRauschen {
                         Divider().frame(height: 11)
@@ -151,6 +155,7 @@ struct ChartHeaderView: View {
                     if model.hasTypeFilter { typeSegment }
                 }
                 VStack(alignment: .leading, spacing: 3) {
+                    if model.hasNameFilter { nameSegment }
                     if zeigtRauschen { noiseSegment }
                     if model.hasTypeFilter { typeSegment }
                 }
@@ -160,6 +165,30 @@ struct ChartHeaderView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 5)
         }
+    }
+
+    /// Der gesetzte **Namensfilter**.
+    ///
+    /// **Offene Randnotiz aus UX-29, endlich eingeloest.** Dort stand: „Analog
+    /// zu UX-06 einen dezenten Dauerhinweis, solange ein Namensfilter aktiv ist
+    /// – dann faellt es schon *vor* dem Ordnerwechsel auf." Der Punkt blieb
+    /// liegen, weil er in einem bereits **geschlossenen** Eintrag stand.
+    ///
+    /// Der Filter steht zwar im Suchfeld, aber ein Feld mit Text sieht fast aus
+    /// wie eines ohne. Wer ihn uebersieht, haelt eine gefilterte Liste fuer den
+    /// ganzen Bestand.
+    private var nameSegment: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "magnifyingglass.circle.fill")
+                .foregroundStyle(.tint)
+            Text("Namensfilter „\(model.namePattern)“")
+            Button("Löschen") { model.clearNameFilter() }
+                .buttonStyle(.link)
+                .help("Namensfilter entfernen")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Namensfilter \(model.namePattern) ist aktiv")
+        .accessibilityHint("Zum Löschen aktivieren")
     }
 
     /// Ausgeblendete Dateitypen.

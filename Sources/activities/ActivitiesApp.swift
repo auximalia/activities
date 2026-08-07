@@ -63,7 +63,14 @@ private struct WindowReader: NSViewRepresentable {
     }
 
     private func report(_ view: NSView) {
-        if let window = view.window { MainWindow.adopt(window) }
+        guard let window = view.window else { return }
+        MainWindow.adopt(window)
+        // **Fenstername nachtragen.** ``navigationTitle("")`` nimmt den Titel
+        // aus der Leiste (dort kostete er ~90 pt), macht das Fenster aber auch
+        // im Menue „Fenster" und in der Uebersicht namenlos. Der Weg ueber
+        // ``titleVisibility`` half nicht: SwiftUI setzt sie bei jeder
+        // Titelaenderung zurueck – gemessen, der Titel stand danach wieder da.
+        if window.title.isEmpty { window.title = "activities" }
     }
 }
 

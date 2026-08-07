@@ -1167,6 +1167,16 @@ final class ReportViewModel {
     /// Aktueller Namensfilter (gepuffert, damit er nicht je Datei neu entsteht).
     private var nameFilter: NameFilter { NameFilter(namePattern) }
 
+    /// Ob ein Namensfilter gesetzt ist.
+    ///
+    /// Grundlage dafuer, ihn **sichtbar** zu machen. Ein Suchfeld mit Text sieht
+    /// fast aus wie eines ohne; wer das uebersieht, haelt eine gefilterte Liste
+    /// fuer den ganzen Bestand – derselbe stille Zustand, den UX-06 fuer den
+    /// Typ-Filter beseitigt hat.
+    var hasNameFilter: Bool {
+        !namePattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     /// Sichtbare Dateien eines Ordners (ALLE Dateien, Typ-gefiltert).
     /// ``nil`` bedeutet "noch nicht geladen".
     func visibleFiles(in folder: URL) -> [RelevantFile]? {

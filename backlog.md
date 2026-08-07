@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.17 · 2026-08-07*
+*Stand: v1.19.19 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -686,7 +686,7 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 | **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
 | **v1.19** ✅ | Täglicher Begleiter | PR-07 … PR-10 – **abgeschlossen** |
 | **v1.20** | Schneller wieder reinkommen | PR-26, PR-11 … PR-14 – **Sprint 9 geplant**, PR-12 ✅ |
-| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Einstiegsansicht) · PR-28 · PR-29 ⏸ |
+| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Einstiegsansicht) · PR-28 · PR-30 · PR-29 ⏸ |
 | **v1.22** | Rückblick und Bericht | PR-15 … PR-18 |
 | **v1.23** | Suchen und Finden | PR-19 … PR-21 |
 | **v2.0** | Vertrauen und Verbreitung | PR-22 … PR-25 |
@@ -1237,7 +1237,46 @@ Anzeigetext ist aber kein Datenmerkmal; er ändert sich mit der Sprache. Eigene 
 
 Betrifft nur die **Listenansicht**. Im Baum ist Anheften eine Markierung am Knoten (PR-27).
 
-### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
+### PR-30 · Aktive Zustände sofort erkennbar *(erledigt, v1.19.19)*
+**Aufwand:** M · **Nutzen:** hoch
+
+**Gemeldet:** „Die Buttons in der Steuerungsleiste sind zu unscheinbar – alles in Grautönen.
+Aktive Buttons oder eingegebene Suchstrings müssen sofort wahrnehmbar sein."
+
+**⚠️ Beides stand längst im Backlog – und blieb trotzdem liegen.** Das ist der eigentliche
+Befund:
+
+1. **UX-03** (als *erledigt* markiert, v1.8.0) trug die Akzeptanz „Jede Schaltfläche hat Icon
+   **und** erkennbaren Zustand". Umgesetzt wurde nur `toggleStyle(.button)` – dessen
+   Aktiv-Zustand ist ein Hauch dunkleres Grau. Die Akzeptanz war nie geprüft, der Eintrag
+   trotzdem geschlossen.
+2. **UX-29** (erledigt, v1.11.0) enthielt die Randnotiz „Zusätzlich erwägen: Analog zu UX-06
+   einen dezenten Dauerhinweis, solange ein Namensfilter aktiv ist". Eine offene Aufgabe in
+   einem geschlossenen Eintrag wird nicht mehr gefunden.
+
+*Lehre: Ein Eintrag, dessen Akzeptanz niemand nachmisst, ist nicht erledigt – er ist
+unbeobachtet. Und offene Punkte gehören nicht in geschlossene Einträge.*
+
+**Umgesetzt:**
+- Eingeschaltete Toolbar-Schalter tragen eine **gefüllte Akzentfläche** mit weißem Symbol
+  statt nur eines getönten Glyphs.
+- Das Suchfeld bekommt bei gesetztem Filter einen **Akzentrahmen**; ein Feld mit Text sah
+  vorher fast aus wie eines ohne.
+- Der Namensfilter erscheint als **Dauerhinweis** neben „N Typen ausgeblendet" – mit
+  Klartext („Namensfilter „swift"") und einem Knopf zum Löschen.
+- Der Fenstertitel „activities" ist aus der Leiste genommen (er stand redundant neben dem
+  Ordnernamen); der Fenstername wird per AppKit nachgesetzt, damit das Fenster im Menü
+  „Fenster" nicht namenlos bleibt.
+
+**⚠️ Offen: Breite.** Gemessen passt die vollständige Leiste ab **1432 pt**; bei 1280 pt
+liegen vier Bedienelemente im Überlaufmenü „»". Der Versuch, links Platz zu schaffen, ging
+ins Leere: Zwischen linker Gruppe und rechtem Rand hält SwiftUI einen Streifen für den
+Fenstertitel frei, der auch **ohne** Titel reserviert bleibt (~210 pt sichtbare Lücke, in die
+nichts nachrückt). Auch `.primaryAction` füllt sie nicht. Nächster Hebel wäre, die beiden
+Zeit-Segmentwahlen (`Tage|Spanne|Alle` und `Heute|−3|…`) zu **einem** Bedienelement
+zusammenzuziehen – geschätzt ~85 pt.
+
+
 **Aufwand:** L · **Nutzen:** gering, solange die Messung gilt
 
 Aufgekommen bei der Planung von PR-27: Wenn die Einrückung die Zeilen zu breit macht, bräuchte

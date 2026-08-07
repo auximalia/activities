@@ -1661,19 +1661,40 @@ final class ReportViewModel {
         recomputeDisplayBuckets()
         let displayed = Set(displayedFolders())
         if preserveOnNextLoad {
-            expandedFolders = expandedFolders.intersection(displayed)
+            expandedFolders = withAncestors(expandedFolders.intersection(displayed))
             if case .folder(let url) = cursor, !displayed.contains(url) {
                 cursor = nil
             }
         } else if !restoredExpansion.isEmpty {
             // Zustand der letzten Sitzung wiederherstellen – aber nur fuer
             // Ordner, die es noch gibt.
-            expandedFolders = Set(restoredExpansion).intersection(displayed)
+            expandedFolders = withAncestors(Set(restoredExpansion).intersection(displayed))
             restoredExpansion = []
         } else {
             expandedFolders = displayed
         }
         if let focus = chartFocus { applyChartFocus(for: focus.folder) }
+    }
+
+    /// Ergaenzt eine Menge aufgeklappter Ordner um deren **Vorfahren**.
+    ///
+    /// **⚠️ Ohne das ist ein wiederhergestellter Zustand im Baum wertlos.**
+    /// Gemessen an einem echten gespeicherten Zustand: Er enthielt
+    /// `…/PM2025/04_Testmanagement/Testkonzepte`, aber nicht `PM2025`. In der
+    /// flachen Liste war jeder Ordner oberste Ebene, da fiel das nicht auf – im
+    /// Baum blieb der ganze Ast zu, und die App zeigte beim ersten Start drei
+    /// zugeklappte Zeilen statt der gewohnten Uebersicht.
+    ///
+    /// Aufklappen ohne die Vorfahren ist dieselbe Halbheit wie beim Sprung aus
+    /// dem Diagramm (siehe ``reveal(_:)``): Ein geoeffneter Ordner, den niemand
+    /// sehen kann, ist nicht geoeffnet.
+    private func withAncestors(_ folders: Set<URL>) -> Set<URL> {
+        guard viewMode == .tree else { return folders }
+        var result = folders
+        for folder in folders {
+            result.formUnion(FolderTree.ancestors(of: folder, in: displayTree))
+        }
+        return result
     }
 
     private func resetResults() {

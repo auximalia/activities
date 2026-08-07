@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.19 · 2026-08-07*
+*Stand: v1.19.20 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1268,13 +1268,24 @@ unbeobachtet. Und offene Punkte gehören nicht in geschlossene Einträge.*
   Ordnernamen); der Fenstername wird per AppKit nachgesetzt, damit das Fenster im Menü
   „Fenster" nicht namenlos bleibt.
 
-**⚠️ Offen: Breite.** Gemessen passt die vollständige Leiste ab **1432 pt**; bei 1280 pt
-liegen vier Bedienelemente im Überlaufmenü „»". Der Versuch, links Platz zu schaffen, ging
-ins Leere: Zwischen linker Gruppe und rechtem Rand hält SwiftUI einen Streifen für den
-Fenstertitel frei, der auch **ohne** Titel reserviert bleibt (~210 pt sichtbare Lücke, in die
-nichts nachrückt). Auch `.primaryAction` füllt sie nicht. Nächster Hebel wäre, die beiden
-Zeit-Segmentwahlen (`Tage|Spanne|Alle` und `Heute|−3|…`) zu **einem** Bedienelement
-zusammenzuziehen – geschätzt ~85 pt.
+**Breite — gelöst, aber erst im dritten Anlauf.** Die vollständige Leiste passte zunächst
+erst ab 1432 pt; bei 1280 lagen vier Bedienelemente im Überlaufmenü „»".
+
+1. *Fenstertitel leeren* (`navigationTitle("")`) — half nicht. Der Platz blieb **reserviert**:
+   ~210 pt sichtbare Lücke, in die von links nichts nachrückte.
+2. *Elemente nach `.primaryAction` verschieben* — half auch nicht; die Lücke füllt sich von
+   rechts genauso wenig.
+3. *`windowToolbarStyle(.unifiedCompact(showsTitle: false))`* — das war es. Der Schalter nimmt
+   den **Titelstreifen** aus der Leiste, nicht nur den Text darin.
+
+*Lehre: Wer Platz sucht, muss wissen, wer ihn belegt. Zwei Versuche gingen daneben, weil sie
+den Text bekämpften statt den Streifen.*
+
+**Zusätzlich zusammengezogen:** Zeitmodus und Tageszahl standen als zwei Segmentwahlen
+nebeneinander – zwei Bedienelemente für *eine* Frage. Jetzt eine Reihe:
+`Heute · −3 · −7 · −30 · −90 · ⚙ · Spanne · Alle`. Der Platzgewinn war mit ~15 pt klein (die
+Zahl der Segmente bleibt ja), der Gewinn an Klarheit größer: Die Zeitwahl liest sich in einem
+Zug statt in zwei Schritten.
 
 
 **Aufwand:** L · **Nutzen:** gering, solange die Messung gilt

@@ -21,7 +21,7 @@ struct HelpView: View {
                 ])
 
                 section("Zeitraum festlegen", icon: "calendar", [
-                    "„Tage“: Schnellwahl Heute/3/7/30/90; das Regler-Symbol öffnet die freie Eingabe.",
+                    "Eine Reihe für alles: Heute · −3 · −7 · −30 · −90 · Regler (eigene Zahl) · Spanne · Alle.",
                     "Gerechnet wird in **Kalendertagen bis heute** – „Heute“ beginnt um 0 Uhr.",
                     "„Spanne“: feste Von–Bis, bis max. heute – wirkt sofort.",
                     "„Alle“: ohne Zeitgrenze – die App wird zum reinen Suchwerkzeug.",

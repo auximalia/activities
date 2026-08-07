@@ -51,12 +51,7 @@ struct RootView: View {
         // Diagramm und gehoert in dessen Naehe, nicht in die Fenster-Metazeile.
         // Der Ordnername steht jetzt sichtbar im Ordner-Menue der Toolbar –
         // im Fenstertitel waere er unmittelbar daneben eine Dopplung.
-        // **Kein Titel in der Leiste.** „activities" stand neben dem
-        // Ordnernamen und kostete rund 90 pt – die fehlten den
-        // Zustandsschaltern, die dadurch ins Ueberlaufmenue rutschten.
-        // Der Fenstername wird stattdessen in ``WindowReader`` gesetzt,
-        // damit das Fenster im Menue „Fenster" nicht namenlos bleibt.
-        .navigationTitle("")
+        .navigationTitle("activities")
         .task { model.startInitialScanIfNeeded() }
         .task { await updates.check() }
         // Ein Programm, das sich nicht starten laesst, muss **dastehen**. Der

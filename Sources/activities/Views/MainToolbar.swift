@@ -275,28 +275,43 @@ struct MainToolbar: ToolbarContent {
     private var timeRangeControls: some View {
         HStack(spacing: 8) {
             Picker("", selection: Binding(
-                get: { model.timeMode },
-                set: { model.setTimeMode($0) }
+                get: { timeChoice },
+                set: { applyTimeChoice($0) }
             )) {
-                Text("Tage").tag(TimeMode.rolling)
-                Text("Spanne").tag(TimeMode.range)
-                Text("Alle").tag(TimeMode.all)
+                // „Heute" statt „1": Der Sonderfall verdient seinen Namen –
+                // ein alleinstehendes „1" wirft die Frage „eins was?" auf.
+                // Seit das Fenster in Kalendertagen rechnet, stimmt es auch:
+                // 1 Tag = ab Tagesbeginn.
+                Text("Heute").tag(TimeChoice.days(1))
+                // Echtes Minuszeichen (U+2212), nicht der Bindestrich: Es steht
+                // auf Zifferhoehe und liest sich als Vorzeichen, nicht als
+                // Trennstrich. Die Zahlen zeigen damit, wohin es geht –
+                // rueckwaerts.
+                Text("\u{2212}3").tag(TimeChoice.days(3))
+                Text("\u{2212}7").tag(TimeChoice.days(7))
+                Text("\u{2212}30").tag(TimeChoice.days(30))
+                Text("\u{2212}90").tag(TimeChoice.days(90))
+                Image(systemName: "slider.horizontal.3").tag(TimeChoice.customDays)
+                Text("Spanne").tag(TimeChoice.range)
+                Text("Alle").tag(TimeChoice.all)
             }
             .pickerStyle(.segmented)
             .fixedSize()
-            .help("Rollierende Tage, feste Zeitspanne oder ohne Zeitgrenze (reines Suchen)")
-            .accessibilityLabel("Zeitmodus")
+            .help("Zeitraum: Kalendertage bis heute („Heute“ = ab 0 Uhr), eigene Tageszahl, feste Zeitspanne oder ohne Zeitgrenze")
+            .accessibilityLabel("Zeitraum")
+            .accessibilityValue(timeChoiceLabel)
+            .popover(isPresented: $showCustomDays, arrowEdge: .bottom) {
+                customDaysEditor
+            }
 
-            if model.ignoreTimeWindow {
-                EmptyView()
-            } else if model.useDateRange {
+            if model.useDateRange {
                 DatePicker("", selection: Binding(
                     get: { model.rangeStart },
                     set: { model.setRangeStart($0) }
                 ), in: ...model.rangeEnd, displayedComponents: .date)
                 .datePickerStyle(.field).labelsHidden()
                 .help("Von (inklusive)")
-            .accessibilityLabel("Zeitraum von")
+                .accessibilityLabel("Zeitraum von")
 
                 Text("–").foregroundStyle(.secondary)
 
@@ -306,48 +321,58 @@ struct MainToolbar: ToolbarContent {
                 ), in: model.rangeStart...Date(), displayedComponents: .date)
                 .datePickerStyle(.field).labelsHidden()
                 .help("Bis (inklusive ganzem Tag, max. heute)")
-            .accessibilityLabel("Zeitraum bis")
-            } else {
-                Picker("", selection: Binding(
-                    get: { presetSelection },
-                    set: { applyPreset($0) }
-                )) {
-                    // „Heute" statt „1": Der Sonderfall verdient seinen Namen –
-                    // ein alleinstehendes „1" wirft die Frage „eins was?" auf.
-                    // Seit das Fenster in Kalendertagen rechnet, stimmt es auch:
-                    // 1 Tag = ab Tagesbeginn.
-                    Text("Heute").tag(1)
-                    // Echtes Minuszeichen (U+2212), nicht der Bindestrich: Es
-                    // steht auf Zifferhoehe und liest sich als Vorzeichen, nicht
-                    // als Trennstrich. Die Zahlen zeigen damit, wohin es geht –
-                    // rueckwaerts.
-                    Text("\u{2212}3").tag(3)
-                    Text("\u{2212}7").tag(7)
-                    Text("\u{2212}30").tag(30)
-                    Text("\u{2212}90").tag(90)
-                    Image(systemName: "slider.horizontal.3").tag(-1)
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-                .help("Zeitraum in Kalendertagen bis heute · „Heute“ = ab 0 Uhr")
-            .accessibilityLabel("Zeitraum in Tagen")
-                .popover(isPresented: $showCustomDays, arrowEdge: .bottom) {
-                    customDaysEditor
-                }
+                .accessibilityLabel("Zeitraum bis")
             }
         }
     }
 
-    /// Aktuelle Auswahl: ein Preset oder „Eigene …" (−1).
-    private var presetSelection: Int {
-        [1, 3, 7, 30, 90].contains(model.days) ? model.days : -1
+    /// Eine Wahl im **einen** Zeitraum-Bedienelement.
+    ///
+    /// **Warum zusammengezogen:** Zeitmodus und Tageszahl standen als zwei
+    /// Segmentwahlen nebeneinander – zwei Bedienelemente fuer *eine* Frage
+    /// („welchen Zeitraum sehe ich?"). Gemessen kosteten sie zusammen rund 365 pt
+    /// und draengten vier Schalter ins Ueberlaufmenue. Als eine Reihe sind es
+    /// ~290 pt, und die Wahl liest sich in einem Zug: fuenf Tageszahlen, eigene
+    /// Zahl, feste Spanne, ohne Grenze.
+    enum TimeChoice: Hashable {
+        case days(Int)
+        case customDays
+        case range
+        case all
     }
 
-    private func applyPreset(_ value: Int) {
-        if value == -1 {
+    private var timeChoice: TimeChoice {
+        switch model.timeMode {
+        case .all: .all
+        case .range: .range
+        case .rolling: [1, 3, 7, 30, 90].contains(model.days) ? .days(model.days) : .customDays
+        }
+    }
+
+    private var timeChoiceLabel: String {
+        switch timeChoice {
+        case .days(1): "Heute"
+        case .days(let n): "letzte \(n) Tage"
+        case .customDays: "\(model.days) Tage"
+        case .range: "feste Zeitspanne"
+        case .all: "ohne Zeitgrenze"
+        }
+    }
+
+    private func applyTimeChoice(_ choice: TimeChoice) {
+        switch choice {
+        case .days(let n):
+            model.setTimeMode(.rolling)
+            model.setDays(n)
+        case .customDays:
+            // Erst in den Tagesmodus, dann die freie Eingabe oeffnen – sonst
+            // stuende das Feld ueber einer Ansicht, die gar nicht in Tagen rechnet.
+            model.setTimeMode(.rolling)
             showCustomDays = true
-        } else {
-            model.setDays(value)
+        case .range:
+            model.setTimeMode(.range)
+        case .all:
+            model.setTimeMode(.all)
         }
     }
 

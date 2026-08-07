@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.20 · 2026-08-07*
+*Stand: v1.19.21 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -686,7 +686,7 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 | **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
 | **v1.19** ✅ | Täglicher Begleiter | PR-07 … PR-10 – **abgeschlossen** |
 | **v1.20** | Schneller wieder reinkommen | PR-26, PR-11 … PR-14 – **Sprint 9 geplant**, PR-12 ✅ |
-| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Einstiegsansicht) · PR-28 · PR-30 · PR-29 ⏸ |
+| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Einstiegsansicht) · PR-28 · PR-30 · PR-31 · PR-29 ⏸ |
 | **v1.22** | Rückblick und Bericht | PR-15 … PR-18 |
 | **v1.23** | Suchen und Finden | PR-19 … PR-21 |
 | **v2.0** | Vertrauen und Verbreitung | PR-22 … PR-25 |
@@ -1287,7 +1287,28 @@ nebeneinander – zwei Bedienelemente für *eine* Frage. Jetzt eine Reihe:
 Zahl der Segmente bleibt ja), der Gewinn an Klarheit größer: Die Zeitwahl liest sich in einem
 Zug statt in zwei Schritten.
 
+### PR-31 · Zeilendichte *(erledigt, v1.19.21)*
+**Aufwand:** S · **Nutzen:** hoch
 
+**Gemeldet:** „Bei diesen Zeilenhoehen verschwenden wir ganz schoen viel Platz – besonders in
+der Baumansicht."
+
+**⚠️ Die Hoehe kam vom Symbol, nicht vom Text.** Gemessen: Ordnersymbol 18 pt plus 2 pt
+Innenabstand ergaben 22 pt Inhalt, mit dem Zeilenabstand **32 pt je Zeile**. Die Schriftzeile
+selbst misst rund 16 pt – der Text haette also nie so viel gebraucht. Finder kommt mit ~24 pt
+aus, Xcode mit ~22.
+
+**Umgesetzt:** Symbole 18 → 16 pt, Innenabstand 2 → 1, Zeilenabstand 5/3 → 3/2, Fuge zwischen
+den Zeilen 2 → 1 pt. Ergebnis **24 pt je Zeile** – im selben Fenster 21 statt 15 Zeilen
+(+40 %). Die Schrift bleibt unveraendert; es verschwindet nur Luft, die niemand gebraucht hat.
+
+**Folgewirkung, die man leicht uebersieht:** `connectorX` (die Mitte des Ordnersymbols, an der
+die Verzweigungslinie haengt) sank dadurch von 39 auf 37 pt. Damit fiel die **Untergrenze fuer
+die Einrueckung** von 31 auf 25 pt – die Baumeinrueckung konnte von 34 auf 28 pt zurueck, ohne
+dass die Linie ihren Platz verliert. Bei fuenf Ebenen sind das 30 pt weniger Einrueckung. Die
+Masse haengen zusammen; wer eines aendert, muss die Kette nachrechnen (siehe `RowMetrics`).
+
+### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
 **Aufwand:** L · **Nutzen:** gering, solange die Messung gilt
 
 Aufgekommen bei der Planung von PR-27: Wenn die Einrückung die Zeilen zu breit macht, bräuchte

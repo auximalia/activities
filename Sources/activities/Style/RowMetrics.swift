@@ -12,9 +12,27 @@ enum RowMetrics {
     /// Abstand zwischen den Elementen einer Zeile.
     static let itemSpacing: CGFloat = 8
     /// Feste Kantenlaenge des Ordnersymbols (macht seine Mitte berechenbar).
-    static let folderIconSize: CGFloat = 18
+    ///
+    /// **⚠️ Das Symbol bestimmt die Zeilenhoehe, nicht der Text.** Die
+    /// Schriftzeile misst rund 16 pt; ein 18-pt-Symbol mit 2 pt Innenabstand
+    /// machte daraus 22 pt und mit dem Zeilenabstand 32 pt je Zeile – gemessen.
+    /// Finder kommt mit ~24 pt aus. 16 pt Symbol und 1 pt Abstand ergeben 18 pt
+    /// Inhalt: gerade so viel, wie die Schrift ohnehin braucht.
+    static let folderIconSize: CGFloat = 16
     /// Innenabstand um das Ordnersymbol herum (Klickflaeche).
-    static let folderIconPadding: CGFloat = 2
+    static let folderIconPadding: CGFloat = 1
+    /// Kantenlaenge der Dateisymbole – dieselbe Hoehe wie die Ordnersymbole,
+    /// damit Ordner- und Dateizeilen gleich hoch werden.
+    static let fileIconSize: CGFloat = 16
+    /// Senkrechter Innenabstand einer Ordnerzeile.
+    static let folderRowPadding: CGFloat = 3
+    /// Senkrechter Innenabstand einer Dateizeile.
+    static let fileRowPadding: CGFloat = 2
+    /// Abstand zwischen zwei Zeilen in der Liste.
+    ///
+    /// 1 pt statt 2: Bei 0 stossen die Zebra-Streifen aneinander und die Liste
+    /// wirkt wie ein Block; 1 pt genuegt als Fuge.
+    static let rowSpacing: CGFloat = 1
 
     /// Breite der Rinne, in der die Baumlinien gezeichnet werden.
     static let connectorWidth: CGFloat = 22
@@ -23,15 +41,17 @@ enum RowMetrics {
     /// **⚠️ Nicht frei waehlbar – es gibt eine Untergrenze.** Die senkrechte
     /// Verzweigungslinie soll wie in der Listenansicht aus der **Mitte des
     /// Ordnersymbols** des Elternteils nach unten laufen, also bei
-    /// ``connectorX`` = 39 pt. Damit sie links vom Aufklapppfeil des Kindes
-    /// bleibt und nicht mitten durch dessen Zeile schneidet, muss gelten:
+    /// ``connectorX``. Damit sie links vom Aufklapppfeil des Kindes bleibt und
+    /// nicht mitten durch dessen Zeile schneidet, muss gelten:
     ///
-    ///     Schrittweite + horizontalPadding > connectorX   →   Schrittweite > 31
+    ///     Schrittweite + treeDisclosureLeading > connectorX
+    ///     28 + 12 = 40 > 37  ✓
     ///
-    /// Mit 34 pt liegen 3 pt Luft dazwischen. Der Preis ist Breite – gemessen
-    /// unkritisch, weil die Zeilenbreite von langen Dateinamen bestimmt wird und
-    /// nicht von der Schachtelung (Backlog PR-29).
-    static let treeIndentStep: CGFloat = 34
+    /// Mit dem kleineren Ordnersymbol (16 statt 18 pt) ist ``connectorX`` von 39
+    /// auf 37 gesunken – die Untergrenze fiel damit von 31 auf 25 pt. Deshalb
+    /// reichen jetzt 28 statt 34 pt: bei fuenf Ebenen 30 pt weniger Einrueckung,
+    /// ohne dass die Linie ihren Platz verliert.
+    static let treeIndentStep: CGFloat = 28
 
     /// Zusatz-Einrueckung von **Dateizeilen** im Baum.
     ///
@@ -49,7 +69,7 @@ enum RowMetrics {
     ///
     ///     treeDisclosureLeading + disclosureWidth + treeDisclosureToIcon
     ///         + folderIconPadding + folderIconSize/2  ==  connectorX
-    ///     12 + 12 + 4 + 2 + 9 == 39  ✓
+    ///     12 + 12 + 4 + 1 + 8 == 37  ✓
     static let treeDisclosureLeading: CGFloat = 12
     /// Abstand zwischen Aufklapppfeil und Ordnersymbol (nur Baumansicht).
     static let treeDisclosureToIcon: CGFloat = 4

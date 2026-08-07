@@ -80,7 +80,7 @@ struct FolderRowView: View {
                 .lineLimit(1)
                 .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, RowMetrics.folderRowPadding)
         .padding(.horizontal, RowMetrics.horizontalPadding)
         .background(SelectionBackground(isActive: isSelected))
         // Gleiche Grundfarbe wie eine gerade Dateizeile: Ohne sie stuende

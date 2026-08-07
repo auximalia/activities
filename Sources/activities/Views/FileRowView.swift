@@ -41,12 +41,12 @@ struct FileRowView: View {
                 Image(nsImage: FileIconProvider.icon(for: file.url))
                     .resizable()
                     .interpolation(.high)
-                    .frame(width: 18, height: 18)
+                    .frame(width: RowMetrics.fileIconSize, height: RowMetrics.fileIconSize)
                     // Ausserhalb des Zeitraums: Icon entfaerben und leicht dimmen,
                     // damit die farbigen Icons die relevanten Treffer markieren.
                     .saturation(isInWindow ? 1 : RowMetrics.outOfWindowIconSaturation)
                     .opacity(isInWindow ? 1 : RowMetrics.outOfWindowIconOpacity)
-                    .padding(2)
+                    .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -78,7 +78,7 @@ struct FileRowView: View {
                 .lineLimit(1)
                 .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, RowMetrics.fileRowPadding)
         .padding(.horizontal, RowMetrics.horizontalPadding)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         // Cursor ohne Auswahl: nur ein feiner Rahmen – sonst waere nicht

@@ -48,7 +48,7 @@ struct ReportView: View {
         let isCompact = width < RowMetrics.compactThreshold
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
+                LazyVStack(alignment: .leading, spacing: RowMetrics.rowSpacing, pinnedViews: [.sectionHeaders]) {
                     // Unsichtbarer Anker fuer „An den Anfang" (⌘↑).
                     Color.clear
                         .frame(height: 0)
@@ -72,7 +72,7 @@ struct ReportView: View {
                                     // Linie je Ordnerblock waere ein drittes
                                     // konkurrierendes Mittel (neben Zebra und
                                     // Baumlinien) – stattdessen genuegt Abstand.
-                                    Color.clear.frame(height: 10)
+                                    Color.clear.frame(height: 6)
                                 }
                             } header: {
                                 sectionHeader(bucket)

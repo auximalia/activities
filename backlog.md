@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.15 · 2026-08-07*
+*Stand: v1.19.16 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1200,24 +1200,24 @@ datumstiftende Datei in Fett, Diagramm-Sprung, Export. Der flache Pfad behält e
 Prüfungen in `CoreChecks`, damit ein Rückschritt auffällt und nicht erst im Gebrauch bemerkt
 wird.
 
-### PR-28 · Abschnitt „Angeheftet" deutlicher absetzen *(neu, aufgenommen v1.19.7)*
+### PR-28 · Abschnitt „Angeheftet" deutlicher absetzen *(erledigt, v1.19.16)*
 **Aufwand:** S · **Nutzen:** mittel
 
-In der Listenansicht steht „Angeheftet" als Abschnittskopf **gleichrangig** neben „Heute",
-„Gestern", „Diese Woche" (`ReportViewModel.swift:772`, gezeichnet in
-`ReportView.sectionHeader`). Er ist aber von anderer Art: Die Zeitabschnitte sind eine
+In der Listenansicht stand „Angeheftet" als Abschnittskopf **gleichrangig** neben „Heute",
+„Gestern", „Diese Woche". Er ist aber von anderer Art: Die Zeitabschnitte sind eine
 *Beobachtung*, „Angeheftet" ist eine *Entscheidung des Anwenders*. Gleiche Gestaltung für
-Ungleiches lässt den Abschnitt in der Reihe untergehen.
+Ungleiches liess den Abschnitt in der Reihe untergehen.
 
-Zu klären: eigenes Symbol im Kopf, abgesetzte Färbung, und eine sichtbare Trennung zum ersten
-Zeitabschnitt. **⚠️ Nicht über Farbe allein** – die Datenschicht (UX-27) ist für Dateitypen
-reserviert, und Farbe allein trägt keine Bedeutung für Farbfehlsichtige.
+**Umgesetzt:** Nadel-Symbol im Kopf, getönter Grund statt `.bar`, Unterlinie und ein sichtbarer
+Abstand zum ersten Zeitabschnitt. **⚠️ Der Unterschied ruht nicht auf Farbe allein** – das
+Symbol trägt für sich, auch für Farbfehlsichtige. VoiceOver nennt den Abschnitt „Angeheftete
+Ordner" statt „Zeitabschnitt …".
 
-Betrifft nur die **Listenansicht**. Im Baum wird Anheften zur Markierung am Knoten (PR-27).
+**⚠️ Ein Merkmal, kein Namensvergleich.** `BucketedEntries` hat dafür ein `isPinned` bekommen.
+Auf die Beschriftung „Angeheftet" zu prüfen wäre die naheliegende Abkürzung gewesen – ein
+Anzeigetext ist aber kein Datenmerkmal; er ändert sich mit der Sprache. Eigene Prüfung dagegen.
 
-**Akzeptanz:** Der Abschnitt „Angeheftet" ist auf einen Blick von den Zeitabschnitten zu
-unterscheiden; der Unterschied ruht nicht auf Farbe allein; VoiceOver nennt ihn als
-angehefteten Bereich.
+Betrifft nur die **Listenansicht**. Im Baum ist Anheften eine Markierung am Knoten (PR-27).
 
 ### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
 **Aufwand:** L · **Nutzen:** gering, solange die Messung gilt

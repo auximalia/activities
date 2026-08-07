@@ -76,9 +76,18 @@ public struct BucketedEntries: Identifiable, Sendable {
     public var id: String { label }
     public let label: String
     public var entries: [FolderEntry]
+    /// Ob dieser Abschnitt die **angehefteten** Ordner traegt.
+    ///
+    /// **⚠️ Ein Merkmal, kein Namensvergleich.** Der Abschnitt ist von anderer
+    /// Art als die Zeitabschnitte: „Heute" ist eine *Beobachtung*, „Angeheftet"
+    /// eine *Entscheidung des Anwenders*. Die Oberflaeche muss das unterscheiden
+    /// koennen – aber nicht, indem sie auf die Beschriftung „Angeheftet" prueft.
+    /// Ein Anzeigetext ist kein Datenmerkmal; er aendert sich mit der Sprache.
+    public let isPinned: Bool
 
-    public init(label: String, entries: [FolderEntry]) {
+    public init(label: String, entries: [FolderEntry], isPinned: Bool = false) {
         self.label = label
         self.entries = entries
+        self.isPinned = isPinned
     }
 }

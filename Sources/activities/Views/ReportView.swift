@@ -77,6 +77,12 @@ struct ReportView: View {
                             } header: {
                                 sectionHeader(bucket)
                             }
+                            // Angeheftetes ist keine Beobachtung, sondern eine
+                            // Entscheidung – der Bruch zum ersten Zeitabschnitt
+                            // darf man sehen.
+                            if bucket.isPinned {
+                                Color.clear.frame(height: 8)
+                            }
                         }
                     }
 
@@ -280,6 +286,15 @@ struct ReportView: View {
         }
     }
 
+    /// Kopfzeile eines Abschnitts.
+    ///
+    /// **Angeheftet wird abgesetzt – und zwar nicht ueber Farbe allein.** Die
+    /// Zeitabschnitte („Heute", „Gestern" …) sind eine **Beobachtung**;
+    /// „Angeheftet" ist eine **Entscheidung des Anwenders**. Gleiche Gestaltung
+    /// fuer Ungleiches liess den Abschnitt in der Reihe untergehen. Der
+    /// Unterschied ruht deshalb auf drei Traegern: einem **Symbol** (traegt
+    /// allein, auch ohne Farbe und fuer Farbfehlsichtige), einer abgesetzten
+    /// Faerbung und einer Linie zum Inhalt darunter.
     private func sectionHeader(_ bucket: BucketedEntries) -> some View {
         // Dateisumme live aus den sichtbaren Detaildateien der Ordner dieses
         // Zeitabschnitts (gleiche Logik wie in der Ordnerzeile).
@@ -288,11 +303,29 @@ struct ReportView: View {
             let live = model.visibleFileCount(in: entry.folder)
             return sum + (live > 0 ? live : entry.fileCount)
         }
-        return Text("\(bucket.label) · \(folderCount) Ordner / \(fileCount) \(fileCount == 1 ? "Datei" : "Dateien")")
-            .font(.headline)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 8)
-            .background(.bar)
+        let text = "\(bucket.label) · \(folderCount) Ordner / \(fileCount) \(fileCount == 1 ? "Datei" : "Dateien")"
+        return HStack(spacing: 6) {
+            if bucket.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.caption)
+                    .foregroundStyle(.tint)
+            }
+            Text(text)
+                .font(.headline)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(bucket.isPinned ? AnyShapeStyle(.tint.opacity(0.10)) : AnyShapeStyle(.bar))
+        .overlay(alignment: .bottom) {
+            if bucket.isPinned {
+                Rectangle()
+                    .fill(Color.accentColor.opacity(0.45))
+                    .frame(height: 1)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(bucket.isPinned ? "Angeheftete Ordner" : "Zeitabschnitt \(bucket.label)")
+        .accessibilityValue("\(folderCount) Ordner, \(fileCount) Dateien")
     }
 }

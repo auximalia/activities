@@ -934,6 +934,22 @@ do {
     }
 }
 
+// MARK: - BucketedEntries: angehefteter Abschnitt ist ein Merkmal
+do {
+    let e = FolderEntry(folder: URL(fileURLWithPath: "/r/a"), newestDate: date(2026, 8, 7), fileCount: 1)
+    let zeit = BucketedEntries(label: "Heute", entries: [e])
+    let angeheftet = BucketedEntries(label: "Angeheftet", entries: [e], isPinned: true)
+    expect(!zeit.isPinned, "Abschnitt: Zeitabschnitte sind nicht angeheftet")
+    expect(angeheftet.isPinned, "Abschnitt: angehefteter Abschnitt traegt das Merkmal")
+    // ⚠️ Die Oberflaeche darf sich NICHT auf die Beschriftung verlassen: Ein
+    // Zeitabschnitt koennte theoretisch genauso heissen.
+    expect(!BucketedEntries(label: "Angeheftet", entries: [e]).isPinned,
+           "Abschnitt: die Beschriftung allein macht keinen angehefteten Abschnitt")
+    // Und die Gruppierung erzeugt nur Zeitabschnitte.
+    expect(TimeBucket.group([e]).allSatisfy { !$0.isPinned },
+           "Abschnitt: TimeBucket.group liefert ausschliesslich Zeitabschnitte")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

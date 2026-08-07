@@ -833,7 +833,7 @@ final class ReportViewModel {
                 let ordered = RowSorting.folders(pinnedEntries, by: sort) { [weak self] in
                     self?.dominantExtension(of: $0)
                 }
-                grouped.insert(BucketedEntries(label: "Angeheftet", entries: ordered), at: 0)
+                grouped.insert(BucketedEntries(label: "Angeheftet", entries: ordered, isPinned: true), at: 0)
             }
         }
         displayBuckets = grouped

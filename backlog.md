@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.8 · 2026-08-07*
+*Stand: v1.19.9 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -686,7 +686,7 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 | **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
 | **v1.19** ✅ | Täglicher Begleiter | PR-07 … PR-10 – **abgeschlossen** |
 | **v1.20** | Schneller wieder reinkommen | PR-26, PR-11 … PR-14 – **Sprint 9 geplant**, PR-12 ✅ |
-| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Voreinstellung) · PR-28 |
+| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Einstiegsansicht) · PR-28 · PR-29 ⏸ |
 | **v1.22** | Rückblick und Bericht | PR-15 … PR-18 |
 | **v1.23** | Suchen und Finden | PR-19 … PR-21 |
 | **v2.0** | Vertrauen und Verbreitung | PR-22 … PR-25 |
@@ -1014,13 +1014,20 @@ in einem dritten Abschnitt. 19 von 46 Verwandtschaften (41 %) kreuzen eine Absch
 
 #### Entschieden
 
-**Der Baum wird die Voreinstellung; die Zeitgliederung bleibt als zweite Ansicht erhalten.**
-Im Baum kommt jeder Ordner **genau einmal** vor, Zeitabschnitte entfallen dort. Das Datum
-bleibt in jeder Zeile, die Zeitachse im Diagramm.
+**Zwei gleichrangige Blickrichtungen: „Wann" und „Wo".** Die Baumansicht (*wo?*) ist die
+Einstiegsansicht, die Zeitgliederung (*wann?*) bleibt als vollwertige zweite Ansicht
+erhalten. Im Baum kommt jeder Ordner **genau einmal** vor, Zeitabschnitte entfallen dort. Das
+Datum bleibt in jeder Zeile, die Zeitachse im Diagramm.
+
+**⚠️ Die Listenansicht ist kein Auslaufmodell.** Sie ist die gewachsene, tragende Lösung –
+Zeitabschnitte, Datumsspalte, Zebra, Baumlinien, die datumstiftende Datei in Fett, das
+Zusammenspiel mit Diagramm und Legende. Der Baum tritt **daneben**, nicht darüber. Kein
+Arbeitspaket darf die Listenansicht funktional beschneiden, um den Baum leichter zu machen;
+im Zweifel bekommt der Baum den Sonderfall, nicht die Liste den Verlust.
 
 **⚠️ Das ist eine Änderung der Leitfrage.** Die App beantwortete bisher zuerst *„wann?"*.
 Künftig zuerst *„wo?"*, mit dem Wann daneben. Die Zeitansicht darf deshalb nicht zur
-versteckten Sonderfunktion verkommen – sie bleibt gleichwertig erreichbar.
+versteckten Sonderfunktion verkommen – sie bleibt gleichrangig erreichbar und benannt.
 
 - **Durchgangsknoten** (Zwischenknoten ohne eigenen Dateibeitrag) bekommen eine **eigene
   Zeile in schwächerer Schrift**. Sie dürfen nicht aussehen wie ein Ordner, in dem gearbeitet
@@ -1037,6 +1044,26 @@ versteckten Sonderfunktion verkommen – sie bleibt gleichwertig erreichbar.
 
 #### Was bedacht werden muss
 
+**Alles, was die Liste kann, muss der Baum auch können.** Die Baumansicht ist eine andere
+*Gliederung* derselben Daten, keine andere Funktionsmenge:
+
+- **Auf- und Zuklappen** einzelner Ordner sowie „alle auf/zu" (`setAllExpanded`, `:1070`).
+  Neu ist nur, dass Zuklappen ganze **Teilbäume** verbirgt. ⚠️ Im Modus „Alle" umfasst der
+  Baum gemessen **1 410 Knoten** – „alle aufklappen" ist dort ein anderer Handgriff als bei
+  66 Knoten und braucht dieselbe Bremse wie PR-26.
+- **Dateien zeigen oder nicht** – die Dateizeilen hängen wie bisher am Aufklappzustand.
+- **Der Zeitfenster-Schalter** („Dateien außerhalb des Zeitraums zeigen",
+  `setShowOutOfWindowFiles`, `:1071`) wirkt unverändert über `isVisibleDetail`.
+- **Der Typ-Filter der Legende** wirkt unverändert auf die Dateizeilen.
+
+**⚠️ Neue Regel, die es in der Liste nicht gibt: der leergefilterte Ordner.** Heute
+verschwindet ein Ordner schlicht, sobald Zeitfenster oder Typ-Filter alle seine Dateien
+ausblenden (`FolderAggregator.folderEntries` liefert ihn nicht mehr). In einem Baum darf er
+das **nicht**, solange ein Nachfahre noch Treffer hat – sonst reißt der Ast ab und die Kinder
+hängen in der Luft. Er wird dann zum **Durchgangsknoten**. Damit ist dieselbe Zeile mal echter
+Treffer, mal Durchgang, je nach Filterstellung; die Darstellung muss diesen Wechsel tragen,
+ohne zu springen.
+
 **Kern** (`ActivitiesCore`, bleibt Foundation-only):
 - Neuer Typ `FolderNode`: `folder`, eigenes `newestDate` **und** `subtreeNewestDate`, eigener
   `fileCount` **und** `subtreeFileCount`, `children`, `hasOwnFiles`.
@@ -1050,10 +1077,32 @@ versteckten Sonderfunktion verkommen – sie bleibt gleichwertig erreichbar.
   `CONTRIBUTING.md`) – sie sind reine Funktionen und gut prüfbar.
 
 **Einrückung und Platz:**
-- Nach Verdichtung bis zu 5 Ebenen plus Dateiebene. Bei 16 pt je Ebene sind 96 pt verbraucht,
-  bevor der Name beginnt – im Kompakt-Layout (`RowMetrics.compactThreshold`, < 820 pt)
-  untragbar. Zu klären: kleinere Schrittweite, Deckelung ab Ebene N, oder Einrückung relativ
-  zum **flachsten sichtbaren** Knoten statt zur Wurzel.
+- Nach Verdichtung bis zu 5 Ebenen plus Dateiebene.
+- **⚠️ Eine horizontale Bildlaufleiste ist nicht nötig – gemessen.** Die Zeile hat feste
+  Kosten von 224 pt (Rand 8 + Pfeil 12 + Abstand 8 + Symbol 22 + Abstand 8 · rechts Abstand 8
+  + Datumsspalte 150 + Rand 8). Dazu Name und Einrückung. Mit den echten Schriften
+  ausgemessen:
+
+  | Zeitraum | Zeilen | median | 99 % | max | zu breit bei 820 pt | bei 1280 pt |
+  |---|---|---|---|---|---|---|
+  | 30 Tage | 461 | 420 pt | 719 pt | 813 pt | **0 %** | 0 % |
+  | Alle | 16 239 | 442 pt | 856 pt | 1 476 pt | 1,4 % | 0,02 % |
+
+  Die Schrittweite ist dabei fast belanglos: von 12 auf 20 pt je Ebene wächst die breiteste
+  Zeile um **8 pt** (809 → 817). **Die Breite kommt nicht von der Einrückung, sondern von
+  langen Dateinamen** – die breiteste Zeile überhaupt (1 476 pt, eine `.eml`-Datei) liegt auf
+  Ebene 4, die zweitbreiteste auf **Ebene 1**. Dasselbe Problem besteht also schon heute in
+  der flachen Liste.
+- **⚠️ Eine horizontale Leiste stünde zudem im Widerspruch zur Datumsspalte.** Sie sitzt
+  rechts, gehalten von einem `Spacer` (`FolderRowView.swift:74-81`). Scrollt der Inhalt
+  waagerecht, scrollt das Datum mit aus dem Bild. Es bräuchte eine **eingefrorene Spalte** –
+  also eine echte Tabelle statt einer `LazyVStack`. Das ist ein eigenes Vorhaben (PR-29), kein
+  Nebenprodukt der Baumdarstellung.
+- **Stattdessen kürzen, wie Finder und Xcode es tun.** Dateinamen kürzen bereits mittig
+  (`FileRowView.swift:48-54`). **Ordnernamen nicht:** `.fixedSize(horizontal: true)`
+  (`FolderRowView.swift:61`) verhindert das Kürzen – in der flachen Liste harmlos, im Baum
+  nicht mehr. Diese eine Zeile ist die eigentliche Änderung; vollständiger Name in Tooltip
+  und Bedienhilfen.
 - `TreeConnector` (`RowMetrics.swift:79`) kennt heute nur `isLast` für Dateizeilen. Für
   beliebige Tiefe braucht er „welche Vorfahren haben noch Geschwister danach" – durchgezogene
   gegen abbrechende Linien.
@@ -1107,9 +1156,18 @@ AP1 ist ohne sichtbare Wirkung und damit gefahrlos zuerst lieferbar.
 **Akzeptanz:** Ordner erscheinen eingerückt entsprechend ihrer Lage im Dateisystem, jeder
 genau einmal; Ketten aus Zwischenknoten sind zu einer Zeile zusammengefasst; Durchgangsknoten
 sind optisch **und** für VoiceOver von Ordnern mit eigenen Treffern unterscheidbar; ein
-Elternteil sortiert nach dem jüngsten Datum seines Teilbaums; die Zeitgliederung bleibt über
-den Umschalter erreichbar und unverändert; der Sprung aus dem Diagramm klappt alle Vorfahren
-auf; Baumaufbau und Verdichtung sind in `CoreChecks` geprüft.
+Elternteil sortiert nach dem jüngsten Datum seines Teilbaums; Aufklappen, „alle auf/zu", der
+Zeitfenster-Schalter und der Typ-Filter wirken im Baum genauso wie in der Liste; ein durch
+Filter leergeräumter Ordner bleibt als Durchgangsknoten stehen, solange ein Nachfahre Treffer
+hat; der Sprung aus dem Diagramm klappt alle Vorfahren auf; Baumaufbau und Verdichtung sind
+in `CoreChecks` geprüft.
+
+**⚠️ Zusätzliche Akzeptanz – Schutz des Erreichten:** Die Listenansicht verhält sich nach der
+Umstellung in **jedem** Punkt wie vorher: Zeitabschnitte, Abschnittsköpfe mit Ordner- und
+Dateizahl, angeheftete Ordner als eigener Abschnitt, Sortierung, Zebra, Baumlinien,
+datumstiftende Datei in Fett, Diagramm-Sprung, Export. Der flache Pfad behält eigene
+Prüfungen in `CoreChecks`, damit ein Rückschritt auffällt und nicht erst im Gebrauch bemerkt
+wird.
 
 ### PR-28 · Abschnitt „Angeheftet" deutlicher absetzen *(neu, aufgenommen v1.19.7)*
 **Aufwand:** S · **Nutzen:** mittel
@@ -1129,6 +1187,27 @@ Betrifft nur die **Listenansicht**. Im Baum wird Anheften zur Markierung am Knot
 **Akzeptanz:** Der Abschnitt „Angeheftet" ist auf einen Blick von den Zeitabschnitten zu
 unterscheiden; der Unterschied ruht nicht auf Farbe allein; VoiceOver nennt ihn als
 angehefteten Bereich.
+
+### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
+**Aufwand:** L · **Nutzen:** gering, solange die Messung gilt
+
+Aufgekommen bei der Planung von PR-27: Wenn die Einrückung die Zeilen zu breit macht, bräuchte
+es eine waagerechte Bildlaufleiste.
+
+**Zurückgestellt, weil die Prämisse gemessen nicht trägt.** Bei 30 Tagen ist **keine einzige**
+von 461 Zeilen zu breit für das schmalste Fenster (820 pt); im Modus „Alle" sind es 1,4 % bei
+820 pt und 0,02 % bei 1280 pt. Die Schrittweite der Einrückung verschiebt die breiteste Zeile
+um ganze 8 pt. Verursacher sind **lange Dateinamen**, nicht die Schachtelung – und die kürzen
+heute schon mittig.
+
+**Wenn es doch kommt, ist es kein kleiner Zusatz.** Die Datumsspalte sitzt rechts, gehalten
+von einem `Spacer` (`FolderRowView.swift:74-81`, `FileRowView.swift:64-70`). Bei waagerechtem
+Bildlauf verschwände sie aus dem Bild. Voraussetzung wäre also eine **eingefrorene Spalte** –
+und damit der Umbau der `LazyVStack` zu einer echten Tabelle mit Spaltenlayout. Das berührt
+Zebra, Baumlinien, Auswahlhintergrund und das Kompakt-Layout gleichzeitig.
+
+**Auslöser für eine Wiedervorlage:** Ein realer Bestand, in dem mehr als ~5 % der Zeilen bei
+üblicher Fensterbreite abgeschnitten werden. Dann neu messen, nicht schätzen.
 
 
 ---

@@ -39,6 +39,20 @@ enum RowMetrics {
     /// 20 pt links von dem gleichrangiger Unterordner – Geschwister saehen aus
     /// wie verschiedene Ebenen.
     static var treeFileExtraIndent: CGFloat { disclosureWidth + itemSpacing }
+
+    /// Abstand vom Zeilenanfang bis zum Aufklapppfeil (nur Baumansicht).
+    ///
+    /// **⚠️ Gemeinsam mit ``treeDisclosureToIcon`` festgelegt.** Der Pfeil soll
+    /// mittig zwischen der Verzweigungslinie und dem Ordnersymbol sitzen, und
+    /// die Symbolmitte muss weiterhin auf ``connectorX`` liegen – sonst waendert
+    /// die Linie der naechsten Ebene aus. Daraus folgt zwingend:
+    ///
+    ///     treeDisclosureLeading + disclosureWidth + treeDisclosureToIcon
+    ///         + folderIconPadding + folderIconSize/2  ==  connectorX
+    ///     12 + 12 + 4 + 2 + 9 == 39  ✓
+    static let treeDisclosureLeading: CGFloat = 12
+    /// Abstand zwischen Aufklapppfeil und Ordnersymbol (nur Baumansicht).
+    static let treeDisclosureToIcon: CGFloat = 4
     /// Eckenradius der abgerundeten Baumlinien ("Mind-Map"-Anmutung).
     static let connectorRadius: CGFloat = 6
     /// Linienstaerke der Baumlinien.

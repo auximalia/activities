@@ -196,10 +196,19 @@ struct ReportView: View {
     /// weiterhin nur zeichnet, was zu sehen ist.
     @ViewBuilder
     private func treeRows(isCompact: Bool) -> some View {
-        ForEach(model.treeRows) { row in
+        // **Zebra ueber den GANZEN Baum**, Ordner wie Dateien. Anders als in der
+        // Zeitansicht, wo es nur die Dateibloecke unter einem Ordner gliedert,
+        // sind hier alle Zeilen eine durchgehende Folge. Der Streifen beantwortet
+        // die **waagerechte** Frage – welches Datum am rechten Rand gehoert zu
+        // dieser Zeile? Die Baumlinien beantworten nur die senkrechte.
+        ForEach(Array(model.treeRows.enumerated()), id: \.element.id) { index, row in
+            let alternate = index.isMultiple(of: 2) == false
             if let node = row.node {
-                TreeFolderRowView(node: node, guides: row, model: model, isCompact: isCompact)
-                    .id(row.row)
+                TreeFolderRowView(
+                    node: node, guides: row, model: model,
+                    isCompact: isCompact, isAlternate: alternate
+                )
+                .id(row.row)
             } else if let file = row.file {
                 FileRowView(
                     file: file,
@@ -208,11 +217,12 @@ struct ReportView: View {
                     // gibt, steht fett – sie beantwortet „warum steht der
                     // Ordner hier oben?".
                     isDateSource: file.timestamp == model.newestVisibleDate(in: file.folder),
-                    // **Kein Zebra im Baum.** Es ist eine Lesehilfe fuer
-                    // lange, gleichfoermige Bloecke; hier fuehren die
-                    // Baumlinien das Auge bereits. Zwei Mittel fuer dieselbe
-                    // Aufgabe waeren ein drittes Muster im Bild (siehe
-                    // Backlog: „nur EIN Trennsystem").
+                    // **Zebra nicht hier, sondern aussen.** ``FileRowView`` legt
+                    // seinen Streifen hinter den bereits eingerueckten Inhalt –
+                    // im Baum begaenne er dann erst hinter der Einrueckung,
+                    // waehrend die Ordnerzeilen am Rand beginnen. Zwei
+                    // verschiedene Anfaenge in derselben Spalte lesen sich als
+                    // Fehler.
                     isAlternate: false,
                     isCompact: isCompact
                 )
@@ -228,6 +238,7 @@ struct ReportView: View {
                             + RowMetrics.treeFileExtraIndent + RowMetrics.horizontalPadding
                     )
                 )
+                .background(alternate ? RowMetrics.zebraColor : Color.clear)
                 .id(row.row)
             }
         }

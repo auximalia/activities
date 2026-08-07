@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.11 · 2026-08-07*
+*Stand: v1.19.15 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -979,9 +979,20 @@ ist AP3.
    Wörterbuch-Schlüssel** – im Baum blieb dadurch jede Dateizeile weg. Der Pfad taugt zum
    Vergleichen, nie als Ersatz für die URL. Dagegen läuft jetzt eine eigene Prüfung.
 
-**Zebra entfällt im Baum.** Es ist eine Lesehilfe für lange, gleichförmige Blöcke; hier führen
-die Baumlinien das Auge bereits. Zwei Mittel für dieselbe Aufgabe wären ein drittes Muster im
-Bild (Konsistenzregel „nur EIN Trennsystem“).
+**⚠️ Zebra entfällt im Baum — und ist zurückgenommen.** Die erste Fassung strich es mit der
+Begründung, die Baumlinien führten das Auge bereits. Das war falsch gedacht: Die Baumlinien
+beantworten die **senkrechte** Frage (wer hängt unter wem), das Zebra die **waagerechte**
+(welches Datum am rechten Rand gehört zu dieser Zeile). Zwei verschiedene Aufgaben, also kein
+doppeltes Trennsystem. Im Baum läuft es über **alle** Zeilen — Ordner wie Dateien —, weil
+dort anders als in der Zeitansicht alles eine durchgehende Folge ist, und über die **volle
+Breite**: `FileRowView` legt seinen Streifen hinter den bereits eingerückten Inhalt, was im
+Baum zwei verschiedene Anfänge in derselben Spalte ergeben hätte.
+
+**Maße sind gekoppelt, nicht frei gewählt.** Die Verzweigungslinie soll aus der Mitte des
+Ordnersymbols kommen (`connectorX` = 39 pt). Daraus folgt zwingend eine Einrückung über 31 pt
+(gewählt: 34), damit die Linie links vom Aufklapppfeil des Kindes bleibt. Und der Pfeil sitzt
+mittig zwischen Linie und Symbol, ohne die Symbolmitte zu verschieben:
+`12 + 12 + 4 + 2 + 9 = 39`.
 
 Heute stehen Ordner in einer **flachen** Liste. Dadurch geraten
 `opencode/activities/dist` und sein Elternteil `opencode/activities` untereinander, ohne dass

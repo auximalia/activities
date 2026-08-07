@@ -87,6 +87,8 @@ struct TreeFolderRowView: View {
     let guides: TreeRow
     @Bindable var model: ReportViewModel
     var isCompact: Bool = false
+    /// Jede zweite Zeile bekommt einen dezenten Hintergrund (Zebra, Lesehilfe).
+    var isAlternate: Bool = false
 
     private var isExpanded: Bool { model.isExpanded(node.folder) }
     private var isSelected: Bool { model.cursor == .folder(node.folder) }
@@ -116,13 +118,18 @@ struct TreeFolderRowView: View {
                     ancestorsContinue: guides.ancestorsContinue,
                     isLastSibling: guides.isLastSibling,
                     contentStart: CGFloat(guides.level) * RowMetrics.treeIndentStep
-                        + RowMetrics.horizontalPadding
+                        + RowMetrics.treeDisclosureLeading
                 )
             )
             // Hervorhebung ueber die **ganze** Zeile, Einrueckung eingeschlossen –
             // wie im Finder. Nur den Inhalt zu hinterlegen liesse die Markierung
             // bei tiefen Zweigen als schmalen Streifen rechts erscheinen.
             .background(SelectionBackground(isActive: isSelected))
+            // Zebra ganz hinten: Es beantwortet die **waagerechte** Frage
+            // („welches Datum gehoert zu dieser Zeile?"), die Baumlinien die
+            // senkrechte. Zwei verschiedene Aufgaben – kein doppeltes
+            // Trennsystem.
+            .background(isAlternate ? RowMetrics.zebraColor : Color.clear)
             .contentShape(Rectangle())
             .help(node.folder.path)
             .onTapGesture {
@@ -156,12 +163,18 @@ struct TreeFolderRowView: View {
     }
 
     private var content: some View {
-        HStack(spacing: RowMetrics.itemSpacing) {
+        HStack(spacing: 0) {
+            // Der Aufklapppfeil sitzt mittig zwischen Verzweigungslinie und
+            // Ordnersymbol – die Masse dafuer stehen in ``RowMetrics``.
+            Color.clear.frame(width: RowMetrics.treeDisclosureLeading)
+
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: RowMetrics.disclosureWidth)
                 .opacity(node.children.isEmpty && model.visibleFileCount(in: node.folder) == 0 ? 0.25 : 1)
+
+            Color.clear.frame(width: RowMetrics.treeDisclosureToIcon)
 
             Button {
                 model.select(.folder(node.folder))
@@ -178,39 +191,41 @@ struct TreeFolderRowView: View {
             .help("Im Finder öffnen · Pfad kopieren")
             .accessibilityLabel("Ordner im Finder öffnen")
 
-            if model.isPinned(node.folder) {
-                Image(systemName: "pin.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.tint)
-                    .help("Angeheftet")
+            HStack(spacing: RowMetrics.itemSpacing) {
+                if model.isPinned(node.folder) {
+                    Image(systemName: "pin.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.tint)
+                        .help("Angeheftet")
+                }
+
+                Text(node.label)
+                    .font(.headline)
+                    // Durchgangsknoten: schwaecher, damit sie nicht behaupten,
+                    // hier sei gearbeitet worden. Sie tragen nur den Weg.
+                    .fontWeight(node.isPassThrough ? .regular : .semibold)
+                    .foregroundStyle(node.isPassThrough ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Text(countLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .layoutPriority(-1)
+
+                Spacer(minLength: RowMetrics.itemSpacing)
+
+                Text(isCompact ? DateFormatting.dateTimeCompact(displayDate) : DateFormatting.dateTime(displayDate))
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(node.isPassThrough ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                    .lineLimit(1)
+                    .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
             }
-
-            Text(node.label)
-                .font(.headline)
-                // Durchgangsknoten: schwaecher, damit sie nicht behaupten, hier
-                // sei gearbeitet worden. Sie tragen nur den Weg.
-                .fontWeight(node.isPassThrough ? .regular : .semibold)
-                .foregroundStyle(node.isPassThrough ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            Text(countLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .layoutPriority(-1)
-
-            Spacer(minLength: RowMetrics.itemSpacing)
-
-            Text(isCompact ? DateFormatting.dateTimeCompact(displayDate) : DateFormatting.dateTime(displayDate))
-                .font(.system(.callout, design: .monospaced))
-                .foregroundStyle(node.isPassThrough ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                .lineLimit(1)
-                .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
+            .padding(.leading, RowMetrics.itemSpacing)
         }
         .padding(.vertical, 5)
         .padding(.trailing, RowMetrics.horizontalPadding)
-        .padding(.leading, RowMetrics.horizontalPadding)
     }
 
     /// Zahlenangabe der Zeile – bei Durchgangsknoten ausdruecklich als Teilbaum.

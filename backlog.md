@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.7 · 2026-08-07*
+*Stand: v1.19.8 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -685,10 +685,16 @@ Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet*
 |---|---|---|
 | **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
 | **v1.19** ✅ | Täglicher Begleiter | PR-07 … PR-10 – **abgeschlossen** |
-| **v1.20** | Schneller wieder reinkommen | PR-26, PR-11 … PR-14 – **Sprint 9 geplant** |
-| **v1.21** | Rückblick und Bericht | PR-15 … PR-18 |
-| **v1.22** | Suchen und Finden | PR-19 … PR-21 |
+| **v1.20** | Schneller wieder reinkommen | PR-26, PR-11 … PR-14 – **Sprint 9 geplant**, PR-12 ✅ |
+| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Voreinstellung) · PR-28 |
+| **v1.22** | Rückblick und Bericht | PR-15 … PR-18 |
+| **v1.23** | Suchen und Finden | PR-19 … PR-21 |
 | **v2.0** | Vertrauen und Verbreitung | PR-22 … PR-25 |
+
+**PR-27 rückt vor den Rückblick (früher v1.21).** Die Baumdarstellung ändert die Leitfrage
+der App von „wann?" zu „wo?, mit dem Wann daneben" – und gemessen sind 97 % aller
+Ergebnisordner von der heutigen flachen Darstellung betroffen. Einen Wochenrückblick (PR-15)
+auf einer Darstellung zu bauen, die davor umgestellt wird, wäre Arbeit auf Sand.
 
 ---
 
@@ -950,10 +956,184 @@ Stapels deaktiviert; ein neues Ziel von einer zurückliegenden Position verwirft
 Vorwärtszweig; Zurückkehren stellt den Aufklappzustand *dieses* Ordners wieder her; der
 Stapel ist in `CoreChecks` geprüft.
 
+---
+
+## Thema D · Struktur statt Liste (v1.21)
+
+### PR-27 · Ordner als Baum darstellen *(neu, aufgenommen v1.19.7 – Kern des nächsten Sprints)*
+**Aufwand:** L · **Nutzen:** hoch
+
+Heute stehen Ordner in einer **flachen** Liste. Dadurch geraten
+`opencode/activities/dist` und sein Elternteil `opencode/activities` untereinander, ohne dass
+die Verwandtschaft sichtbar wäre. Der Anwender liest zwei Pfade und muss die Beziehung selbst
+herstellen.
+
+**Gemessen** (`~/Documents`, 30 Tage, ohne Namensfilter, 47 Ordner im Ergebnis):
+
+```
+Ordner mit einem Vorfahren im Ergebnis    46 von 47   (97 %)
+   davon im GLEICHEN Zeitabschnitt           27
+   davon in einem ANDEREN Zeitabschnitt      19
+Tiefe unter dem Wurzelordner        min 0 · median 4 · max 6
+Nötige Zwischenknoten ohne eigene Treffer    19  (+40 % Zeilen)
+   davon mit genau einem Kind                13
+Knoten auf oberster Ebene                     3  (PM2025, lerngruppe, opencode)
+```
+
+**97 % ist kein Randfall, sondern der Normalfall.** Die Schachtelung ist die richtige
+Darstellung dieser Daten.
+
+#### Der eigentliche Konflikt: Zeit gegen Ort
+
+Die Liste gliedert nach **Zeit** (`TimeBucket.group`, `TimeBucket.swift:47`), ein Baum nach
+**Ort**. Beides gleichzeitig als *primäre* Ordnung geht nicht, und das lässt sich nicht
+wegdefinieren:
+
+```
+opencode/activities/Packaging [Gestern]  ⊂  opencode/activities [Heute]
+PM2025/…/Testkonzepte        [Heute]     ⊂  .                   [Diese Woche]
+lerngruppe/pm2025            [Heute]     ⊂  lerngruppe          [Vor 4 Wochen]
+```
+
+Ein Kind kann **älter** sein als sein Elternteil, und der Wurzelordner selbst ist ein Eintrag
+in einem dritten Abschnitt. 19 von 46 Verwandtschaften (41 %) kreuzen eine Abschnittsgrenze.
+
+**⚠️ Drei naheliegende Wege wurden geprüft und verworfen – jeder an einer Messung:**
+
+1. **Baum *innerhalb* jedes Zeitabschnitts.** `opencode/activities` erschiene in „Heute" als
+   echter Knoten und in „Gestern" nochmals als Durchgangsknoten für `Packaging`. Bei 19
+   kreuzenden Beziehungen entstehen reihenweise Dubletten – also genau das Ausgangsproblem,
+   nur schlimmer. Nebenwirkung: `expandedFolders: Set<URL>` könnte eine Zeile nicht mehr
+   eindeutig benennen, `RowID` müsste den Abschnitt mittragen.
+2. **Nur schachteln, wenn Elternteil und Kind im selben Abschnitt liegen.** Deckt 27 von 46
+   Fällen ab. Dieselbe Paarung schachtelt heute und morgen nicht mehr, weil das Elternteil in
+   einen anderen Abschnitt gealtert ist. Eine Regel, die sich mit der Uhr ändert, kann
+   niemand lernen.
+3. **Zeitabschnitte nur auf oberster Ebene.** Die oberste Ebene hat **3 Knoten**. Die
+   Gliederung schrumpfte auf „Heute: 3 Ordner" und wäre wertlos.
+
+#### Entschieden
+
+**Der Baum wird die Voreinstellung; die Zeitgliederung bleibt als zweite Ansicht erhalten.**
+Im Baum kommt jeder Ordner **genau einmal** vor, Zeitabschnitte entfallen dort. Das Datum
+bleibt in jeder Zeile, die Zeitachse im Diagramm.
+
+**⚠️ Das ist eine Änderung der Leitfrage.** Die App beantwortete bisher zuerst *„wann?"*.
+Künftig zuerst *„wo?"*, mit dem Wann daneben. Die Zeitansicht darf deshalb nicht zur
+versteckten Sonderfunktion verkommen – sie bleibt gleichwertig erreichbar.
+
+- **Durchgangsknoten** (Zwischenknoten ohne eigenen Dateibeitrag) bekommen eine **eigene
+  Zeile in schwächerer Schrift**. Sie dürfen nicht aussehen wie ein Ordner, in dem gearbeitet
+  wurde – sonst behauptet die App Arbeit, die nicht stattfand. Ihr Datum ist das Maximum des
+  Teilbaums (sonst unsortierbar), ihre Zählung die des Teilbaums und als solche gekennzeichnet.
+  **VoiceOver muss den Unterschied sagen, nicht nur die Schrift ihn zeigen.**
+- **Angeheftete Ordner** werden im Baum zur **Markierung am Knoten**. Heute werden sie aus
+  ihrem Abschnitt herausgezogen (`ReportViewModel.swift:756-772`); in einem Baum kann man
+  einen Knoten nicht entfernen, ohne seine Kinder zu verwaisen. In der Listenansicht bleibt
+  der Abschnitt „Angeheftet" bestehen (siehe PR-28).
+- **Export bleibt flach.** `ReportExport.csv/html` (`:13`, `:38`) arbeitet weiter auf
+  `[BucketedEntries]`. Ein Bericht ist eine Liste; die Einrückung mitzunehmen kann später
+  folgen, wenn sich der Bedarf zeigt.
+
+#### Was bedacht werden muss
+
+**Kern** (`ActivitiesCore`, bleibt Foundation-only):
+- Neuer Typ `FolderNode`: `folder`, eigenes `newestDate` **und** `subtreeNewestDate`, eigener
+  `fileCount` **und** `subtreeFileCount`, `children`, `hasOwnFiles`.
+- Aufbau aus dem vorhandenen `[FolderEntry]` (`FolderAggregator.swift:48`) plus Wurzel-URL;
+  die fehlenden Zwischenknoten werden erzeugt.
+- **⚠️ Pfadverdichtung** wie VS Codes „compact folders": 13 der 19 Zwischenknoten haben genau
+  ein Kind. Ketten zu einer Zeile zusammenfassen (`lerngruppe/ubuntu/ChatGPT/pdf_cleanup/src`)
+  senkt die Zusatzzeilen von 19 auf ~6 und die Einrückung von **median 4 / max 6 auf
+  median 3 / max 5** – gemessen. Ohne sie wird die Darstellung breit und leer.
+- Baumaufbau, Verdichtung und Geschwistersortierung gehören nach `CoreChecks` (Regel aus
+  `CONTRIBUTING.md`) – sie sind reine Funktionen und gut prüfbar.
+
+**Einrückung und Platz:**
+- Nach Verdichtung bis zu 5 Ebenen plus Dateiebene. Bei 16 pt je Ebene sind 96 pt verbraucht,
+  bevor der Name beginnt – im Kompakt-Layout (`RowMetrics.compactThreshold`, < 820 pt)
+  untragbar. Zu klären: kleinere Schrittweite, Deckelung ab Ebene N, oder Einrückung relativ
+  zum **flachsten sichtbaren** Knoten statt zur Wurzel.
+- `TreeConnector` (`RowMetrics.swift:79`) kennt heute nur `isLast` für Dateizeilen. Für
+  beliebige Tiefe braucht er „welche Vorfahren haben noch Geschwister danach" – durchgezogene
+  gegen abbrechende Linien.
+- Der Pfad in der Ordnerzeile (`relativePath(of:)`) wird weitgehend überflüssig: Die
+  Einrückung **ist** der Pfad. Nur der verdichtete Rest gehört noch hin.
+
+**Sortierung:**
+- `RowSorting.folders` (`:49`) sortiert eine flache Liste; im Baum werden **Geschwister**
+  sortiert.
+- **⚠️ Der Sortierschlüssel eines Elternteils muss `subtreeNewestDate` sein.** Sonst rutscht
+  ein Ordner mit alten eigenen Dateien nach unten, während seine Kinder das Neueste auf dem
+  Bildschirm sind.
+
+**Aufklappen:**
+- `expandedFolders: Set<URL>` bleibt tragfähig, weil jede URL genau einmal vorkommt.
+- Die Bedeutung ändert sich: Zuklappen verbirgt ganze Teilbäume. `finishDetailLoad` setzt
+  heute `expandedFolders = displayed` (`ReportViewModel.swift:1527`) – die erzeugten
+  Zwischenknoten müssen mit hinein.
+- ←/→ sollte Standard-Verhalten einer Gliederung bekommen: ← auf einem bereits zugeklappten
+  Knoten springt zum **Elternteil**.
+
+**Was am Baum hängt:**
+
+| Stelle | Was zu tun ist |
+|---|---|
+| `RowNavigation.flatten` (`:13`) | tiefensuchend über den Baum statt Abschnitt → Ordner → Dateien |
+| `prepareFullFileList` (`ReportViewModel.swift:818`) | QuickLook muss in **sichtbarer** Reihenfolge blättern |
+| `focusDay` / `applyChartFocus` (`:1145`) | Diagramm-Sprung muss **alle Vorfahren** aufklappen, nicht nur den Zielordner |
+| `setAllExpanded` (`:1070`) | betrifft jetzt einen echten Baum |
+| `mostRecentFolders` (`:516`) | leitet aus `displayBuckets` ab – die gibt es im Baummodus nicht mehr |
+| Abschnittsköpfe | „Heute · 1 Ordner / 2 Dateien" entfällt im Baum; Ersatz klären |
+
+**Der Wurzelordner selbst:** hat gemessen **eigene Treffer**, ist also selbst ein Eintrag. Er
+bekommt nur dann eine Zeile, wenn er eigene Dateien beiträgt – sonst beginnt der Baum bei
+seinen Kindern.
+
+**Umschalter:** Die Toolbar ist voll. Vorschlag: das Sortier-Menü (⇅, `MainToolbar.swift:88`)
+bekommt einen Abschnitt „Gliederung: Baum / Nach Zeit" – es *ist* eine Ordnungsentscheidung.
+Zu speichern wie `sort` (`SettingsStore.saveSort`).
+
+#### Zuschnitt
+
+| AP | Inhalt | Aufwand |
+|---|---|---|
+| **AP1** | Kern: `FolderNode`, Zwischenknoten, Pfadverdichtung, Geschwistersortierung, `CoreChecks` – **ohne Oberfläche** | M |
+| **AP2** | Darstellung und Navigation: Umschalter, Einrückung, `TreeConnector` verallgemeinert, `flatten`, Aufklapplogik, ←/→ | L |
+| **AP3** | Anschlüsse: Diagramm-Sprung mit Vorfahren, QuickLook-Reihenfolge, Anheften als Markierung, Kurzansicht, VoiceOver-Ebenenansage | M |
+
+AP1 ist ohne sichtbare Wirkung und damit gefahrlos zuerst lieferbar.
+
+**Akzeptanz:** Ordner erscheinen eingerückt entsprechend ihrer Lage im Dateisystem, jeder
+genau einmal; Ketten aus Zwischenknoten sind zu einer Zeile zusammengefasst; Durchgangsknoten
+sind optisch **und** für VoiceOver von Ordnern mit eigenen Treffern unterscheidbar; ein
+Elternteil sortiert nach dem jüngsten Datum seines Teilbaums; die Zeitgliederung bleibt über
+den Umschalter erreichbar und unverändert; der Sprung aus dem Diagramm klappt alle Vorfahren
+auf; Baumaufbau und Verdichtung sind in `CoreChecks` geprüft.
+
+### PR-28 · Abschnitt „Angeheftet" deutlicher absetzen *(neu, aufgenommen v1.19.7)*
+**Aufwand:** S · **Nutzen:** mittel
+
+In der Listenansicht steht „Angeheftet" als Abschnittskopf **gleichrangig** neben „Heute",
+„Gestern", „Diese Woche" (`ReportViewModel.swift:772`, gezeichnet in
+`ReportView.sectionHeader`). Er ist aber von anderer Art: Die Zeitabschnitte sind eine
+*Beobachtung*, „Angeheftet" ist eine *Entscheidung des Anwenders*. Gleiche Gestaltung für
+Ungleiches lässt den Abschnitt in der Reihe untergehen.
+
+Zu klären: eigenes Symbol im Kopf, abgesetzte Färbung, und eine sichtbare Trennung zum ersten
+Zeitabschnitt. **⚠️ Nicht über Farbe allein** – die Datenschicht (UX-27) ist für Dateitypen
+reserviert, und Farbe allein trägt keine Bedeutung für Farbfehlsichtige.
+
+Betrifft nur die **Listenansicht**. Im Baum wird Anheften zur Markierung am Knoten (PR-27).
+
+**Akzeptanz:** Der Abschnitt „Angeheftet" ist auf einen Blick von den Zeitabschnitten zu
+unterscheiden; der Unterschied ruht nicht auf Farbe allein; VoiceOver nennt ihn als
+angehefteten Bereich.
+
 
 ---
 
-## Thema D · Rückblick und Bericht (v1.21)
+## Thema E · Rückblick und Bericht (v1.22)
 
 ### PR-15 · Wochenrückblick
 **Aufwand:** L · **Nutzen:** hoch
@@ -976,7 +1156,7 @@ vorzeigbar; PDF-Ausgabe ergänzen.
 
 ---
 
-## Thema E · Suchen und Finden (v1.22)
+## Thema F · Suchen und Finden (v1.23)
 
 ### PR-19 · Mehrere Wurzelordner gleichzeitig
 **Aufwand:** L · **Nutzen:** hoch
@@ -992,7 +1172,7 @@ Zuletzt verwendete Filter im Suchfeld anbieten.
 
 ---
 
-## Thema F · Vertrauen und Verbreitung (v2.0)
+## Thema G · Vertrauen und Verbreitung (v2.0)
 
 ### PR-22 · Notarisierung
 **Aufwand:** M (plus Apple-Mitgliedschaft) · **Nutzen:** hoch

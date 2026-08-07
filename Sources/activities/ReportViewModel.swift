@@ -457,10 +457,22 @@ final class ReportViewModel {
             let end = calendar.date(byAdding: .day, value: 1, to: endDay) ?? endDay
             return TimeWindow(start: startDay, end: end, chartStartDay: startDay, chartEndDay: endDay)
         } else {
-            let start = calendar.date(byAdding: .day, value: -days, to: now) ?? now
+            // **Kalendertage, nicht 24-Stunden-Schritte.**
+            //
+            // ⚠️ Frueher begann das Fenster bei `jetzt − n×24 h`, die
+            // Diagrammachse aber bei Tagesbeginn. Gemessen an einem echten
+            // Bestand um 19:11 Uhr bei `days = 1`: Die Tabelle zeigte 41
+            // Dateien, das Diagramm zaehlte 32, und die Ueberschrift behauptete
+            // „Fr., 07.08. – Fr., 07.08." – neun Dateien stammten vom Vorabend.
+            // Drei Anzeigen, drei Wahrheiten.
+            //
+            // Der Kalendertag ist die **menschliche** Einheit und die, in der
+            // die Abschnitte ohnehin rechnen („Heute", „Gestern"). Damit sagen
+            // Ueberschrift, Diagramm und Liste dasselbe – und „1 Tag" heisst
+            // wirklich heute.
             let endDay = calendar.startOfDay(for: now)
             let startDay = calendar.date(byAdding: .day, value: -(days - 1), to: endDay) ?? endDay
-            return TimeWindow(start: start, end: .distantFuture, chartStartDay: startDay, chartEndDay: endDay)
+            return TimeWindow(start: startDay, end: .distantFuture, chartStartDay: startDay, chartEndDay: endDay)
         }
     }
 

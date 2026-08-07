@@ -34,18 +34,92 @@ struct MainToolbar: ToolbarContent {
         ToolbarItem(placement: .navigation) {
             SearchField(
                 text: $model.namePattern,
-                prompt: "Name filtern, z. B. studium",
+                prompt: "Name filtern",
                 onChange: { model.namePatternDidChange() },
                 onSubmit: { model.applyNameFilterNow() }
             )
-            .frame(width: 220)
-            .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
+            // 220 pt kosteten drei Zustandsschalter den Platz in der Leiste –
+            // gemessen bei 1280 pt Fensterbreite. Der Hinweistext ist dafuer
+            // kuerzer; das ausfuehrliche Beispiel steht im Tooltip.
+            .frame(width: 170)
+            .help("Teil des Dateinamens eingeben, z. B. studium. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
             .accessibilityLabel("Name filtern")
         }
 
         // 3. Zeitraum
         ToolbarItem(placement: .navigation) {
             timeRangeControls
+        }
+
+        // 4. Anpassungen – **Reihenfolge = Wichtigkeit**.
+        //
+        // ⚠️ Nicht nach Art gruppiert, sondern nach Rang. macOS schiebt bei zu
+        // schmalem Fenster die **hinteren** Elemente in das Ueberlaufmenue „»".
+        // Damit entscheidet die Reihenfolge, was zuerst unsichtbar wird. Als der
+        // Gliederungs-Umschalter noch weiter hinten stand, war er nicht mehr
+        // auffindbar (gemeldet) – dieselbe Falle wie ein Menuepunkt ohne Symbol.
+        //
+        // Vorne bleibt, was die Ansicht bestimmt (Gliederung, neu einlesen,
+        // Sortierung); nach hinten wandern die Zustandsschalter und der Sprung
+        // an den Listenanfang, der ohnehin ⌘↑ hat.
+
+        // 4a. Anpassungen: Gliederung
+        //
+        // **Sichtbar, nicht im Menue.** Zuerst steckte der Umschalter im
+        // Sortier-Menue – und war nicht auffindbar. Die Gliederung entscheidet,
+        // *was* man ueberhaupt sieht; das gehoert wie der Zeitmodus daneben in
+        // die Leiste, in derselben Bauform (Segmentwahl).
+        ToolbarItem(placement: .navigation) {
+            Picker("", selection: Binding(
+                get: { model.viewMode },
+                set: { model.setViewMode($0) }
+            )) {
+                ForEach(ViewMode.allCases, id: \.self) { mode in
+                    Label(mode.label, systemImage: mode.symbol)
+                        .labelStyle(.iconOnly)
+                        .tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .fixedSize()
+            .help("Gliederung: \(ViewMode.tree.longLabel) oder \(ViewMode.time.longLabel) · aktuell: \(model.viewMode.label)")
+            .accessibilityLabel("Gliederung")
+            .accessibilityValue(model.viewMode.longLabel)
+        }
+
+        // 4b. Neu einlesen – die wichtigste Aktion, deshalb weit vorn.
+        ToolbarItem(placement: .navigation) {
+            Button {
+                model.rescan()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(ToolbarStateToggle.idleTint)
+            }
+            .help("Ordner neu einlesen (⌘R)")
+            .accessibilityLabel("Ordner neu einlesen")
+        }
+
+        // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
+        ToolbarItem(placement: .navigation) {
+            Menu {
+                ForEach(SortField.allCases, id: \.self) { field in
+                    Button {
+                        model.setSortField(field)
+                    } label: {
+                        if model.sort.field == field {
+                            Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
+                        } else {
+                            Text(field.label)
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .foregroundStyle(ToolbarStateToggle.idleTint)
+            }
+            .help("Sortierung \(model.viewMode == .tree ? "unter Geschwistern" : "innerhalb der Zeitabschnitte") · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .accessibilityLabel("Sortierung")
+            .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
         }
 
         // 4a. Anpassungen: Zustände (ändern die Darstellung, nicht die Datenmenge)
@@ -101,55 +175,10 @@ struct MainToolbar: ToolbarContent {
             )
         }
 
-        // 4a. Anpassungen: Gliederung
-        //
-        // **Sichtbar, nicht im Menue.** Zuerst steckte der Umschalter im
-        // Sortier-Menue – und war nicht auffindbar. Die Gliederung entscheidet,
-        // *was* man ueberhaupt sieht; das gehoert wie der Zeitmodus daneben in
-        // die Leiste, in derselben Bauform (Segmentwahl).
+        // 4d. Zuletzt: der Sprung an den Listenanfang. Von allem hier der
+        // entbehrlichste Knopf – er hat mit ⌘↑ ein Kuerzel und einen Menuepunkt,
+        // darf also als Erster ins Ueberlaufmenue wandern.
         ToolbarItem(placement: .navigation) {
-            Picker("", selection: Binding(
-                get: { model.viewMode },
-                set: { model.setViewMode($0) }
-            )) {
-                ForEach(ViewMode.allCases, id: \.self) { mode in
-                    Label(mode.label, systemImage: mode.symbol)
-                        .labelStyle(.iconOnly)
-                        .tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .fixedSize()
-            .help("Gliederung: \(ViewMode.tree.longLabel) oder \(ViewMode.time.longLabel) · aktuell: \(model.viewMode.label)")
-            .accessibilityLabel("Gliederung")
-            .accessibilityValue(model.viewMode.longLabel)
-        }
-
-        // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
-        ToolbarItem(placement: .navigation) {
-            Menu {
-                ForEach(SortField.allCases, id: \.self) { field in
-                    Button {
-                        model.setSortField(field)
-                    } label: {
-                        if model.sort.field == field {
-                            Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
-                        } else {
-                            Text(field.label)
-                        }
-                    }
-                }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-                    .foregroundStyle(ToolbarStateToggle.idleTint)
-            }
-            .help("Sortierung \(model.viewMode == .tree ? "unter Geschwistern" : "innerhalb der Zeitabschnitte") · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
-            .accessibilityLabel("Sortierung")
-            .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
-        }
-
-        // 4b. Anpassungen: Aktionen
-        ToolbarItemGroup(placement: .navigation) {
             Button {
                 model.scrollToTopToken += 1
             } label: {
@@ -158,15 +187,6 @@ struct MainToolbar: ToolbarContent {
             }
             .help("An den Anfang der Liste springen (⌘↑)")
             .accessibilityLabel("An den Anfang der Liste springen")
-
-            Button {
-                model.rescan()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(ToolbarStateToggle.idleTint)
-            }
-            .help("Ordner neu einlesen (⌘R)")
-            .accessibilityLabel("Ordner neu einlesen")
         }
 
         // --- Status ---
@@ -283,14 +303,24 @@ struct MainToolbar: ToolbarContent {
                     get: { presetSelection },
                     set: { applyPreset($0) }
                 )) {
-                    Text("7").tag(7)
-                    Text("30").tag(30)
-                    Text("90").tag(90)
+                    // „Heute" statt „1": Der Sonderfall verdient seinen Namen –
+                    // ein alleinstehendes „1" wirft die Frage „eins was?" auf.
+                    // Seit das Fenster in Kalendertagen rechnet, stimmt es auch:
+                    // 1 Tag = ab Tagesbeginn.
+                    Text("Heute").tag(1)
+                    // Echtes Minuszeichen (U+2212), nicht der Bindestrich: Es
+                    // steht auf Zifferhoehe und liest sich als Vorzeichen, nicht
+                    // als Trennstrich. Die Zahlen zeigen damit, wohin es geht –
+                    // rueckwaerts.
+                    Text("\u{2212}3").tag(3)
+                    Text("\u{2212}7").tag(7)
+                    Text("\u{2212}30").tag(30)
+                    Text("\u{2212}90").tag(90)
                     Image(systemName: "slider.horizontal.3").tag(-1)
                 }
                 .pickerStyle(.segmented)
                 .fixedSize()
-                .help("Zeitraum in Tagen")
+                .help("Zeitraum in Kalendertagen bis heute · „Heute“ = ab 0 Uhr")
             .accessibilityLabel("Zeitraum in Tagen")
                 .popover(isPresented: $showCustomDays, arrowEdge: .bottom) {
                     customDaysEditor
@@ -301,7 +331,7 @@ struct MainToolbar: ToolbarContent {
 
     /// Aktuelle Auswahl: ein Preset oder „Eigene …" (−1).
     private var presetSelection: Int {
-        [7, 30, 90].contains(model.days) ? model.days : -1
+        [1, 3, 7, 30, 90].contains(model.days) ? model.days : -1
     }
 
     private func applyPreset(_ value: Int) {

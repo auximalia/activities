@@ -161,6 +161,13 @@ struct ActivitiesApp: App {
                     get: { model.showOutOfWindowFiles },
                     set: { model.setShowOutOfWindowFiles($0) }
                 ))
+                // Auch im Menue, weil der Schalter in der Titelleiste bei
+                // schmalem Fenster ins Ueberlaufmenue wandert. Ein Zustand, den
+                // man nur ueber „»" erreicht, ist beinahe ein verborgener.
+                Toggle("Automatisch aktualisieren", isOn: Binding(
+                    get: { model.autoRefresh },
+                    set: { model.setAutoRefresh($0) }
+                ))
             }
             // Export gehoert ins Menue „Ablage" – dort sucht man ihn.
             CommandGroup(replacing: .saveItem) {

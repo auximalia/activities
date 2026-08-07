@@ -2,54 +2,60 @@ import SwiftUI
 import AppKit
 import ActivitiesCore
 
-/// Die Einrueckungsrinne einer Baumzeile.
+/// Die Verzweigungslinien einer Baumzeile.
 ///
-/// Zeichnet je Ebene entweder eine **durchgehende** Senkrechte (dort laeuft der
-/// Ast eines Vorfahren weiter) oder nichts, und in der eigenen Rinne den
-/// **Ellbogen** zur Zeile.
+/// Wird als **Hintergrund der ganzen Zeile** gezeichnet, nicht als eigene Spalte
+/// davor. Nur so kann die Senkrechte dort liegen, wo sie hingehoert: auf der
+/// **Mitte des Ordnersymbols** des Elternteils – genau wie in der Listenansicht.
+/// Eine vorangestellte Rinne haette sie an den linken Zeilenrand gedraengt, weit
+/// weg von dem Symbol, aus dem sie zu entspringen scheint.
 ///
 /// **⚠️ Die Indizes sind um eins versetzt.** ``TreeRow/ancestorsContinue`` zaehlt
 /// nach *Ebenen*: Eintrag `j` sagt „der Vorfahre auf Ebene `j` hat noch
-/// Geschwister". Die *Rinne* `j` traegt aber die Geschwisterlinie der Knoten auf
-/// Ebene `j+1`. Deshalb fragt Rinne `j` den Eintrag `j+1` ab. Der Eintrag 0 wird
-/// nie gezeichnet – links von Ebene 0 gibt es keine Rinne.
+/// Geschwister". Die *Linie* auf Ebene `j` traegt aber die Geschwisterlinie der
+/// Knoten auf Ebene `j+1`. Deshalb fragt Ebene `j` den Eintrag `j+1` ab. Eintrag
+/// 0 wird nie gezeichnet – links von Ebene 0 gibt es keine Linie.
 struct TreeGuides: View {
     let ancestorsContinue: [Bool]
     let isLastSibling: Bool
-    /// Ob die Zeile einen Ellbogen bekommt (Dateien und tiefere Ordner: ja).
-    var showsElbow: Bool = true
+    /// Waagerechte Position, an der der Zeileninhalt beginnt (dort endet der Bogen).
+    let contentStart: CGFloat
 
     private var level: Int { ancestorsContinue.count }
+
+    /// Mitte des Ordnersymbols auf Ebene ``level``.
+    private func lineX(_ level: Int) -> CGFloat {
+        CGFloat(level) * RowMetrics.treeIndentStep + RowMetrics.connectorX
+    }
 
     var body: some View {
         Canvas { context, size in
             guard level > 0 else { return }
-            let step = RowMetrics.treeIndentStep
             let midY = size.height / 2
             let radius = min(RowMetrics.connectorRadius, midY)
             var path = Path()
 
-            // Durchlaufende Senkrechten der Vorfahren.
-            for gutter in 0..<(level - 1) where ancestorsContinue[gutter + 1] {
-                let x = CGFloat(gutter) * step + step / 2
+            // Durchlaufende Senkrechten hoeherer Vorfahren.
+            for ebene in 0..<(level - 1) where ancestorsContinue[ebene + 1] {
+                let x = lineX(ebene)
                 path.move(to: CGPoint(x: x, y: 0))
                 path.addLine(to: CGPoint(x: x, y: size.height))
             }
 
-            // Eigene Rinne: Ellbogen zur Zeile.
-            let x = CGFloat(level - 1) * step + step / 2
-            if showsElbow {
-                path.move(to: CGPoint(x: x, y: 0))
-                path.addLine(to: CGPoint(x: x, y: midY - radius))
-                path.addQuadCurve(
-                    to: CGPoint(x: x + radius, y: midY),
-                    control: CGPoint(x: x, y: midY)
-                )
-                path.addLine(to: CGPoint(x: CGFloat(level) * step, y: midY))
-            }
+            // Eigene Verzweigung: aus der Symbolmitte des Elternteils herab und
+            // im Bogen zur Zeile.
+            let x = lineX(level - 1)
+            path.move(to: CGPoint(x: x, y: 0))
+            path.addLine(to: CGPoint(x: x, y: midY - radius))
+            path.addQuadCurve(
+                to: CGPoint(x: x + radius, y: midY),
+                control: CGPoint(x: x, y: midY)
+            )
+            path.addLine(to: CGPoint(x: max(contentStart, x + radius), y: midY))
+
             // Nach unten weiter, solange Geschwister folgen.
             if !isLastSibling {
-                path.move(to: CGPoint(x: x, y: showsElbow ? midY - radius : 0))
+                path.move(to: CGPoint(x: x, y: midY - radius))
                 path.addLine(to: CGPoint(x: x, y: size.height))
             }
 
@@ -59,7 +65,7 @@ struct TreeGuides: View {
                 style: StrokeStyle(lineWidth: RowMetrics.connectorLineWidth, lineCap: .round)
             )
         }
-        .frame(width: CGFloat(level) * RowMetrics.treeIndentStep)
+        .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 }
@@ -102,38 +108,42 @@ struct TreeFolderRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            TreeGuides(
-                ancestorsContinue: guides.ancestorsContinue,
-                isLastSibling: guides.isLastSibling
+        content
+            .padding(.leading, CGFloat(guides.level) * RowMetrics.treeIndentStep)
+            // Linien ueber der Auswahlflaeche, aber unter dem Inhalt.
+            .background(
+                TreeGuides(
+                    ancestorsContinue: guides.ancestorsContinue,
+                    isLastSibling: guides.isLastSibling,
+                    contentStart: CGFloat(guides.level) * RowMetrics.treeIndentStep
+                        + RowMetrics.horizontalPadding
+                )
             )
-            content
-        }
-        // Hervorhebung ueber die **ganze** Zeile, Einrueckung eingeschlossen –
-        // wie im Finder. Nur den Inhalt zu hinterlegen liesse die Markierung bei
-        // tiefen Zweigen als schmalen Streifen rechts erscheinen.
-        .background(SelectionBackground(isActive: isSelected))
-        .contentShape(Rectangle())
-        .help(node.folder.path)
-        .onTapGesture {
-            model.select(.folder(node.folder))
-            ClipboardService.copy(node.folder.path)
-            withAnimation(.easeInOut(duration: 0.2)) { model.toggleExpand(node.folder) }
-        }
-        .contextMenu { FolderContextMenu(folder: node.folder, model: model) }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(node.isPassThrough ? "Durchgangsordner" : "Ordner") \(node.label)")
-        // Ebene und Art gehoeren **gesprochen** dazu: Ohne sie ist ein Baum fuer
-        // VoiceOver eine flache Liste, und der Unterschied zwischen echtem
-        // Treffer und Wegfuehrung waere allein an der Schriftstaerke haengen
-        // geblieben – also unsichtbar.
-        .accessibilityValue(accessibilityValue)
-        .accessibilityHint("Zum Auf- und Zuklappen aktivieren")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction {
-            model.select(.folder(node.folder))
-            model.toggleExpand(node.folder)
-        }
+            // Hervorhebung ueber die **ganze** Zeile, Einrueckung eingeschlossen –
+            // wie im Finder. Nur den Inhalt zu hinterlegen liesse die Markierung
+            // bei tiefen Zweigen als schmalen Streifen rechts erscheinen.
+            .background(SelectionBackground(isActive: isSelected))
+            .contentShape(Rectangle())
+            .help(node.folder.path)
+            .onTapGesture {
+                model.select(.folder(node.folder))
+                ClipboardService.copy(node.folder.path)
+                withAnimation(.easeInOut(duration: 0.2)) { model.toggleExpand(node.folder) }
+            }
+            .contextMenu { FolderContextMenu(folder: node.folder, model: model) }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(node.isPassThrough ? "Durchgangsordner" : "Ordner") \(node.label)")
+            // Ebene und Art gehoeren **gesprochen** dazu: Ohne sie ist ein Baum
+            // fuer VoiceOver eine flache Liste, und der Unterschied zwischen
+            // echtem Treffer und Wegfuehrung waere allein an der Schriftstaerke
+            // haengen geblieben – also unsichtbar.
+            .accessibilityValue(accessibilityValue)
+            .accessibilityHint("Zum Auf- und Zuklappen aktivieren")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                model.select(.folder(node.folder))
+                model.toggleExpand(node.folder)
+            }
     }
 
     private var accessibilityValue: String {

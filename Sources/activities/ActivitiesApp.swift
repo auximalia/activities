@@ -125,6 +125,17 @@ struct ActivitiesApp: App {
                 Button("An den Anfang") { model.scrollToTopToken += 1 }
                     .keyboardShortcut(.upArrow, modifiers: .command)
                 Divider()
+                // Auch als Menuebefehl: Die Gliederung ist die Grundentscheidung
+                // der Ansicht und muss ohne Maus erreichbar sein.
+                Picker("Gliederung", selection: Binding(
+                    get: { model.viewMode },
+                    set: { model.setViewMode($0) }
+                )) {
+                    ForEach(ViewMode.allCases, id: \.self) { mode in
+                        Text(mode.longLabel).tag(mode)
+                    }
+                }
+                Divider()
                 // Auswahl in einem anderen Programm oeffnen. Ohne eingerichteten
                 // Platz erscheint der Befehl gar nicht – ein Menuepunkt „In
                 // (nichts) oeffnen" waere Ratlosigkeit in Menueform.

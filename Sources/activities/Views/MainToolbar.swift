@@ -95,46 +95,51 @@ struct MainToolbar: ToolbarContent {
             )
         }
 
+        // 4a. Anpassungen: Gliederung
+        //
+        // **Sichtbar, nicht im Menue.** Zuerst steckte der Umschalter im
+        // Sortier-Menue – und war nicht auffindbar. Die Gliederung entscheidet,
+        // *was* man ueberhaupt sieht; das gehoert wie der Zeitmodus daneben in
+        // die Leiste, in derselben Bauform (Segmentwahl).
+        ToolbarItem(placement: .navigation) {
+            Picker("", selection: Binding(
+                get: { model.viewMode },
+                set: { model.setViewMode($0) }
+            )) {
+                ForEach(ViewMode.allCases, id: \.self) { mode in
+                    Label(mode.label, systemImage: mode.symbol)
+                        .labelStyle(.iconOnly)
+                        .tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .fixedSize()
+            .help("Gliederung: \(ViewMode.tree.longLabel) oder \(ViewMode.time.longLabel) · aktuell: \(model.viewMode.label)")
+            .accessibilityLabel("Gliederung")
+            .accessibilityValue(model.viewMode.longLabel)
+        }
+
         // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
         ToolbarItem(placement: .navigation) {
             Menu {
-                // **Gliederung zuerst.** Sie entscheidet, *wonach* geordnet wird
-                // (Ort oder Zeit); die Sortierung ordnet erst innerhalb davon.
-                // Beides gehoert in dasselbe Menue – es sind zwei Stufen
-                // derselben Frage „in welcher Reihenfolge sehe ich das?".
-                Section("Gliederung") {
-                    ForEach(ViewMode.allCases, id: \.self) { mode in
-                        Button {
-                            model.setViewMode(mode)
-                        } label: {
-                            if model.viewMode == mode {
-                                Label(mode.label, systemImage: "checkmark")
-                            } else {
-                                Label(mode.label, systemImage: mode.symbol)
-                            }
-                        }
-                    }
-                }
-                Section("Sortierung") {
-                    ForEach(SortField.allCases, id: \.self) { field in
-                        Button {
-                            model.setSortField(field)
-                        } label: {
-                            if model.sort.field == field {
-                                Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
-                            } else {
-                                Text(field.label)
-                            }
+                ForEach(SortField.allCases, id: \.self) { field in
+                    Button {
+                        model.setSortField(field)
+                    } label: {
+                        if model.sort.field == field {
+                            Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
+                        } else {
+                            Text(field.label)
                         }
                     }
                 }
             } label: {
-                Image(systemName: model.viewMode.symbol)
+                Image(systemName: "arrow.up.arrow.down")
                     .foregroundStyle(ToolbarStateToggle.idleTint)
             }
-            .help("Gliederung und Sortierung · aktuell: \(model.viewMode.label), \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
-            .accessibilityLabel("Gliederung und Sortierung")
-            .accessibilityValue("\(model.viewMode.label), \(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .help("Sortierung \(model.viewMode == .tree ? "unter Geschwistern" : "innerhalb der Zeitabschnitte") · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .accessibilityLabel("Sortierung")
+            .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
         }
 
         // 4b. Anpassungen: Aktionen

@@ -26,15 +26,27 @@ enum ViewMode: String, Hashable, Sendable, CaseIterable {
 
     var label: String {
         switch self {
-        case .tree: "Baum (wo?)"
-        case .time: "Zeit (wann?)"
+        case .tree: "Baum"
+        case .time: "Zeit"
         }
     }
 
+    /// Ausfuehrliche Bezeichnung fuer Tooltip und Bedienhilfen.
+    var longLabel: String {
+        switch self {
+        case .tree: "Baum – wo wurde gearbeitet?"
+        case .time: "Zeit – wann wurde gearbeitet?"
+        }
+    }
+
+    /// **⚠️ Bewusst KEIN `list.bullet.indent`.** Das trug zuerst die Baumansicht
+    /// – und stand damit als zweites gleiches Symbol neben dem Schalter „alle
+    /// Ordner auf-/zuklappen". Der Umschalter war dadurch nicht auffindbar
+    /// (gemeldet). Verzweigung und Kalender sind in der Leiste eindeutig.
     var symbol: String {
         switch self {
-        case .tree: "list.bullet.indent"
-        case .time: "calendar.day.timeline.left"
+        case .tree: "arrow.triangle.branch"
+        case .time: "calendar"
         }
     }
 }

@@ -20,12 +20,25 @@ enum RowMetrics {
     static let connectorWidth: CGFloat = 22
     /// Einrueckung je Ebene in der **Baumansicht**.
     ///
-    /// Gemessen ist die Schrittweite fuer die Zeilenbreite fast belanglos: Von
-    /// 12 auf 20 pt waechst die breiteste Zeile um 8 pt, weil die Breite von
-    /// langen Dateinamen kommt, nicht von der Schachtelung. Gewaehlt sind 18 pt,
-    /// weil die Stufen dann klar auseinanderliegen, ohne dass tiefe Zweige weit
-    /// nach rechts wandern.
-    static let treeIndentStep: CGFloat = 18
+    /// **⚠️ Nicht frei waehlbar – es gibt eine Untergrenze.** Die senkrechte
+    /// Verzweigungslinie soll wie in der Listenansicht aus der **Mitte des
+    /// Ordnersymbols** des Elternteils nach unten laufen, also bei
+    /// ``connectorX`` = 39 pt. Damit sie links vom Aufklapppfeil des Kindes
+    /// bleibt und nicht mitten durch dessen Zeile schneidet, muss gelten:
+    ///
+    ///     Schrittweite + horizontalPadding > connectorX   →   Schrittweite > 31
+    ///
+    /// Mit 34 pt liegen 3 pt Luft dazwischen. Der Preis ist Breite – gemessen
+    /// unkritisch, weil die Zeilenbreite von langen Dateinamen bestimmt wird und
+    /// nicht von der Schachtelung (Backlog PR-29).
+    static let treeIndentStep: CGFloat = 34
+
+    /// Zusatz-Einrueckung von **Dateizeilen** im Baum.
+    ///
+    /// Dateien haben keinen Aufklapppfeil. Ohne Ausgleich staende ihr Symbol
+    /// 20 pt links von dem gleichrangiger Unterordner – Geschwister saehen aus
+    /// wie verschiedene Ebenen.
+    static var treeFileExtraIndent: CGFloat { disclosureWidth + itemSpacing }
     /// Eckenradius der abgerundeten Baumlinien ("Mind-Map"-Anmutung).
     static let connectorRadius: CGFloat = 6
     /// Linienstaerke der Baumlinien.

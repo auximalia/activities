@@ -194,27 +194,33 @@ struct ReportView: View {
                 TreeFolderRowView(node: node, guides: row, model: model, isCompact: isCompact)
                     .id(row.row)
             } else if let file = row.file {
-                HStack(spacing: 0) {
+                FileRowView(
+                    file: file,
+                    model: model,
+                    // Wie in der Liste: Die Datei, die dem Ordner sein Datum
+                    // gibt, steht fett – sie beantwortet „warum steht der
+                    // Ordner hier oben?".
+                    isDateSource: file.timestamp == model.newestVisibleDate(in: file.folder),
+                    // **Kein Zebra im Baum.** Es ist eine Lesehilfe fuer
+                    // lange, gleichfoermige Bloecke; hier fuehren die
+                    // Baumlinien das Auge bereits. Zwei Mittel fuer dieselbe
+                    // Aufgabe waeren ein drittes Muster im Bild (siehe
+                    // Backlog: „nur EIN Trennsystem").
+                    isAlternate: false,
+                    isCompact: isCompact
+                )
+                // Dateien tragen keinen Aufklapppfeil – ohne Ausgleich staende
+                // ihr Symbol links von dem gleichrangiger Unterordner.
+                .padding(.leading, CGFloat(row.level) * RowMetrics.treeIndentStep
+                         + RowMetrics.treeFileExtraIndent)
+                .background(
                     TreeGuides(
                         ancestorsContinue: row.ancestorsContinue,
-                        isLastSibling: row.isLastSibling
+                        isLastSibling: row.isLastSibling,
+                        contentStart: CGFloat(row.level) * RowMetrics.treeIndentStep
+                            + RowMetrics.treeFileExtraIndent + RowMetrics.horizontalPadding
                     )
-                    FileRowView(
-                        file: file,
-                        model: model,
-                        // Wie in der Liste: Die Datei, die dem Ordner sein Datum
-                        // gibt, steht fett – sie beantwortet „warum steht der
-                        // Ordner hier oben?".
-                        isDateSource: file.timestamp == model.newestVisibleDate(in: file.folder),
-                        // **Kein Zebra im Baum.** Es ist eine Lesehilfe fuer
-                        // lange, gleichfoermige Bloecke; hier fuehren die
-                        // Baumlinien das Auge bereits. Zwei Mittel fuer dieselbe
-                        // Aufgabe waeren ein drittes Muster im Bild (siehe
-                        // Backlog: „nur EIN Trennsystem").
-                        isAlternate: false,
-                        isCompact: isCompact
-                    )
-                }
+                )
                 .id(row.row)
             }
         }

@@ -117,16 +117,57 @@ enum RowMetrics {
     /// Hintergrund einer Zeile – abwechselnd, als Lesehilfe fuer die
     /// waagerechte Zuordnung (welches Datum am rechten Rand gehoert hierher?).
     ///
-    /// **Aus den Systemfarben, nicht selbst gemischt.**
-    /// ``NSColor.alternatingContentBackgroundColors`` ist genau dafuer gedacht:
-    /// Weiss und ein sehr helles Grau im hellen Erscheinungsbild, passend
-    /// invertiert im dunklen. Die frueheren Werte (Fensterhintergrund plus
-    /// ``Color.secondary.opacity(0.07)``) lagen beide im Grau und wirkten
-    /// insgesamt zu dunkel – gemeldet.
+    /// **Warum nicht ``NSColor.alternatingContentBackgroundColors[1]``?** Die
+    /// Systemfarbe ist fuer genau diesen Zweck gedacht und voellig in Ordnung –
+    /// fuer **diese** Liste aber zu kraeftig. An den gezeichneten Pixeln
+    /// gemessen: im dunklen Erscheinungsbild `#282828` gegen `#454545`,
+    /// ΔE ≈ 12,3. UX-12 hatte fuer das fruehere Zebra ΔE 7,6 gemessen und als
+    /// „deutlich genug, ohne zu dominieren" bewertet. Der helle Streifen sticht
+    /// dadurch hervor, statt nur zu gliedern.
+    ///
+    /// Deshalb wird der Wechselton **selbst gemischt**: Grundfarbe plus ein
+    /// kleiner Anteil der Textfarbe. Der Anteil ist je Erscheinungsbild
+    /// verschieden, weil die Textfarbe einmal schwarz und einmal weiss ist –
+    /// derselbe Anteil ergaebe verschiedene Abstaende.
+    ///
+    /// *Lehre, schon zum zweiten Mal (nach UX-12): Kontrast messen, nicht
+    /// schaetzen – und zwar am Bildschirm, nicht am Farbwert.*
     static func rowBackground(alternate: Bool) -> Color {
-        let colors = NSColor.alternatingContentBackgroundColors
-        let index = alternate && colors.count > 1 ? 1 : 0
-        return Color(nsColor: colors[index])
+        Color(nsColor: alternate ? alternateRowColor : baseRowColor)
+    }
+
+    /// Anteil der Textfarbe im Wechselton – je Erscheinungsbild.
+    ///
+    /// Bewusst niedrig: Das Zebra soll die Zeile fuehren, nicht auffallen.
+    /// Gemessen (ΔE zum Grundton) gegenueber den Systemfarben:
+    ///
+    /// | | vorher (System) | jetzt |
+    /// |---|---|---|
+    /// | hell   | 3,6 | ~2,5 |
+    /// | dunkel | 12,3 | ~5,3 |
+    ///
+    /// Die beiden Anteile unterscheiden sich, weil die Textfarbe einmal schwarz
+    /// und einmal weiss ist – derselbe Anteil ergaebe verschiedene Abstaende.
+    private static let alternateBlendDark: CGFloat = 0.030
+    private static let alternateBlendLight: CGFloat = 0.035
+
+    /// Grundton der Zeilen (weiss im hellen, sehr dunkles Grau im dunklen Modus).
+    private static let baseRowColor = NSColor.alternatingContentBackgroundColors[0]
+
+    /// Der Wechselton, aus dem Grundton gemischt.
+    private static let alternateRowColor = NSColor(name: "activitiesAlternateRow") { appearance in
+        var result = NSColor.alternatingContentBackgroundColors[0]
+        appearance.performAsCurrentDrawingAppearance {
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            guard let base = NSColor.alternatingContentBackgroundColors[0].usingColorSpace(.sRGB),
+                  let label = NSColor.labelColor.usingColorSpace(.sRGB)
+            else { return }
+            result = base.blended(
+                withFraction: isDark ? alternateBlendDark : alternateBlendLight,
+                of: label
+            ) ?? base
+        }
+        return result
     }
 
     /// Hintergrund eines Abschnittskopfs in der Zeitansicht.

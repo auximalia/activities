@@ -230,6 +230,7 @@ struct ReportView: View {
                     // verschiedene Anfaenge in derselben Spalte lesen sich als
                     // Fehler.
                     isAlternate: false,
+                    paintsBackground: false,
                     isCompact: isCompact
                 )
                 // Dateien tragen keinen Aufklapppfeil – ohne Ausgleich staende
@@ -244,7 +245,7 @@ struct ReportView: View {
                             + RowMetrics.treeFileExtraIndent + RowMetrics.horizontalPadding
                     )
                 )
-                .background(alternate ? RowMetrics.zebraColor : Color.clear)
+                .background(RowMetrics.rowBackground(alternate: alternate))
                 .id(row.row)
             }
         }
@@ -269,11 +270,16 @@ struct ReportView: View {
                             model: model,
                             isDateSource: file.timestamp == sourceDate,
                             isAlternate: index.isMultiple(of: 2) == false,
+                            // Grund aussen, ueber die ganze Zeilenbreite: Innen
+                            // gemalt endete er an der Baumlinie, und die Stufe
+                            // dorthin faellt bei Weiss/Hellgrau sofort auf.
+                            paintsBackground: false,
                             isCompact: isCompact
                         )
                     }
                     .id(RowID.file(file.url))
                     .padding(.leading, RowMetrics.fileIndent)
+                    .background(RowMetrics.rowBackground(alternate: index.isMultiple(of: 2) == false))
                 }
             }
         } else {
@@ -316,7 +322,13 @@ struct ReportView: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
-        .background(bucket.isPinned ? AnyShapeStyle(.tint.opacity(0.10)) : AnyShapeStyle(.bar))
+        .background {
+            if bucket.isPinned {
+                RowMetrics.sectionHeaderBackground.overlay(Color.accentColor.opacity(0.12))
+            } else {
+                RowMetrics.sectionHeaderBackground.overlay(RowMetrics.sectionHeaderOverlay)
+            }
+        }
         .overlay(alignment: .bottom) {
             if bucket.isPinned {
                 Rectangle()

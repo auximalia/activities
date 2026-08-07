@@ -14,6 +14,14 @@ struct FileRowView: View {
     var isDateSource: Bool = true
     /// Jede zweite Zeile bekommt einen dezenten Hintergrund (Zebra, Lesehilfe).
     var isAlternate: Bool = false
+    /// Ob die Zeile ihren Grund selbst malt.
+    ///
+    /// **WARNUNG: im Baum nicht.** Dort liegt die Zeile hinter einer Einrueckung;
+    /// ein selbst gemalter Grund deckte nur den Inhaltsbereich ab und liess die
+    /// Einrueckung in der Nachbarfarbe stehen – sichtbar als senkrechte Baender
+    /// entlang der Baumlinien. Der Baum malt deshalb aussen, ueber die ganze
+    /// Zeilenbreite.
+    var paintsBackground: Bool = true
     /// Schmales Fenster: Datumsspalte kuerzer.
     var isCompact: Bool = false
 
@@ -81,7 +89,7 @@ struct FileRowView: View {
                     .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
             }
         }
-        .background(isAlternate ? RowMetrics.zebraColor : Color.clear)
+        .background(paintsBackground ? RowMetrics.rowBackground(alternate: isAlternate) : Color.clear)
         .contentShape(Rectangle())
         // Herausziehen in andere Programme (Mail, Finder, Editor).
         //

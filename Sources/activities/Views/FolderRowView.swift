@@ -83,6 +83,9 @@ struct FolderRowView: View {
         .padding(.vertical, 5)
         .padding(.horizontal, RowMetrics.horizontalPadding)
         .background(SelectionBackground(isActive: isSelected))
+        // Gleiche Grundfarbe wie eine gerade Dateizeile: Ohne sie stuende
+        // die Ordnerzeile als graue Bank zwischen weissen Dateizeilen.
+        .background(RowMetrics.rowBackground(alternate: false))
         // Baum-Stub: leitet vom aufgeklappten Ordner in den Dateiblock ueber.
         .overlay(alignment: .bottom) {
             if isExpanded {

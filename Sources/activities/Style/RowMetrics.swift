@@ -93,8 +93,32 @@ enum RowMetrics {
 
     /// Farbe der Baumlinien.
     static let connectorColor = Color.secondary.opacity(0.45)
-    /// Hintergrund jeder zweiten Dateizeile (Zebra, als Lesehilfe).
-    static let zebraColor = Color.secondary.opacity(0.07)
+
+    /// Hintergrund einer Zeile – abwechselnd, als Lesehilfe fuer die
+    /// waagerechte Zuordnung (welches Datum am rechten Rand gehoert hierher?).
+    ///
+    /// **Aus den Systemfarben, nicht selbst gemischt.**
+    /// ``NSColor.alternatingContentBackgroundColors`` ist genau dafuer gedacht:
+    /// Weiss und ein sehr helles Grau im hellen Erscheinungsbild, passend
+    /// invertiert im dunklen. Die frueheren Werte (Fensterhintergrund plus
+    /// ``Color.secondary.opacity(0.07)``) lagen beide im Grau und wirkten
+    /// insgesamt zu dunkel – gemeldet.
+    static func rowBackground(alternate: Bool) -> Color {
+        let colors = NSColor.alternatingContentBackgroundColors
+        let index = alternate && colors.count > 1 ? 1 : 0
+        return Color(nsColor: colors[index])
+    }
+
+    /// Hintergrund eines Abschnittskopfs in der Zeitansicht.
+    ///
+    /// Muss sich von **beiden** Zeilenfarben abheben – sonst geht die Zaesur
+    /// zwischen „Heute" und „Gestern" im Wechsel der Zeilen unter. Deshalb der
+    /// Fensterhintergrund (deutlich grauer als die weissen Zeilen) mit einer
+    /// leichten Verstaerkung darauf.
+    static let sectionHeaderBackground = Color(nsColor: .windowBackgroundColor)
+    /// Verstaerkung ueber ``sectionHeaderBackground``; hebt im hellen Modus ab
+    /// und hellt im dunklen auf – in beiden Faellen eine eigene Flaeche.
+    static let sectionHeaderOverlay = Color.primary.opacity(0.06)
 
     /// Saettigung des Datei-Icons bei Dateien **ausserhalb** des Zeitraums.
     /// 0 = Graustufen: farbige Icons markieren so die relevanten Treffer

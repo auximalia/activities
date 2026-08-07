@@ -58,9 +58,15 @@ struct MainToolbar: ToolbarContent {
                 ),
                 onSymbol: "list.bullet.indent",
                 offSymbol: "list.bullet",
-                label: "Alle Ordner auf- oder zuklappen",
-                onState: "alle aufgeklappt",
-                offState: "nicht alle aufgeklappt"
+                // Derselbe Handgriff, zwei Formulierungen: Im Baum bleibt das
+                // Ordnergeruest stehen und nur die Dateien verschwinden; in der
+                // Zeitansicht ist das Zuklappen der Ordner derselbe Vorgang,
+                // weil dort unter einem Ordner nur Dateien haengen.
+                label: model.viewMode == .tree
+                    ? "Dateien in allen Ordnern anzeigen"
+                    : "Alle Ordner auf- oder zuklappen",
+                onState: model.viewMode == .tree ? "werden angezeigt" : "alle aufgeklappt",
+                offState: model.viewMode == .tree ? "sind ausgeblendet" : "nicht alle aufgeklappt"
             )
 
             ToolbarStateToggle(

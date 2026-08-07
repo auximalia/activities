@@ -154,6 +154,15 @@ final class ReportViewModel {
     private(set) var displayTree: [FolderNode] = []
     /// Gliederung der Liste: Baum oder Zeitabschnitte.
     private(set) var viewMode: ViewMode
+    /// Ob im **Baum** die Dateizeilen erscheinen.
+    ///
+    /// **WARNUNG: nicht dasselbe wie „Ordner aufgeklappt".** Der Schalter in der
+    /// Titelleiste leerte im Baum zuerst ``expandedFolders`` – gemeldet: „alle
+    /// Ordner bis auf den Wurzelordner verschwinden". Gemeint ist aber nur, die
+    /// **Dateien** unter den Ordnern ein- und auszublenden; das Geruest bleibt
+    /// stehen. In der Zeitansicht faellt beides zusammen (ein Ordner enthaelt
+    /// dort nur Dateien), im Baum nicht.
+    private(set) var treeShowsFiles: Bool
     /// Buendelung der Diagramm-Achse (automatisch nach Laenge des Zeitraums).
     private(set) var chartGranularity: ChartGranularity = .day
     /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
@@ -333,6 +342,7 @@ final class ReportViewModel {
         self.rangeStart = saved.rangeStart
         self.rangeEnd = saved.rangeEnd
         self.viewMode = saved.viewMode
+        self.treeShowsFiles = saved.treeShowsFiles
         // **Erkennen statt fragen.** Beim ersten Start ist nichts gewaehlt; dann
         // wird genommen, was tatsaechlich installiert ist. Wer nichts einstellt,
         // hat die Eintraege trotzdem – und wer nichts Passendes installiert hat,
@@ -870,7 +880,8 @@ final class ReportViewModel {
         FolderTree.rows(
             displayTree,
             expanded: expandedFolders,
-            filesByFolder: visibleSortedFilesByFolder
+            filesByFolder: visibleSortedFilesByFolder,
+            includeFiles: treeShowsFiles
         )
     }
 
@@ -1206,19 +1217,37 @@ final class ReportViewModel {
         }
     }
 
+    /// Ob der Schalter „alles auf/zu" als *ein* gilt.
     var allExpanded: Bool {
-        let all = Set(displayedFolders())
-        return !all.isEmpty && all.isSubset(of: expandedFolders)
+        switch viewMode {
+        case .tree:
+            return treeShowsFiles
+        case .time:
+            let all = Set(displayedFolders())
+            return !all.isEmpty && all.isSubset(of: expandedFolders)
+        }
     }
 
+    /// Blendet die Dateien aller Ordner ein oder aus.
+    ///
+    /// Im **Baum** bleibt das Ordnergeruest dabei unangetastet – nur die
+    /// Dateizeilen entfallen. In der **Zeitansicht** ist das Zuklappen der
+    /// Ordner derselbe Vorgang: Dort haengen unter einem Ordner ausschliesslich
+    /// Dateien.
     func setAllExpanded(_ expand: Bool) {
-        if expand {
-            for folder in displayedFolders() {
-                expandedFolders.insert(folder)
-                ensureLoaded(folder)
+        switch viewMode {
+        case .tree:
+            treeShowsFiles = expand
+            store.saveTreeShowsFiles(expand)
+        case .time:
+            if expand {
+                for folder in displayedFolders() {
+                    expandedFolders.insert(folder)
+                    ensureLoaded(folder)
+                }
+            } else {
+                expandedFolders = []
             }
-        } else {
-            expandedFolders = []
         }
     }
 

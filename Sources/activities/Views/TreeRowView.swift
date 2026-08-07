@@ -129,7 +129,7 @@ struct TreeFolderRowView: View {
             // („welches Datum gehoert zu dieser Zeile?"), die Baumlinien die
             // senkrechte. Zwei verschiedene Aufgaben – kein doppeltes
             // Trennsystem.
-            .background(isAlternate ? RowMetrics.zebraColor : Color.clear)
+            .background(RowMetrics.rowBackground(alternate: isAlternate))
             .contentShape(Rectangle())
             .help(node.folder.path)
             .onTapGesture {

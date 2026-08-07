@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.16 · 2026-08-07*
+*Stand: v1.19.17 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -979,14 +979,32 @@ ist AP3.
    Wörterbuch-Schlüssel** – im Baum blieb dadurch jede Dateizeile weg. Der Pfad taugt zum
    Vergleichen, nie als Ersatz für die URL. Dagegen läuft jetzt eine eigene Prüfung.
 
-**⚠️ Zebra entfällt im Baum — und ist zurückgenommen.** Die erste Fassung strich es mit der
+**Zebra: erst gestrichen, dann zurückgenommen.** Die erste Fassung strich es mit der
 Begründung, die Baumlinien führten das Auge bereits. Das war falsch gedacht: Die Baumlinien
 beantworten die **senkrechte** Frage (wer hängt unter wem), das Zebra die **waagerechte**
 (welches Datum am rechten Rand gehört zu dieser Zeile). Zwei verschiedene Aufgaben, also kein
-doppeltes Trennsystem. Im Baum läuft es über **alle** Zeilen — Ordner wie Dateien —, weil
-dort anders als in der Zeitansicht alles eine durchgehende Folge ist, und über die **volle
-Breite**: `FileRowView` legt seinen Streifen hinter den bereits eingerückten Inhalt, was im
-Baum zwei verschiedene Anfänge in derselben Spalte ergeben hätte.
+doppeltes Trennsystem. Im Baum läuft es über **alle** Zeilen – Ordner wie Dateien –, weil dort
+anders als in der Zeitansicht alles eine durchgehende Folge ist.
+
+**⚠️ „Alles auf/zu" heißt im Baum etwas anderes.** Die erste Fassung leerte `expandedFolders`
+– und ließ damit alle Ordner bis auf die Wurzel verschwinden (gemeldet). Gemeint ist aber nur,
+die **Dateien** unter den Ordnern ein- und auszublenden; das Gerüst bleibt stehen. In der
+Zeitansicht fällt beides zusammen, weil unter einem Ordner dort ausschließlich Dateien hängen
+– im Baum nicht. Der Schalter trägt deshalb je Ansicht eine andere Beschriftung und im Baum
+einen eigenen Zustand (`treeShowsFiles`), der die Aufklappstellung der Ordner unangetastet
+lässt.
+
+**Zeilenfarben aus den Systemfarben.** `NSColor.alternatingContentBackgroundColors` – Weiß und
+sehr helles Grau im hellen Erscheinungsbild, passend invertiert im dunklen. Die früheren Werte
+(Fensterhintergrund plus `secondary.opacity(0.07)`) lagen beide im Grau und wirkten zu dunkel.
+Die Abschnittsköpfe der Zeitansicht mussten dadurch **dunkler** werden, sonst wäre die Zäsur
+zwischen „Heute" und „Gestern" im Zeilenwechsel untergegangen.
+
+**⚠️ Der Zeilengrund gehört nach außen, nicht in die Zeile.** `FileRowView` malte ihn hinter
+den bereits eingerückten Inhalt. In beiden Ansichten endete er dadurch an der Einrückung und
+ließ den Rest in der Nachbarfarbe stehen – im Baum als senkrechte Bänder entlang der
+Baumlinien, in der Liste als Stufe an der Baumlinie. Bei einem schwachen Zebra fiel das nicht
+auf, bei Weiß gegen Hellgrau sofort.
 
 **Maße sind gekoppelt, nicht frei gewählt.** Die Verzweigungslinie soll aus der Mitte des
 Ordnersymbols kommen (`connectorX` = 39 pt). Daraus folgt zwingend eine Einrückung über 31 pt

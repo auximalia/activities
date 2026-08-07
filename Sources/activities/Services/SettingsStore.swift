@@ -37,6 +37,8 @@ struct StoredSettings {
     var terminalBundleID: String?
     /// Gliederung der Liste: Ordnerbaum oder Zeitabschnitte.
     var viewMode: ViewMode
+    /// Ob im Baum die Dateizeilen erscheinen.
+    var treeShowsFiles: Bool
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -66,6 +68,7 @@ final class SettingsStore {
     private let dockIconKey = "showsDockIcon"
     private let expandedKey = "expandedFolders"
     private let viewModeKey = "viewMode"
+    private let treeFilesKey = "treeShowsFiles"
     private let editorKey = "editorBundleID"
     private let terminalKey = "terminalBundleID"
     private let maxRecent = 8
@@ -139,12 +142,17 @@ final class SettingsStore {
             // Ergebnisordner einen Vorfahren im selben Ergebnis; die flache
             // Liste verschweigt diese Verwandtschaft. Die Zeitansicht bleibt
             // gleichrangig erreichbar.
-            viewMode: (defaults.string(forKey: viewModeKey)).flatMap(ViewMode.init(rawValue:)) ?? .tree
+            viewMode: (defaults.string(forKey: viewModeKey)).flatMap(ViewMode.init(rawValue:)) ?? .tree,
+            treeShowsFiles: defaults.object(forKey: treeFilesKey) as? Bool ?? true
         )
     }
 
     func saveViewMode(_ mode: ViewMode) {
         defaults.set(mode.rawValue, forKey: viewModeKey)
+    }
+
+    func saveTreeShowsFiles(_ shows: Bool) {
+        defaults.set(shows, forKey: treeFilesKey)
     }
 
     func saveEditorBundleID(_ id: String) {

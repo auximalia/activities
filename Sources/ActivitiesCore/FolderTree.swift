@@ -269,10 +269,17 @@ public enum FolderTree {
     ///    stehen statt unter ihr.
     /// Der Preis ist eine Einrueckungsstufe (16 pt) – gemessen unkritisch.
     /// Die Ebene ist dafuer **immer** die Tiefe im Baum, ohne Ausnahme.
+    ///
+    /// **WARNUNG: ``includeFiles`` ist nicht dasselbe wie „zugeklappt".** Der
+    /// Schalter „alles auf/zu" soll im Baum nur die **Dateien** verbergen; das
+    /// Geruest aus Ordnern bleibt stehen. Wuerde er stattdessen ``expanded``
+    /// leeren, verschwaenden ganze Teilbaeume. In der Zeitansicht faellt beides
+    /// zusammen (ein Ordner enthaelt dort nur Dateien), im Baum nicht.
     public static func rows(
         _ nodes: [FolderNode],
         expanded: Set<URL>,
-        filesByFolder: [URL: [RelevantFile]]
+        filesByFolder: [URL: [RelevantFile]],
+        includeFiles: Bool = true
     ) -> [TreeRow] {
         var result: [TreeRow] = []
 
@@ -287,7 +294,7 @@ public enum FolderTree {
             ))
             guard expanded.contains(node.folder) else { return }
 
-            let files = filesByFolder[node.folder] ?? []
+            let files = includeFiles ? (filesByFolder[node.folder] ?? []) : []
             let childContinues = continues + [!isLast]
             // Dateien zuerst, dann Unterordner: Der Ordner steht fuer seinen
             // eigenen Inhalt; die Unterordner sind ein neuer Ort. Umgekehrt

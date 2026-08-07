@@ -108,6 +108,13 @@ struct ReportView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.bottom, 12)
+                // **⚠️ Eigene Identitaet je Gliederung.** Baum- und Zeitzweig
+                // vergeben dieselben Zeilen-``id``s (``RowID``) – sie muessen es,
+                // damit ``ScrollViewReader`` in beiden Ansichten zur Auswahl
+                // springen kann. Ohne diese Kennung hielt SwiftUI beim Umschalten
+                // an den alten Zeilen fest: Die Abschnittskoepfe der Zeitansicht
+                // erschienen, darunter standen aber weiter Baumzeilen.
+                .id(model.viewMode)
             }
             .background(QuickLookHost(controller: quickLook))
             .focusable()

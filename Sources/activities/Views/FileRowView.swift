@@ -149,6 +149,16 @@ struct FileRowView: View {
             let suffix = targets.count > 1 ? " (\(targets.count))" : ""
             Button("Öffnen" + suffix) { targets.forEach { FinderService.open($0) } }
             Button("Im Finder anzeigen" + suffix) { targets.forEach { FinderService.reveal($0) } }
+            if let editor = model.editorApp {
+                Button("In \(editor.name) öffnen" + suffix) { model.openInEditor(targets) }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+            }
+            if let terminal = model.terminalApp {
+                // Ohne Anzahl: Das Terminal oeffnet den **Ordner** der Auswahl,
+                // nicht die Dateien – eine Zahl daneben waere eine falsche Zusage.
+                Button("Ordner in \(terminal.name) öffnen") { model.openInTerminal(targets) }
+                    .keyboardShortcut("t", modifiers: [.command, .shift])
+            }
             Button((targets.count > 1 ? "Pfade kopieren" : "Pfad kopieren") + suffix) {
                 ClipboardService.copy(targets.map(\.path).joined(separator: "\n"))
             }

@@ -73,6 +73,13 @@ struct HelpView: View {
                     "Einen Ordner aufs Fenster ziehen setzt ihn als neuen Wurzelordner.",
                 ])
 
+                section("In anderen Programmen öffnen", icon: "arrow.up.forward.app", [
+                    "Kontextmenü: „In <Editor> öffnen“ (⇧⌘E) und „In <Terminal> öffnen“ (⇧⌘T).",
+                    "Bei Dateien öffnet der Editor die Dateien, das Terminal deren Ordner.",
+                    "Vorbelegt wird, was tatsächlich installiert ist – sonst fehlt der Eintrag.",
+                    "Änderbar unter Einstellungen → Allgemein → Programme (⌘,).",
+                ])
+
                 section("Tastatur & Vorschau", icon: "keyboard", [
                     "Pfeile ↑/↓ bewegen die Auswahl, ←/→ klappt Ordner zu/auf.",
                     "Enter öffnet die Auswahl, Leertaste zeigt die QuickLook-Vorschau.",
@@ -160,8 +167,10 @@ struct HelpView: View {
                 shortcutRow("⌘F", "Filter fokussieren")
                 shortcutRow("⌥⌘R", "Typ-Filter zurücksetzen")
                 shortcutRow("⌘↑", "An den Anfang der Liste")
+                shortcutRow("⇧⌘E", "In Editor öffnen (falls eingerichtet)")
+                shortcutRow("⇧⌘T", "In Terminal öffnen (falls eingerichtet)")
                 shortcutRow("⌘E", "Als CSV exportieren")
-                shortcutRow("⇧⌘E", "Als HTML exportieren")
+                shortcutRow("⌥⌘E", "Als HTML exportieren")
                 shortcutRow("⌘W", "Fenster schließen")
                 shortcutRow("⌥⌘A", "Fenster nach vorn holen (überall)")
                 shortcutRow("⌘,", "Einstellungen")

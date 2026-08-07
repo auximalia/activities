@@ -30,6 +30,11 @@ struct StoredSettings {
     var showsDockIcon: Bool
     /// Ordner, die beim letzten Beenden aufgeklappt waren.
     var expandedFolders: [URL]
+    /// Bundle-ID des Programms für den Platz „Editor"; `nil` = noch nie gewählt
+    /// (dann wird erkannt), leer = ausdrücklich keines.
+    var editorBundleID: String?
+    /// Bundle-ID des Programms für den Platz „Terminal" (Bedeutung wie oben).
+    var terminalBundleID: String?
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -58,6 +63,8 @@ final class SettingsStore {
     private let pinnedKey = "pinnedFolders"
     private let dockIconKey = "showsDockIcon"
     private let expandedKey = "expandedFolders"
+    private let editorKey = "editorBundleID"
+    private let terminalKey = "terminalBundleID"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -119,8 +126,21 @@ final class SettingsStore {
             excludedPaths: excludedPaths,
             pinnedFolders: pinned,
             showsDockIcon: showsDockIcon,
-            expandedFolders: expanded
+            expandedFolders: expanded,
+            // Bewusst `nil` statt "" als Vorgabe: Nur so ist „noch nie gewaehlt"
+            // (erkennen) von „ausdruecklich keines" (nichts anbieten) zu
+            // unterscheiden.
+            editorBundleID: defaults.string(forKey: editorKey),
+            terminalBundleID: defaults.string(forKey: terminalKey)
         )
+    }
+
+    func saveEditorBundleID(_ id: String) {
+        defaults.set(id, forKey: editorKey)
+    }
+
+    func saveTerminalBundleID(_ id: String) {
+        defaults.set(id, forKey: terminalKey)
     }
 
     func save(days: Int, namePattern: String) {

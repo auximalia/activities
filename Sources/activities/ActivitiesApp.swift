@@ -125,6 +125,20 @@ struct ActivitiesApp: App {
                 Button("An den Anfang") { model.scrollToTopToken += 1 }
                     .keyboardShortcut(.upArrow, modifiers: .command)
                 Divider()
+                // Auswahl in einem anderen Programm oeffnen. Ohne eingerichteten
+                // Platz erscheint der Befehl gar nicht – ein Menuepunkt „In
+                // (nichts) oeffnen" waere Ratlosigkeit in Menueform.
+                if let editor = model.editorApp {
+                    Button("In \(editor.name) öffnen") { model.openInEditor(model.commandTargets) }
+                        .keyboardShortcut("e", modifiers: [.command, .shift])
+                        .disabled(model.commandTargets.isEmpty)
+                }
+                if let terminal = model.terminalApp {
+                    Button("In \(terminal.name) öffnen") { model.openInTerminal(model.commandTargets) }
+                        .keyboardShortcut("t", modifiers: [.command, .shift])
+                        .disabled(model.commandTargets.isEmpty)
+                }
+                Divider()
                 Button("Nach Datum sortieren") { model.setSortField(.date) }
                     .keyboardShortcut("1", modifiers: [.command, .option])
                 Button("Nach Name sortieren") { model.setSortField(.name) }
@@ -141,8 +155,13 @@ struct ActivitiesApp: App {
             CommandGroup(replacing: .saveItem) {
                 Button("Als CSV exportieren …") { ExportService.exportCSV(model.displayBuckets) }
                     .keyboardShortcut("e", modifiers: .command)
+                // **⌥⌘E statt ⌘⇧E.** Das naheliegende ⌘⇧E ging an „In <Editor>
+                // oeffnen": Ein Ordner im Editor ist ein taeglicher Handgriff,
+                // ein HTML-Bericht eine Ausnahme – das leichter erreichbare
+                // Kuerzel gehoert dem haeufigeren Befehl. ⌘E/⌥⌘E bleiben als
+                // Paar beieinander.
                 Button("Als HTML exportieren …") { ExportService.exportHTML(model.displayBuckets) }
-                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .keyboardShortcut("e", modifiers: [.command, .option])
             }
             // Die Zwischenablage-Gruppe wird **ersetzt**, nicht ergaenzt:
             // macOS' eigenes „Select All" verarbeitet ⌘A im Menue, bevor die

@@ -177,6 +177,18 @@ final class ReportViewModel {
     /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
     var scrollToTopToken = 0
 
+    /// Programm fuer den Platz „Editor"; ``nil`` = keines vorhanden/gewaehlt.
+    private(set) var editorApp: ExternalApp?
+    /// Programm fuer den Platz „Terminal"; ``nil`` = keines vorhanden/gewaehlt.
+    private(set) var terminalApp: ExternalApp?
+    /// Meldung eines fehlgeschlagenen Handgriffs (Alert).
+    ///
+    /// Getrennt von ``errorMessage``: Diese ersetzt die gesamte Ergebnisliste
+    /// und ist fuer „der Suchlauf ging nicht" gedacht. Ein Programm, das sich
+    /// nicht starten laesst, darf die Auswertung nicht vom Bildschirm nehmen –
+    /// verschweigen darf man es aber auch nicht.
+    var actionError: String?
+
     /// Woher die letzte Auswahl stammt. Entscheidet, ob die Liste zur Auswahl
     /// scrollen darf: Bei einem **Mausklick** ist die Zeile bereits sichtbar –
     /// ein Scrollen wuerde sie unter dem Zeiger wegziehen.
@@ -270,6 +282,83 @@ final class ReportViewModel {
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
         self.rangeEnd = saved.rangeEnd
+        // **Erkennen statt fragen.** Beim ersten Start ist nichts gewaehlt; dann
+        // wird genommen, was tatsaechlich installiert ist. Wer nichts einstellt,
+        // hat die Eintraege trotzdem – und wer nichts Passendes installiert hat,
+        // bekommt keinen toten Menuepunkt.
+        self.editorApp = Self.resolveSlot(
+            stored: saved.editorBundleID,
+            candidates: ExternalAppService.editorCandidates
+        )
+        self.terminalApp = Self.resolveSlot(
+            stored: saved.terminalBundleID,
+            candidates: ExternalAppService.terminalCandidates
+        )
+    }
+
+    /// Loest einen Programmplatz auf: gespeicherte Wahl vor Erkennung.
+    ///
+    /// Drei Faelle, bewusst unterschieden:
+    /// - ``nil`` (noch nie gewaehlt) → ersten installierten Kandidaten nehmen,
+    /// - `""` (ausdruecklich keines) → nichts anbieten,
+    /// - Bundle-ID → dieses Programm, sofern noch vorhanden.
+    private static func resolveSlot(stored: String?, candidates: [String]) -> ExternalApp? {
+        guard let stored else { return ExternalAppService.firstInstalled(of: candidates) }
+        guard !stored.isEmpty else { return nil }
+        return ExternalAppService.app(bundleID: stored)
+    }
+
+    /// Setzt den Platz „Editor" (``nil`` = keines) und sichert die Wahl.
+    func setEditorApp(_ app: ExternalApp?) {
+        editorApp = app
+        store.saveEditorBundleID(app?.bundleID ?? "")
+    }
+
+    /// Setzt den Platz „Terminal" (``nil`` = keines) und sichert die Wahl.
+    func setTerminalApp(_ app: ExternalApp?) {
+        terminalApp = app
+        store.saveTerminalBundleID(app?.bundleID ?? "")
+    }
+
+    // MARK: - In anderem Programm oeffnen
+
+    /// Oeffnet Objekte im Editor.
+    func openInEditor(_ urls: [URL]) {
+        guard let editorApp, !urls.isEmpty else { return }
+        ExternalAppService.open(urls, with: editorApp) { [weak self] message in
+            self?.actionError = message
+        }
+    }
+
+    /// Oeffnet die zugehoerigen **Ordner** im Terminal.
+    ///
+    /// Eine Datei an ein Terminal zu uebergeben ergaebe nichts Sinnvolles – ein
+    /// Terminal arbeitet an einem Ort, nicht an einem Dokument. Deshalb wird bei
+    /// Dateien der enthaltende Ordner genommen und die Menge entdoppelt: Fuenf
+    /// markierte Dateien desselben Ordners sollen **ein** Fenster oeffnen.
+    func openInTerminal(_ urls: [URL]) {
+        guard let terminalApp else { return }
+        var folders: [URL] = []
+        for url in urls {
+            let folder = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
+            if !folders.contains(folder) { folders.append(folder) }
+        }
+        guard !folders.isEmpty else { return }
+        ExternalAppService.open(folders, with: terminalApp) { [weak self] message in
+            self?.actionError = message
+        }
+    }
+
+    /// Die Objekte, auf die ein Menuebefehl (⌘⇧E/⌘⇧T) wirkt.
+    ///
+    /// Folgt derselben Regel wie das Kontextmenue: Gehoert die Cursorzeile zur
+    /// Auswahl, gilt die **ganze** Auswahl; sonst nur diese eine Zeile.
+    var commandTargets: [URL] {
+        switch cursor {
+        case .folder(let url): [url]
+        case .file(let url): actionTargets(for: url)
+        case nil: []
+        }
     }
 
     /// Gepufferte Fenstergrenzen fuer ``isInWindow``. ``window`` rechnet mit

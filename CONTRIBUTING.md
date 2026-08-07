@@ -1,6 +1,6 @@
 # Entwicklung & Build
 
-*Stand: v1.19.5 · 2026-08-06*
+*Stand: v1.19.7 · 2026-08-07*
 
 Kurzanleitung zum Bauen, Testen, Paketieren und Veroeffentlichen der macOS-App
 **activities**. Sprachkonvention: Prosa auf Deutsch, Code-Bezeichner/Commits auf
@@ -187,6 +187,9 @@ Der Workflow baut auf `macos-14` und fuehrt `swift run CoreChecks` und
 - **Pfeil hoch/runter**: Auswahl bewegen · **links/rechts**: Ordner zu/auf · **Enter**: oeffnen.
 - **Leertaste**: QuickLook-Vorschau der markierten Datei.
 - **⌘R**: aktualisieren · **⌘F**: Filter fokussieren.
+- **⇧⌘E** / **⇧⌘T**: Auswahl im eingerichteten Editor bzw. Terminal oeffnen
+  (Einstellungen → Allgemein → Programme; ohne eingerichtetes Programm fehlt der Befehl).
+- **⌘E** / **⌥⌘E**: als CSV bzw. HTML exportieren.
 - **⌘W**: Fenster schliessen · **⌥⌘A**: Fenster aus jedem Programm nach vorn holen.
   Die App laeuft ohne Fenster weiter (Menueleisten-Symbol); es gibt bewusst **ein**
   Hauptfenster, kein ⌘N (siehe Konzept 9.6.7).

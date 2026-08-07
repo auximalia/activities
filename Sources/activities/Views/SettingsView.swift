@@ -14,6 +14,9 @@ struct SettingsView: View {
     @State private var newRule = ""
     @State private var launchesAtLogin = AppPresence.launchesAtLogin
     @State private var loginError: String?
+    @State private var showAppPicker = false
+    /// Welcher Platz die Wahl aus dem Programme-Dialog entgegennimmt.
+    @State private var pickerApply: ((ExternalApp?) -> Void)?
 
     var body: some View {
         TabView {
@@ -58,6 +61,30 @@ struct SettingsView: View {
                 Text("Verhalten")
             }
 
+            Section {
+                appSlot(
+                    title: "Editor",
+                    hint: "Erscheint als „In … öffnen“ im Kontextmenü (⌘⇧E).",
+                    current: model.editorApp,
+                    candidates: ExternalAppService.editorCandidates,
+                    apply: { model.setEditorApp($0) }
+                )
+                appSlot(
+                    title: "Terminal",
+                    hint: "Öffnet den Ordner, bei Dateien deren Ordner (⌘⇧T).",
+                    current: model.terminalApp,
+                    candidates: ExternalAppService.terminalCandidates,
+                    apply: { model.setTerminalApp($0) }
+                )
+            } header: {
+                Text("Programme")
+            } footer: {
+                Text("Vorbelegt wird, was tatsächlich installiert ist. Gespeichert wird die "
+                     + "Bundle-Kennung, nicht der Pfad – ein verschobenes Programm wird weiter gefunden.")
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("Tastenkürzel") {
                 LabeledContent("Fenster nach vorn holen") {
                     Text("⌥⌘A").font(.system(.body, design: .monospaced))
@@ -68,6 +95,50 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .fileImporter(
+            isPresented: $showAppPicker,
+            allowedContentTypes: [.application],
+            allowsMultipleSelection: false
+        ) { result in
+            guard case .success(let urls) = result,
+                  let url = urls.first,
+                  let picked = ExternalAppService.app(at: url)
+            else { return }
+            pickerApply?(picked)
+        }
+    }
+
+    /// Ein Programmplatz: aktuelle Wahl, erkannte Kandidaten, freie Auswahl.
+    ///
+    /// Bewusst ein Menue und keine Liste zum Verwalten: Es geht um **einen**
+    /// Wert je Platz. Eine Verwaltungsoberflaeche fuer beliebig viele Programme
+    /// waere Vorrat auf einen Bedarf, den es nicht gibt.
+    @ViewBuilder
+    private func appSlot(
+        title: String,
+        hint: String,
+        current: ExternalApp?,
+        candidates: [String],
+        apply: @escaping (ExternalApp?) -> Void
+    ) -> some View {
+        LabeledContent {
+            Menu(current?.name ?? "Keines") {
+                ForEach(ExternalAppService.installed(among: candidates)) { app in
+                    Button(app.name) { apply(app) }
+                }
+                Divider()
+                Button("Anderes Programm …") {
+                    pickerApply = apply
+                    showAppPicker = true
+                }
+                Button("Keines") { apply(nil) }
+            }
+            .fixedSize()
+        } label: {
+            Text(title)
+            Text(hint)
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     private var noiseTab: some View {

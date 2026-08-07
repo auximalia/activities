@@ -117,6 +117,16 @@ struct FolderRowView: View {
         .contextMenu {
             Button("Im Finder öffnen") { FinderService.open(entry.folder) }
             Button("Im Finder anzeigen") { FinderService.reveal(entry.folder) }
+            // Eintraege erscheinen nur, wenn das Programm wirklich da ist –
+            // ein Menuepunkt, der nichts tun kann, ist schlimmer als keiner.
+            if let editor = model.editorApp {
+                Button("In \(editor.name) öffnen") { model.openInEditor([entry.folder]) }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+            }
+            if let terminal = model.terminalApp {
+                Button("In \(terminal.name) öffnen") { model.openInTerminal([entry.folder]) }
+                    .keyboardShortcut("t", modifiers: [.command, .shift])
+            }
             Button("Pfad kopieren") { ClipboardService.copy(entry.folder.path) }
             Divider()
             Button(model.isPinned(entry.folder) ? "Nicht mehr anheften" : "Anheften") {

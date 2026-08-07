@@ -54,6 +54,21 @@ struct RootView: View {
         .navigationTitle("activities")
         .task { model.startInitialScanIfNeeded() }
         .task { await updates.check() }
+        // Ein Programm, das sich nicht starten laesst, muss **dastehen**. Der
+        // stille Rueckfall auf den Finder waere schlimmer als gar nichts: Der
+        // Anwender haelt den Handgriff fuer erledigt und sucht das Fenster im
+        // falschen Programm.
+        .alert(
+            "Öffnen nicht möglich",
+            isPresented: Binding(
+                get: { model.actionError != nil },
+                set: { if !$0 { model.actionError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { model.actionError = nil }
+        } message: {
+            Text(model.actionError ?? "")
+        }
         .alert(
             updates.manualResult?.title ?? "",
             isPresented: Binding(

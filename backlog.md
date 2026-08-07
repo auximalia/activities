@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.4 · 2026-08-06*
+*Stand: v1.19.7 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -844,32 +844,50 @@ der Befehl öffnet genau die Dateien dieses Kalendertags in diesem Ordner; die A
 Dateimenge folgt denselben Filtern wie die Liste (Typ, Name, Rauschfilter); ab der Schwelle
 aus PR-26 wird zurückgefragt.
 
-### PR-12 · Ordner in einem Programm eigener Wahl öffnen
+### PR-12 · Ordner in einem Programm eigener Wahl öffnen · **erledigt (v1.19.7)**
 **Aufwand:** M · **Nutzen:** mittel
-Terminal, VS Code, Editor. Heute gibt es **nur** `FinderService.open` (`:8`,
-`NSWorkspace.shared.open`) – also immer die Standardzuordnung.
 
-**Entschieden – genau *ein* bevorzugtes Programm.** „Im Finder öffnen" bleibt daneben
-bestehen. Eine Liste mehrerer Programme wäre eine Verwaltungsoberfläche für einen Bedarf,
-den es noch nicht gibt; sie kann jederzeit folgen, wenn er sich zeigt.
+**Umgesetzt – aber mit *zwei* Plätzen statt einem.** Die ursprüngliche Festlegung („genau
+*ein* bevorzugtes Programm") hielt der Nachfrage nicht stand: Verlangt wurden Editor **und**
+Terminal. Das sind keine zwei Einträge einer Liste, sondern zwei verschiedene Handgriffe –
+*Code ansehen* und *hier arbeiten*. Zwei benannte Plätze sind deshalb keine Aufweichung der
+Entscheidung, sondern ihre Korrektur: Es bleibt bei festen Rollen statt einer Programmliste.
 
-**Vorhandenes Muster:** `UpdateChecker.swift:206-219` öffnet bereits gezielt mit einer
-bestimmten App (`urlForApplication(withBundleIdentifier:)` + `open([url],
-withApplicationAt:configuration:)`). `FinderService` bekommt eine zweite Variante mit Ziel-App.
+**⚠️ Das naheliegende „Öffnen mit …"-Untermenü wurde geprüft und verworfen.** Gemessen an
+`~/Documents` liefert `NSWorkspace.urlsForApplications(toOpen:)` neun Programme, davon fünf
+sinnlose (QuickTime, Archivierungsprogramm, Books, VLC, MacWhisper) – und **Terminal.app
+fehlt darin ganz**, weil sie sich bei LaunchServices nicht als Ordner-Öffner registriert.
+Ein Menü, in dem man den einen brauchbaren Eintrag zwischen Rauschen sucht und den
+wichtigsten gar nicht findet, ist keine Hilfe. Die gezielte Abfrage über
+`urlForApplication(withBundleIdentifier:)` ist dagegen zuverlässig.
 
-**⚠️ Bundle-ID speichern, nicht den Pfad.** Ein Pfad zeigt ins Leere, sobald das Programm
-verschoben oder umbenannt wird; die Bundle-ID überlebt das. Fehlt das Programm trotzdem,
-muss die Ursache **dastehen** statt still auf den Finder zurückzufallen – dieselbe Regel wie
-beim Anmeldestart (`SettingsView.swift:48-55`).
+**Erkennen statt fragen.** Ohne gespeicherte Wahl wird der erste installierte Kandidat aus
+einer kurzen Liste genommen (`ExternalAppService.editorCandidates` / `terminalCandidates`).
+Damit stehen die Einträge beim ersten Start da, ohne dass jemand etwas einstellt – und wo
+nichts Passendes installiert ist, fehlt der Menüpunkt, statt ins Leere zu zeigen.
+`Terminal.app` steht am **Ende** der Terminal-Liste: Sie ist auf jedem Mac vorhanden und
+verdeckte sonst jede bewusst installierte Alternative.
 
-**Ort:** Einstellungen → „Allgemein" → Abschnitt „Verhalten" (`SettingsView.swift:30-59`),
-Auswahl über `NSOpenPanel` auf „Programme". Muster für die Anbindung:
-`setShowsDockIcon` (`ReportViewModel.swift:1079`) – Property, `store.save…`, Nebenwirkung.
-Ein Eintrag „In *Programm* öffnen" kommt ins Ordner-Kontextmenü (`FolderRowView.swift:117`).
+**Umgesetzt wie beschlossen:** Bundle-ID gespeichert (nicht der Pfad); der Menütext trägt den
+**echten** Namen aus dem Bundle (wer Cursor nutzt, liest „In Cursor öffnen"); ein
+fehlgeschlagener Start erzeugt einen sichtbaren Hinweis statt eines stillen Rückfalls auf den
+Finder (`ReportViewModel.actionError` + Alert in `RootView`).
 
-**Akzeptanz:** Ohne eingestelltes Programm verhält sich alles wie heute (kein zusätzlicher
-Menüeintrag); mit Programm öffnet der Eintrag den Ordner dort; das Programm überlebt einen
-Neustart und ein Verschieben der App; ein fehlendes Programm erzeugt eine sichtbare Meldung.
+**Erweitert gegenüber der Festlegung:** Die Einträge stehen auch im **Datei**-Kontextmenü.
+Der Editor öffnet dort die Dateien, das Terminal deren Ordner – entdoppelt, damit fünf
+markierte Dateien desselben Ordners *ein* Fenster öffnen und nicht fünf.
+
+**Kürzel ⇧⌘E / ⇧⌘T.** ⇧⌘E war vom HTML-Export belegt; der ist auf ⌥⌘E gewichen. Ein Ordner
+im Editor ist ein täglicher Handgriff, ein HTML-Bericht eine Ausnahme – das leichter
+erreichbare Kürzel gehört dem häufigeren Befehl. ⌘E/⌥⌘E bleiben als Paar beieinander.
+
+**Belegt:** `NSWorkspace.open(_:withApplicationAt:configuration:)` startet Terminal.app
+tatsächlich mit einem Ordner (gemessen: neues Fenster, Arbeitsverzeichnis = Zielordner),
+obwohl sie kein registrierter Ordner-Öffner ist – der API-Weg entspricht `open -a` und
+übergeht den Typ-Abgleich. Mit `NSWorkspace.open(_:)` allein wäre es beim Finder geblieben.
+
+**Offen:** Eine frei wählbare Liste mehrerer Programme bleibt ungebaut – der Bedarf hat sich
+weiterhin nicht gezeigt.
 
 ### PR-13 · Typverteilung in der Ordnerzeile *(umformuliert)*
 **Aufwand:** M · **Nutzen:** mittel

@@ -18,6 +18,14 @@ enum RowMetrics {
 
     /// Breite der Rinne, in der die Baumlinien gezeichnet werden.
     static let connectorWidth: CGFloat = 22
+    /// Einrueckung je Ebene in der **Baumansicht**.
+    ///
+    /// Gemessen ist die Schrittweite fuer die Zeilenbreite fast belanglos: Von
+    /// 12 auf 20 pt waechst die breiteste Zeile um 8 pt, weil die Breite von
+    /// langen Dateinamen kommt, nicht von der Schachtelung. Gewaehlt sind 18 pt,
+    /// weil die Stufen dann klar auseinanderliegen, ohne dass tiefe Zweige weit
+    /// nach rechts wandern.
+    static let treeIndentStep: CGFloat = 18
     /// Eckenradius der abgerundeten Baumlinien ("Mind-Map"-Anmutung).
     static let connectorRadius: CGFloat = 6
     /// Linienstaerke der Baumlinien.

@@ -98,24 +98,43 @@ struct MainToolbar: ToolbarContent {
         // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
         ToolbarItem(placement: .navigation) {
             Menu {
-                ForEach(SortField.allCases, id: \.self) { field in
-                    Button {
-                        model.setSortField(field)
-                    } label: {
-                        if model.sort.field == field {
-                            Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
-                        } else {
-                            Text(field.label)
+                // **Gliederung zuerst.** Sie entscheidet, *wonach* geordnet wird
+                // (Ort oder Zeit); die Sortierung ordnet erst innerhalb davon.
+                // Beides gehoert in dasselbe Menue – es sind zwei Stufen
+                // derselben Frage „in welcher Reihenfolge sehe ich das?".
+                Section("Gliederung") {
+                    ForEach(ViewMode.allCases, id: \.self) { mode in
+                        Button {
+                            model.setViewMode(mode)
+                        } label: {
+                            if model.viewMode == mode {
+                                Label(mode.label, systemImage: "checkmark")
+                            } else {
+                                Label(mode.label, systemImage: mode.symbol)
+                            }
+                        }
+                    }
+                }
+                Section("Sortierung") {
+                    ForEach(SortField.allCases, id: \.self) { field in
+                        Button {
+                            model.setSortField(field)
+                        } label: {
+                            if model.sort.field == field {
+                                Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
+                            } else {
+                                Text(field.label)
+                            }
                         }
                     }
                 }
             } label: {
-                Image(systemName: "arrow.up.arrow.down")
+                Image(systemName: model.viewMode.symbol)
                     .foregroundStyle(ToolbarStateToggle.idleTint)
             }
-            .help("Sortierung innerhalb der Zeitabschnitte · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
-            .accessibilityLabel("Sortierung")
-            .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .help("Gliederung und Sortierung · aktuell: \(model.viewMode.label), \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .accessibilityLabel("Gliederung und Sortierung")
+            .accessibilityValue("\(model.viewMode.label), \(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
         }
 
         // 4b. Anpassungen: Aktionen

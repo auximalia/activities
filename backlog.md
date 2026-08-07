@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.9 · 2026-08-07*
+*Stand: v1.19.11 · 2026-08-07*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -960,8 +960,28 @@ Stapel ist in `CoreChecks` geprüft.
 
 ## Thema D · Struktur statt Liste (v1.21)
 
-### PR-27 · Ordner als Baum darstellen *(neu, aufgenommen v1.19.7 – Kern des nächsten Sprints)*
+### PR-27 · Ordner als Baum darstellen *(AP1+AP2 erledigt, v1.19.11)*
 **Aufwand:** L · **Nutzen:** hoch
+
+**Stand:** AP1 (Kern) und AP2 (Darstellung, Navigation, Umschalter) sind ausgeliefert; offen
+ist AP3.
+
+**⚠️ Zwei Entwurfsannahmen sind beim Bauen gefallen, beide an einer Messung:**
+
+1. *„Wurzelzeile als Kopfzeile, deren Kinder nicht einrücken."* Verworfen. Die Regel müsste
+   die Wurzel an ihrer **Form** erkennen (ein oberster Knoten mit Kindern) – und traf damit
+   auch einen gewöhnlichen Ordner, der allein oben steht; die erste Prüfung fiel prompt
+   darüber. Eine Regel, die raten muss, ist die falsche Regel. Der Preis ist eine
+   Einrückungsstufe; dafür ist die Ebene **immer** die Tiefe im Baum, ohne Ausnahme.
+2. *Knoten-URLs aus dem vereinheitlichten Pfad neu bauen.* Grober Fehler:
+   `standardizedFileURL` streicht das `/private`-Präfix, der Verzeichnis-Enumerator liefert
+   aber die aufgelöste Form. Die nachgebaute URL sah richtig aus, war aber ein **anderer
+   Wörterbuch-Schlüssel** – im Baum blieb dadurch jede Dateizeile weg. Der Pfad taugt zum
+   Vergleichen, nie als Ersatz für die URL. Dagegen läuft jetzt eine eigene Prüfung.
+
+**Zebra entfällt im Baum.** Es ist eine Lesehilfe für lange, gleichförmige Blöcke; hier führen
+die Baumlinien das Auge bereits. Zwei Mittel für dieselbe Aufgabe wären ein drittes Muster im
+Bild (Konsistenzregel „nur EIN Trennsystem“).
 
 Heute stehen Ordner in einer **flachen** Liste. Dadurch geraten
 `opencode/activities/dist` und sein Elternteil `opencode/activities` untereinander, ohne dass

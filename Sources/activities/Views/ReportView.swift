@@ -54,29 +54,33 @@ struct ReportView: View {
                         .frame(height: 0)
                         .id(ReportView.topAnchorID)
 
-                    ForEach(model.displayBuckets) { bucket in
-                        Section {
-                            ForEach(bucket.entries) { entry in
-                                FolderRowView(entry: entry, model: model, isCompact: isCompact)
-                                    .id(RowID.folder(entry.folder))
+                    if model.viewMode == .tree {
+                        treeRows(isCompact: isCompact)
+                    } else {
+                        ForEach(model.displayBuckets) { bucket in
+                            Section {
+                                ForEach(bucket.entries) { entry in
+                                    FolderRowView(entry: entry, model: model, isCompact: isCompact)
+                                        .id(RowID.folder(entry.folder))
 
-                                if model.isExpanded(entry.folder) {
-                                    detailRows(for: entry, isCompact: isCompact)
+                                    if model.isExpanded(entry.folder) {
+                                        detailRows(for: entry, isCompact: isCompact)
+                                    }
+
+                                    // Nur EIN Trennsystem: Das Zebra der Dateizeilen
+                                    // fuehrt das Auge bereits. Eine zusaetzliche
+                                    // Linie je Ordnerblock waere ein drittes
+                                    // konkurrierendes Mittel (neben Zebra und
+                                    // Baumlinien) – stattdessen genuegt Abstand.
+                                    Color.clear.frame(height: 10)
                                 }
-
-                                // Nur EIN Trennsystem: Das Zebra der Dateizeilen
-                                // fuehrt das Auge bereits. Eine zusaetzliche
-                                // Linie je Ordnerblock waere ein drittes
-                                // konkurrierendes Mittel (neben Zebra und
-                                // Baumlinien) – stattdessen genuegt Abstand.
-                                Color.clear.frame(height: 10)
+                            } header: {
+                                sectionHeader(bucket)
                             }
-                        } header: {
-                            sectionHeader(bucket)
                         }
                     }
 
-                    if model.displayBuckets.isEmpty {
+                    if isEmpty {
                         if model.isLoadingDetails {
                             VStack(spacing: 6) {
                                 if model.detailTotal > 0 {
@@ -172,6 +176,46 @@ struct ReportView: View {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     proxy.scrollTo(ReportView.topAnchorID, anchor: .top)
                 }
+            }
+        }
+    }
+
+    /// Ob die Liste in der aktuellen Gliederung nichts zeigt.
+    private var isEmpty: Bool {
+        model.viewMode == .tree ? model.displayTree.isEmpty : model.displayBuckets.isEmpty
+    }
+
+    /// Die Zeilen der Baumansicht – flach gezeichnet, damit ``LazyVStack``
+    /// weiterhin nur zeichnet, was zu sehen ist.
+    @ViewBuilder
+    private func treeRows(isCompact: Bool) -> some View {
+        ForEach(model.treeRows) { row in
+            if let node = row.node {
+                TreeFolderRowView(node: node, guides: row, model: model, isCompact: isCompact)
+                    .id(row.row)
+            } else if let file = row.file {
+                HStack(spacing: 0) {
+                    TreeGuides(
+                        ancestorsContinue: row.ancestorsContinue,
+                        isLastSibling: row.isLastSibling
+                    )
+                    FileRowView(
+                        file: file,
+                        model: model,
+                        // Wie in der Liste: Die Datei, die dem Ordner sein Datum
+                        // gibt, steht fett – sie beantwortet „warum steht der
+                        // Ordner hier oben?".
+                        isDateSource: file.timestamp == model.newestVisibleDate(in: file.folder),
+                        // **Kein Zebra im Baum.** Es ist eine Lesehilfe fuer
+                        // lange, gleichfoermige Bloecke; hier fuehren die
+                        // Baumlinien das Auge bereits. Zwei Mittel fuer dieselbe
+                        // Aufgabe waeren ein drittes Muster im Bild (siehe
+                        // Backlog: „nur EIN Trennsystem").
+                        isAlternate: false,
+                        isCompact: isCompact
+                    )
+                }
+                .id(row.row)
             }
         }
     }

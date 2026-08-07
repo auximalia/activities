@@ -66,6 +66,57 @@ public struct FolderNode: Identifiable, Sendable, Hashable {
     public var isCompressed: Bool { label.contains("/") }
 }
 
+/// Eine sichtbare Zeile der Baumdarstellung.
+///
+/// Traegt alles, was die Ansicht zum Zeichnen braucht – insbesondere die
+/// **Linienfuehrung**: Ob an einer bestimmten Einrueckungsstufe noch eine
+/// senkrechte Linie durchlaeuft, weiss nur der Baum, nicht die einzelne Zeile.
+public struct TreeRow: Identifiable, Sendable {
+    public var id: RowID { row }
+    public let row: RowID
+    /// Einrueckungsstufe, 0 = oberste sichtbare Ebene.
+    public let level: Int
+    /// Je Vorfahrenebene: Hat der Vorfahre auf dieser Ebene noch Geschwister?
+    ///
+    /// Genau: `ancestorsContinue[j] == true` heisst „der Vorfahre auf **Ebene j**
+    /// ist nicht der letzte unter seinen Geschwistern". Die Laenge ist ``level``.
+    ///
+    /// **⚠️ Beim Zeichnen um eins versetzt.** Die Rinne `j` (0-basiert, links
+    /// nach rechts) traegt die Geschwisterlinie der Knoten auf Ebene `j+1`.
+    /// Also:
+    /// - Rinne `j` fuer `j < level-1`: durchgehende Senkrechte genau dann, wenn
+    ///   `ancestorsContinue[j+1]`,
+    /// - Rinne `level-1`: der Ellbogen zu **dieser** Zeile; er laeuft nach unten
+    ///   weiter genau dann, wenn ``isLastSibling`` falsch ist.
+    ///
+    /// `ancestorsContinue[0]` wird dadurch nie gezeichnet – Ebene 0 hat keine
+    /// Rinne links von sich. Der Eintrag bleibt trotzdem stehen, damit der Index
+    /// die Ebene bleibt und nicht zu einer zweiten, verschobenen Zaehlung wird.
+    public let ancestorsContinue: [Bool]
+    /// Ob diese Zeile die letzte unter ihren Geschwistern ist.
+    public let isLastSibling: Bool
+    /// Der Knoten – nur bei ``RowID/folder``.
+    public let node: FolderNode?
+    /// Die Datei – nur bei ``RowID/file``.
+    public let file: RelevantFile?
+
+    public init(
+        row: RowID,
+        level: Int,
+        ancestorsContinue: [Bool],
+        isLastSibling: Bool,
+        node: FolderNode?,
+        file: RelevantFile?
+    ) {
+        self.row = row
+        self.level = level
+        self.ancestorsContinue = ancestorsContinue
+        self.isLastSibling = isLastSibling
+        self.node = node
+        self.file = file
+    }
+}
+
 /// Baut aus flachen Ordner-Eintraegen den Ordnerbaum.
 ///
 /// **Warum ueberhaupt:** In der flachen Liste stehen `…/activities/dist` und
@@ -107,24 +158,42 @@ public enum FolderTree {
 
         // Eigene Treffer je Pfad.
         var entryByPath: [String: FolderEntry] = [:]
+        // **⚠️ Die echte URL je Pfad – nicht aus dem Pfad neu gebaut.**
+        //
+        // Gemessener Fehler: ``standardizedFileURL`` streicht das
+        // `/private`-Praefix (`/private/var/…` → `/var/…`). Der
+        // Verzeichnis-Enumerator liefert aber die aufgeloeste Form. Eine aus dem
+        // vereinheitlichten Pfad neu gebaute URL sieht darum zwar richtig aus,
+        // ist aber **ein anderer Schluessel** – im Baum blieb daraufhin jede
+        // Dateizeile weg, weil `filesByFolder[node.folder]` ins Leere griff.
+        // Der Pfad taugt zum **Vergleichen**, nie als Ersatz fuer die URL.
+        var urlByPath: [String: URL] = [:]
+
         for entry in entries {
             let path = normalize(entry.folder)
             guard isRootOrBelow(path, root: rootPath) else { continue }
             entryByPath[path] = entry
+            urlByPath[path] = entry.folder
         }
         guard !entryByPath.isEmpty else { return [] }
 
-        // Alle Knoten: Treffer plus die Vorfahren, die sie mit der Wurzel verbinden.
+        // Alle Knoten: Treffer plus die Vorfahren, die sie mit der Wurzel
+        // verbinden. Die Vorfahren-URLs entstehen aus den **echten** URLs, damit
+        // sie in derselben Schreibweise bleiben wie die des Suchlaufs.
         var childrenByPath: [String: Set<String>] = [:]
-        for path in entryByPath.keys where path != rootPath {
-            var current = path
-            while current != rootPath {
-                let parent = parentPath(of: current)
-                childrenByPath[parent, default: []].insert(current)
+        for (path, entry) in entryByPath where path != rootPath {
+            var currentPath = path
+            var currentURL = entry.folder
+            while currentPath != rootPath {
+                let parentURL = currentURL.deletingLastPathComponent()
+                let parent = normalize(parentURL)
+                childrenByPath[parent, default: []].insert(currentPath)
+                if urlByPath[parent] == nil { urlByPath[parent] = parentURL }
                 // Am Dateisystem-Wurzelverzeichnis angekommen, ohne ``root`` zu
                 // treffen: abbrechen statt endlos nach oben zu laufen.
-                if parent == current { break }
-                current = parent
+                if parent == currentPath { break }
+                currentPath = parent
+                currentURL = parentURL
             }
         }
 
@@ -155,7 +224,7 @@ public enum FolderTree {
             let sorted = RowSorting.nodes(built, by: sort, dominantType: dominantType)
             let newest = ([own?.newestDate].compactMap { $0 } + sorted.map(\.subtreeNewestDate)).max()
             return FolderNode(
-                folder: URL(fileURLWithPath: path, isDirectory: true),
+                folder: urlByPath[path] ?? URL(fileURLWithPath: path, isDirectory: true),
                 label: lastComponent(of: path),
                 entry: own,
                 // Ein Knoten ohne Treffer und ohne Kinder existiert nicht (oben
@@ -171,7 +240,107 @@ public enum FolderTree {
         return rootNode.hasOwnFiles ? [rootNode] : rootNode.children
     }
 
+    // MARK: - Zeilen
+
+    /// Klopft den Baum in die **sichtbare** Zeilenfolge flach.
+    ///
+    /// **Warum flach und nicht rekursiv gezeichnet:** Die Liste haengt in einer
+    /// ``LazyVStack``; die zeichnet nur, was zu sehen ist. Eine rekursive Ansicht
+    /// bräuchte den ganzen Baum im Speicher-Layout. Ausserdem ist die
+    /// Tastaturnavigation ohnehin eine flache Folge – zwei Quellen dafuer waeren
+    /// zwei Gelegenheiten, auseinanderzulaufen.
+    ///
+    /// - Parameters:
+    ///   - nodes: die Knoten der obersten Ebene.
+    ///   - expanded: aufgeklappte Ordner.
+    ///   - filesByFolder: Detaildateien je Ordner (bereits gefiltert und sortiert).
+    ///
+    /// **⚠️ Kein Sonderfall fuer die Wurzelzeile.** Erwogen war, einen
+    /// Wurzelordner mit eigenen Treffern als *Kopfzeile* zu zeichnen, deren
+    /// Kinder nicht zusaetzlich einruecken – er hat oft nur ein, zwei eigene
+    /// Dateien und schoebe den ganzen Baum sonst eine Stufe nach rechts.
+    /// Verworfen, aus zwei Gruenden:
+    /// 1. Die Regel muesste die Wurzel an ihrer **Form** erkennen (ein oberster
+    ///    Knoten mit Kindern) – und traf damit auch einen gewoehnlichen Ordner,
+    ///    der zufaellig allein oben steht. Eine Regel, die raten muss, ist die
+    ///    falsche Regel.
+    /// 2. Kopfzeile und Kinder staenden auf derselben Einrueckung; der
+    ///    Aufklapppfeil der Kopfzeile klappte damit Zeilen zu, die neben ihr
+    ///    stehen statt unter ihr.
+    /// Der Preis ist eine Einrueckungsstufe (16 pt) – gemessen unkritisch.
+    /// Die Ebene ist dafuer **immer** die Tiefe im Baum, ohne Ausnahme.
+    public static func rows(
+        _ nodes: [FolderNode],
+        expanded: Set<URL>,
+        filesByFolder: [URL: [RelevantFile]]
+    ) -> [TreeRow] {
+        var result: [TreeRow] = []
+
+        func emit(_ node: FolderNode, level: Int, continues: [Bool], isLast: Bool) {
+            result.append(TreeRow(
+                row: .folder(node.folder),
+                level: level,
+                ancestorsContinue: continues,
+                isLastSibling: isLast,
+                node: node,
+                file: nil
+            ))
+            guard expanded.contains(node.folder) else { return }
+
+            let files = filesByFolder[node.folder] ?? []
+            let childContinues = continues + [!isLast]
+            // Dateien zuerst, dann Unterordner: Der Ordner steht fuer seinen
+            // eigenen Inhalt; die Unterordner sind ein neuer Ort. Umgekehrt
+            // stuenden die eigenen Dateien hinter einem womoeglich langen
+            // fremden Teilbaum und waeren von ihrem Ordner abgeschnitten.
+            for (index, file) in files.enumerated() {
+                result.append(TreeRow(
+                    row: .file(file.url),
+                    level: level + 1,
+                    ancestorsContinue: childContinues,
+                    isLastSibling: index == files.count - 1 && node.children.isEmpty,
+                    node: nil,
+                    file: file
+                ))
+            }
+            for (index, child) in node.children.enumerated() {
+                emit(child, level: level + 1, continues: childContinues,
+                     isLast: index == node.children.count - 1)
+            }
+        }
+
+        for (index, node) in nodes.enumerated() {
+            emit(node, level: 0, continues: [], isLast: index == nodes.count - 1)
+        }
+        return result
+    }
+
+    /// Alle Vorfahren eines Ordners **innerhalb** des Baums, von oben nach unten.
+    ///
+    /// Grundlage dafuer, dass ein Sprung aus dem Diagramm sein Ziel auch
+    /// **erreicht**: Einen tief liegenden Ordner nur selbst aufzuklappen nuetzt
+    /// nichts, solange seine Vorfahren zu sind.
+    public static func ancestors(of folder: URL, in nodes: [FolderNode]) -> [URL] {
+        func search(_ node: FolderNode, trail: [URL]) -> [URL]? {
+            if node.folder == folder { return trail }
+            for child in node.children {
+                if let found = search(child, trail: trail + [node.folder]) { return found }
+            }
+            return nil
+        }
+        for node in nodes {
+            if let found = search(node, trail: []) { return found }
+        }
+        return []
+    }
+
+    /// Alle Ordner des Baums (fuer „alles aufklappen" und Zustandsabgleich).
+    public static func allFolders(_ nodes: [FolderNode]) -> [URL] {
+        nodes.flatMap { [$0.folder] + allFolders($0.children) }
+    }
+
     // MARK: - Pfadhilfen
+
 
     /// Vereinheitlicht einen Ordnerpfad (ohne Schraegstrich am Ende).
     static func normalize(_ url: URL) -> String {

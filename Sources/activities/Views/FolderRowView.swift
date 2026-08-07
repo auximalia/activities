@@ -114,26 +114,7 @@ struct FolderRowView: View {
             ClipboardService.copy(entry.folder.path)
             withAnimation(.easeInOut(duration: 0.2)) { model.toggleExpand(entry.folder) }
         }
-        .contextMenu {
-            Button("Im Finder öffnen") { FinderService.open(entry.folder) }
-            Button("Im Finder anzeigen") { FinderService.reveal(entry.folder) }
-            // Eintraege erscheinen nur, wenn das Programm wirklich da ist –
-            // ein Menuepunkt, der nichts tun kann, ist schlimmer als keiner.
-            if let editor = model.editorApp {
-                Button("In \(editor.name) öffnen") { model.openInEditor([entry.folder]) }
-                    .keyboardShortcut("e", modifiers: [.command, .shift])
-            }
-            if let terminal = model.terminalApp {
-                Button("In \(terminal.name) öffnen") { model.openInTerminal([entry.folder]) }
-                    .keyboardShortcut("t", modifiers: [.command, .shift])
-            }
-            Button("Pfad kopieren") { ClipboardService.copy(entry.folder.path) }
-            Divider()
-            Button(model.isPinned(entry.folder) ? "Nicht mehr anheften" : "Anheften") {
-                model.togglePinned(entry.folder)
-            }
-            Button("Diesen Ordner nicht mehr zeigen") { model.hideFolder(entry.folder) }
-        }
+        .contextMenu { FolderContextMenu(folder: entry.folder, model: model) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Ordner \(entry.folder.lastPathComponent)")
         .accessibilityValue("\(displayCount) Dateien, zuletzt \(DateFormatting.dateTime(displayDate))")
@@ -143,5 +124,37 @@ struct FolderRowView: View {
             model.select(.folder(entry.folder))
             model.toggleExpand(entry.folder)
         }
+    }
+}
+
+/// Die Befehle des Ordner-Kontextmenues.
+///
+/// **Warum ausgelagert:** Liste und Baum zeichnen ihre Ordnerzeile getrennt –
+/// die Zeitansicht bleibt dabei bewusst unangetastet. Zwei Fassungen desselben
+/// Menues waeren aber zwei Gelegenheiten, auseinanderzulaufen: Der naechste
+/// Eintrag landete garantiert nur in einer davon.
+struct FolderContextMenu: View {
+    let folder: URL
+    @Bindable var model: ReportViewModel
+
+    var body: some View {
+        Button("Im Finder öffnen") { FinderService.open(folder) }
+        Button("Im Finder anzeigen") { FinderService.reveal(folder) }
+        // Eintraege erscheinen nur, wenn das Programm wirklich da ist –
+        // ein Menuepunkt, der nichts tun kann, ist schlimmer als keiner.
+        if let editor = model.editorApp {
+            Button("In \(editor.name) öffnen") { model.openInEditor([folder]) }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+        }
+        if let terminal = model.terminalApp {
+            Button("In \(terminal.name) öffnen") { model.openInTerminal([folder]) }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
+        }
+        Button("Pfad kopieren") { ClipboardService.copy(folder.path) }
+        Divider()
+        Button(model.isPinned(folder) ? "Nicht mehr anheften" : "Anheften") {
+            model.togglePinned(folder)
+        }
+        Button("Diesen Ordner nicht mehr zeigen") { model.hideFolder(folder) }
     }
 }

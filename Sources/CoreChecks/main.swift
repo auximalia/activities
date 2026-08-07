@@ -750,6 +750,190 @@ do {
     }
 }
 
+// MARK: - FolderTree.rows (sichtbare Zeilenfolge)
+do {
+    let root = URL(fileURLWithPath: "/r", isDirectory: true)
+    func url(_ p: String) -> URL { URL(fileURLWithPath: "/r/" + p, isDirectory: true) }
+    func entry(_ p: String, _ d: Date, _ n: Int = 1) -> FolderEntry {
+        FolderEntry(folder: p.isEmpty ? root : url(p), newestDate: d, fileCount: n)
+    }
+    func file(_ folder: String, _ name: String, _ d: Date) -> RelevantFile {
+        let f = folder.isEmpty ? root : url(folder)
+        return RelevantFile(url: f.appendingPathComponent(name), folder: f, timestamp: d)
+    }
+    let t1 = date(2026, 8, 1), t2 = date(2026, 8, 5), t3 = date(2026, 8, 7)
+
+    // Zugeklappt: nur die oberste Ebene
+    do {
+        let tree = FolderTree.build(from: [entry("p", t3), entry("p/a", t1), entry("q", t2)], root: root)
+        let rows = FolderTree.rows(tree, expanded: [], filesByFolder: [:])
+        expectEqual(rows.map(\.row), [.folder(url("p")), .folder(url("q"))],
+                    "Zeilen: zugeklappt zeigt nur die oberste Ebene")
+        expectEqual(rows.map(\.level), [0, 0], "Zeilen: oberste Ebene hat Einrueckung 0")
+    }
+
+    // Aufgeklappt: Kinder erscheinen eine Stufe tiefer
+    do {
+        let tree = FolderTree.build(from: [entry("p", t3), entry("p/a", t1), entry("q", t2)], root: root)
+        let rows = FolderTree.rows(tree, expanded: [url("p")], filesByFolder: [:])
+        expectEqual(rows.map(\.row), [.folder(url("p")), .folder(url("p/a")), .folder(url("q"))],
+                    "Zeilen: aufgeklapptes p zeigt sein Kind")
+        expectEqual(rows.map(\.level), [0, 1, 0], "Zeilen: Kind rueckt eine Stufe ein")
+    }
+
+    // Dateien stehen VOR den Unterordnern
+    do {
+        let tree = FolderTree.build(from: [entry("p", t3), entry("p/a", t1)], root: root)
+        let rows = FolderTree.rows(
+            tree, expanded: [url("p")],
+            filesByFolder: [url("p"): [file("p", "x.txt", t3)]]
+        )
+        expectEqual(rows.map(\.row),
+                    [.folder(url("p")), .file(url("p").appendingPathComponent("x.txt")), .folder(url("p/a"))],
+                    "Zeilen: eigene Dateien vor den Unterordnern")
+        expectEqual(rows[1].level, 1, "Zeilen: Datei liegt eine Stufe unter ihrem Ordner")
+    }
+
+    // ⚠️ Linienfuehrung: laeuft die Senkrechte eines Vorfahren weiter?
+    do {
+        // p (nicht letzter) -> p/a ; q (letzter) -> q/b
+        let tree = FolderTree.build(
+            from: [entry("p", t3), entry("p/a", t3), entry("q", t2), entry("q/b", t2)],
+            root: root
+        )
+        let rows = FolderTree.rows(tree, expanded: [url("p"), url("q")], filesByFolder: [:])
+        let byPath = Dictionary(uniqueKeysWithValues: rows.map { ($0.row, $0) })
+
+        expectEqual(byPath[.folder(url("p"))]?.isLastSibling, false, "Linien: p ist nicht letztes Geschwister")
+        expectEqual(byPath[.folder(url("q"))]?.isLastSibling, true, "Linien: q ist letztes Geschwister")
+        // Unter p muss die Linie der Ebene 0 WEITERLAUFEN (q kommt noch),
+        // unter q darf sie es NICHT (nach q kommt nichts mehr).
+        expectEqual(byPath[.folder(url("p/a"))]?.ancestorsContinue, [true],
+                    "Linien: unter p laeuft die Senkrechte weiter, weil q noch folgt")
+        expectEqual(byPath[.folder(url("q/b"))]?.ancestorsContinue, [false],
+                    "Linien: unter q bricht die Senkrechte ab, weil nichts mehr folgt")
+    }
+
+    // Letztes Geschwister nur, wenn auch keine Unterordner mehr folgen
+    do {
+        let tree = FolderTree.build(from: [entry("p", t3), entry("p/a", t1)], root: root)
+        let rows = FolderTree.rows(
+            tree, expanded: [url("p")],
+            filesByFolder: [url("p"): [file("p", "x.txt", t3)]]
+        )
+        expectEqual(rows[1].isLastSibling, false,
+                    "Linien: letzte Datei ist NICHT das Ende, wenn noch ein Unterordner folgt")
+    }
+
+    // ⚠️ Die Knoten-URL muss die URL des Suchlaufs SEIN, nicht eine aus dem
+    // vereinheitlichten Pfad nachgebaute. Gemessener Fehler: `/private/var/…`
+    // wird von `standardizedFileURL` zu `/var/…` – die nachgebaute URL sah
+    // richtig aus, war aber ein anderer Woerterbuch-Schluessel, und im Baum
+    // blieb jede Dateizeile weg.
+    do {
+        // `/r/x/../p` und `/r/p` bezeichnen dieselbe Stelle, sind aber
+        // verschiedene URLs – genau die Situation, die der Fehler ausnutzte.
+        let schraeg = URL(fileURLWithPath: "/r/x/../p", isDirectory: true)
+        let nodes = FolderTree.build(
+            from: [FolderEntry(folder: schraeg, newestDate: t1, fileCount: 1)],
+            root: root
+        )
+        expectEqual(nodes.count, 1, "URL-Treue: der Eintrag findet in den Baum")
+        expectEqual(nodes[0].folder, schraeg,
+                    "URL-Treue: der Knoten traegt die URL des Suchlaufs, nicht eine nachgebaute")
+
+        // Und der entscheidende Punkt: die URL taugt als Woerterbuch-Schluessel.
+        let files = [schraeg: [RelevantFile(url: schraeg.appendingPathComponent("a.txt"), folder: schraeg, timestamp: t1)]]
+        let rows = FolderTree.rows(nodes, expanded: [schraeg], filesByFolder: files)
+        expectEqual(rows.count, 2, "URL-Treue: die Datei wird unter ihrem Ordner gefunden")
+    }
+
+    // Auch erzeugte Zwischenknoten erben die Schreibweise der echten URLs
+    do {
+        let tief = URL(fileURLWithPath: "/r/x/../p/q", isDirectory: true)
+        let nodes = FolderTree.build(
+            from: [FolderEntry(folder: tief, newestDate: t1, fileCount: 1)],
+            root: root
+        )
+        expectEqual(nodes[0].folder, tief, "URL-Treue: verdichtete Kette behaelt die tiefste echte URL")
+    }
+
+
+    do {
+        //  p            (nicht letzter, q folgt)
+        //    p/a        (nicht letzter, p/z folgt)
+        //      p/a/x
+        //    p/z        (letzter)
+        //      p/z/y
+        //  q            (letzter)
+        let tree = FolderTree.build(
+            from: [entry("p", t3), entry("p/a", t3), entry("p/a/x", t3),
+                   entry("p/z", t2), entry("p/z/y", t2), entry("q", t1)],
+            root: root
+        )
+        let rows = FolderTree.rows(
+            tree, expanded: Set([url("p"), url("p/a"), url("p/z")]), filesByFolder: [:])
+        let by = Dictionary(uniqueKeysWithValues: rows.map { ($0.row, $0) })
+
+        // Ebene 2: Eintrag[1] entscheidet ueber die Senkrechte in Rinne 0.
+        expectEqual(by[.folder(url("p/a/x"))]?.ancestorsContinue, [true, true],
+                    "Linien: unter p/a laeuft Rinne 0 weiter (p/z folgt)")
+        expectEqual(by[.folder(url("p/z/y"))]?.ancestorsContinue, [true, false],
+                    "Linien: unter p/z bricht Rinne 0 ab (p/z ist letztes Kind)")
+        // Eintrag[0] beschreibt Ebene 0 und wird nie gezeichnet – aber er muss
+        // stimmen, sonst ist die ganze Zaehlung verschoben.
+        expectEqual(by[.folder(url("p/a"))]?.ancestorsContinue, [true],
+                    "Linien: Eintrag 0 beschreibt Ebene 0 (p hat q nach sich)")
+        expectEqual(by[.folder(url("q"))]?.ancestorsContinue, [],
+                    "Linien: oberste Ebene hat keine Rinne")
+        expectEqual(by[.folder(url("p/a/x"))]?.level, 2, "Linien: Laenge entspricht der Ebene")
+    }
+
+
+    // Ein erwogener „Kopfzeilen"-Modus musste die Wurzel an ihrer Form erkennen
+    // und traf damit auch einen gewoehnlichen Ordner, der allein oben steht.
+    do {
+        let tree = FolderTree.build(from: [entry("", t1), entry("a", t2), entry("b", t3)], root: root)
+        expectEqual(tree.count, 1, "Wurzel: mit eigenen Treffern der einzige oberste Knoten")
+        let rows = FolderTree.rows(tree, expanded: [root], filesByFolder: [:])
+        expectEqual(rows.map(\.level), [0, 1, 1], "Wurzel: ihre Kinder ruecken ein wie ueberall")
+
+        // Gegenprobe: ein gewoehnlicher Ordner allein oben verhaelt sich gleich
+        let gleich = FolderTree.build(from: [entry("p", t3), entry("p/a", t1)], root: root)
+        let gr = FolderTree.rows(gleich, expanded: [url("p")], filesByFolder: [:])
+        expectEqual(gr.map(\.level), [0, 1], "Wurzel: kein Sonderfall fuer einzelne oberste Knoten")
+    }
+
+    // Zugeklappte Wurzel verbirgt alles darunter
+    do {
+        let tree = FolderTree.build(from: [entry("", t1), entry("a", t2)], root: root)
+        let rows = FolderTree.rows(tree, expanded: [], filesByFolder: [:])
+        expectEqual(rows.count, 1, "Wurzel: zugeklappt bleibt nur ihre Zeile")
+    }
+
+    // Vorfahren – Grundlage fuer den Sprung aus dem Diagramm
+    do {
+        let tree = FolderTree.build(from: [entry("p", t3), entry("p/a", t2), entry("p/a/b", t1)], root: root)
+        expectEqual(FolderTree.ancestors(of: url("p/a/b"), in: tree), [url("p"), url("p/a")],
+                    "Vorfahren: von oben nach unten")
+        expectEqual(FolderTree.ancestors(of: url("p"), in: tree), [],
+                    "Vorfahren: oberste Ebene hat keine")
+        expectEqual(FolderTree.ancestors(of: url("gibtsnicht"), in: tree), [],
+                    "Vorfahren: unbekannter Ordner liefert nichts")
+    }
+
+    // ⚠️ Vorfahren muessen die VERDICHTETEN Knoten treffen, nicht die gefalteten
+    do {
+        // a/b/c ist eine Kette; nur der tiefste Knoten existiert als Zeile.
+        let tree = FolderTree.build(from: [entry("a/b/c", t1), entry("a/b/c/d", t2)], root: root)
+        expectEqual(tree[0].folder, url("a/b/c"), "Verdichtung: Identitaet ist der tiefste Ordner")
+        expectEqual(FolderTree.ancestors(of: url("a/b/c/d"), in: tree), [url("a/b/c")],
+                    "Vorfahren: gefaltete Zwischenstufen tauchen nicht auf")
+        expect(FolderTree.allFolders(tree).contains(url("a/b/c")), "allFolders: verdichteter Knoten ist dabei")
+        expect(!FolderTree.allFolders(tree).contains(url("a/b")), "allFolders: gefaltete Stufe ist es nicht")
+    }
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

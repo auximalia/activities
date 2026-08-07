@@ -58,6 +58,11 @@ struct HelpView: View {
                 ])
 
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
+                    "Zwei Gliederungen im ⇅-Menü: **Baum (wo?)** und **Zeit (wann?)**.",
+                    "Baum: Ordner stehen eingerückt wie im Dateisystem, jeder genau einmal.",
+                    "Graue Ordnerzeilen sind Durchgangsknoten – dort liegen keine eigenen Treffer.",
+                    "Mehrere Stufen ohne Verzweigung stehen zusammengefasst (Sources/App).",
+                    "Zeit: nach „Heute“, „Gestern“ … gruppiert, mit angehefteten Ordnern oben.",
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
                     "Pfade sind relativ zum gewählten Ordner; Datum relativ („Heute, 14:32“).",
                     "Bei schmalem Fenster entfällt der Pfad – er bleibt im Tooltip.",
@@ -82,6 +87,7 @@ struct HelpView: View {
 
                 section("Tastatur & Vorschau", icon: "keyboard", [
                     "Pfeile ↑/↓ bewegen die Auswahl, ←/→ klappt Ordner zu/auf.",
+                    "Im Baum springt ← auf einem bereits zugeklappten Ordner zum übergeordneten.",
                     "Enter öffnet die Auswahl, Leertaste zeigt die QuickLook-Vorschau.",
                     "⌘↑ (oder der Pfeil-hoch-Knopf) springt an den Listenanfang.",
                 ])

@@ -10,6 +10,35 @@ struct ChartFocus: Equatable, Sendable {
     let day: Date
 }
 
+/// Gliederung der Ergebnisliste – die beiden Blickrichtungen der App.
+///
+/// Zwei **gleichrangige** Fragen, nicht Haupt- und Nebenansicht:
+/// - ``tree`` beantwortet *wo?* – der Ordnerbaum, jeder Ordner genau einmal.
+/// - ``time`` beantwortet *wann?* – die gewachsene Zeitgliederung mit
+///   „Heute", „Gestern", „Diese Woche" und den angehefteten Ordnern.
+///
+/// **⚠️ Warum nicht beides zugleich:** Gemessen kreuzen 41 % aller
+/// Eltern-Kind-Beziehungen eine Zeitabschnittsgrenze. Ein Baum *innerhalb* der
+/// Abschnitte muesste dieselben Ordner mehrfach zeigen (siehe Backlog PR-27).
+enum ViewMode: String, Hashable, Sendable, CaseIterable {
+    case tree
+    case time
+
+    var label: String {
+        switch self {
+        case .tree: "Baum (wo?)"
+        case .time: "Zeit (wann?)"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .tree: "list.bullet.indent"
+        case .time: "calendar.day.timeline.left"
+        }
+    }
+}
+
 /// Zeitmodus der Auswertung.
 enum TimeMode: Hashable, Sendable {
     /// Rollierendes Fenster ab heute (Tage).
@@ -104,6 +133,15 @@ final class ReportViewModel {
     // Ergebnisse und Status.
     /// Anzuzeigende Ordner (nach Zeitraum + Typ-Filter, ohne leere Ordner).
     var displayBuckets: [BucketedEntries] = []
+    /// Derselbe Bestand als **Ordnerbaum** – die zweite Blickrichtung.
+    ///
+    /// Wird **immer** mitberechnet, auch in der Zeitansicht. Der Aufbau kostet
+    /// bei ~50 Knoten nichts, und so bleiben Export, Menueleisten-Kurzansicht
+    /// und Statuszeile von der Ansichtswahl unabhaengig – sie greifen weiter auf
+    /// ``displayBuckets`` zu.
+    private(set) var displayTree: [FolderNode] = []
+    /// Gliederung der Liste: Baum oder Zeitabschnitte.
+    private(set) var viewMode: ViewMode
     /// Buendelung der Diagramm-Achse (automatisch nach Laenge des Zeitraums).
     private(set) var chartGranularity: ChartGranularity = .day
     /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
@@ -282,6 +320,7 @@ final class ReportViewModel {
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
         self.rangeEnd = saved.rangeEnd
+        self.viewMode = saved.viewMode
         // **Erkennen statt fragen.** Beim ersten Start ist nichts gewaehlt; dann
         // wird genommen, was tatsaechlich installiert ist. Wer nichts einstellt,
         // hat die Eintraege trotzdem – und wer nichts Passendes installiert hat,
@@ -566,6 +605,19 @@ final class ReportViewModel {
         store.saveIntroShown()
     }
 
+    /// Wechselt die Gliederung (Baum oder Zeitabschnitte).
+    ///
+    /// Rechnet **nicht** neu von der Platte – beide Ansichten stehen bereits
+    /// nebeneinander bereit. Der Aufklappzustand bleibt erhalten, soweit die
+    /// Ordner in der Zielansicht vorkommen.
+    func setViewMode(_ mode: ViewMode) {
+        guard mode != viewMode else { return }
+        viewMode = mode
+        store.saveViewMode(mode)
+        expandedFolders.formUnion(displayedFolders())
+        pruneSelection()
+    }
+
     /// Setzt das Sortierkriterium; erneutes Waehlen desselben kehrt die Richtung um.
     func setSortField(_ field: SortField) {
         if sort.field == field {
@@ -773,7 +825,41 @@ final class ReportViewModel {
             }
         }
         displayBuckets = grouped
+        // Der Baum entsteht aus **denselben** Eintraegen – vor dem Herausziehen
+        // der angehefteten Ordner. Einen Knoten aus einem Baum zu entfernen
+        // hiesse, seine Kinder zu verwaisen; im Baum ist „angeheftet" deshalb
+        // eine Markierung am Knoten, kein eigener Abschnitt (Backlog PR-27).
+        displayTree = FolderTree.build(
+            from: entries,
+            root: rootURL,
+            sort: sort,
+            dominantType: { [weak self] in self?.dominantExtension(of: $0) }
+        )
         pruneSelection()
+    }
+
+    /// Sichtbare, **sortierte** Detaildateien je Ordner.
+    ///
+    /// Grundlage der Baumzeilen und der Tastaturnavigation. Bewusst dieselbe
+    /// Quelle wie die Anzeige (``visibleFiles(in:)``) – frueher navigierte die
+    /// flache Liste ueber ``visibleFilesByFolder``, das **nicht** sortiert. Bei
+    /// Sortierung nach Name oder Typ lief der Cursor dadurch in einer anderen
+    /// Reihenfolge als das Auge.
+    var visibleSortedFilesByFolder: [URL: [RelevantFile]] {
+        var result: [URL: [RelevantFile]] = [:]
+        for folder in filesByFolder.keys {
+            result[folder] = visibleFiles(in: folder) ?? []
+        }
+        return result
+    }
+
+    /// Die sichtbaren Zeilen der Baumansicht, samt Ebene und Linienfuehrung.
+    var treeRows: [TreeRow] {
+        FolderTree.rows(
+            displayTree,
+            expanded: expandedFolders,
+            filesByFolder: visibleSortedFilesByFolder
+        )
     }
 
     /// Verwirft die Auswahl, wenn ihr Ordner/ihre Datei nicht mehr sichtbar ist.
@@ -787,6 +873,7 @@ final class ReportViewModel {
             }
         }
         let displayed = Set(displayBuckets.flatMap { $0.entries.map(\.folder) })
+            .union(viewMode == .tree ? FolderTree.allFolders(displayTree) : [])
         switch cursor {
         case .folder(let url):
             if !displayed.contains(url) { cursor = nil }
@@ -815,26 +902,37 @@ final class ReportViewModel {
     }
 
     /// Vollstaendige Dateiliste ueber alle angezeigten Ordner (fuer QuickLook).
+    ///
+    /// Folgt der **sichtbaren** Reihenfolge der jeweiligen Ansicht – sonst
+    /// blaetterte die Vorschau in einer anderen Ordnung als die Liste.
     func prepareFullFileList() async -> [URL] {
         var ordered: [URL] = []
         var map: [URL: URL] = [:]
-        for bucket in displayBuckets {
-            for entry in bucket.entries {
-                let files: [RelevantFile]
-                if let cached = filesByFolder[entry.folder] {
-                    files = cached
-                } else {
-                    let loaded = await loadFilesNow(entry.folder)
-                    filesByFolder[entry.folder] = loaded
-                    files = loaded
-                }
-                // Gleiche Sichtbarkeitsregel wie in der Liste, sonst blaettert
-                // QuickLook auf Dateien, die gar nicht angezeigt werden.
-                for file in files where isVisibleDetail(file) {
-                    ordered.append(file.url)
-                    map[file.url] = entry.folder
-                }
+
+        func collect(_ folder: URL) async {
+            let files: [RelevantFile]
+            if let cached = filesByFolder[folder] {
+                files = cached
+            } else {
+                let loaded = await loadFilesNow(folder)
+                filesByFolder[folder] = loaded
+                files = loaded
             }
+            // Gleiche Sichtbarkeitsregel wie in der Liste, sonst blaettert
+            // QuickLook auf Dateien, die gar nicht angezeigt werden.
+            for file in files where isVisibleDetail(file) {
+                ordered.append(file.url)
+                map[file.url] = folder
+            }
+        }
+
+        switch viewMode {
+        case .time:
+            for bucket in displayBuckets {
+                for entry in bucket.entries { await collect(entry.folder) }
+            }
+        case .tree:
+            for folder in FolderTree.allFolders(displayTree) { await collect(folder) }
         }
         fileToFolder = map
         return ordered
@@ -842,7 +940,7 @@ final class ReportViewModel {
 
     func quickLookNavigated(to fileURL: URL) {
         if let folder = fileToFolder[fileURL] {
-            expandedFolders.insert(folder)
+            reveal(folder)
         }
         selectionOrigin = .quickLook
         cursor = .file(fileURL)
@@ -936,8 +1034,22 @@ final class ReportViewModel {
     }
 
     /// Flache, sichtbare Reihenfolge aller navigierbaren Zeilen.
+    ///
+    /// Eine Quelle fuer Auge und Tastatur: In der Zeitansicht aus den
+    /// Abschnitten, im Baum aus ``treeRows`` – beide ueber
+    /// ``visibleSortedFilesByFolder``, also in genau der Reihenfolge, die auch
+    /// gezeichnet wird.
     var visibleRows: [RowID] {
-        RowNavigation.flatten(buckets: displayBuckets, expanded: expandedFolders, filesByFolder: visibleFilesByFolder)
+        switch viewMode {
+        case .time:
+            RowNavigation.flatten(
+                buckets: displayBuckets,
+                expanded: expandedFolders,
+                filesByFolder: visibleSortedFilesByFolder
+            )
+        case .tree:
+            treeRows.map(\.row)
+        }
     }
 
     /// Pfeiltasten: Cursor bewegen. ``extend`` (⇧) erweitert die Auswahl,
@@ -960,9 +1072,21 @@ final class ReportViewModel {
     }
 
     func collapseSelected() {
-        if case .folder(let folder) = cursor, expandedFolders.contains(folder) {
+        guard case .folder(let folder) = cursor else { return }
+        if expandedFolders.contains(folder) {
             expandedFolders.remove(folder)
+            persistExpansion()
+            return
         }
+        // **Bereits zugeklappt: zum Elternteil springen.** So verhaelt sich jede
+        // Gliederung auf dem Mac – ← faehrt den Baum hinauf, statt ins Leere zu
+        // greifen. In der Zeitansicht gibt es kein Elternteil; dort bleibt es
+        // beim bisherigen Verhalten (nichts tun).
+        guard viewMode == .tree,
+              let parent = FolderTree.ancestors(of: folder, in: displayTree).last
+        else { return }
+        selectionOrigin = .keyboard
+        select(.folder(parent), origin: .keyboard)
     }
 
     func expandSelected() {
@@ -1058,8 +1182,16 @@ final class ReportViewModel {
         }
     }
 
+    /// Alle Ordner, die die aktuelle Ansicht zeigt.
+    ///
+    /// Im Baum sind das **auch die Durchgangsknoten** – sie sind echte Zeilen,
+    /// lassen sich auf- und zuklappen und muessen deshalb im Zustandsabgleich
+    /// mitzaehlen.
     private func displayedFolders() -> [URL] {
-        displayBuckets.flatMap { $0.entries.map(\.folder) }
+        switch viewMode {
+        case .time: displayBuckets.flatMap { $0.entries.map(\.folder) }
+        case .tree: FolderTree.allFolders(displayTree)
+        }
     }
 
     var allExpanded: Bool {
@@ -1076,6 +1208,23 @@ final class ReportViewModel {
         } else {
             expandedFolders = []
         }
+    }
+
+    /// Klappt einen Ordner **samt allen Vorfahren** auf.
+    ///
+    /// **⚠️ Im Baum genuegt der Ordner allein nicht.** Ein Sprung aus dem
+    /// Diagramm auf `…/Sources/activities/Views` traefe ins Verborgene, solange
+    /// `Sources` zugeklappt ist – die Zeile existiert dann gar nicht, und der
+    /// Cursor liefe ins Leere. In der Zeitansicht gibt es keine Vorfahren; dort
+    /// bleibt es beim Ordner selbst.
+    private func reveal(_ folder: URL) {
+        if viewMode == .tree {
+            for ancestor in FolderTree.ancestors(of: folder, in: displayTree) {
+                expandedFolders.insert(ancestor)
+            }
+        }
+        expandedFolders.insert(folder)
+        ensureLoaded(folder)
     }
 
     private func ensureLoaded(_ folder: URL) {
@@ -1103,8 +1252,7 @@ final class ReportViewModel {
     func focus(day: Date, ext: String?) {
         if let ext, let target = newestVisibleFile(on: day, ext: ext) {
             chartFocus = nil
-            expandedFolders.insert(target.folder)
-            ensureLoaded(target.folder)
+            reveal(target.folder)
             selectionOrigin = .chart
             cursor = .file(target.url)
         } else {
@@ -1149,11 +1297,10 @@ final class ReportViewModel {
             ?? entries.first { $0.newestDate < to }
         guard let target else { return }
 
-        expandedFolders.insert(target.folder)
+        reveal(target.folder)
         chartFocus = ChartFocus(folder: target.folder, day: day)
         selectionOrigin = .chart
         cursor = .folder(target.folder)
-        ensureLoaded(target.folder)
         applyChartFocus(for: target.folder)
     }
 

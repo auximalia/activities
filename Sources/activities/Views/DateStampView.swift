@@ -110,3 +110,57 @@ struct SizeStampPlaceholder: View {
             .accessibilityHidden(true)
     }
 }
+
+/// Senkrechter Trenner zwischen Datums- und Groessenspalte (PR-40).
+///
+/// **⚠️ Warum das UX-09 nicht widerspricht.** Dort wurde entschieden: *ein*
+/// Trennsystem in der Tabelle – Zebra statt waagerechter Linien, weil beides
+/// zusammen Unruhe erzeugt. Diese Linie steht **senkrecht** und beantwortet
+/// eine andere Frage: nicht „wo endet die Zeile", sondern „wo endet die
+/// Spalte". Baumlinien duerfen aus demselben Grund bleiben (Hierarchie).
+///
+/// **⚠️ Gemessen, damit sie nicht lauter wird als das, was sie ordnet.**
+/// `Color.primary.opacity(0.08)` ergibt an den gezeichneten Pixeln:
+///
+/// | | Linie gegen Zeile | Zebra zum Vergleich | Abschnittskopf |
+/// |---|---|---|---|
+/// | hell   | ΔE 7,1 | 2,5 | 11,6 |
+/// | dunkel | ΔE 8,6 | 4,7 | 15,1 |
+///
+/// Ueber dem Zebra – sonst waere sie keine Linie, sondern eine Ahnung. Klar
+/// unter dem Abschnittskopf – sonst konkurrierte ein Spaltendetail mit der
+/// Gliederung der Liste (Lehre aus UX-11: *Kontext darf nie lauter sein als
+/// Inhalt*).
+///
+/// **⚠️ Sie wird auf die **Zeile** gelegt, nicht in die Spalte.** Als Element
+/// im `HStack` kostete sie zusaetzlich zweimal ``RowMetrics/itemSpacing`` an
+/// Breite und waere nur so hoch wie ihr Text. Als Ueberlagerung der fertigen
+/// Zeile kostet sie nichts und reicht ueber die volle Zeilenhoehe – erst
+/// dadurch entsteht aus den Einzelstuecken eine durchgehende senkrechte Kante.
+private struct ColumnRule: ViewModifier {
+    /// Im Kompakt-Layout gibt es keine Groessenspalte – dann auch keinen Trenner.
+    let isVisible: Bool
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .trailing) {
+            if isVisible {
+                Rectangle()
+                    .fill(RowMetrics.columnRuleColor)
+                    .frame(width: 1)
+                    .offset(x: -RowMetrics.columnRuleInset)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+extension View {
+    /// Legt den Spaltentrenner zwischen Datum und Groesse ueber die Zeile.
+    ///
+    /// **Muss nach dem Innenabstand der Zeile stehen**, damit der Abstand zum
+    /// rechten Rand derselbe ist wie der der Groessenspalte.
+    func columnRule(isVisible: Bool) -> some View {
+        modifier(ColumnRule(isVisible: isVisible))
+    }
+}

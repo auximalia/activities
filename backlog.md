@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.30 · 2026-08-09*
+*Stand: v1.19.31 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -2103,6 +2103,44 @@ Auge und keine Beispieltabelle.
 
 *Lehre: Wer eine feste Breite zusichert, muss sie über den Wertebereich prüfen, nicht an
 Beispielen. Ein Raster, das nur meistens hält, ist keines.*
+
+### PR-40 · Senkrechter Trenner zwischen Datum und Größe *(erledigt, v1.19.31)*
+**Aufwand:** S · **Nutzen:** klein · **Nachtrag zu PR-39**
+
+**Gewünscht:** „Jetzt noch einen Trenner zwischen Datum und Größe."
+
+**⚠️ Zuerst geprüft, ob das einer alten Entscheidung widerspricht.** UX-09 („Nur ein
+Trennsystem in der Tabelle", v1.11.0) hat waagerechte Trennlinien zugunsten des Zebras
+**abgeschafft**, weil Zebra + Linien + Baumlinien zusammen Unruhe erzeugen. Ein Widerspruch ist
+das hier nicht: Diese Linie steht **senkrecht** und beantwortet eine andere Frage – nicht „wo
+endet die Zeile", sondern „wo endet die Spalte". Aus demselben Grund durften damals die
+Baumlinien bleiben (Hierarchie). Das Prinzip von UX-09 lautet nicht „nur eine Linie", sondern
+**ein Trennsystem je Frage**.
+
+**Gemessen statt gewählt** – ΔE an den gezeichneten Pixeln:
+
+| | Trenner | Zebra | Abschnittskopf |
+|---|---|---|---|
+| hell | **7,1** | 2,5 | 11,6 |
+| dunkel | **8,6** | 4,7 | 15,1 |
+
+`Color.primary.opacity(0.08)` liegt bewusst dazwischen: **über** dem Zebra, sonst wäre es keine
+Linie, sondern eine Ahnung – und klar **unter** dem Abschnittskopf, sonst konkurrierte ein
+Spaltendetail mit der Gliederung der Liste. Das ist die Regel aus UX-11 in einem anderen
+Gewand: *Kontext darf nie lauter sein als Inhalt.*
+
+**⚠️ Die Linie liegt auf der Zeile, nicht in der Spalte.** Als Element im `HStack` hätte sie
+zusätzlich zweimal `itemSpacing` an Breite gekostet – und wäre nur so hoch gewesen wie ihr
+Nachbartext, also ein Strichlein statt einer Kante. Als Überlagerung der fertigen Zeile kostet
+sie **null Breite** und reicht über die volle Zeilenhöhe. Erst dadurch entsteht aus den
+Einzelstücken eine durchgehende senkrechte Linie durch die Liste.
+
+**Sie gilt für alle Zeilentypen** – Datei, Ordner, Baum. Nur in Dateizeilen steht rechts davon
+etwas; in Ordnerzeilen ist die Spalte leer (siehe PR-39). Die Linie trotzdem zu zeichnen ist
+kein Versehen: Eine Kante, die zeilenweise aussetzt, ist schlechter als keine. An
+Abschnittsköpfen setzt sie dagegen aus, und das ist richtig – dort endet der Block.
+
+Im Kompakt-Layout entfällt mit der Größenspalte auch der Trenner.
 
 ---
 

@@ -79,6 +79,7 @@ struct FileRowView: View {
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)
+        .columnRule(isVisible: !isCompact)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         // Cursor ohne Auswahl: nur ein feiner Rahmen – sonst waere nicht
         // erkennbar, worauf eine Aktion wirkt.

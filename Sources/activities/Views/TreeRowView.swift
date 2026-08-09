@@ -224,6 +224,7 @@ struct TreeFolderRowView: View {
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.trailing, RowMetrics.horizontalPadding)
+        .columnRule(isVisible: !isCompact)
     }
 
     /// Zahlenangabe der Zeile – bei Durchgangsknoten ausdruecklich als Teilbaum.

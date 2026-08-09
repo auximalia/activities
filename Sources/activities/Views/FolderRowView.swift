@@ -82,6 +82,7 @@ struct FolderRowView: View {
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)
+        .columnRule(isVisible: !isCompact)
         .background(SelectionBackground(isActive: isSelected))
         // Gleiche Grundfarbe wie eine gerade Dateizeile: Ohne sie stuende
         // die Ordnerzeile als graue Bank zwischen weissen Dateizeilen.

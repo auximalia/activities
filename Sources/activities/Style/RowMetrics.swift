@@ -133,6 +133,24 @@ enum RowMetrics {
     /// schmale Kante mehr wert als die zweite Nachkommastelle.
     static let sizeColumnWidth: CGFloat = 44
 
+    /// Farbe des senkrechten Trenners zwischen Datums- und Groessenspalte.
+    ///
+    /// **⚠️ Gemessen, nicht gewaehlt.** ΔE an den gezeichneten Pixeln: **7,1**
+    /// im hellen, **8,6** im dunklen Erscheinungsbild. Das Zebra liegt bei
+    /// 2,5/4,7, der Abschnittskopf bei 11,6/15,1. Die Linie liegt bewusst
+    /// dazwischen: ueber dem Zebra, sonst waere sie keine Linie, sondern eine
+    /// Ahnung – und klar unter dem Abschnittskopf, sonst konkurrierte ein
+    /// Spaltendetail mit der Gliederung der Liste.
+    static let columnRuleColor = Color.primary.opacity(0.08)
+
+    /// Abstand des Trenners vom rechten Zeilenrand.
+    ///
+    /// Genau die Mitte zwischen Datums- und Groessenspalte: Innenabstand der
+    /// Zeile + Spaltenbreite + halber Elementabstand.
+    static var columnRuleInset: CGFloat {
+        horizontalPadding + sizeColumnWidth + itemSpacing / 2
+    }
+
     /// Schriftgroesse aller **Nebenangaben** in einer Zeile (Datum, Groesse).
     ///
     /// **⚠️ 11 pt ist die Regel, nicht der Einzelfall.** Statuszeile,

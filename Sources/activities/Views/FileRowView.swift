@@ -70,6 +70,10 @@ struct FileRowView: View {
             }
 
             Spacer(minLength: RowMetrics.itemSpacing)
+            // Größe links vom Datum – im schmalen Fenster entfällt sie (PR-37).
+            if !isCompact {
+                SizeStampView(bytes: file.size, isDimmed: !isInWindow)
+            }
             DateStampView(date: file.timestamp, isCompact: isCompact, isDimmed: !isInWindow)
         }
         .frame(height: RowMetrics.rowHeight)

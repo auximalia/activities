@@ -139,9 +139,9 @@ struct MainToolbar: ToolbarContent {
                         model.setSortField(field)
                     } label: {
                         if model.sort.field == field {
-                            Label(field.label, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
+                            Label(field.menuLabel, systemImage: model.sort.ascending ? "chevron.up" : "chevron.down")
                         } else {
-                            Text(field.label)
+                            Text(field.menuLabel)
                         }
                     }
                 }
@@ -149,7 +149,7 @@ struct MainToolbar: ToolbarContent {
                 Image(systemName: "arrow.up.arrow.down")
                     .foregroundStyle(ToolbarStateToggle.idleTint)
             }
-            .help("Sortierung \(model.viewMode == .tree ? "unter Geschwistern" : "innerhalb der Zeitabschnitte") · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .help("Sortierung \(model.viewMode == .tree ? "unter Geschwistern" : "innerhalb der Zeitabschnitte") · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")\(model.sort.field.sortsFolders ? "" : " · ordnet nur Dateizeilen")")
             .accessibilityLabel("Sortierung")
             .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
         }

@@ -209,7 +209,8 @@ struct TreeFolderRowView: View {
                     .truncationMode(.middle)
 
                 Text(countLabel)
-                    .font(.caption)
+                    // Nebenangabe wie Datum und Groesse (PR-38): 11 pt.
+                    .font(.system(size: RowMetrics.metaFontSize))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .layoutPriority(-1)

@@ -9,13 +9,39 @@ public enum SortField: String, Sendable, CaseIterable {
     /// Nach Dateityp. Bei **Ordnern** ist das die *vorherrschende* Endung –
     /// ein Ordner hat selbst keinen Typ.
     case type
+    /// Nach Dateigroesse.
+    ///
+    /// **⚠️ Ordnet ausschliesslich Dateien** – innerhalb ihres Ordners. Ordner
+    /// behalten ihre Reihenfolge nach Datum.
+    ///
+    /// Das ist eine bewusste Einschraenkung, keine Luecke: Ein Ordner hat in
+    /// dieser App keine Groesse. Die naheliegende Summe waere die der
+    /// *sichtbaren* Dateien – bei „Letzte 7 Tage" also ein Bruchteil dessen,
+    /// was jeder neben einem Ordnernamen lesen wuerde. Ordner nach einer Zahl
+    /// zu sortieren, die man nicht sieht und die etwas anderes bedeutet, als
+    /// sie verspricht, waere die schlechteste der drei Moeglichkeiten:
+    /// „Warum steht der Ordner oben?" bliebe unbeantwortbar.
+    case size
 
     public var label: String {
         switch self {
         case .date: "Datum"
         case .name: "Name"
         case .type: "Typ"
+        case .size: "Größe"
         }
+    }
+
+    /// Ob dieses Kriterium **Ordnerzeilen** ordnet.
+    public var sortsFolders: Bool { self != .size }
+
+    /// Beschriftung im Menue – mit dem Zusatz, wo einer noetig ist.
+    ///
+    /// **⚠️ Die Einschraenkung gehoert an den Ort der Entscheidung**, nicht in
+    /// einen Hilfetext. Wer erst nach dem Klick merkt, dass sich die Ordner
+    /// nicht bewegt haben, haelt es fuer einen Fehler.
+    public var menuLabel: String {
+        sortsFolders ? label : "\(label) (nur Dateien)"
     }
 }
 
@@ -75,6 +101,11 @@ public enum RowSorting {
                     guard let b else { return true }
                     return sort.ascending ? a < b : a > b
                 }
+            case .size:
+                // Ordner haben keine Groesse – siehe ``SortField/size``. Es
+                // bleibt bei der Reihenfolge, die unten als Gleichstandsregel
+                // ohnehin gilt: juengste zuerst.
+                break
             }
             // Gleichstand: stets neueste zuerst, danach der Pfad – so bleibt die
             // Reihenfolge bei gleichen Schluesseln stabil und nachvollziehbar.
@@ -129,6 +160,8 @@ public enum RowSorting {
                     guard let b else { return true }
                     return sort.ascending ? a < b : a > b
                 }
+            case .size:
+                break
             }
             if first.subtreeNewestDate != second.subtreeNewestDate {
                 return first.subtreeNewestDate > second.subtreeNewestDate
@@ -160,6 +193,15 @@ public enum RowSorting {
                     // Dateien ohne Endung ans Ende.
                     if a.isEmpty { return false }
                     if b.isEmpty { return true }
+                    return sort.ascending ? a < b : a > b
+                }
+            case .size:
+                if first.size != second.size {
+                    // ⚠️ Unbekannte Groesse ans Ende, unabhaengig von der
+                    // Richtung – wie bei Dateien ohne Endung. Sie als 0 zu
+                    // behandeln stellte sie zu den echten leeren Dateien.
+                    guard let a = first.size else { return false }
+                    guard let b = second.size else { return true }
                     return sort.ascending ? a < b : a > b
                 }
             }

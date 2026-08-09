@@ -197,6 +197,12 @@ struct ActivitiesApp: App {
                     .keyboardShortcut("2", modifiers: [.command, .option])
                 Button("Nach Typ sortieren") { model.setSortField(.type) }
                     .keyboardShortcut("3", modifiers: [.command, .option])
+                // ⚠️ „nur Dateien" steht im Menuepunkt selbst, nicht in einem
+                // Hilfetext. Ein Ordner hat in dieser App keine Groesse (siehe
+                // `SortField.size`); wer das erst nach dem Klick merkt, haelt
+                // es fuer einen Fehler.
+                Button("Nach \(SortField.size.menuLabel) sortieren") { model.setSortField(.size) }
+                    .keyboardShortcut("4", modifiers: [.command, .option])
                 Divider()
                 Toggle("Dateien außerhalb des Zeitraums zeigen", isOn: Binding(
                     get: { model.showOutOfWindowFiles },

@@ -25,11 +25,19 @@ public struct RelevantFile: Identifiable, Sendable, Hashable {
     public let url: URL
     public let folder: URL
     public let timestamp: Date
+    /// Groesse in Bytes; `nil`, wenn sie nicht gelesen werden konnte.
+    ///
+    /// **⚠️ Optional und nicht `0`.** Eine nicht lesbare Groesse als Null zu
+    /// fuehren hiesse, eine Datei ohne Inhalt zu behaupten – und die
+    /// Sortierung nach Groesse stellte sie mit echten leeren Dateien in eine
+    /// Reihe. „Weiss ich nicht" ist ein eigener Zustand.
+    public let size: Int?
 
-    public init(url: URL, folder: URL, timestamp: Date) {
+    public init(url: URL, folder: URL, timestamp: Date, size: Int? = nil) {
         self.url = url
         self.folder = folder
         self.timestamp = timestamp
+        self.size = size
     }
 }
 

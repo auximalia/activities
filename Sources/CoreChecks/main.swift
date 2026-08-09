@@ -1258,6 +1258,78 @@ do {
     expectEqual(UpdateSchedule.interval, 24 * 60 * 60, "Takt: 24 Stunden")
 }
 
+// MARK: - Dateigroesse: Formatierung und Sortierung (PR-37)
+do {
+    // ⚠️ Diese Erwartungen sind nur haltbar, weil ``SizeFormatting`` die
+    // Sprache fest auf de_DE stellt. Ohne das lieferte derselbe Code auf einem
+    // englischen System „1.2 MB" – und diese Pruefung waere keine, sondern eine
+    // Aussage ueber die Maschine, auf der sie zufaellig lief.
+    expectEqual(SizeFormatting.short(1_000_000), "1 MB", "Groesse: Megabyte")
+    expectEqual(SizeFormatting.short(12_300_000), "12,3 MB", "Groesse: Komma statt Punkt")
+    expectEqual(SizeFormatting.short(1_230_000_000), "1,23 GB", "Groesse: Gigabyte")
+    expectEqual(SizeFormatting.short(1), "1 Byte", "Groesse: Einzahl")
+
+    // ⚠️ Sonderfall Null: Die Systemformatierung liefert „0 kB". Eine leere
+    // Datei ist aber keine Angelegenheit von Kilobytes.
+    expectEqual(SizeFormatting.short(0), "0 Bytes", "Groesse: leere Datei")
+
+    // Nicht lesbar heisst leer, nicht „0" und nicht „–": Eine Angabe ueber
+    // etwas, worueber wir nichts wissen, waere schlimmer als keine.
+    expectEqual(SizeFormatting.short(nil), "", "Groesse: unbekannt bleibt leer")
+
+    // **Dezimal wie der Finder**, nicht binaer: 1 MB = 1.000.000 Bytes.
+    // Bei binaerer Zaehlung staende hier „977 kB“.
+    expectEqual(SizeFormatting.short(1_000_000), "1 MB", "Groesse: dezimal wie der Finder")
+
+    // ⚠️ Ein Trennzeichen, nicht zwei. `ByteCountFormatStyle` setzt mal ein
+    // geschuetztes Leerzeichen (U+00A0), mal ein gewoehnliches – gemessen in
+    // derselben Sprache mit demselben Stil. Auf dem Bildschirm sieht man das
+    // nicht; jeder Vergleich waere aber ein Gluecksspiel je nach
+    // Groessenordnung. Lehre aus PR-32, an anderer Stelle.
+    for wert in [1, 1_000_000, 12_300_000, 1_230_000_000, 999_900_000] {
+        expect(!SizeFormatting.short(wert).unicodeScalars.contains("\u{00A0}"),
+               "Groesse: einheitliches Trennzeichen bei \(wert)")
+    }
+
+    // --- Sortierung ---
+    let f = URL(fileURLWithPath: "/r/a")
+    func datei(_ n: String, _ groesse: Int?) -> RelevantFile {
+        RelevantFile(url: f.appendingPathComponent(n), folder: f,
+                     timestamp: date(2026, 8, 3), size: groesse)
+    }
+    let dateien = [datei("klein.txt", 10), datei("gross.txt", 5_000),
+                   datei("mittel.txt", 900), datei("unbekannt.txt", nil)]
+
+    let absteigend = RowSorting.files(dateien, by: FolderSort(field: .size, ascending: false))
+    expectEqual(absteigend.map { $0.url.lastPathComponent },
+                ["gross.txt", "mittel.txt", "klein.txt", "unbekannt.txt"],
+                "Groessensortierung: absteigend")
+
+    // ⚠️ Unbekannte Groesse bleibt am Ende – in BEIDE Richtungen, wie Dateien
+    // ohne Endung bei der Typsortierung. Sie als 0 zu behandeln stellte sie zu
+    // den echten leeren Dateien.
+    let aufsteigend = RowSorting.files(dateien, by: FolderSort(field: .size, ascending: true))
+    expectEqual(aufsteigend.map { $0.url.lastPathComponent },
+                ["klein.txt", "mittel.txt", "gross.txt", "unbekannt.txt"],
+                "Groessensortierung: aufsteigend, Unbekanntes bleibt hinten")
+
+    // ⚠️ Ordner haben keine Groesse – die Sortierung darf sie nicht umstellen.
+    let o1 = FolderEntry(folder: URL(fileURLWithPath: "/r/alt"), newestDate: date(2026, 8, 1), fileCount: 1)
+    let o2 = FolderEntry(folder: URL(fileURLWithPath: "/r/neu"), newestDate: date(2026, 8, 3), fileCount: 1)
+    let nachGroesse = RowSorting.folders([o1, o2], by: FolderSort(field: .size, ascending: false))
+    let nachDatum = RowSorting.folders([o1, o2], by: FolderSort(field: .date, ascending: false))
+    expectEqual(nachGroesse.map(\.folder), nachDatum.map(\.folder),
+                "Groessensortierung: Ordner behalten die Datumsreihenfolge")
+
+    // Und die Oberflaeche muss das sagen koennen, statt raten zu lassen.
+    expect(!SortField.size.sortsFolders, "Groessensortierung: als nur-Dateien gekennzeichnet")
+    expect(SortField.date.sortsFolders && SortField.name.sortsFolders && SortField.type.sortsFolders,
+           "Groessensortierung: die anderen Kriterien ordnen Ordner weiterhin")
+    expect(SortField.size.menuLabel.contains("nur Dateien"),
+           "Groessensortierung: der Menuepunkt nennt die Einschraenkung")
+    expectEqual(SortField.date.menuLabel, "Datum", "Groessensortierung: sonst kein Zusatz")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

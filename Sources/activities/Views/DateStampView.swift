@@ -45,10 +45,49 @@ struct DateStampView: View {
         Text(isCompact
              ? DateFormatting.dateTimeCompact(date)
              : DateFormatting.dateTime(date))
-            .font(.system(.callout, design: .monospaced))
+            .font(.system(size: RowMetrics.metaFontSize, design: .monospaced))
             .foregroundStyle(.secondary)
             .opacity(isDimmed ? RowMetrics.outOfWindowTextOpacity : 1)
             .lineLimit(1)
             .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
+    }
+}
+
+/// Die Groessenspalte einer Dateizeile (PR-37).
+///
+/// Steht **links vom Datum** und rechtsbuendig, damit die Zahlen untereinander
+/// stehen und sich senkrecht ueberfliegen lassen.
+///
+/// **⚠️ Nur Dateien tragen eine Groesse – Ordnerzeilen bleiben leer.** Die
+/// naheliegende Summe der sichtbaren Dateien liest jeder als „dieser Ordner ist
+/// 1,2 GB gross". Tatsaechlich waere es die Summe **im Zeitfenster und nach
+/// Filtern**, bei „Letzte 7 Tage" also ein Bruchteil. Eine Zahl, die etwas
+/// anderes verspricht, als sie haelt, verliert beim zweiten Mal ihren Kredit –
+/// dieselbe Lehre wie bei der Rueckfrage aus PR-26.
+///
+/// **⚠️ Im Kompakt-Layout entfaellt die Spalte.** Das ist keine neue Regel,
+/// sondern die bestehende: Unterhalb von ``RowMetrics/compactThreshold`` faellt
+/// bereits der Pfad weg und die Datumsspalte schrumpft, weil der Name sonst
+/// nichts mehr uebrig behaelt. Die Groesse ist von allen drei Angaben die
+/// entbehrlichste – sie beantwortet eine Frage der Hauswirtschaft, nicht die
+/// des Wiedereinstiegs.
+///
+/// **Die Einheiten stehen nicht untereinander** („1 MB" gegen „999,9 MB"), und
+/// das ist so belassen: Angesehen und fuer richtig befunden – der Finder macht
+/// es genauso, und eine Ausrichtung der Einheit haette die Zahl selbst aus der
+/// rechten Kante geloest, die man beim Ueberfliegen tatsaechlich benutzt.
+struct SizeStampView: View {
+    /// Groesse in Bytes; `nil` = nicht lesbar, dann bleibt die Spalte leer.
+    let bytes: Int?
+    /// Gedaempft darstellen – fuer Eintraege ausserhalb des Zeitraums.
+    var isDimmed: Bool = false
+
+    var body: some View {
+        Text(SizeFormatting.short(bytes))
+            .font(.system(size: RowMetrics.metaFontSize, design: .monospaced))
+            .foregroundStyle(.secondary)
+            .opacity(isDimmed ? RowMetrics.outOfWindowTextOpacity : 1)
+            .lineLimit(1)
+            .frame(width: RowMetrics.sizeColumnWidth, alignment: .trailing)
     }
 }

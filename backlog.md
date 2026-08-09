@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.28 · 2026-08-09*
+*Stand: v1.19.29 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1915,8 +1915,8 @@ womöglich gar keine Einstellung, sondern eine bessere Vorgabe.
 neues Fenster – und sie darf die Erlaubnisliste **erweitern**, nicht ersetzen. Ein Anwender,
 der versehentlich „Sonstige" freischaltet, hätte sonst den Sicherheitsmangel aus PR-35 zurück.
 
-### PR-37 · Dateigröße als eigene Spalte, Sortierung nach Größe
-**Aufwand:** M · **Nutzen:** mittel · **Stand:** entworfen, **nicht** umgesetzt
+### PR-37 · Dateigröße als eigene Spalte, Sortierung nach Größe *(erledigt, v1.19.29)*
+**Aufwand:** M · **Nutzen:** mittel
 
 **Gewünscht:** „In einer eigenen Spalte links vom Datum – aber rechtsbündig – soll die Größe der
 Datei stehen (Tabelle wie Baum). Auch soll nach Größe sortiert werden können."
@@ -1978,6 +1978,98 @@ langsamer.
 **Verhältnis zu PR-13:** Beide wollen denselben Platz in der Zeile. Größe geht zuerst; PR-13
 ist danach neu zu bewerten – womöglich gehört die Typverteilung dann in den Tooltip statt in
 die Zeile.
+
+**Umgesetzt wie entschieden.** `SizeFormatting` und die Sortierregel liegen in
+`ActivitiesCore` und sind geprüft; die Spalte steckt in `SizeStampView`, damit sie – wie die
+Datumsspalte seit PR-32 – gar nicht erst driften kann.
+
+**⚠️ Die Sprache ist fest auf `de_DE` gestellt, wie bei `DateFormatting`.** Ohne das richtete
+sich die Ausgabe nach der Systemsprache: neben einem deutschen „Mi., 05.08.2025" stünde ein
+englisches „1.2 MB", mit Punkt statt Komma. Und die Prüfungen hätten je nach Rechner ein
+anderes Ergebnis – wären also keine Zusicherung, sondern eine Aussage über die Maschine, auf
+der sie zufällig liefen.
+
+**⚠️ Fund beim Bauen: `ByteCountFormatStyle` ist in sich uneinheitlich.** Zwischen Zahl und
+Einheit steht **mal** ein geschütztes Leerzeichen (U+00A0), **mal** ein gewöhnliches (U+0020) –
+gemessen in derselben Sprache mit demselben Stil:
+
+| Wert | Ausgabe | Trennzeichen |
+|---|---|---|
+| `1` | „1 Byte" | U+00A0 |
+| `1_000_000` | „1 MB" | U+0020 |
+| `12_300_000` | „12,3 MB" | U+0020 |
+| `1_230_000_000` | „1,23 GB" | U+00A0 |
+
+Auf dem Bildschirm sieht man keinen Unterschied – beide sind in dieser Schrift gleich breit.
+Aufgefallen ist es nur, weil eine Prüfung „erwartet 1,23 GB, erhalten 1,23 GB" meldete. Es sind
+zwei Formen für dieselbe Sache; jetzt wird vereinheitlicht. *Dieselbe Lehre wie in PR-32, nur
+diesmal an einer Stelle, die man nicht sehen kann.*
+
+**⚠️ Die breiteste Angabe war nicht die, die man erwartet.** Vermutet: „999,9 MB" (54,4 pt).
+Tatsächlich lag „999 Bytes" mit 61,2 pt vorn – bis die Umstellung auf Finder-Zählweise daraus
+„1 kB" machte. Wer die Formatierung ändert, muss die Spaltenbreite neu messen; das steht als
+Warnung an `RowMetrics.sizeColumnWidth`.
+
+**Weitere Entscheidungen am Bildschirm getroffen, nicht vorher:**
+- **0 Bytes:** Die Systemformatierung liefert „0 kB". Eine leere Datei ist keine Angelegenheit
+  von Kilobytes – jetzt „0 Bytes", wie im Finder.
+- **Unbekannte Größe bleibt leer**, nicht „–" oder „0". Eine Angabe über etwas, worüber wir
+  nichts wissen, wäre schlimmer als keine. `RelevantFile.size` ist deshalb optional: Als `0`
+  geführt landete eine nicht lesbare Datei in der Sortierung bei den echten leeren.
+- **Die Einheiten stehen nicht untereinander** („1 MB" gegen „999,9 MB"). Angesehen und so
+  belassen: Der Finder macht es genauso, und eine Ausrichtung der Einheit hätte die Zahl aus
+  der rechten Kante gelöst, die man beim Überfliegen tatsächlich benutzt.
+
+**Die Einschränkung steht im Menüpunkt, nicht in einem Hilfetext:** „Nach Größe sortieren (nur
+Dateien)". Wer erst nach dem Klick merkt, dass sich die Ordner nicht bewegt haben, hält es für
+einen Fehler.
+
+### PR-38 · Nebenangaben einheitlich auf 11 pt *(erledigt, v1.19.29)*
+**Aufwand:** S · **Nutzen:** mittel · **Beifahrer in Sprint 12**
+
+**Gewünscht:** „Auch machen wir die Schrift für Datum und Größe in der Darstellung ein wenig
+kleiner."
+
+**Aus einem Wunsch eine Regel gemacht:** **Inhalt 12 pt, Nebenangabe 11 pt.** Betroffen sind
+Datum, Größe und die Zählangabe im Baum; Statuszeile und Filterhinweis stehen seit PR-33 schon
+auf 11 pt. Damit ist es keine punktuelle Verkleinerung, sondern eine Rangordnung, die man beim
+nächsten Element wieder anwenden kann.
+
+**⚠️ 11 pt ist der Boden, nicht eine Zwischenstufe.** In PR-33 wurde die Statuszeile von 10 auf
+11 pt *angehoben*, weil `secondary` nur 3,82:1 erreicht (hell gemessen) und dann nicht auch noch
+die kleinste Schrift tragen darf. Hier geht es in die Gegenrichtung – das ist knapp, und es
+trägt nur, weil bei 11 pt Schluss ist. Wirkt es zu blass, ist der Hebel die **Farbe**, nicht
+noch einmal die Größe. Das steht als Warnung an `RowMetrics.metaFontSize`.
+
+**Die Verkleinerung zahlt einen Teil der neuen Spalte** (gemessen, monospaced):
+
+| | 12,0 pt | 11,0 pt | |
+|---|---|---|---|
+| „Mi., 05.08.2025 14:32" | 155,8 | 142,8 | −13,0 pt |
+| „Mi. 05.08.25 14:32" (kompakt) | 133,5 | 122,4 | −11,1 pt |
+
+Datumsspalte **158 → 146**, kompakt **136 → 126**. Netto kostet Sprint 12 im breiten Fenster
+**+54 pt** statt +70; im Kompakt-Layout, wo die Größenspalte entfällt, bleiben **−10 pt** –
+dort hat der Dateiname jetzt *mehr* Platz als vorher.
+
+*Die Datumsspalte ist damit zum dritten Mal gewandert (150 → 158 → 146), und jedes Mal aus
+demselben Grund: eine Maßangabe, die zu ihrer Zeit stimmte, und eine Änderung, die ihr die
+Grundlage entzog. Deshalb steht die Messung jetzt im Doc-Kommentar daneben.*
+
+---
+
+## Sprint 12 – „Wie groß" *(erledigt, v1.19.29)*
+
+| AP | Eintrag | Aufwand | |
+|---|---|---|---|
+| **AP1** | PR-37 · Größenspalte + Sortierung nach Größe | M | ✅ trägt den Release |
+| **AP2** | PR-38 · Nebenangaben einheitlich auf 11 pt | S | ✅ Beifahrer, finanziert AP1 mit |
+
+**⚠️ Widerspruch zur Begründung, nicht zum Wunsch – festgehalten, weil er die Erwartung ordnet.**
+Vorgeschlagen war die Größe als dritte Achse („Wann, Wo, Wie groß"). Größe misst aber **Bytes,
+nicht Arbeit**: Ein 4-GB-Videoexport ist ein Klick, eine 12-KB-Quelldatei kann ein Nachmittag
+sein. Sie beantwortet „Was frisst meinen Platz?" – Hauswirtschaft, nicht Wiedereinstieg. Als das
+gebaut ist sie gut; als dritte Achse verkauft verspräche sie etwas, das sie nicht hält.
 
 ---
 

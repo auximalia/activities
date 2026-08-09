@@ -107,15 +107,42 @@ enum RowMetrics {
     /// breitem Fenster weit vom Namen abrueckt (Gesetz der Naehe).
     ///
     /// **⚠️ Aus der laengsten Angabe gemessen, nicht geschaetzt.** In
-    /// monospaced Callout (12 pt) misst „Mi., 05.08.2025 14:32" **155,8 pt**;
-    /// mit 2 pt Luft ergibt das 158. Die frueheren 150 pt stammten aus der
-    /// Zeit, als das Jahr im laufenden Jahr entfiel (126,1 pt) – seit der
-    /// Vereinheitlichung haette die Spalte abgeschnitten.
-    static let dateColumnWidth: CGFloat = 158
+    /// monospaced **11 pt** misst „Mi., 05.08.2025 14:32" **142,8 pt**; mit
+    /// gut 3 pt Luft ergibt das 146.
+    ///
+    /// Die Werte sind zweimal gewandert und beide Male aus demselben Grund:
+    /// Eine Maßangabe, die zu ihrer Zeit stimmte, und eine Änderung, die ihr
+    /// die Grundlage entzog. 150 pt galten, solange das Jahr im laufenden Jahr
+    /// entfiel (PR-32 → 158), 158 pt galten bei 12 pt Schrift (PR-38 → 146).
+    static let dateColumnWidth: CGFloat = 146
     /// Schmalere Datumsspalte im Kompakt-Layout.
     ///
-    /// Ebenso gemessen: „Mi. 05.08.25 14:32" misst 133,5 pt, plus 2 pt Luft.
-    static let dateColumnWidthCompact: CGFloat = 136
+    /// Ebenso gemessen: „Mi. 05.08.25 14:32" misst bei 11 pt 122,4 pt.
+    static let dateColumnWidthCompact: CGFloat = 126
+
+    /// Feste Breite der Groessenspalte (PR-37).
+    ///
+    /// **⚠️ Die breiteste Angabe ist nicht die groesste Zahl.** Erwartet haette
+    /// man „999,9 MB"; gemessen ueber den ganzen Wertebereich stimmt das auch –
+    /// **54,4 pt** bei 11 pt monospaced. Kurz davor stand aber „999 Bytes" mit
+    /// 61,2 pt im Rennen, bis die Formatierung auf Finder-Zaehlweise umgestellt
+    /// wurde (dort wird daraus „1 kB"). Wer die Formatierung aendert, muss
+    /// diese Breite neu messen.
+    static let sizeColumnWidth: CGFloat = 58
+
+    /// Schriftgroesse aller **Nebenangaben** in einer Zeile (Datum, Groesse).
+    ///
+    /// **⚠️ 11 pt ist die Regel, nicht der Einzelfall.** Statuszeile,
+    /// Filterhinweis, Datum und Groesse teilen sich diese Groesse; der Inhalt
+    /// – der Dateiname – steht bei 12 pt. Damit wird aus „ein wenig kleiner"
+    /// eine Rangordnung: **Inhalt 12 pt, Nebenangabe 11 pt.**
+    ///
+    /// **⚠️ Die Untergrenze ist erreicht.** In PR-33 wurde die Statuszeile von
+    /// 10 auf 11 pt *angehoben*, weil `secondary` nur 3,82:1 erreicht (hell)
+    /// und dann nicht auch noch die kleinste Schrift tragen darf. 11 pt ist
+    /// also nicht „noch etwas Luft nach unten", sondern der Boden. Wirkt es zu
+    /// blass, ist der Hebel die **Farbe**, nicht die Groesse.
+    static let metaFontSize: CGFloat = 11
 
     /// Ab welcher Fensterbreite auf das Kompakt-Layout umgeschaltet wird.
     ///

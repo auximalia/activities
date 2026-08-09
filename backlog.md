@@ -1915,12 +1915,78 @@ womöglich gar keine Einstellung, sondern eine bessere Vorgabe.
 neues Fenster – und sie darf die Erlaubnisliste **erweitern**, nicht ersetzen. Ein Anwender,
 der versehentlich „Sonstige" freischaltet, hätte sonst den Sicherheitsmangel aus PR-35 zurück.
 
+### PR-37 · Dateigröße als eigene Spalte, Sortierung nach Größe
+**Aufwand:** M · **Nutzen:** mittel · **Stand:** entworfen, **nicht** umgesetzt
 
+**Gewünscht:** „In einer eigenen Spalte links vom Datum – aber rechtsbündig – soll die Größe der
+Datei stehen (Tabelle wie Baum). Auch soll nach Größe sortiert werden können."
+
+**Gemessen vor der Bewertung** (die beiden naheliegenden Einwände sind damit erledigt):
+
+| Messung | Ergebnis |
+|---|---|
+| `.fileSizeKey` zusätzlich im Scan (5.266 Dateien, 3 Läufe gemittelt) | **−2,3 %** – im Rauschen, also gratis |
+| Breiteste realistische Angabe („999,9 MB"), monospaced Callout | **59,3 pt** → Spalte ~62 pt + 8 pt Abstand |
+
+`FileScanner` holt bereits ein Key-Set (`:72`, `:174`); ein Key mehr im selben Aufruf kostet
+nichts. `RelevantFile` bekommt ein Feld dazu.
+
+**⚠️ Widerspruch zur Begründung, nicht zum Wunsch.** Vorgeschlagen wurde die Größe als dritte
+Achse: „dann hätten wir Wann, Wo und Wie groß". Das überzeichnet sie. Größe misst **Bytes,
+nicht Arbeit** – ein 4-GB-Videoexport ist ein Klick, eine 12-KB-Quelldatei kann ein Nachmittag
+sein. Für die These der App („wo habe ich gearbeitet") ist Größe eher ein *negativer* Hinweis:
+Große Dateien sind oft Downloads, Exporte, Renderergebnisse.
+
+Sie beantwortet eine andere, ebenfalls legitime Frage: **„Was frisst meinen Platz?"** Das ist
+Hauswirtschaft, nicht Wiedereinstieg. Als das gebaut ist es gut; als dritte Achse verkauft
+verspricht es etwas, das es nicht hält.
+
+**Entschieden:**
+1. **Nur Dateizeilen.** Ordnerzeilen bleiben leer.
+2. **Kurze Form, rechtsbündig**, unmittelbar links vom Datum – Zahlen stehen untereinander.
+3. **Die Spalte entfällt im Kompakt-Layout** (< 940 pt). Keine neue Regel, sondern die
+   bestehende: Dort entfällt schon heute der Pfad und die Datumsspalte schrumpft.
+4. **Sortierung nach Größe ordnet nur Dateien** – innerhalb ihres Ordners. Ordner behalten ihre
+   Reihenfolge.
+
+**⚠️ Warum keine Ordnersumme.** Die Summe der *sichtbaren* Dateien neben `Projekte` liest jeder
+als „dieser Ordner ist 1,2 GB groß". Tatsächlich wäre es die Summe im **Zeitfenster und nach
+Filtern** – bei „Letzte 7 Tage" ein Bruchteil. Das ist derselbe Fehlertyp wie die falsche Zahl
+in der Rückfrage aus PR-26: Eine Angabe, die etwas anderes verspricht, als sie hält, verliert
+beim zweiten Mal ihren Kredit. Die echte Ordnergröße zu ermitteln widerspricht dagegen dem
+Grundsatz „sparsam scannen" (v1.10.0).
+
+**⚠️ Der Preis dieser Entscheidung ist benannt:** Man bekommt **nicht** „zeig mir die dicksten
+Ordner zuerst" – und das ist erfahrungsgemäß das, was man von einer Größensortierung erwartet.
+Bewusst hingenommen; die Alternative wäre eine Sortierung nach einer Größe, die man nicht sieht,
+und dann wäre „warum steht der Ordner oben?" unbeantwortbar.
+
+**Beim Bauen zu entscheiden (nicht zu raten):**
+- **Dezimal wie der Finder** (1 MB = 1.000.000 Bytes, `ByteCountFormatter` mit `.file`), nicht
+  binär. Die App steht neben dem Finder; zwei Zahlen für dieselbe Datei wären unerklärlich.
+- **Eine Form, keine zwei** – die Lehre aus PR-32. `ByteCountFormatter` wechselt die
+  Nachkommastellen („1,2 MB" / „12 MB" / „999 Bytes"); rechtsbündig fängt das die linke Kante
+  auf, die **Einheiten** stehen dadurch aber nicht untereinander. Vor dem Bauen am Bildschirm
+  ansehen und entscheiden, nicht vorher festlegen.
+- Verhalten bei `0` Bytes und bei nicht lesbarer Größe.
+
+**Akzeptanz:** Dateizeilen zeigen die Größe rechtsbündig links vom Datum, in Liste und Baum
+gleich; die Spalte entfällt unter 940 pt Fensterbreite; ⌥⌘4 sortiert Dateien nach Größe;
+Formatierung und Sortierregel sind in `CoreChecks` geprüft; der Scan wird messbar nicht
+langsamer.
+
+**Verhältnis zu PR-13:** Beide wollen denselben Platz in der Zeile. Größe geht zuerst; PR-13
+ist danach neu zu bewerten – womöglich gehört die Typverteilung dann in den Tooltip statt in
+die Zeile.
+
+---
+
+## Sprint 11 – „Zustand, der das Fenster überlebt" *(erledigt, v1.19.28)*
 
 | AP | Eintrag | Aufwand | |
 |---|---|---|---|
-| **AP1** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | L | (a) Verlaufsstapel, (b) Aufklappzustand je Wurzel |
-| **AP2** | PR-34 · Stille Update-Suche in sinnvollem Takt | M | |
+| **AP1** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | L | ✅ (a) Verlaufsstapel, (b) Aufklappzustand je Wurzel |
+| **AP2** | PR-34 · Stille Update-Suche in sinnvollem Takt | M | ✅ |
 
 **⚠️ Zurückgenommene Behauptung aus der ersten Fassung.** Dort stand, die beiden gehörten
 zusammen, weil „beide einen Ort für Zustand brauchen, der das Fenster überlebt". Beim genauen

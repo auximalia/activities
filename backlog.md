@@ -792,13 +792,13 @@ Auswahl bei jedem Neuaufbau auf die sichtbaren Dateien zurück. *Lehre erneut be
 Vermutung am Code prüfen, bevor sie als Mangel ins Backlog wandert (Konsistenz-Punkt 7).*
 
 ### PR-26 · Massenöffnen begrenzen *(neu, aufgenommen bei der Planung von Sprint 9)*
-**Aufwand:** S · **Nutzen:** hoch · **Vorbedingung für:** PR-11
+**Aufwand:** ~~S~~ **M** *(korrigiert bei der Durchsicht für Sprint 10)* · **Nutzen:** hoch · **Vorbedingung für:** PR-11
 
-⌘A (`selectAllVisibleFiles()`, `ReportViewModel.swift:804`) plus Enter (`openSelection()`,
-`:876`) startet **für jede sichtbare Datei eine Anwendung** – ohne Rückfrage, ohne Obergrenze,
-ohne Drosselung. Dasselbe gilt für „Öffnen (n)" im Kontextmenü (`FileRowView.swift:150`).
-Die App besitzt heute **keinen einzigen** `confirmationDialog` und kein `NSAlert`; das einzige
-`.alert` ist die Update-Meldung (`RootView.swift:57`).
+⌘A (`selectAllVisibleFiles()`) plus Enter (`openSelection()`) startet **für jede sichtbare Datei
+eine Anwendung** – ohne Rückfrage, ohne Obergrenze, ohne Drosselung. Dasselbe gilt für
+„Öffnen (n)" im Kontextmenü (`FileRowView.swift:152`). Die App besitzt heute **keinen einzigen**
+`confirmationDialog` und kein `NSAlert`; die beiden `.alert` in `RootView.swift:62-91` sind
+Meldungen, keine Rückfragen.
 
 Gemessen im Alltagsfall (`~/Documents`, 30 Tage): 3 Ordner · 3 Dateien – harmlos. Im
 „Alle"-Modus (UX-28) über einen großen Baum umfasst dieselbe Tastenfolge den **gesamten
@@ -811,9 +811,28 @@ und **Abbrechen als Vorgabe** hat.
 Aufrufern. Sonst driften Enter, Kontextmenü und PR-11 auseinander, und der Schutz gilt je nach
 Weg oder nicht.
 
+**⚠️ Genau diese eine Stelle gibt es heute nicht – das ist der Grund für die Höherstufung.**
+`FinderService.open` (`FinderService.swift:8-10`) nimmt ein **einzelnes** `URL`; die Vielfachheit
+entsteht erst in den `forEach`-Schleifen der Aufrufer (`ReportViewModel.swift:1140`,
+`FileRowView.swift:152`, `:153`). Eine Sperre dort wüsste nicht, dass sie Teil einer Serie ist.
+Es fehlt also die **Mengen-Ebene**, an der die Grenze laut Beschluss sitzen soll – die muss
+PR-26 erst schaffen, samt Umstellung der Aufrufer.
+
+**⚠️ Es sind zwei Schadensmechanismen, nicht einer.** Die Wege über `FinderService` starten
+**N Systemaufrufe in einer Schleife**; die Wege über `ExternalAppService.open`
+(`ExternalAppService.swift:118`, genutzt von „In Editor öffnen (n)", ⌘⇧E, ⌘⇧T) übergeben das
+ganze Array in **einem** Aufruf – dort entscheidet die Zielanwendung, was sie mit 500 Dateien
+anfängt. Die Rückfrage ist in beiden Fällen richtig, aber eine gemeinsame Sperre muss beide
+Formen kennen.
+
+**Zu entscheiden (Entwurf, keine Beobachtung):** Ob `actionError` (`ReportViewModel.swift:249`,
+heute nur ein `String?`) zu einem Zustand mit Aktion erweitert wird oder ob ein zweiter Zustand
+(`pendingBulkOpen: [URL]?`) danebentritt. Der Update-Dialog (`RootView.swift:73-91`) ist die
+nächstgelegene Vorlage für einen zweiknöpfigen Dialog im Haus.
+
 **Akzeptanz:** Unterhalb der Schwelle öffnet es wie bisher ohne Rückfrage; oberhalb erscheint
-eine Rückfrage mit der genauen Anzahl; Abbrechen öffnet nichts. Gilt für alle drei Wege
-(Enter, Kontextmenü, PR-11).
+eine Rückfrage mit der genauen Anzahl; Abbrechen öffnet nichts. Gilt für **alle** Wege (Enter,
+Kontextmenü „Öffnen (n)", „Im Finder anzeigen (n)", Editor/Terminal, PR-11).
 
 ### PR-11 · „Arbeit fortsetzen"
 **Aufwand:** M · **Nutzen:** hoch · **braucht:** PR-26
@@ -838,17 +857,42 @@ liegt bereits vor) und macht die Rückfrage aus PR-26 im Normalfall überflüssi
 
 **Warum die Ordnerzeile nicht genügt:** Sie kennt heute nur `newestVisibleDate`
 (`FolderRowView.swift:20`) – ein einzelnes Datum. Die Tage samt Anzahl entstehen aus
-`visibleFiles(in:)` (`ReportViewModel.swift:908`), gruppiert nach Kalendertag.
+`visibleFiles(in:)` (`ReportViewModel.swift:1182`), gruppiert nach Kalendertag.
 
-**⚠️ Kalendertag, nicht Diagramm-Bündel.** `chartBucketRange(containing:)` (`:1027`) liefert
+**⚠️ Kalendertag, nicht Diagramm-Bündel.** `chartBucketRange(containing:)` (`:1343`) liefert
 bei langen Zeiträumen Wochen- oder Monatsgrenzen (UX-30). Für „an einem Tag gearbeitet" wäre
 das falsch: Der Tag ist eine **menschliche** Einheit, keine Darstellungsentscheidung. Sonst
 öffnete derselbe Befehl je nach eingestelltem Zeitraum eine andere Dateimenge.
 
+**Günstige Ausgangslage (Durchsicht Sprint 10):** `FolderContextMenu`
+(`FolderRowView.swift:136-159`) ist bereits **ein** Menü für beide Ansichten – in der Baumzeile
+über `TreeRowView.swift:140` eingehängt. Ein Eintrag dort erscheint automatisch in Liste und
+Baum; es gibt nichts zu verdoppeln.
+
+**⚠️ Es wäre das erste verschachtelte Kontextmenü der App.** `Menu { … }` innerhalb eines
+`.contextMenu` kommt bisher nirgends vor (nur in der Toolbar, `MainToolbar.swift:136`, `:268`).
+Kein Vorbild im Haus – Verhalten bei Tastaturbedienung und VoiceOver ist zu prüfen, nicht
+anzunehmen.
+
+**⚠️ Kein vorhandener Baustein liefert die Tagesgruppierung.** `TimeBucket.label` verschmilzt
+ab sieben Tagen mehrere Tage zu einem Etikett („Diese Woche") und taugt daher nicht für die
+Untermenü-Zeilen; `countFilesPerDayByType` (`FolderAggregator.swift:147`) rechnet in
+Diagramm-Bündeln. `countFilesPerDay` (`:77`) gruppiert zwar korrekt nach
+`calendar.startOfDay`, wird aber **nirgends im App-Code aufgerufen** – toter Code aus früherer
+Fassung, nur von den Tests gehalten. Die Gruppierung nach Kalendertag samt Anzahl **und URLs**
+muss neu entstehen; sie gehört als reine Funktion nach `ActivitiesCore` und in `CoreChecks`.
+
+**⚠️ Offene Entwurfsfrage: Was heißt „dieselben Filter wie die Liste"?** `visibleFiles(in:)`
+wendet Typ- und Namensfilter immer an, das **Zeitfenster aber nur**, solange
+`showOutOfWindowFiles` aus ist (`ReportViewModel.swift:1163`). Bei eingeschaltetem Schalter böte
+das Untermenü also auch Tage außerhalb des gewählten Zeitraums an. Das ist vertretbar – es ist
+schließlich der Schalter „zeig mir auch das andere" –, muss aber entschieden und nicht
+übersehen werden.
+
 **Akzeptanz:** Das Untermenü nennt je Tag Beschriftung und Anzahl, absteigend nach Datum;
 der Befehl öffnet genau die Dateien dieses Kalendertags in diesem Ordner; die Auswahl der
 Dateimenge folgt denselben Filtern wie die Liste (Typ, Name, Rauschfilter); ab der Schwelle
-aus PR-26 wird zurückgefragt.
+aus PR-26 wird zurückgefragt; die Tagesgruppierung ist in `CoreChecks` geprüft.
 
 ### PR-12 · Ordner in einem Programm eigener Wahl öffnen · **erledigt (v1.19.7)**
 **Aufwand:** M · **Nutzen:** mittel
@@ -923,38 +967,76 @@ Legendenfarben; VoiceOver liest sie als Text („3 .swift, 2 .md"); ausgeblendet
 (UX-06) erscheinen nicht; die Zeilenhöhe wächst nicht.
 
 ### PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand
-**Aufwand:** M · **Nutzen:** mittel
+**Aufwand:** ~~M~~ **L** *(korrigiert bei der Durchsicht für Sprint 10)* · **Nutzen:** mittel
 
-**Die Hälfte existiert schon:** `recentFolders` (max. 8, `SettingsStore.swift:61`, gefüllt in
-`setRoot`, `ReportViewModel.swift:1132`) steht im Toolbar-Ordnermenü
-(`MainToolbar.swift:167-175`). Reines Vor/Zurück wäre also nur eine Abkürzung für ein Menü,
-das einen Klick entfernt liegt – **das allein trägt keinen Sprintpunkt.**
+**Die Hälfte existiert schon:** `recentFolders` (max. 8, `SettingsStore.swift:55,74`, gefüllt in
+`setRoot`, `ReportViewModel.swift:1446`) steht im Toolbar-Ordnermenü. Reines Vor/Zurück wäre
+also nur eine Abkürzung für ein Menü, das einen Klick entfernt liegt – **das allein trägt keinen
+Sprintpunkt.**
 
 **Der eigentliche Mangel liegt daneben: Der Aufklappzustand ist global, nicht je
-Wurzelordner.** `saveExpandedFolders` (`SettingsStore.swift:166`) kennt genau **einen**
+Wurzelordner.** `saveExpandedFolders` (`SettingsStore.swift:206`) kennt genau **einen**
 Schlüssel. Wer von `Documents` nach `Projekte` und zurück wechselt, findet alles aufgeklappt
-vor (`ReportViewModel.swift:1408`), und die gemerkten Pfade des einen Ordners werden beim
-anderen gegen dessen Baum geschnitten. **Ein „Zurück" ohne den Zustand, den man dort verlassen
-hat, ist kein Zurück** – und genau darum geht es in diesem Thema.
+vor, und die gemerkten Pfade des einen Ordners werden beim anderen gegen dessen Baum
+geschnitten. **Ein „Zurück" ohne den Zustand, den man dort verlassen hat, ist kein Zurück** –
+und genau darum geht es in diesem Thema.
 
 **Zwei Teile:**
-- **(a) Vor/Zurück** zwischen Wurzelordnern (⌘[ / ⌘]), Stapel wie im Browser.
-- **(b) Aufklappzustand je Wurzelordner** statt global.
+- **(a) Vor/Zurück** zwischen Wurzelordnern (⌘[ / ⌘]), Stapel wie im Browser. *(S)*
+- **(b) Aufklappzustand je Wurzelordner** statt global. *(L)*
+
+**⚠️ (a) und (b) sind unterschiedlich riskant – aber nicht trennbar.** Der Stapel allein ist
+klein und gefahrlos; er wäre nach dem eigenen Befund oben aber auch **wertlos**, weil er nur
+das Ordnermenü abkürzt. Die Kopplung ist damit keine technische, sondern eine inhaltliche: Ein
+„Zurück", das den Zustand nicht mitbringt, ist die Funktion, die dieser Eintrag ausdrücklich
+verwirft. Beide Teile gehen gemeinsam oder gar nicht.
 
 **⚠️ Der Vorwärtszweig muss abgeschnitten werden**, sobald von einer zurückliegenden Position
 aus ein neues Ziel angesteuert wird – sonst führt „Vorwärts" in eine Vergangenheit, die es
 nicht mehr gibt. Das ist der Punkt, an dem Verlaufsstapel üblicherweise falsch sind.
 
+**⚠️ (b) greift in die asynchrone Kern-Ladekette ein – das ist die Höherstufung.** Die Kette
+lautet `setRoot` (`:1444`) → `rescan` (`:1590`) → `reconcileState` (`:1658`) → `loadDetails`
+(`:1671`) → **`finishDetailLoad`** (`:1722`). Erst ganz am Ende wird der Aufklappzustand
+gesetzt, und im Normalfall auf `expandedFolders = displayed` – **alles auf** (`:1737`). Der
+einzige Wiederherstellungspfad läuft über `restoredExpansion` (`:289`), das im `init` **einmal**
+befüllt (`:339`) und nach dem ersten Laden geleert wird (`:1735`). Beim zweiten Wurzelwechsel
+greift also zwingend der „alles auf"-Zweig. Ein Verlaufssprung muss seinen Zustand deshalb
+**vor** `finishDetailLoad` bereitstellen, nach dem Muster von `restoredExpansion` – ihn danach
+zu setzen, überschriebe ihn.
+
+**⚠️ Schemawechsel mit Migrationsfrage.** `expandedFolders` ist heute eine flache `[String]`
+unter einem Schlüssel (`SettingsStore.swift:206-208`). „Je Wurzel" heißt: neues Format, und eine
+Entscheidung, was mit dem bestehenden Wert geschieht (dem ersten Ordner zuschlagen oder
+verwerfen). Dazu kommt: `withAncestors(_:)` (`:1754`) ist zwingend – der Doc-Kommentar `:1744`
+beschreibt den gemessenen Fehlschlag ohne ihn.
+
+**Mitzunehmender Nebenbefund:** `setAllExpanded(_:)` (`:1259`) und `reveal(_:)` (`:1283`)
+rufen `persistExpansion()` **nicht** auf – „alles zuklappen" überlebt heute keinen Neustart.
+Ein kleiner eigenständiger Defekt, der bei (b) ohnehin angefasst wird.
+
 **Prüfbarkeit – als Kernlogik anlegen.** Der Stapel (Push, Zurück, Vorwärts, Trunkierung,
-Deduplizierung, Obergrenze) gehört als Foundation-Typ nach `Sources/ActivitiesCore/`, analog
-`RowNavigation.swift`, und wird in `CoreChecks` geprüft. **Heute gibt es dort keine einzige
-Prüfung für Verlauf oder Persistenz** – `ReportViewModel` und `SettingsStore` liegen im
-App-Target und sind für `CoreChecks` unerreichbar (`Package.swift:26-29`).
+Deduplizierung, Obergrenze) gehört als Foundation-Typ nach `Sources/ActivitiesCore/` und wird in
+`CoreChecks` geprüft. **Heute gibt es dort keine einzige Prüfung für Verlauf oder Persistenz** –
+`ReportViewModel` und `SettingsStore` liegen im App-Target und sind für `CoreChecks`
+unerreichbar (`Package.swift:26-29`).
+
+**⚠️ Es wäre der erste zustandsbehaftete Typ in `ActivitiesCore`.** Der Backlog nannte bisher
+`RowNavigation` als Analogie – das ist keine: `move(cursor:in:by:)` (`RowNavigation.swift:31`)
+bekommt den Cursor herein und gibt ihn zurück, es hält nichts. Alles in `ActivitiesCore` ist
+heute entweder zustandsloser Namensraum oder unveränderlicher Wert. Ein `FolderHistory` mit
+Stapel, Position und Vorwärtszweig setzt dort ein neues Muster – bewusst, aber nicht nebenbei.
 
 **Akzeptanz:** ⌘[ / ⌘] bewegen sich durch die besuchten Wurzelordner und sind am Rand des
 Stapels deaktiviert; ein neues Ziel von einer zurückliegenden Position verwirft den
 Vorwärtszweig; Zurückkehren stellt den Aufklappzustand *dieses* Ordners wieder her; der
-Stapel ist in `CoreChecks` geprüft.
+Stapel ist in `CoreChecks` geprüft; ein bestehender gespeicherter Zustand geht beim Umstieg auf
+das neue Format nicht verloren.
+
+**⚠️ Vor der Umsetzung zu klären:** ⌘[ / ⌘] sind im Quellbaum frei, macOS belegt sie in
+Textkontexten aber systemweit mit „Einzug verringern/vergrößern". Ob das im Suchfeld (⌘F)
+kollidiert, ließ sich am Code **nicht** belegen – das ist am laufenden System zu prüfen, nicht
+zu vermuten.
 
 ---
 
@@ -1520,7 +1602,7 @@ hätte die einzige Fläche kräftiger gefärbt, die bereits deutlich war.*
 ---
 
 ### PR-34 · Stille Update-Suche in sinnvollem Takt *(neu, aufgenommen bei der Planung von Sprint 10)*
-**Aufwand:** S · **Nutzen:** mittel
+**Aufwand:** ~~S~~ **M** *(korrigiert nach der Code-Durchsicht)* · **Nutzen:** mittel
 
 **Gemeldet:** „Ich möchte, dass das Tool still – also ohne Fehlermeldung, wenn kein Internet da
 ist oder GitHub down ist – in einem sinnvollen Intervall nach Updates sucht und dann den
@@ -1547,51 +1629,112 @@ Hintergrundprüfung und läuft über denselben stillen Zweig – **kein neuer Fe
 Takt ist das kein Thema; es ist der Grund, warum der Takt **nicht** auf Minuten gestellt werden
 darf, auch wenn es technisch ginge.
 
+**⚠️ „Wenige Zeilen" war falsch geschätzt – der App fehlt der Ort für prozessweiten Zustand.**
+Die Code-Durchsicht für Sprint 10 fand drei Lücken, jede einzeln klein, zusammen ein M:
+
+1. **Kein Takt-Mechanismus existiert.** Null Treffer für `Timer`, `Timer.publish`,
+   `DispatchSourceTimer`. Das einzige periodische Element ist ein `TimelineView`
+   (`RootView.swift:251`) – und das lebt und stirbt mit der View, hat also genau den Mangel,
+   den PR-34 beheben soll. Die drei `Task.sleep`-Stellen sind Entprellungen, keine Takte.
+2. **Kein Registrierungsort, der das Fenster überlebt.** Die App hat **keinen AppDelegate und
+   keinen einzigen Notification-Observer**. Die beiden prozessweiten Haken (`GlobalHotKey`,
+   `AppPresence`) hängen in `MainWindowHost.onAppear` (`ActivitiesApp.swift:262-265`) – also
+   ausgerechnet am Fenster. `NSWorkspace.didWakeNotification` braucht etwas anderes.
+   Verschärfend: `ActivitiesApp.swift:91` nutzt `Window`, nicht `WindowGroup` – das `.task`
+   auf der `RootView` läuft genau einmal je Fensterleben.
+3. **Keine Persistenz für den Prüfzeitpunkt.** `UpdateChecker` fasst `UserDefaults` nicht an,
+   `SettingsStore` kennt keinen Update-Schlüssel. „Der Takt überlebt einen Neustart" verlangt
+   einen neuen Schlüssel.
+
+**Was dagegen trägt:** Der stille Fehlerzweig (`UpdateChecker.swift:137-140`) und der
+Reentranz-Schutz (`:124`) bleiben unverändert – die Aussage „kein neuer Fehlerweg" stimmt. Und
+`FolderWatcher` (`Services/FolderWatcher.swift`) ist ein sauberes Vorbild für einen **Dienst mit
+Lebenszyklus außerhalb jeder View**; ein `UpdateScheduler` nach diesem Muster wäre hausüblich.
+
+**⚠️ Beim Prüfen der Akzeptanz beachten:** `showsUpdateBadge` unterdrückt den Hinweis bei
+Entwicklungs-Builds (`UpdateChecker.swift:110-115`, Version „0.0.0"). Per `swift run` ist vom
+Takt nichts zu sehen – geprüft wird am installierten Bündel.
+
 **Akzeptanz:** Ein tagelang laufendes Fenster erkennt eine neue Version ohne Neustart; ohne Netz
 oder bei einem Fehler der GitHub-API passiert sichtbar nichts; der Takt überlebt einen Neustart
 (kein Anfragen-Stakkato bei mehrfachem Start); die manuelle Suche verhält sich unverändert.
 
 ---
 
-## Sprint 10 – „Der Zustand von gestern" *(Zuschnitt, Stand v1.19.25)*
+## Sprint 10 – „Die richtigen Dateien, sicher geöffnet" *(Zuschnitt nach Code-Durchsicht, Stand v1.19.25)*
 
-| AP | Eintrag | Aufwand | Bemerkung |
+| AP | Eintrag | Aufwand | |
 |---|---|---|---|
-| **AP1** | PR-26 · Massenöffnen begrenzen | S | zwingend vor AP2 |
+| **AP1** | PR-26 · Massenöffnen begrenzen | M | zwingend vor AP2 |
 | **AP2** | PR-11 · „Arbeit fortsetzen" | M | der Zweck der App, zu Ende gedacht |
-| **AP3** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | M | (a) Verlaufsstapel, (b) Aufklappzustand je Wurzel |
-| **AP4** | PR-34 · Stille Update-Suche in sinnvollem Takt | S | Beifahrer, siehe unten |
 
-**Reihenfolge:** AP1 → AP2 sind gekoppelt und dürfen nicht getrennt ausgeliefert werden – PR-11
-würde einen bestehenden Mangel (unbegrenztes Massenöffnen) zu einem prominenten Menüpunkt
-befördern. AP3 und AP4 sind davon unabhängig.
+**Der erste Zuschnitt hatte vier Punkte. Die Durchsicht hat drei Annahmen widerlegt** – und
+damit den Sprint auf zwei gekürzt. Das ist kein Rückzug, sondern die Korrektur einer
+Schätzung, die am Code nicht haltbar war:
 
-**Warum diese vier zusammen:** Thema C heißt „Schneller wieder reinkommen". AP1–AP3 sind genau
-das, aus drei Richtungen: *welche Dateien* (PR-11), *welcher Ordner* (PR-14a), *in welchem
-Zustand* (PR-14b). Sie teilen sich Datenbasis und Begriffe, und PR-14 legt mit dem
-Verlaufsstapel den ersten prüfbaren Kernlogik-Typ für Verlauf und Persistenz an – dort gibt es
-**heute keine einzige Prüfung**.
+1. **PR-26 ist kein S.** Der Beschluss lautet „die Grenze gehört an genau eine Stelle" –
+   **diese Stelle gibt es nicht.** `FinderService.open` nimmt ein einzelnes `URL`, die
+   Vielfachheit entsteht in den Schleifen der Aufrufer. Es braucht eine neue Mengen-Ebene, die
+   Umstellung von mindestens vier Aufrufstellen, eine Rückfrage-Infrastruktur, die im gesamten
+   Quellbaum kein einziges Mal vorkommt (null `confirmationDialog`, null `NSAlert`), und eine
+   Entwurfsentscheidung zum Zustandsmodell. **M.**
+2. **PR-14 ist kein M, sondern L** – und seine beiden Teile lassen sich nicht trennen. (a) ist
+   klein, aber nach dem eigenen Befund des Eintrags **wertlos** ohne (b); (b) greift in die
+   asynchrone Kern-Ladekette ein und bringt einen Schemawechsel mit Migrationsfrage mit.
+3. **PR-34 ist kein S.** Der App fehlen Takt, Registrierungsort und Persistenz – drei kleine
+   Lücken, zusammen ein M. Die Beifahrer-Begründung trägt damit nicht mehr.
 
-**⚠️ AP4 ist bewusst als Beifahrer aufgenommen, nicht wegen inhaltlicher Verwandtschaft.**
-PR-34 allein wäre ein Änderungsumfang von wenigen Zeilen – und ein eigener Bau-, Installations-
-und Veröffentlichungslauf dafür kostet mehr Zeit als die Änderung selbst. Solche Punkte fahren
-in einem Sprint mit, statt einen eigenen zu bekommen. (Als Regel in `AGENTS.md` aufgenommen.)
+**Warum AP1 und AP2 zusammen und allein:** Sie sind gekoppelt (PR-11 würde einen bestehenden
+Mangel zu einem prominenten Menüpunkt befördern) und beantworten dieselbe Frage von zwei
+Seiten: *welche Dateien gehören zusammen* (PR-11) und *wie viele darf man auf einmal loslassen*
+(PR-26). Zwei M-Punkte tragen den Release ohne Beifahrer. Ein dritter M-Punkt daneben wäre
+kein voller Sprint mehr, sondern ein voller Monat.
 
-**Nicht in diesem Sprint – und warum:**
+**Gemeinsamer Boden – beides gehört in `ActivitiesCore`:** die Tagesgruppierung für PR-11 und
+die Schwellenlogik für PR-26 sind reine Funktionen und damit in `CoreChecks` prüfbar. Nur der
+Dialog und das Menü bleiben in der Oberfläche.
+
+**Reihenfolge:** AP1 vollständig vor AP2. Die Rückfrage muss stehen, **bevor** ein Menüpunkt
+entsteht, der sie auslösen kann.
+
+**Sprint-Akzeptanz:** ⌘A + Enter über einen großen Baum fragt zurück und nennt die Anzahl,
+Abbrechen ist die Vorgabe; die Rückfrage gilt für **jeden** Weg, der mehrere Dateien öffnet;
+„Arbeit fortsetzen" nennt je Tag Beschriftung und Anzahl und öffnet genau die Dateien dieses
+Kalendertags; Tagesgruppierung und Schwellenlogik sind in `CoreChecks` geprüft.
+
+### Sprint 11 – Ausblick *(noch nicht geschnitten)*
+
+PR-14 (L) und PR-34 (M) gehören zusammen, und zwar aus einem Grund, der bei der ersten Planung
+nicht sichtbar war: **Beide brauchen einen Ort für Zustand, der das Fenster überlebt.** PR-14
+braucht ihn für Verlauf und Aufklappzustand je Wurzel, PR-34 für Takt und letzten Prüfzeitpunkt.
+Heute gibt es diesen Ort nicht – alles prozessweite hängt an `MainWindowHost.onAppear`. Wer
+einen der beiden Punkte baut, legt das Fundament für den anderen; sie getrennt zu bauen hieße,
+es zweimal zu erfinden.
+
+**Nicht eingeplant – und warum:**
 - **PR-13 · Typverteilung in der Ordnerzeile:** gehört gestalterisch zu PR-31/PR-33 (Dichte und
   Lesbarkeit der Zeile), nicht zum Wiedereinstieg. Ein Farbstreifen in eine Zeile zu legen, die
   gerade erst auf 22 pt verdichtet und typografisch neu geordnet wurde, verlangt eigene
-  Messungen – und die will man nicht zwischen zwei Funktionsthemen erledigen.
+  Messungen – die will man nicht zwischen zwei Funktionsthemen erledigen.
 - **PR-27 AP3 (Anschlüsse im Baum):** offen, aber ohne Druck; AP1+AP2 sind seit v1.19.11 im
   Gebrauch, ohne dass die Lücken gemeldet wurden.
 - **PR-25 · Leistung bei sehr großen Bäumen:** eine Messaufgabe, kein Bauvorhaben. Sie gehört
   vor die breitere Verbreitung (PR-22 Notarisierung), nicht hierher.
 
-**Sprint-Akzeptanz:** ⌘A + Enter über einen großen Baum fragt zurück, statt Hunderte Programme
-zu starten; „Arbeit fortsetzen" nennt Tage samt Anzahl und öffnet genau die Dateien eines
-Kalendertags; ⌘[ / ⌘] bewegen sich durch die besuchten Wurzelordner und stellen deren
-Aufklappzustand wieder her; der Verlaufsstapel ist in `CoreChecks` geprüft; ein tagelang
-laufendes Fenster findet eine neue Version ohne Neustart und schweigt, wenn kein Netz da ist.
+### Nebenbefunde der Durchsicht *(festgehalten, nicht eingeplant)*
+
+- **Zeilenangaben im Backlog waren veraltet.** Die Abschnitte PR-26/PR-11/PR-14 verwiesen auf
+  Stände von v1.19.3 (`selectAllVisibleFiles` bei `:804`, tatsächlich `:1042`;
+  `finishDetailLoad` bei `:1408`, tatsächlich `:1722`). Die **inhaltlichen** Aussagen stimmten
+  durchweg – nur die Wegweiser zeigten ins Leere. Hier korrigiert. *Lehre: Zeilennummern in
+  Prosa altern schneller als die Aussage, die sie belegen; wo möglich Symbolnamen nennen.*
+- **`FolderAggregator.countFilesPerDay` und `countFilesPerDayByExtension` sind toter Code** –
+  nur von den Tests gehalten, im App-Code nirgends aufgerufen. Nicht gelöscht: `countFilesPerDay`
+  ist genau die Tagesgruppierung, auf der PR-11 aufsetzen könnte. Vor PR-11 entscheiden:
+  aufgreifen oder entfernen.
+- **`setAllExpanded` und `reveal` persistieren nicht** (`ReportViewModel.swift:1259`, `:1283`) –
+  „alles zuklappen" überlebt keinen Neustart. Wird in PR-14b mitgenommen; allein zu klein für
+  einen eigenen Punkt (siehe Sprint-Regel in `AGENTS.md`).
 
 ---
 

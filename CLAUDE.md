@@ -14,6 +14,14 @@ Before implementing:
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
 
+**Implementation starts on an explicit go, never on your own judgement.** Planning,
+review and measurement are free; writing production code is not. Present the plan,
+then wait. A question ("shall we continue?") is not approval, and neither is silence.
+Deciding *what* gets built belongs to the user — starting to code during the planning
+conversation quietly takes that decision away.
+
+Exception: a defect that is hurting the user right now. Fix it and say so.
+
 ## 2. Simplicity First
 
 **Minimum code that solves the problem. Nothing speculative.**

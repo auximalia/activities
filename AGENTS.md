@@ -15,6 +15,27 @@ Packaging/                build_app.sh, release.sh, web-install.sh, assets
 backlog.md                the record of decisions — read this before changing UI
 ```
 
+## Two gates: ask before building, ship without asking
+
+These two rules look opposed. They are not — they sit at opposite ends of the work.
+
+**Before implementation: wait for explicit approval.** Planning, code review, cutting
+a sprint, writing tickets, measuring, answering questions — all of that proceeds
+freely. **Writing production code does not.** Present the plan, name the trade-offs,
+then stop and wait for a clear go. "Shall we continue?" is not a go. Approval is a
+decision about *what* gets built and is the user's alone; an agent that starts coding
+during the planning conversation has taken that decision away.
+
+**After implementation: release without asking.** Once the work is finished and
+checked (`swift build`, `swift run CoreChecks`), ship it with `release.sh`. Do not
+ask for permission to release — that decision was already made when the work was
+approved.
+
+So: **approval opens the gate, completion closes it.** Asking in the middle is
+friction; asking at the start is respect.
+
+Exception at both gates: a defect that hurts the user in the field. Fix and ship.
+
 ## Build, check, release
 
 ```
@@ -28,10 +49,12 @@ swift test             # XCTest — FAILS with Command Line Tools only, needs fu
 the Markdown documents changed in this release, commits, builds a universal bundle,
 installs it to `/Applications`, creates the ZIP, pushes, and cuts a GitHub release.
 
-**Release automatically once the work is finished and checked.** Do not ask; the
-default is to ship. But note `release.sh` runs `git add -A` — anything uncommitted
-in the tree, including the user's own scratch notes, goes into that commit. Check
-`git status` first.
+⚠️ `release.sh` runs `git add -A` — anything uncommitted in the tree, including the
+user's own scratch notes, goes into that commit. Check `git status` first.
+
+⚠️ A pure planning or documentation change does **not** go through `release.sh`. It
+has no effect on the user and does not deserve a version number; commit and push it
+plainly. See the sprint-scope rule below.
 
 ## Sprint scope: do not ship changes smaller than their own release
 

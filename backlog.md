@@ -1519,6 +1519,82 @@ hätte die einzige Fläche kräftiger gefärbt, die bereits deutlich war.*
 
 ---
 
+### PR-34 · Stille Update-Suche in sinnvollem Takt *(neu, aufgenommen bei der Planung von Sprint 10)*
+**Aufwand:** S · **Nutzen:** mittel
+
+**Gemeldet:** „Ich möchte, dass das Tool still – also ohne Fehlermeldung, wenn kein Internet da
+ist oder GitHub down ist – in einem sinnvollen Intervall nach Updates sucht und dann den
+Update-Knopf einblendet."
+
+**⚠️ Der Mangel ist größer, als die Formulierung „kleine Erweiterung" vermuten lässt.**
+`UpdateChecker.check()` läuft an genau einer Stelle: `.task` auf der `RootView`
+(`RootView.swift:57`), also **einmal beim Erscheinen des Fensters**. Für ein Programm, das man
+öffnet und schließt, wäre das genug. Diese App ist aber seit PR-07/PR-08/PR-10 ausdrücklich als
+**Dauerläufer** gebaut – Menüleisten-Symbol, Start bei der Anmeldung, Zustand über Neustarts.
+Wer sie so benutzt, wie sie gedacht ist, prüft also **nie wieder**. Der Update-Knopf existiert,
+aber die Bedingung, unter der er erscheint, tritt praktisch nicht mehr ein.
+
+**Lösung:** Ein wiederkehrender Takt (Vorschlag: alle 24 h, plus einmal beim Aufwachen aus dem
+Ruhezustand – ein Mac, der nachts schläft, verpasst sonst jeden Termin). Zeitpunkt der letzten
+Prüfung wird gespeichert, damit ein Neustart den Takt nicht zurücksetzt und drei Starts
+hintereinander nicht drei Anfragen auslösen.
+
+**Still bleibt still.** `check(manual:)` unterscheidet bereits sauber: Nur die manuelle Suche
+meldet einen Fehlschlag (`UpdateChecker.swift:137-140`). Die getaktete Prüfung ist eine
+Hintergrundprüfung und läuft über denselben stillen Zweig – **kein neuer Fehlerweg.**
+
+**⚠️ Zu prüfen: GitHub-API ohne Token ist auf 60 Anfragen je Stunde und IP gedeckelt.** Bei 24 h
+Takt ist das kein Thema; es ist der Grund, warum der Takt **nicht** auf Minuten gestellt werden
+darf, auch wenn es technisch ginge.
+
+**Akzeptanz:** Ein tagelang laufendes Fenster erkennt eine neue Version ohne Neustart; ohne Netz
+oder bei einem Fehler der GitHub-API passiert sichtbar nichts; der Takt überlebt einen Neustart
+(kein Anfragen-Stakkato bei mehrfachem Start); die manuelle Suche verhält sich unverändert.
+
+---
+
+## Sprint 10 – „Der Zustand von gestern" *(Zuschnitt, Stand v1.19.25)*
+
+| AP | Eintrag | Aufwand | Bemerkung |
+|---|---|---|---|
+| **AP1** | PR-26 · Massenöffnen begrenzen | S | zwingend vor AP2 |
+| **AP2** | PR-11 · „Arbeit fortsetzen" | M | der Zweck der App, zu Ende gedacht |
+| **AP3** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | M | (a) Verlaufsstapel, (b) Aufklappzustand je Wurzel |
+| **AP4** | PR-34 · Stille Update-Suche in sinnvollem Takt | S | Beifahrer, siehe unten |
+
+**Reihenfolge:** AP1 → AP2 sind gekoppelt und dürfen nicht getrennt ausgeliefert werden – PR-11
+würde einen bestehenden Mangel (unbegrenztes Massenöffnen) zu einem prominenten Menüpunkt
+befördern. AP3 und AP4 sind davon unabhängig.
+
+**Warum diese vier zusammen:** Thema C heißt „Schneller wieder reinkommen". AP1–AP3 sind genau
+das, aus drei Richtungen: *welche Dateien* (PR-11), *welcher Ordner* (PR-14a), *in welchem
+Zustand* (PR-14b). Sie teilen sich Datenbasis und Begriffe, und PR-14 legt mit dem
+Verlaufsstapel den ersten prüfbaren Kernlogik-Typ für Verlauf und Persistenz an – dort gibt es
+**heute keine einzige Prüfung**.
+
+**⚠️ AP4 ist bewusst als Beifahrer aufgenommen, nicht wegen inhaltlicher Verwandtschaft.**
+PR-34 allein wäre ein Änderungsumfang von wenigen Zeilen – und ein eigener Bau-, Installations-
+und Veröffentlichungslauf dafür kostet mehr Zeit als die Änderung selbst. Solche Punkte fahren
+in einem Sprint mit, statt einen eigenen zu bekommen. (Als Regel in `AGENTS.md` aufgenommen.)
+
+**Nicht in diesem Sprint – und warum:**
+- **PR-13 · Typverteilung in der Ordnerzeile:** gehört gestalterisch zu PR-31/PR-33 (Dichte und
+  Lesbarkeit der Zeile), nicht zum Wiedereinstieg. Ein Farbstreifen in eine Zeile zu legen, die
+  gerade erst auf 22 pt verdichtet und typografisch neu geordnet wurde, verlangt eigene
+  Messungen – und die will man nicht zwischen zwei Funktionsthemen erledigen.
+- **PR-27 AP3 (Anschlüsse im Baum):** offen, aber ohne Druck; AP1+AP2 sind seit v1.19.11 im
+  Gebrauch, ohne dass die Lücken gemeldet wurden.
+- **PR-25 · Leistung bei sehr großen Bäumen:** eine Messaufgabe, kein Bauvorhaben. Sie gehört
+  vor die breitere Verbreitung (PR-22 Notarisierung), nicht hierher.
+
+**Sprint-Akzeptanz:** ⌘A + Enter über einen großen Baum fragt zurück, statt Hunderte Programme
+zu starten; „Arbeit fortsetzen" nennt Tage samt Anzahl und öffnet genau die Dateien eines
+Kalendertags; ⌘[ / ⌘] bewegen sich durch die besuchten Wurzelordner und stellen deren
+Aufklappzustand wieder her; der Verlaufsstapel ist in `CoreChecks` geprüft; ein tagelang
+laufendes Fenster findet eine neue Version ohne Neustart und schweigt, wenn kein Netz da ist.
+
+---
+
 ## Was ich bewusst **nicht** vorschlage
 
 - **Zeiterfassung im engeren Sinn** (Stoppuhr, Projektbuchung): Das wäre ein anderes
@@ -1527,6 +1603,3 @@ hätte die einzige Fläche kräftiger gefärbt, die bereits deutlich war.*
   nichts" (PR-24).
 - **Dateiverwaltung** (umbenennen, verschieben, löschen): Dafür gibt es den Finder. Die App
   soll *finden*, nicht *verwalten*.
-
-### Anforderung 03
-Ich möchte, dass das Toll (still - olso ohne Fehlermeldung, wenn kein Internet da ist oder github down ist) in einem sinnvollen Intervall nach Updates sucht und wenn ka - den Update-Button einblendet (kleiner Erweiterung der bereits implementierten Funktion.

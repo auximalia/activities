@@ -1767,14 +1767,59 @@ Abbrechen ist die Vorgabe; die Rückfrage gilt für **jeden** Weg, der mehrere D
 „Arbeit fortsetzen" nennt je Tag Beschriftung und Anzahl und öffnet genau die Dateien dieses
 Kalendertags; Tagesgruppierung und Schwellenlogik sind in `CoreChecks` geprüft.
 
-### Sprint 11 – Ausblick *(noch nicht geschnitten)*
+## Sprint 11 – „Zustand, der das Fenster überlebt" *(Zuschnitt, Stand v1.19.26)*
 
-PR-14 (L) und PR-34 (M) gehören zusammen, und zwar aus einem Grund, der bei der ersten Planung
-nicht sichtbar war: **Beide brauchen einen Ort für Zustand, der das Fenster überlebt.** PR-14
-braucht ihn für Verlauf und Aufklappzustand je Wurzel, PR-34 für Takt und letzten Prüfzeitpunkt.
-Heute gibt es diesen Ort nicht – alles prozessweite hängt an `MainWindowHost.onAppear`. Wer
-einen der beiden Punkte baut, legt das Fundament für den anderen; sie getrennt zu bauen hieße,
-es zweimal zu erfinden.
+| AP | Eintrag | Aufwand | |
+|---|---|---|---|
+| **AP1** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | L | (a) Verlaufsstapel, (b) Aufklappzustand je Wurzel |
+| **AP2** | PR-34 · Stille Update-Suche in sinnvollem Takt | M | |
+
+**⚠️ Zurückgenommene Behauptung aus der ersten Fassung.** Dort stand, die beiden gehörten
+zusammen, weil „beide einen Ort für Zustand brauchen, der das Fenster überlebt". Beim genauen
+Hinsehen ist das zu großzügig: PR-14 braucht ein **geschlüsseltes Persistenz-Schema**
+(`expandedFolders` je Wurzel), PR-34 einen **Lebenszyklus-Wirt** (etwas, das tickt und auf
+`didWakeNotification` hört). Beides ist „Zustand jenseits des Fensters" – aber sie würden
+**keine Zeile Code teilen**. Die Klammer ist thematisch, nicht technisch.
+
+Damit trägt sie auch nicht die Begründung, sie gemeinsam auszuliefern; übrig bliebe
+Release-Ökonomie, und dafür sind beide zu groß. **Sie werden trotzdem zusammen geschnitten –
+das ist eine Entscheidung des Auftraggebers, keine technische Notwendigkeit.** Wer den Sprint
+später aufteilen muss, kann das ohne Reibung tun.
+
+*Lehre: Eine Klammer, die zwei Punkte verbindet, muss man daran prüfen, ob sie gemeinsamen
+Code erzeugt. „Gehört thematisch zusammen" fühlt sich wie ein Grund an und ist keiner.*
+
+### Festlegungen vor der Umsetzung
+
+1. **Migration des Aufklappzustands: dem aktuellen Wurzelordner zuschlagen.** Der gespeicherte
+   Wert gehört tatsächlich dem zuletzt geöffneten Ordner – ihn dort einzuhängen ist die
+   *wahre* Zuordnung, nicht nur die bequeme. Kein sichtbarer Bruch beim Update; verwerfen wäre
+   ein spürbarer Rücksetzer ohne Gegenwert.
+2. **⌘[ / ⌘] für vor und zurück.** Browser-Konvention, im Quellbaum frei. **⚠️ Vor der
+   Auslieferung am laufenden System zu prüfen:** macOS belegt beide in Textkontexten mit
+   „Einzug verringern/vergrößern"; ob das im Suchfeld (⌘F) kollidiert, ließ sich am Code
+   **nicht** belegen. Kollidiert es, weicht der Verlauf aus – nicht das Suchfeld.
+3. **Update-Takt: 24 h, plus Nachholen beim Aufwachen.** Ein Mac, der nachts schläft, verpasst
+   sonst jeden Termin. Kein einstellbares Intervall: ein Regler für etwas, dessen Wirkung
+   niemand beobachten kann, ist Beschäftigung, keine Einstellung.
+4. **Reihenfolge innerhalb AP1: erst Kern, dann Ladekette.** `FolderHistory` und das
+   Schlüssel-Schema entstehen in `ActivitiesCore` samt `CoreChecks`; der Eingriff in
+   `finishDetailLoad` folgt danach als **eigener, kleiner Schritt**. Grund: Das ist der
+   riskanteste Eingriff, den dieses Projekt bisher gemacht hat – `ReportViewModel` hat 1795
+   Zeilen, die Kette ist asynchron, und `CoreChecks` erreicht sie nicht. Was prüfbar sein
+   kann, muss vorher prüfbar sein.
+
+**Sprint-Akzeptanz:** ⌘[ / ⌘] bewegen sich durch die besuchten Wurzelordner und sind am Rand
+des Stapels deaktiviert; ein neues Ziel von einer zurückliegenden Position verwirft den
+Vorwärtszweig; Zurückkehren stellt den Aufklappzustand *dieses* Ordners wieder her; ein
+bestehender gespeicherter Zustand geht beim Umstieg nicht verloren; „alles zuklappen" überlebt
+einen Neustart; `FolderHistory` und Schlüssel-Schema sind in `CoreChecks` geprüft; ein tagelang
+laufendes Fenster findet eine neue Version ohne Neustart und schweigt, wenn kein Netz da ist.
+
+**Bewusst nicht vorgeschlagen:**
+- **Verlauf über einzelne Ordner statt Wurzelordner.** Der Baum hat bereits Navigation (←/→,
+  Diagramm-Sprung); ein zweiter Verlaufsbegriff daneben verwirrt mehr, als er hilft.
+- **Einstellbares Update-Intervall** – siehe Festlegung 3.
 
 **Nicht eingeplant – und warum:**
 - **PR-13 · Typverteilung in der Ordnerzeile:** gehört gestalterisch zu PR-31/PR-33 (Dichte und

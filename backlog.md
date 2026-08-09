@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.26 · 2026-08-09*
+*Stand: v1.19.27 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1767,7 +1767,82 @@ Abbrechen ist die Vorgabe; die Rückfrage gilt für **jeden** Weg, der mehrere D
 „Arbeit fortsetzen" nennt je Tag Beschriftung und Anzahl und öffnet genau die Dateien dieses
 Kalendertags; Tagesgruppierung und Schwellenlogik sind in `CoreChecks` geprüft.
 
-## Sprint 11 – „Zustand, der das Fenster überlebt" *(Zuschnitt, Stand v1.19.26)*
+### PR-35 · „Arbeit fortsetzen" führte Skripte aus *(Hotfix, erledigt v1.19.27)*
+**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt im Feld
+
+**Gemeldet:** „„Arbeit fortsetzen" sorgt bei `.py`-Dateien dafür, dass sie einzeln **ausgeführt**
+werden – das ist schlecht. Und auch bei allen anderen Dateiendungen, die einem Softwareprojekt
+zuzuordnen sind. Besser wäre, die Funktion auf Office-Dokumente, `.xmind` oder andere
+Mindmapping-Dokumente zu beschränken – egal, was sonst noch im Ordner liegt."
+
+**⚠️ Das war kein Schönheitsfehler, sondern ein Sicherheitsmangel.** `NSWorkspace.open`
+übergibt eine Datei an das registrierte Programm; bei einem Skript ist das der Interpreter.
+PR-11 hatte damit einen Menüpunkt geschaffen, der auf **einen Klick** fremden Code ausführt –
+über eine Dateimenge, die der Anwender vorher nie gesehen hat. Genau das unterscheidet den Fall
+von ⌘A + Enter: Dort hat man die Dateien selbst markiert, und ein Doppelklick auf eine `.py`
+verhält sich im Finder genauso. Hier nicht.
+
+*Das ist die Kehrseite von PR-11. Die Prüfungen deckten Gruppierung, Sortierung, Beschriftung
+und Obergrenze ab – aber keine einzige stellte die Frage, **was** da eigentlich geöffnet wird.
+Getestet war das Zählen, nicht die Folge.*
+
+**Umgesetzt – eine Erlaubnisliste, keine Verbotsliste.** `WorkDays.resumableCategories` lässt
+nur `documents`, `pdf`, `spreadsheets` und `presentations` durch.
+
+**⚠️ Warum die Richtung entscheidend ist:** Eine Verbotsliste („alles außer `.py`, `.sh`, …")
+war die naheliegende Antwort und die falsche – sie muss jede gefährliche Endung **kennen**. Die
+nächste (`.command`, `.scpt`, `.jar`, `.applescript`, `.pkg`) fehlt garantiert, und der Fehler
+fällt erst auf, wenn er passiert ist. Eine Erlaubnisliste irrt in die andere Richtung: Im
+schlimmsten Fall wird etwas **nicht** angeboten. Das ist ein Ärgernis; das andere ist ein
+Schaden.
+
+**Der eigentliche Riegel ist der Ausschluss von „Sonstige".** Dort liegt alles Unbekannte –
+und damit `.app`, `.command`, `.scpt`, `.pkg`, `.dmg`. Deshalb mussten die gewünschten
+Mindmap-Formate aus diesem Eimer **heraus**: `.xmind`, `.mmap`, `.mm` und `.opml` zählen jetzt
+als Dokumente. Das ist keine Umgehung der Regel, sondern ihre Voraussetzung.
+
+**Weitere Ausschlüsse, jeweils mit eigenem Grund:**
+- `code` – doppelt: Skripte werden ausgeführt, und für ein Softwareprojekt ist der richtige
+  Handgriff ohnehin „Ordner im Editor öffnen" (⇧⌘E), nicht vierzig Einzeldateien.
+- `archives` – ein Archiv zu öffnen **entpackt** es. Eine Nebenwirkung, die niemand bestellt hat.
+- `media` – zehn startende Abspielprogramme sind keine fortgesetzte Arbeit.
+- `images` – harmlos, aber in einem Arbeitsordner meist Beiwerk (Bildschirmfotos, Anhänge)
+  statt Werkstück. **Das ist die strittigste Entscheidung dieses Hotfix** und der erste
+  Kandidat, falls die Auswahl je einstellbar wird (PR-36).
+
+**⚠️ Gefiltert wird vor dem Gruppieren.** Sonst verspräche das Menü „Heute (12)" und öffnete
+vier Dateien – derselbe Grundsatz wie bei der Rückfrage aus PR-26: Eine Zahl, die nicht hält,
+ist schlimmer als keine. Tage ohne Dokumente verschwinden dadurch ganz; in einem reinen
+Quelltext-Ordner entfällt der Menüpunkt.
+
+**Kein stiller Zustand im Sinne von UX-06:** Es fehlt keine *Information*, sondern eine
+Handlung, die dort keinen Sinn ergibt. Der passende Handgriff steht direkt darunter im selben
+Menü.
+
+**Bewusst nicht mitgeändert:** ⌘A + Enter und „Öffnen (n)" öffnen weiterhin, was markiert ist –
+auch Skripte. Dort hat der Anwender die Dateien **gesehen und ausgewählt**, und das Verhalten
+entspricht dem des Finders. Eine Erlaubnisliste an dieser Stelle wäre Bevormundung. Sollte sich
+das anders anfühlen, gehört es als eigener Eintrag aufgenommen – nicht in einen Hotfix.
+
+### PR-36 · Dateitypen für „Arbeit fortsetzen" einstellbar machen
+**Aufwand:** S · **Nutzen:** offen · **Stand:** aufgenommen, **nicht** umgesetzt
+
+Aus der Meldung zu PR-35: „vielleicht kann man die Dateitypen auch konfigurieren, sollte noch
+ein Wunsch dazukommen."
+
+**Bewusst noch nicht gebaut** – der Konjunktiv im Wunsch ist der Grund. Eine Einstellung, die
+niemand vermisst hat, ist ein Bedienelement mehr und eine Entscheidung, die der Anwender
+treffen *muss*, statt sie geschenkt zu bekommen. Der Eintrag wartet auf den ersten konkreten
+Fall: *welcher* Typ fehlt, in *welchem* Ordner.
+
+**Der wahrscheinlichste Fall ist `images`** – siehe PR-35. Kommt er, ist die kleinste Lösung
+womöglich gar keine Einstellung, sondern eine bessere Vorgabe.
+
+**Falls es doch eine Einstellung wird:** Sie gehört zu den Typ-Filtern (UX-06) und nicht in ein
+neues Fenster – und sie darf die Erlaubnisliste **erweitern**, nicht ersetzen. Ein Anwender,
+der versehentlich „Sonstige" freischaltet, hätte sonst den Sicherheitsmangel aus PR-35 zurück.
+
+
 
 | AP | Eintrag | Aufwand | |
 |---|---|---|---|

@@ -30,6 +30,17 @@ public enum FileCategory: String, CaseIterable, Sendable, Hashable {
         // Dokumente
         "doc": .documents, "docx": .documents, "odt": .documents, "rtf": .documents,
         "txt": .documents, "md": .documents, "pages": .documents,
+        // Mindmaps und Gliederungen zaehlen als Dokumente.
+        //
+        // **⚠️ Sie lagen vorher unter ``other`` – und das war nicht nur
+        // ungenau, es war gefaehrlich.** „Sonstige" ist der Eimer fuer alles
+        // Unbekannte, und darin liegen auch `.app`, `.command`, `.scpt`,
+        // `.pkg`, `.dmg`. Wer „Sonstige" pauschal oeffnet, startet oder
+        // installiert unter Umstaenden etwas. Damit „Arbeit fortsetzen"
+        // Mindmaps anbieten kann, ohne diesen Eimer aufzumachen, muessen sie
+        // dort heraus – in die Kategorie, in die sie ohnehin gehoeren.
+        "xmind": .documents, "mmap": .documents, "mm": .documents,
+        "opml": .documents,
         // PDF
         "pdf": .pdf,
         // Tabellen

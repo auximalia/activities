@@ -111,4 +111,58 @@ final class WorkDaysTests: XCTestCase {
         XCTAssertTrue(WorkDays.group([], calendar: calendar).isEmpty)
         XCTAssertTrue(WorkDays.group(sample, calendar: calendar, limit: 0).isEmpty)
     }
+
+    // MARK: - Erlaubnisliste (Hotfix v1.19.27)
+
+    /// Gemeldet: „Arbeit fortsetzen" führte `.py`-Dateien **aus**.
+    /// `NSWorkspace.open` reicht ein Skript an den Interpreter weiter.
+    func test_ausfuehrbares_wird_nicht_angeboten() {
+        for name in ["skript.py", "start.sh", "app.rb", "main.js"] {
+            XCTAssertFalse(WorkDays.isResumable(URL(fileURLWithPath: "/t/\(name)")), name)
+        }
+    }
+
+    /// ⚠️ Der eigentliche Schutz: Unbekanntes geht nicht durch. „Sonstige" ist
+    /// der Eimer, in dem `.app`, `.command`, `.scpt` und `.pkg` liegen – eine
+    /// Verbotsliste hätte jede dieser Endungen kennen müssen.
+    func test_unbekanntes_geht_nicht_durch() {
+        for name in ["Programm.app", "tu-was.command", "skript.scpt", "setup.pkg",
+                     "quelle.swift", "nie.gesehen"] {
+            XCTAssertFalse(WorkDays.isResumable(URL(fileURLWithPath: "/t/\(name)")), name)
+        }
+    }
+
+    func test_dokumente_und_mindmaps_sind_erlaubt() {
+        for name in ["bericht.docx", "zahlen.xlsx", "folien.pptx", "handbuch.pdf",
+                     "notizen.md", "plan.xmind", "plan.opml"] {
+            XCTAssertTrue(WorkDays.isResumable(URL(fileURLWithPath: "/t/\(name)")), name)
+        }
+    }
+
+    /// Ein Archiv zu öffnen **entpackt** es – eine Nebenwirkung, die niemand
+    /// bestellt hat.
+    func test_archive_und_medien_sind_ausgeschlossen() {
+        XCTAssertFalse(WorkDays.isResumable(URL(fileURLWithPath: "/t/paket.zip")))
+        XCTAssertFalse(WorkDays.isResumable(URL(fileURLWithPath: "/t/film.mp4")))
+    }
+
+    /// ⚠️ Gefiltert wird **vor** dem Gruppieren – sonst verspräche das Menü
+    /// eine Zahl, die es nicht hält.
+    func test_gefiltert_wird_vor_dem_gruppieren() {
+        let mixed = [
+            file("bericht.docx", 2026, 8, 3, 9),
+            file("skript.py", 2026, 8, 3, 10),
+            file("start.sh", 2026, 8, 3, 11)
+        ]
+        let days = WorkDays.group(mixed, calendar: calendar)
+        XCTAssertEqual(days.count, 1)
+        XCTAssertEqual(days[0].count, 1)
+        XCTAssertEqual(days[0].files.first?.lastPathComponent, "bericht.docx")
+    }
+
+    /// In einem reinen Quelltext-Ordner entfällt der Menüpunkt ganz.
+    func test_reiner_quelltext_ordner_bietet_nichts_an() {
+        let code = [file("a.py", 2026, 8, 3, 9), file("b.swift", 2026, 8, 2, 9)]
+        XCTAssertTrue(WorkDays.group(code, calendar: calendar).isEmpty)
+    }
 }

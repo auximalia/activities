@@ -20,6 +20,49 @@ public struct WorkDay: Identifiable, Sendable, Hashable {
 /// Gruppierung der Dateien eines Ordners nach **Kalendertag** – die Grundlage
 /// von „Arbeit fortsetzen" (PR-11).
 public enum WorkDays {
+    /// Kategorien, die „Arbeit fortsetzen" oeffnen darf.
+    ///
+    /// **⚠️ Eine Erlaubnisliste, keine Verbotsliste – und das ist der Kern der
+    /// Sache.** Gemeldet wurde: „Arbeit fortsetzen" fuehrte `.py`-Dateien
+    /// **aus**. Das ist kein Schoenheitsfehler. ``NSWorkspace/open(_:)``
+    /// uebergibt die Datei an das registrierte Programm, und bei einem Skript
+    /// ist das der Interpreter. Ein Menuepunkt, der ungefragt fremden Code
+    /// startet, ist ein Sicherheitsmangel.
+    ///
+    /// Eine Verbotsliste („alles ausser `.py`, `.sh`, …") waere die naheliegende
+    /// Antwort und die falsche: Sie muss jede gefaehrliche Endung **kennen**.
+    /// Die naechste – `.command`, `.scpt`, `.jar`, `.applescript`, `.pkg` –
+    /// fehlt darin garantiert, und der Fehler faellt erst auf, wenn er
+    /// passiert ist. Eine Erlaubnisliste irrt in die andere Richtung: Im
+    /// schlimmsten Fall wird etwas **nicht** angeboten. Das ist ein Aergernis;
+    /// das andere ist ein Schaden.
+    ///
+    /// Warum genau diese vier:
+    /// - ``FileCategory/documents``, ``FileCategory/pdf``,
+    ///   ``FileCategory/spreadsheets``, ``FileCategory/presentations`` sind
+    ///   Dinge, an denen man *arbeitet* und die man wieder aufschlaegt.
+    /// - ``FileCategory/code`` faellt weg – doppelt: Skripte werden ausgefuehrt,
+    ///   und fuer ein Softwareprojekt ist der richtige Handgriff ohnehin „Ordner
+    ///   im Editor oeffnen" (⇧⌘E), nicht vierzig Einzeldateien.
+    /// - ``FileCategory/archives`` faellt weg: Ein Archiv zu oeffnen **entpackt**
+    ///   es – eine Nebenwirkung, die niemand bestellt hat.
+    /// - ``FileCategory/media`` faellt weg: zehn startende Abspielprogramme sind
+    ///   keine fortgesetzte Arbeit.
+    /// - ``FileCategory/images`` faellt weg, obwohl harmlos: Bilder in einem
+    ///   Arbeitsordner sind meist Beiwerk (Bildschirmfotos, Anhaenge), nicht das
+    ///   Werkstueck. Das ist die strittigste der Entscheidungen – und der beste
+    ///   Kandidat, falls die Auswahl je einstellbar wird.
+    /// - ``FileCategory/other`` faellt weg: der Eimer fuer alles Unbekannte,
+    ///   und damit genau dort, wo `.app` und `.command` liegen.
+    public static let resumableCategories: Set<FileCategory> = [
+        .documents, .pdf, .spreadsheets, .presentations
+    ]
+
+    /// Ob eine Datei von „Arbeit fortsetzen" geoeffnet werden darf.
+    public static func isResumable(_ url: URL) -> Bool {
+        resumableCategories.contains(FileCategory.category(for: url))
+    }
+
     /// Wie viele Tage hoechstens angeboten werden.
     ///
     /// **⚠️ Eine Obergrenze ist noetig, und zwar aus zwei Gruenden.** Erstens
@@ -40,6 +83,12 @@ public enum WorkDays {
     /// je nach eingestelltem Zeitraum eine andere Dateimenge – und der Anwender
     /// haette keine Chance zu bemerken, warum.
     ///
+    /// **⚠️ Gefiltert wird VOR dem Gruppieren.** Sonst versprraeche das Menue
+    /// „Heute (12)" und oeffnete vier Dateien. Eine Zahl, die nicht haelt, ist
+    /// schlimmer als keine – derselbe Grundsatz wie bei der Rueckfrage aus
+    /// PR-26. Tage, an denen nur Nicht-Dokumente liegen, verschwinden dadurch
+    /// ganz; in einem reinen Quelltext-Ordner entfaellt der Menuepunkt.
+    ///
     /// - Parameters:
     ///   - files: bereits gefilterte Dateien des Ordners (Typ, Name, Zeitraum).
     ///   - limit: hoechstens so viele Tage; `0` oder kleiner liefert nichts.
@@ -52,7 +101,7 @@ public enum WorkDays {
 
         var order: [Date] = []
         var byDay: [Date: [URL]] = [:]
-        for file in files {
+        for file in files where isResumable(file.url) {
             let day = calendar.startOfDay(for: file.timestamp)
             if byDay[day] == nil { order.append(day) }
             byDay[day, default: []].append(file.url)

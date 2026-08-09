@@ -1087,6 +1087,55 @@ do {
     expect(WorkDays.group([], calendar: calendar).isEmpty, "Arbeitstage: keine Dateien, keine Tage")
     expect(WorkDays.group(dateien, calendar: calendar, limit: 0).isEmpty,
            "Arbeitstage: Grenze 0 liefert nichts")
+
+    // ⚠️ Erlaubnisliste (Hotfix v1.19.27): „Arbeit fortsetzen" fuehrte
+    // .py-Dateien AUS. NSWorkspace.open reicht ein Skript an den Interpreter
+    // weiter – ein Menuepunkt, der ungefragt fremden Code startet.
+    expect(WorkDays.isResumable(URL(fileURLWithPath: "/t/bericht.docx")), "Erlaubt: Word")
+    expect(WorkDays.isResumable(URL(fileURLWithPath: "/t/zahlen.xlsx")), "Erlaubt: Excel")
+    expect(WorkDays.isResumable(URL(fileURLWithPath: "/t/folien.pptx")), "Erlaubt: Powerpoint")
+    expect(WorkDays.isResumable(URL(fileURLWithPath: "/t/handbuch.pdf")), "Erlaubt: PDF")
+    expect(WorkDays.isResumable(URL(fileURLWithPath: "/t/notizen.md")), "Erlaubt: Markdown")
+    expect(WorkDays.isResumable(URL(fileURLWithPath: "/t/plan.xmind")), "Erlaubt: Mindmap")
+    expect(WorkDays.isResumable(URL(fileURLWithPath: "/t/plan.opml")), "Erlaubt: Gliederung")
+
+    // Der gemeldete Fall und seine Verwandten – alles, was ausgefuehrt wird.
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/skript.py")), "Verboten: Python (gemeldet)")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/start.sh")), "Verboten: Shell")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/app.rb")), "Verboten: Ruby")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/main.js")), "Verboten: JavaScript")
+
+    // ⚠️ Der eigentliche Schutz liegt darin, dass UNBEKANNTES nicht durchgeht:
+    // „Sonstige" ist der Eimer, in dem .app, .command, .scpt und .pkg liegen.
+    // Eine Verbotsliste haette jede dieser Endungen kennen muessen.
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/Programm.app")), "Verboten: Programm")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/tu-was.command")), "Verboten: command")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/skript.scpt")), "Verboten: AppleScript")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/setup.pkg")), "Verboten: Installer")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/quelle.swift")), "Verboten: Swift (unter Sonstige)")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/nie.gesehen")), "Verboten: unbekannte Endung")
+
+    // Archiv zu oeffnen entpackt es – eine Nebenwirkung, die niemand bestellt hat.
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/paket.zip")), "Verboten: Archiv")
+    expect(!WorkDays.isResumable(URL(fileURLWithPath: "/t/film.mp4")), "Verboten: Medien")
+
+    // ⚠️ Gefiltert wird VOR dem Gruppieren: Sonst verspraeche das Menue eine
+    // Zahl, die es nicht haelt.
+    let gemischt = [
+        datei("bericht.docx", 2026, 8, 3, 9),
+        datei("skript.py", 2026, 8, 3, 10),
+        datei("start.sh", 2026, 8, 3, 11)
+    ]
+    let gefiltert = WorkDays.group(gemischt, calendar: calendar)
+    expectEqual(gefiltert.count, 1, "Erlaubnisliste: der Tag bleibt")
+    expectEqual(gefiltert[0].count, 1, "Erlaubnisliste: die Zahl nennt nur, was wirklich geoeffnet wird")
+    expectEqual(gefiltert[0].files.first?.lastPathComponent, "bericht.docx",
+                "Erlaubnisliste: genau das Dokument, nicht das Skript")
+
+    // Reiner Quelltext-Ordner: kein Tag, damit spaeter kein Menuepunkt.
+    let nurCode = [datei("a.py", 2026, 8, 3, 9), datei("b.swift", 2026, 8, 2, 9)]
+    expect(WorkDays.group(nurCode, calendar: calendar).isEmpty,
+           "Erlaubnisliste: reiner Quelltext-Ordner bietet nichts an")
 }
 
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")

@@ -1233,6 +1233,12 @@ final class ReportViewModel {
     /// zeigen" auf ein, bietet das Menue auch Tage ausserhalb des gewaehlten
     /// Zeitraums an. Das ist richtig so – der Schalter heisst „zeig mir auch
     /// das andere" –, es ist nur nichts, worueber man stolpern sollte.
+    ///
+    /// **⚠️ Zusaetzlich wirkt die Erlaubnisliste aus ``WorkDays``** – sie ist
+    /// **kein** Anzeigefilter, sondern ein Sicherheitsriegel: Ausfuehrbares
+    /// (`.py`, `.sh`, `.command`, `.app`) wird nicht angeboten, weil Oeffnen
+    /// dort Ausfuehren heisst. Die Liste kann also weniger enthalten als die
+    /// Zeilen darunter, und das ist Absicht.
     func workDays(in folder: URL) -> [WorkDay] {
         guard let files = visibleFiles(in: folder) else { return [] }
         return WorkDays.group(files)

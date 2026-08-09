@@ -172,6 +172,16 @@ struct FolderContextMenu: View {
     /// Wundertuete, und man erfuehre erst nach dem Klick, ob drei oder sechzig
     /// Programme starten. Ab der Schwelle aus PR-26 fragt ``requestOpen``
     /// zusaetzlich zurueck.
+    /// **⚠️ Nur Dokumente – und der Menuepunkt verschwindet, wenn es keine
+    /// gibt.** Gemeldet wurde, dass der Befehl `.py`-Dateien **ausfuehrte**;
+    /// ``WorkDays/resumableCategories`` laesst deshalb nur Dokumente,
+    /// Tabellen, Praesentationen und PDF durch. In einem reinen
+    /// Quelltext-Ordner bleibt damit nichts uebrig, und der Eintrag entfaellt.
+    ///
+    /// Das ist kein stiller Zustand im Sinne von UX-06: Es fehlt keine
+    /// *Information*, sondern eine Handlung, die dort keinen Sinn ergibt. Der
+    /// richtige Handgriff fuer ein Softwareprojekt steht direkt darunter –
+    /// „Ordner im Editor oeffnen" (⇧⌘E).
     @ViewBuilder
     private var resumeWork: some View {
         let days = model.workDays(in: folder)

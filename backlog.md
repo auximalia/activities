@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.27 · 2026-08-09*
+*Stand: v1.19.28 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1031,7 +1031,7 @@ Name, Datum und Anzahl.
 Legendenfarben; VoiceOver liest sie als Text („3 .swift, 2 .md"); ausgeblendete Typen
 (UX-06) erscheinen nicht; die Zeilenhöhe wächst nicht.
 
-### PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand
+### PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand *(erledigt, v1.19.28)*
 **Aufwand:** ~~M~~ **L** *(korrigiert bei der Durchsicht für Sprint 10)* · **Nutzen:** mittel
 
 **Die Hälfte existiert schon:** `recentFolders` (max. 8, `SettingsStore.swift:55,74`, gefüllt in
@@ -1102,6 +1102,47 @@ das neue Format nicht verloren.
 Textkontexten aber systemweit mit „Einzug verringern/vergrößern". Ob das im Suchfeld (⌘F)
 kollidiert, ließ sich am Code **nicht** belegen – das ist am laufenden System zu prüfen, nicht
 zu vermuten.
+
+**Umgesetzt:**
+- **`FolderHistory` in `ActivitiesCore`** – Push, Zurück, Vorwärts, Abschneiden des
+  Vorwärtszweigs, Deduplizierung, Obergrenze. Der **erste zustandsbehaftete Typ** dort, bewusst:
+  Ein Verlauf *ist* Zustand, und ihn im 1795-Zeilen-ViewModel zu führen hieße, ausgerechnet die
+  Logik zu verstecken, die erfahrungsgemäß falsch gebaut wird.
+- **`ExpansionState` in `ActivitiesCore`** – Aufklappzustand je Wurzel, Aufräumen, Migration.
+- **`setRoot` und `applyRoot` sind getrennt.** Ein Verlaufssprung darf den Verlauf nicht
+  verändern; sonst schnitte „Zurück" den Vorwärtszweig ab, den es gerade erst betreten hat, und
+  man säße fest.
+- ⌘[ / ⌘] als Menübefehle, am Rand des Stapels deaktiviert.
+
+**⚠️ Ein Wörterbuch unter einem Schlüssel, nicht ein Schlüssel je Wurzel.** Naheliegend wäre
+`expandedFolders:/Users/x/Projekte` gewesen. Das hätte funktioniert und einen stillen Mangel
+gehabt: Jeder je geöffnete Ordner ließe einen Eintrag in den Voreinstellungen zurück, für immer.
+Mit einem Wörterbuch ist Aufräumen ein Einzeiler – und es passiert bei jedem Speichern, ohne
+dass jemand daran denken muss. Behalten wird, was in „Zuletzt benutzt" steht; damit gibt es
+keine zweite Obergrenze, die jemand pflegen müsste.
+
+**⚠️ Der Fund, der das Verhalten am stärksten ändert: `nil` ist nicht `[]`.**
+„Von diesem Ordner ist nichts bekannt" und „hier ist ausdrücklich nichts aufgeklappt" sind zwei
+verschiedene Zustände. Behandelte man sie gleich, machte die Wiederherstellung dem Anwender
+sein „alles zuklappen" bei jedem Ordnerwechsel wieder rückgängig – ein Fehler, der erst Wochen
+später als „die App vergisst das" gemeldet worden wäre. Die Unterscheidung steckt jetzt im
+Rückgabetyp und ist geprüft.
+
+**Der Einweg-Mechanismus ist verschwunden.** `restoredExpansion` wurde im `init` einmal befüllt
+und nach dem ersten Laden geleert; ab dem zweiten Wurzelwechsel griff zwingend „alles
+aufklappen". Jetzt fragt `finishDetailLoad` bei **jedem** Ladelauf den Stand des aktuellen
+Wurzelordners ab. Erster Start, Ordnerwechsel und Verlaufssprung sind damit **derselbe Fall** –
+und keiner davon kann vergessen werden. Das war der riskanteste Eingriff des Sprints und
+deshalb der letzte Schritt, nach dem prüfbaren Kern.
+
+**Nebenbefund erledigt:** `setAllExpanded` und `reveal` riefen `persistExpansion()` nicht auf –
+„alles zuklappen" überlebte keinen Neustart.
+
+**Migration:** Der alte globale Wert wird dem **aktuellen** Wurzelordner zugeschlagen und der
+alte Schlüssel danach entfernt. Er stammte zwangsläufig vom zuletzt geöffneten Ordner, und der
+ist beim Start wieder der aktuelle – die Zuordnung ist also nicht bequem, sondern wahr. Der
+Schlüssel wird gelöscht, weil man sonst bei jedem Start erneut prüfen müsste, ob er schon
+übernommen wurde – und irgendwann jemand glaubt, er gelte noch.
 
 ---
 
@@ -1666,7 +1707,7 @@ hätte die einzige Fläche kräftiger gefärbt, die bereits deutlich war.*
 
 ---
 
-### PR-34 · Stille Update-Suche in sinnvollem Takt *(neu, aufgenommen bei der Planung von Sprint 10)*
+### PR-34 · Stille Update-Suche in sinnvollem Takt *(erledigt, v1.19.28)*
 **Aufwand:** ~~S~~ **M** *(korrigiert nach der Code-Durchsicht)* · **Nutzen:** mittel
 
 **Gemeldet:** „Ich möchte, dass das Tool still – also ohne Fehlermeldung, wenn kein Internet da
@@ -1723,6 +1764,38 @@ Takt nichts zu sehen – geprüft wird am installierten Bündel.
 **Akzeptanz:** Ein tagelang laufendes Fenster erkennt eine neue Version ohne Neustart; ohne Netz
 oder bei einem Fehler der GitHub-API passiert sichtbar nichts; der Takt überlebt einen Neustart
 (kein Anfragen-Stakkato bei mehrfachem Start); die manuelle Suche verhält sich unverändert.
+
+**Umgesetzt:**
+- **`UpdateSchedule` in `ActivitiesCore`** entscheidet, *ob* eine Prüfung fällig ist – die
+  einzige Stelle, an der man sich vertun kann. Ein Takt-Dienst besteht aus Warten und Aufrufen;
+  daran ist nichts zu prüfen.
+- **Der Takt startet im `init` des `App`-Typs**, nicht in einer Ansicht. Naheliegend wäre
+  `MainWindowHost.onAppear` gewesen – dort hängen `GlobalHotKey` und `AppPresence`. Genau das
+  ist aber die Lücke: Wer die App bei der Anmeldung startet und nur über die Menüleiste bedient,
+  öffnet unter Umständen **nie** ein Hauptfenster.
+- **Erster Notification-Observer der App** (`NSWorkspace.didWakeNotification`). Ohne ihn
+  verpasst ein Mac, der nachts schläft, jeden Termin: `Task.sleep` schläft mit dem Rechner, der
+  Termin wäre nicht überfällig, sondern verschoben – bei jedem Zuklappen des Deckels erneut.
+- **`.task { await updates.check() }` in `RootView` ist entfallen.** Es war die einzige
+  Update-Suche der App und fragte bei jedem Fensteröffnen erneut an.
+
+**⚠️ Der Takt ist nicht die Bremse – der gespeicherte Zeitpunkt ist es.** Die Schleife fragt
+stündlich nach; ob wirklich geprüft wird, entscheidet `UpdateSchedule.isDue` anhand des
+persistierten Werts. Deshalb lösen drei Programmstarts hintereinander keine drei Anfragen aus,
+und selbst ein versehentlich doppelt gestarteter Takt richtet keinen Schaden an. *Ein Zustand,
+der die Regel trägt, ist verlässlicher als ein Ablauf, der sie einhält.*
+
+**⚠️ Der Zeitpunkt wird vor der Anfrage gesetzt, nicht danach.** Sonst versuchte es ein Rechner
+ohne Netz bei jedem Takt erneut – und der stille Fehlerzweig machte daraus ein stilles
+Dauerfeuer.
+
+**⚠️ Geprüfter Sonderfall: ein Zeitpunkt in der Zukunft gilt als fällig.** Das passiert, wenn
+jemand die Systemuhr zurückstellt. Stur weitergerechnet wäre die nächste Prüfung erst fällig,
+wenn die Zukunft eingeholt ist – bei einem Fehlgriff um ein Jahr also nie.
+
+**Beim Prüfen beachten:** `showsUpdateBadge` unterdrückt den Hinweis bei Entwicklungs-Builds
+(Version „0.0.0"). Per `swift run` ist vom Takt nichts zu sehen – geprüft wird am installierten
+Bündel.
 
 ---
 

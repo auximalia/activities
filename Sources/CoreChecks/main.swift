@@ -1138,6 +1138,126 @@ do {
            "Erlaubnisliste: reiner Quelltext-Ordner bietet nichts an")
 }
 
+// MARK: - Ordner-Verlauf: vor und zurueck (PR-14a)
+do {
+    func url(_ p: String) -> URL { URL(fileURLWithPath: p, isDirectory: true) }
+    let a = url("/r/a"), b = url("/r/b"), c = url("/r/c"), d = url("/r/d")
+
+    var h = FolderHistory()
+    expect(h.current == nil, "Verlauf: leer hat kein Aktuelles")
+    expect(!h.canGoBack && !h.canGoForward, "Verlauf: leer geht nirgendwohin")
+    expect(h.goBack() == nil && h.goForward() == nil, "Verlauf: leer liefert nichts")
+
+    h.visit(a)
+    expectEqual(h.current, a, "Verlauf: erster Besuch ist aktuell")
+    expect(!h.canGoBack, "Verlauf: ein Eintrag, kein Zurueck")
+
+    h.visit(b); h.visit(c)
+    expectEqual(h.current, c, "Verlauf: drei Besuche, letzter aktuell")
+    expect(h.canGoBack && !h.canGoForward, "Verlauf: am juengsten Ende")
+
+    expectEqual(h.goBack(), b, "Verlauf: zurueck zu b")
+    expectEqual(h.goBack(), a, "Verlauf: zurueck zu a")
+    expect(!h.canGoBack, "Verlauf: am aeltesten Ende")
+    expectEqual(h.goForward(), b, "Verlauf: vorwaerts zu b")
+
+    // ⚠️ DER Punkt, an dem Verlaufsstapel ueblicherweise falsch sind: Von einer
+    // zurueckliegenden Position aus ein neues Ziel ansteuern muss den
+    // Vorwaertszweig verwerfen – sonst fuehrt „Vorwaerts" in eine
+    // Vergangenheit, die es nicht mehr gibt.
+    h.visit(d)
+    expectEqual(h.current, d, "Verlauf: neues Ziel ist aktuell")
+    expect(!h.canGoForward, "Verlauf: neues Ziel schneidet den Vorwaertszweig ab")
+    expectEqual(h.entries, [a, b, d], "Verlauf: c ist verschwunden, nicht ueberschrieben")
+    expectEqual(h.goBack(), b, "Verlauf: zurueck fuehrt in den verbliebenen Zweig")
+
+    // Derselbe Ordner erneut aendert nichts – sonst fuellte ⌘R den Stapel.
+    var g = FolderHistory()
+    g.visit(a); g.visit(a); g.visit(a)
+    expectEqual(g.entries.count, 1, "Verlauf: Wiederholung erzeugt keine Dublette")
+    g.visit(b); g.visit(a)
+    expectEqual(g.entries, [a, b, a], "Verlauf: Rueckkehr ueber ein anderes Ziel zaehlt")
+
+    // Obergrenze: gekappt wird am ALTEN Ende.
+    var k = FolderHistory()
+    for i in 1...(FolderHistory.maxEntries + 3) { k.visit(url("/r/\(i)")) }
+    expectEqual(k.entries.count, FolderHistory.maxEntries, "Verlauf: auf maxEntries gedeckelt")
+    expectEqual(k.current, url("/r/\(FolderHistory.maxEntries + 3)"), "Verlauf: der juengste bleibt")
+    expectEqual(k.entries.first, url("/r/4"), "Verlauf: die aeltesten fallen weg")
+    expect(!k.canGoForward, "Verlauf: nach dem Kappen steht die Position am Ende")
+}
+
+// MARK: - Aufklappzustand je Wurzelordner (PR-14b)
+do {
+    let projekte = "/r/Projekte", doks = "/r/Dokumente"
+
+    var map = ExpansionState.updating([:], folders: ["/r/Projekte/b", "/r/Projekte/a"], for: projekte)
+    expectEqual(ExpansionState.folders(in: map, for: projekte) ?? [], ["/r/Projekte/a", "/r/Projekte/b"],
+                "Aufklappzustand: sortiert gespeichert")
+
+    // ⚠️ nil und [] sind zwei verschiedene Dinge: „nichts bekannt" gegen
+    // „ausdruecklich nichts aufgeklappt". Beides gleich zu behandeln naehme
+    // dem Anwender bei jedem Ordnerwechsel sein „alles zuklappen" weg.
+    expect(ExpansionState.folders(in: map, for: doks) == nil,
+           "Aufklappzustand: unbekannte Wurzel liefert nil")
+    let leer = ExpansionState.updating(map, folders: [], for: doks)
+    expectEqual(ExpansionState.folders(in: leer, for: doks) ?? ["x"], [],
+                "Aufklappzustand: bewusst leer bleibt leer, nicht unbekannt")
+
+    // ⚠️ Der eigentliche Zweck: Zwei Wurzeln stehen sich nicht mehr im Weg.
+    map = ExpansionState.updating(map, folders: ["/r/Dokumente/x"], for: doks)
+    expectEqual((ExpansionState.folders(in: map, for: projekte) ?? []).count, 2,
+                "Aufklappzustand: die andere Wurzel bleibt unberuehrt")
+    expectEqual(ExpansionState.folders(in: map, for: doks) ?? [], ["/r/Dokumente/x"],
+                "Aufklappzustand: je Wurzel eigener Stand")
+
+    // Aufraeumen: was nicht mehr bekannt ist, faellt weg – sonst waechst der
+    // Eintrag mit jedem je geoeffneten Ordner.
+    let sauber = ExpansionState.pruned(map, keeping: [projekte])
+    expectEqual(Array(sauber.keys), [projekte], "Aufklappzustand: Unbekanntes wird entfernt")
+
+    // Migration: der alte GLOBALE Wert gehoert dem aktuellen Ordner.
+    let alt = ["/r/Projekte/a", "/r/Projekte/b"]
+    let migriert = ExpansionState.migrated(legacy: alt, currentRoot: projekte, into: [:])
+    expectEqual(ExpansionState.folders(in: migriert, for: projekte) ?? [], alt,
+                "Migration: alter Wert landet beim aktuellen Ordner")
+
+    // ⚠️ Und NUR dann. Sonst ueberschriebe die alte Fassung bei jedem Start
+    // den frisch gepflegten Zustand.
+    let neu = ExpansionState.updating([:], folders: ["/r/Projekte/neu"], for: projekte)
+    expectEqual(ExpansionState.folders(in: ExpansionState.migrated(legacy: alt, currentRoot: projekte, into: neu), for: projekte) ?? [],
+                ["/r/Projekte/neu"],
+                "Migration: vorhandener Stand wird nicht ueberschrieben")
+    expect(ExpansionState.migrated(legacy: [], currentRoot: projekte, into: [:]).isEmpty,
+           "Migration: nichts Altes, nichts zu tun")
+}
+
+// MARK: - Update-Takt: wann ist eine stille Pruefung faellig (PR-34)
+do {
+    let jetzt = date(2026, 8, 3, 12)
+    func vorStunden(_ h: Double) -> Date { jetzt.addingTimeInterval(-h * 3600) }
+
+    // Noch nie geprueft -> sofort. Sonst erfuehre man 24 Stunden lang nichts.
+    expect(UpdateSchedule.isDue(lastCheck: nil, now: jetzt), "Takt: nie geprueft ist faellig")
+
+    expect(!UpdateSchedule.isDue(lastCheck: vorStunden(1), now: jetzt), "Takt: nach 1 h nicht faellig")
+    expect(!UpdateSchedule.isDue(lastCheck: vorStunden(23.9), now: jetzt), "Takt: kurz davor nicht faellig")
+    expect(UpdateSchedule.isDue(lastCheck: vorStunden(24), now: jetzt), "Takt: genau 24 h ist faellig")
+    expect(UpdateSchedule.isDue(lastCheck: vorStunden(72), now: jetzt), "Takt: drei Tage sind faellig")
+
+    // ⚠️ Zeitpunkt in der ZUKUNFT (Systemuhr zurueckgestellt, Rechner mit
+    // falscher Zeit gestartet). Stur weitergerechnet waere die naechste
+    // Pruefung erst faellig, wenn die Zukunft eingeholt ist – bei einem
+    // Fehlgriff um ein Jahr also nie. Lieber einmal zu frueh als nie wieder.
+    expect(UpdateSchedule.isDue(lastCheck: jetzt.addingTimeInterval(3600), now: jetzt),
+           "Takt: Zeitpunkt in der Zukunft gilt als faellig")
+    expect(UpdateSchedule.isDue(lastCheck: date(2027, 1, 1), now: jetzt),
+           "Takt: weit in der Zukunft gilt als faellig")
+
+    // Der Takt selbst ist eine glatte Zahl und kein Zufallswert.
+    expectEqual(UpdateSchedule.interval, 24 * 60 * 60, "Takt: 24 Stunden")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

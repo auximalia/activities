@@ -28,8 +28,6 @@ struct StoredSettings {
     var pinnedFolders: [URL]
     /// Ob das Dock-Symbol gezeigt wird (aus = nur Menüleiste).
     var showsDockIcon: Bool
-    /// Ordner, die beim letzten Beenden aufgeklappt waren.
-    var expandedFolders: [URL]
     /// Bundle-ID des Programms für den Platz „Editor"; `nil` = noch nie gewählt
     /// (dann wird erkannt), leer = ausdrücklich keines.
     var editorBundleID: String?
@@ -67,10 +65,14 @@ final class SettingsStore {
     private let pinnedKey = "pinnedFolders"
     private let dockIconKey = "showsDockIcon"
     private let expandedKey = "expandedFolders"
+    /// Aufklappzustand je Wurzelordner (loest ``expandedKey`` ab, v1.19.28).
+    private let expandedByRootKey = "expandedFoldersByRoot"
     private let viewModeKey = "viewMode"
     private let treeFilesKey = "treeShowsFiles"
     private let editorKey = "editorBundleID"
     private let terminalKey = "terminalBundleID"
+    /// Zeitpunkt der letzten **stillen** Update-Suche (PR-34).
+    private let lastUpdateCheckKey = "lastUpdateCheck"
     private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
@@ -99,8 +101,6 @@ final class SettingsStore {
         }
         let excludedPaths = Set(defaults.stringArray(forKey: excludedPathsKey) ?? [])
         let showsDockIcon = defaults.object(forKey: dockIconKey) as? Bool ?? true
-        let expanded = (defaults.stringArray(forKey: expandedKey) ?? [])
-            .map { URL(fileURLWithPath: $0, isDirectory: true) }
         let pinned = (defaults.stringArray(forKey: pinnedKey) ?? [])
             .filter { FileManager.default.fileExists(atPath: $0) }
             .map { URL(fileURLWithPath: $0, isDirectory: true) }
@@ -118,6 +118,7 @@ final class SettingsStore {
         } else {
             root = Self.defaultDocumentsDirectory()
         }
+
         return StoredSettings(
             rootURL: root, days: days, namePattern: pattern, autoRefresh: autoRefresh,
             useDateRange: useDateRange,
@@ -132,7 +133,6 @@ final class SettingsStore {
             excludedPaths: excludedPaths,
             pinnedFolders: pinned,
             showsDockIcon: showsDockIcon,
-            expandedFolders: expanded,
             // Bewusst `nil` statt "" als Vorgabe: Nur so ist „noch nie gewaehlt"
             // (erkennen) von „ausdruecklich keines" (nichts anbieten) zu
             // unterscheiden.
@@ -203,8 +203,45 @@ final class SettingsStore {
         defaults.set(visible, forKey: dockIconKey)
     }
 
-    func saveExpandedFolders(_ folders: Set<URL>) {
-        defaults.set(folders.map(\.path).sorted(), forKey: expandedKey)
+    /// Speichert den Aufklappzustand **dieser Wurzel**.
+    ///
+    /// **⚠️ Bis v1.19.27 gab es genau einen Schluessel fuer alle Wurzelordner.**
+    /// Wer von `Dokumente` nach `Projekte` und zurueck wechselte, fand alles
+    /// aufgeklappt vor – und die gemerkten Pfade des einen Ordners wurden beim
+    /// anderen gegen dessen Baum geschnitten, also stillschweigend vernichtet.
+    ///
+    /// - Parameter knownRoots: Wurzeln, deren Zustand erhalten bleiben soll
+    ///   (ueblich: „Zuletzt benutzt" plus die aktuelle). Alles andere wird
+    ///   weggeworfen – siehe ``ExpansionState/pruned(_:keeping:)``.
+    func saveExpandedFolders(_ folders: Set<URL>, for root: URL, knownRoots: [URL]) {
+        var map = expansionMap
+        map = ExpansionState.updating(map, folders: folders.map(\.path), for: root.path)
+        map = ExpansionState.pruned(map, keeping: Set(knownRoots.map(\.path) + [root.path]))
+        defaults.set(map, forKey: expandedByRootKey)
+    }
+
+    /// Der gespeicherte Aufklappzustand einer Wurzel – `nil`, wenn zu diesem
+    /// Ordner noch nichts bekannt ist.
+    ///
+    /// Nimmt beim ersten Aufruf nach dem Update den alten **globalen** Wert
+    /// mit – er stammt zwangslaeufig vom zuletzt geoeffneten Ordner, und der
+    /// ist beim Start wieder der aktuelle.
+    func expandedFolders(for root: URL) -> [URL]? {
+        let legacy = defaults.stringArray(forKey: expandedKey) ?? []
+        let map = ExpansionState.migrated(legacy: legacy, currentRoot: root.path, into: expansionMap)
+        if map != expansionMap {
+            defaults.set(map, forKey: expandedByRootKey)
+            // Der alte Schluessel hat seinen Zweck erfuellt. Ihn stehen zu
+            // lassen hiesse, bei jedem Start erneut zu pruefen, ob er schon
+            // uebernommen wurde – und irgendwann glaubt jemand, er gelte noch.
+            defaults.removeObject(forKey: expandedKey)
+        }
+        return ExpansionState.folders(in: map, for: root.path)?
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    private var expansionMap: ExpansionState.Map {
+        defaults.dictionary(forKey: expandedByRootKey) as? ExpansionState.Map ?? [:]
     }
 
     func savePinnedFolders(_ folders: [URL]) {
@@ -242,8 +279,23 @@ final class SettingsStore {
             .map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
-    static func defaultDocumentsDirectory() -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+    // MARK: - Update-Suche
+
+    /// Zeitpunkt der letzten stillen Pruefung; `nil` = noch nie.
+    func loadLastUpdateCheck() -> Date? {
+        (defaults.object(forKey: lastUpdateCheckKey) as? Double)
+            .map { Date(timeIntervalSince1970: $0) }
+    }
+
+    /// **⚠️ Der gespeicherte Zeitpunkt ist die eigentliche Bremse**, nicht der
+    /// Takt-Dienst. Drei Programmstarts hintereinander loesen deshalb nicht
+    /// drei Anfragen aus – und selbst wenn versehentlich zwei Takte liefen,
+    /// gaebe es kein Anfragen-Stakkato.
+    func saveLastUpdateCheck(_ date: Date) {
+        defaults.set(date.timeIntervalSince1970, forKey: lastUpdateCheckKey)
+    }
+
+    static func defaultDocumentsDirectory() -> URL {        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
     }
 }

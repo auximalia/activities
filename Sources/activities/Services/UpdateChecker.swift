@@ -1,4 +1,5 @@
 import Foundation
+import ActivitiesCore
 import AppKit
 import Observation
 
@@ -116,6 +117,87 @@ final class UpdateChecker {
 
     init() {
         currentVersion = SemanticVersion(BuildInfo.marketingVersion)
+    }
+
+    // ⚠️ Kein Abmelden des Beobachters und kein Abbrechen des Takts – mit
+    // Absicht. Dieses Objekt wird im `init` der App erzeugt und lebt genau so
+    // lange wie der Prozess; ein Aufraeumweg waere Code, den nie jemand
+    // aufruft. (`deinit` koennte es ohnehin nicht: Die Felder sind
+    // `@MainActor`, `deinit` laeuft ohne Isolation.) Der Beobachter haelt
+    // `self` schwach, es haengt also nichts daran fest.
+
+    // MARK: - Stiller Takt (PR-34)
+
+    private let store = SettingsStore()
+    private var ticker: Task<Void, Never>?
+    private var wakeObserver: NSObjectProtocol?
+
+    /// Wie oft nachgesehen wird, **ob** eine Pruefung faellig ist.
+    ///
+    /// Nicht zu verwechseln mit ``UpdateSchedule/interval`` (24 h): Das ist der
+    /// Abstand zwischen zwei Pruefungen. Hier wird nur die Frage gestellt.
+    /// Stuende hier ebenfalls 24 h, verschoebe sich der Termin bei jedem
+    /// Neustart um bis zu einen Tag.
+    private static let tickInterval: Duration = .seconds(60 * 60)
+
+    /// Startet die wiederkehrende stille Suche.
+    ///
+    /// **⚠️ Warum es diesen Dienst ueberhaupt braucht.** ``check()`` lief an
+    /// genau einer Stelle: `.task` auf der `RootView`, also **einmal beim
+    /// Erscheinen des Fensters**. Fuer ein Programm, das man oeffnet und
+    /// schliesst, waere das genug. Diese App ist aber seit PR-07/08/10
+    /// ausdruecklich ein **Dauerlaeufer** – Menueleisten-Symbol, Start bei der
+    /// Anmeldung, Zustand ueber Neustarts. Wer sie so benutzt, wie sie gedacht
+    /// ist, prueft also nie wieder: Der Update-Knopf existierte, aber die
+    /// Bedingung, unter der er erscheint, trat praktisch nicht mehr ein.
+    ///
+    /// **⚠️ Der Takt ist nicht die Bremse – der gespeicherte Zeitpunkt ist es.**
+    /// Diese Schleife fragt stuendlich nach; ob wirklich geprueft wird,
+    /// entscheidet ``UpdateSchedule/isDue(lastCheck:now:interval:)`` anhand des
+    /// gespeicherten Werts. Das ist der Grund, warum drei Programmstarts
+    /// hintereinander keine drei Anfragen ausloesen – und warum selbst ein
+    /// versehentlich doppelt gestarteter Takt keinen Schaden anrichtet.
+    ///
+    /// Wird die Suche **nicht** gebraucht (Entwicklungs-Build), laeuft sie
+    /// trotzdem: Sie ist still, und eine Sonderregel hier waere eine
+    /// Fallunterscheidung mehr, die niemand pflegt.
+    func startScheduling() {
+        guard ticker == nil else { return }
+
+        ticker = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.checkIfDue()
+                do { try await Task.sleep(for: Self.tickInterval) } catch { return }
+            }
+        }
+
+        // **⚠️ Ohne diesen Haken verpasst ein Mac, der nachts schlaeft, jeden
+        // Termin.** `Task.sleep` schlaeft mit dem Rechner; nach dem Aufwachen
+        // laeuft die Uhr des Wartens dort weiter, wo sie stehengeblieben ist.
+        // Der Termin waere also nicht ueberfaellig, sondern verschoben – und
+        // zwar bei jedem Zuklappen des Deckels erneut.
+        //
+        // Dies ist der **erste Notification-Observer der App**. Alles bisher
+        // Prozessweite (`GlobalHotKey`, `AppPresence`) haengt in
+        // `MainWindowHost.onAppear` – also ausgerechnet am Fenster, das dieser
+        // Dienst ueberleben soll.
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.checkIfDue() }
+        }
+    }
+
+    /// Prueft, **falls** faellig – und merkt sich den Zeitpunkt.
+    private func checkIfDue() async {
+        guard UpdateSchedule.isDue(lastCheck: store.loadLastUpdateCheck(), now: Date()) else { return }
+        // ⚠️ Der Zeitpunkt wird VOR der Anfrage gesetzt. Sonst versuchte es ein
+        // Rechner ohne Netz bei jedem Takt erneut – und der stille Fehlerzweig
+        // machte daraus ein stilles Dauerfeuer.
+        store.saveLastUpdateCheck(Date())
+        await check()
     }
 
     /// Prueft im Hintergrund auf eine neuere Version.

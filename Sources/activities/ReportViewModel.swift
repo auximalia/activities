@@ -284,9 +284,11 @@ final class ReportViewModel {
     private(set) var excludedPaths: Set<String>
     /// Ob das Dock-Symbol gezeigt wird (aus = nur Menueleiste).
     private(set) var showsDockIcon: Bool
-    /// Beim letzten Beenden aufgeklappte Ordner – werden nach dem ersten
-    /// Suchlauf wiederhergestellt.
-    private var restoredExpansion: [URL] = []
+    /// Verlauf der besuchten Wurzelordner (⌘[ / ⌘]).
+    ///
+    /// Die Logik liegt in ``FolderHistory`` (ActivitiesCore) und ist dort
+    /// geprueft; hier steht nur die Anbindung.
+    private var history = FolderHistory()
     /// Angeheftete Ordner – erscheinen in einem eigenen Abschnitt, unabhaengig
     /// vom Zeitraum („was ist mir wichtig" statt „was war zuletzt").
     private(set) var pinnedFolders: [URL] = []
@@ -336,7 +338,7 @@ final class ReportViewModel {
         self.excludedPaths = saved.excludedPaths
         self.pinnedFolders = saved.pinnedFolders
         self.showsDockIcon = saved.showsDockIcon
-        self.restoredExpansion = saved.expandedFolders
+        self.history = FolderHistory(visiting: saved.rootURL)
         self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
@@ -1376,6 +1378,11 @@ final class ReportViewModel {
             } else {
                 expandedFolders = []
             }
+            // ⚠️ Fehlte bisher: „alles zuklappen" ueberlebte keinen Neustart.
+            // Der Handgriff aenderte den Zustand genauso wie ein einzelnes
+            // Aufklappen – nur dass ihn niemand sicherte. Aufgefallen ist das
+            // erst bei der Durchsicht fuer Sprint 11.
+            persistExpansion()
         }
     }
 
@@ -1394,6 +1401,7 @@ final class ReportViewModel {
         }
         expandedFolders.insert(folder)
         ensureLoaded(folder)
+        persistExpansion()
     }
 
     private func ensureLoaded(_ folder: URL) {
@@ -1503,9 +1511,14 @@ final class ReportViewModel {
         AppPresence.setDockIconVisible(visible)
     }
 
-    /// Sichert den Aufklappzustand fuer die naechste Sitzung.
+    /// Sichert den Aufklappzustand **dieses Wurzelordners**.
+    ///
+    /// `knownRoots` begrenzt zugleich, wie viele Ordner ueberhaupt gemerkt
+    /// werden: alles, was nicht mehr in „Zuletzt benutzt" steht, faellt beim
+    /// naechsten Speichern weg. Ohne das wuechse der Eintrag mit jedem je
+    /// geoeffneten Ordner und niemand raeumte je auf.
     func persistExpansion() {
-        store.saveExpandedFolders(expandedFolders)
+        store.saveExpandedFolders(expandedFolders, for: rootURL, knownRoots: recentFolders)
     }
 
     func setHeaderExpanded(_ expanded: Bool) {
@@ -1547,12 +1560,43 @@ final class ReportViewModel {
         rescan()
     }
 
+    /// Neuen Wurzelordner ansteuern – **mit** Eintrag in den Verlauf.
     func setRoot(_ url: URL) {
+        history.visit(url)
+        applyRoot(url)
+    }
+
+    /// Wurzelordner wechseln, **ohne** den Verlauf zu veraendern.
+    ///
+    /// ⚠️ Getrennt von ``setRoot(_:)``, weil ein Verlaufssprung sonst als
+    /// neuer Besuch zaehlte: Ein „Zurueck" wuerde den Vorwaertszweig
+    /// abschneiden, den es gerade erst betreten hat, und man saesse fest.
+    private func applyRoot(_ url: URL) {
         rootURL = url
         store.saveRoot(url)
         recentFolders = store.addRecentFolder(url)
         updateWatcher()
         rescan()
+    }
+
+    // MARK: - Ordner-Verlauf (PR-14)
+
+    var canGoBackFolder: Bool { history.canGoBack }
+    var canGoForwardFolder: Bool { history.canGoForward }
+
+    /// Zum vorher besuchten Wurzelordner.
+    ///
+    /// Der Aufklappzustand kommt von selbst mit: ``finishDetailLoad`` fragt am
+    /// Ende jedes Ladelaufs den Stand **dieses** Ordners ab.
+    func goBackFolder() {
+        guard let url = history.goBack() else { return }
+        applyRoot(url)
+    }
+
+    /// Zum naechsten Ordner im Verlauf (nach einem Zurueck).
+    func goForwardFolder() {
+        guard let url = history.goForward() else { return }
+        applyRoot(url)
     }
 
     /// Anzahl Kalendertage des aktuellen Zeitfensters.
@@ -1834,12 +1878,23 @@ final class ReportViewModel {
             if case .folder(let url) = cursor, !displayed.contains(url) {
                 cursor = nil
             }
-        } else if !restoredExpansion.isEmpty {
-            // Zustand der letzten Sitzung wiederherstellen – aber nur fuer
-            // Ordner, die es noch gibt.
-            expandedFolders = withAncestors(Set(restoredExpansion).intersection(displayed))
-            restoredExpansion = []
+        } else if let saved = store.expandedFolders(for: rootURL) {
+            // Zustand **dieser Wurzel** wiederherstellen – aber nur fuer Ordner,
+            // die es noch gibt.
+            //
+            // ⚠️ Hier stand bis v1.19.27 ein Einweg-Mechanismus: Ein Feld
+            // `restoredExpansion` wurde im `init` **einmal** befuellt und nach
+            // dem ersten Laden geleert. Ab dem zweiten Wurzelwechsel griff
+            // damit zwingend der `else`-Zweig – „alles aufklappen". Ein
+            // „Zurueck", das den Zustand nicht mitbringt, ist kein Zurueck.
+            //
+            // Jetzt wird bei **jedem** Laden gefragt, und zwar nach dem
+            // aktuellen Wurzelordner. Erster Start, Ordnerwechsel und
+            // Verlaufssprung sind damit derselbe Fall – und keiner davon kann
+            // vergessen werden.
+            expandedFolders = withAncestors(Set(saved).intersection(displayed))
         } else {
+            // Von diesem Ordner ist nichts bekannt: wie gewohnt alles auf.
             expandedFolders = displayed
         }
         if let focus = chartFocus { applyChartFocus(for: focus.folder) }

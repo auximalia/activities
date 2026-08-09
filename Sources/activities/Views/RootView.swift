@@ -54,7 +54,11 @@ struct RootView: View {
         // im Fenstertitel waere er unmittelbar daneben eine Dopplung.
         .navigationTitle("activities")
         .task { model.startInitialScanIfNeeded() }
-        .task { await updates.check() }
+        // ⚠️ Hier stand `.task { await updates.check() }` – die einzige
+        // Update-Suche der App, und damit eine, die bei jedem Fensteroeffnen
+        // erneut anfragte und bei geschlossenem Fenster nie. Beides ist jetzt
+        // Sache des Takts (PR-34): Er laeuft ab dem Prozessstart und fragt nur,
+        // wenn seit der letzten Pruefung 24 Stunden vergangen sind.
         .modifier(DialogsModifier(model: model, updates: updates))
     }
 

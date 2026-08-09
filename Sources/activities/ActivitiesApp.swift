@@ -78,7 +78,25 @@ private func sendToResponder(_ selector: String) {
 @main
 struct ActivitiesApp: App {
     @State private var model = ReportViewModel()
-    @State private var updates = UpdateChecker()
+    @State private var updates: UpdateChecker
+
+    /// **⚠️ Der Takt der Update-Suche startet hier – nicht in einer Ansicht.**
+    ///
+    /// Naheliegend waere `MainWindowHost.onAppear` gewesen; dort haengen
+    /// `GlobalHotKey` und `AppPresence`. Genau das ist aber die Luecke, die
+    /// PR-34 schliessen soll: Wer die App bei der Anmeldung starten laesst und
+    /// nur ueber die Menueleiste bedient, oeffnet unter Umstaenden **nie** ein
+    /// Hauptfenster – und der Dienst liefe nie an. Der `init` des `App`-Typs
+    /// laeuft dagegen genau einmal je Prozess, ohne Fenster.
+    ///
+    /// `assumeIsolated`, weil `App.init()` nicht als `@MainActor` deklariert
+    /// werden kann (Protokoll-Anforderung), SwiftUI sie aber garantiert auf dem
+    /// Hauptthread aufruft.
+    init() {
+        let updates = MainActor.assumeIsolated { UpdateChecker() }
+        MainActor.assumeIsolated { updates.startScheduling() }
+        _updates = State(initialValue: updates)
+    }
 
     var body: some Scene {
         // **`Window`, nicht `WindowGroup`:** Alle Ansichten teilen sich *ein*
@@ -131,6 +149,22 @@ struct ActivitiesApp: App {
                     .disabled(!model.hasTypeFilter)
                 Button("An den Anfang") { model.scrollToTopToken += 1 }
                     .keyboardShortcut(.upArrow, modifiers: .command)
+                Divider()
+                // Ordner-Verlauf. ⌘[ / ⌘] ist die Browser-Konvention und im
+                // Quellbaum frei.
+                //
+                // **⚠️ macOS belegt beide in Textkontexten mit „Einzug
+                // verringern/vergroessern".** Im Suchfeld (⌘F) koennte das
+                // kollidieren; am Code liess sich das nicht belegen, es ist am
+                // laufenden System zu pruefen. Kollidiert es, weicht der
+                // **Verlauf** aus – nicht das Suchfeld: Text einzuruecken ist
+                // ein Systemverhalten, das man einem Eingabefeld nicht nimmt.
+                Button("Zurück zum vorherigen Ordner") { model.goBackFolder() }
+                    .keyboardShortcut("[", modifiers: .command)
+                    .disabled(!model.canGoBackFolder)
+                Button("Vorwärts") { model.goForwardFolder() }
+                    .keyboardShortcut("]", modifiers: .command)
+                    .disabled(!model.canGoForwardFolder)
                 Divider()
                 // Auch als Menuebefehl: Die Gliederung ist die Grundentscheidung
                 // der Ansicht und muss ohne Maus erreichbar sein.

@@ -160,7 +160,12 @@ struct ChartHeaderView: View {
                     if model.hasTypeFilter { typeSegment }
                 }
             }
-            .font(.caption)
+            // ⚠️ `.subheadline` (11 pt) statt `.caption` (10 pt): Diese Zeile
+            // ist die **einzige** Stelle, an der ein stiller Filter sichtbar
+            // wird. Sie in der kleinsten Schrift des Fensters zu setzen
+            // widerspricht ihrem Zweck – wer sie uebersieht, haelt eine
+            // gefilterte Liste fuer den ganzen Bestand (UX-06).
+            .font(.subheadline)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 8)
             .padding(.bottom, 5)

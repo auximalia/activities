@@ -198,7 +198,26 @@ enum RowMetrics {
     static let sectionHeaderBackground = Color(nsColor: .windowBackgroundColor)
     /// Verstaerkung ueber ``sectionHeaderBackground``; hebt im hellen Modus ab
     /// und hellt im dunklen auf – in beiden Faellen eine eigene Flaeche.
+    ///
+    /// **Gemessen, damit die Zusicherung nachpruefbar bleibt** (ΔE zu den
+    /// beiden Zeilentoenen, an den gezeichneten Pixeln):
+    ///
+    /// | | gegen Grundton | gegen Wechselton | Zebra zum Vergleich |
+    /// |---|---|---|---|
+    /// | hell   | 11,6 | 9,1  | 2,5 |
+    /// | dunkel | 15,1 | 10,4 | 4,7 |
+    ///
+    /// Die Flaeche ist damit **deutlich** abgesetzt – deshalb wurde sie beim
+    /// Nachschaerfen der Abschnittskoepfe (PR-33) auch nicht angefasst. Wer
+    /// hier drehen will, sollte vorher nachmessen: Der gemeldete „graue
+    /// Schleier" lag an der Schriftgroesse, nicht an dieser Farbe.
     static let sectionHeaderOverlay = Color.primary.opacity(0.06)
+
+    /// Feine Oberlinie am Abschnittskopf – schliesst den vorigen Abschnitt ab.
+    ///
+    /// Eine Linie ist die staerkste Zaesur je aufgewendeter Tinte: Sie wirkt,
+    /// ohne eine weitere Graustufe in die Liste zu bringen.
+    static let sectionHeaderRule = Color.primary.opacity(0.14)
 
     /// Saettigung des Datei-Icons bei Dateien **ausserhalb** des Zeitraums.
     /// 0 = Graustufen: farbige Icons markieren so die relevanten Treffer

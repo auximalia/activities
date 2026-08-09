@@ -213,15 +213,24 @@ struct StatusBarView: View {
             // Versionsnummer gehoert als **Statusinformation** hierher (nicht in
             // die Arbeitsflaeche): Sie wird bei Rueckfragen und Fehlermeldungen
             // gebraucht. Der Credit-Text dagegen steht im „Ueber"-Fenster.
+            //
+            // ⚠️ Frueher `.tertiary` – gemessen **1,86:1** im hellen Modus
+            // (WCAG AA verlangt 4,5:1). Eine Angabe, die man am Telefon
+            // vorlesen soll, darf nicht die unleserlichste im Fenster sein.
             Divider().frame(height: 10)
             Text("v\(BuildInfo.short)")
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .textSelection(.enabled)
                 .help(BuildInfo.details)
                 .layoutPriority(1)
         }
-        .font(.caption)
+        // ⚠️ `.subheadline` (11 pt) statt `.caption` (10 pt). Die Zeile traegt
+        // Zahlen, den Wurzelpfad und die Warnung „Daten veraltet" – sie war die
+        // kleinste Schrift im Fenster und dabei in `.secondary` gesetzt, das
+        // systemseitig nur 3,82:1 erreicht. An der Systemfarbe laesst sich
+        // nichts drehen, ohne die Zeile laut zu machen; an der Groesse schon.
+        .font(.subheadline)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
     }

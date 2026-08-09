@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.24 · 2026-08-09*
+*Stand: v1.19.25 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1453,7 +1453,7 @@ alle Regelformen gleich lang" ist in `CoreChecks` **und** XCTest geprüft.
 *Lehre: Wenn sich eine Regel nicht prüfen lässt, ist es nur eine Frage der Zeit, bis sie keine
 mehr ist.*
 
-### PR-33 · Funktionsleiste und Zeitabschnitte lesbar machen
+### PR-33 · Funktionsleiste und Zeitabschnitte lesbar machen *(erledigt, v1.19.25)*
 **Aufwand:** M · **Nutzen:** hoch
 
 **Gemeldet:** „Die wichtige Funktionsleiste ist schwer lesbar – alles grau, graue Schrift,
@@ -1461,23 +1461,61 @@ grauer Hintergrund. In der Tabellenansicht sollen die Zeitsegmente (z. B. „Vor
 deutlicher erkennbar sein. Hier geht viel im grauen Schleier unter. Deutliche Verbesserungen –
 ohne zu übertreiben."
 
-**Erster Befund (vor der Umsetzung):**
-- Der Leiste fehlt nicht *Kontrast*, sondern **Hierarchie und Gruppierung**. `idleTint` ist
-  bereits `Color.primary` (PR-30 hat den Kontrast angehoben). Alle Bedienelemente stehen aber
-  gleichrangig und fast alle als reines Symbol nebeneinander – Ordnerwahl, Suche und Zeitraum
-  (der Arbeitsablauf) sind nicht von den Schaltern zu unterscheiden.
-- Der Abschnittskopf trägt `.headline` auf Fensterhintergrund plus 6 % Überlagerung
-  (`RowMetrics.sectionHeaderOverlay`). Gegen das Zebra ist das zu wenig, und Beschriftung
-  („Vor 7 Monaten") und Zählerei („12 Ordner / 40 Dateien") stehen gleichrangig in einer Zeile –
-  die Zahl verdünnt das Wort.
+**⚠️ Gemessen, bevor gestrichen wurde – und die Messung hat die Aufgabe umgeschrieben.**
+Die naheliegende Antwort auf „alles grau" ist mehr Farbe. Die Zahlen sagen etwas anderes
+(ΔE an den gezeichneten Pixeln, WCAG-Kontrastverhältnis gegen den Fenstergrund):
 
-**Vorgesehen (dosiert, kein Umbau):** Gruppentrenner und Beschriftung für die Primäraktionen in
-der Leiste; Abschnittskopf mit kräftigerem Grund, Oberlinie und abgesetztem Zähler.
+| Messung | hell | dunkel |
+|---|---|---|
+| Zebra untereinander | ΔE 2,5 | ΔE 4,7 |
+| **Abschnittskopf gegen Zeile** | **ΔE 9,1–11,6** | **ΔE 10,4–15,1** |
+| `secondary`-Text | **3,82:1** | 5,06:1 |
+| `tertiary`-Text | **1,86:1** | 2,19:1 |
 
-**Akzeptanz:** Der Abschnittskopf hebt sich messbar (ΔE) von **beiden** Zebratönen ab; die
-Primäraktionen der Leiste sind ohne Symbolkenntnis benennbar; PR-28 bleibt gültig – der
-angeheftete Abschnitt bleibt vom Zeitabschnitt unterscheidbar, und zwar weiterhin nicht über
-Farbe allein.
+Die Kopf*fläche* ist also drei- bis viermal so deutlich abgesetzt wie das Zebra – sie war nie
+das Problem und wurde deshalb **nicht angefasst**. Der „graue Schleier" hatte drei ganz andere
+Ursachen:
+
+1. **Ein Punkt Rangunterschied.** Der Abschnittskopf stand in `.headline` (13 pt fett), die
+   Zeilen darunter in `.callout` (12 pt). Das ist keine Gliederung, das ist ein Rundungsfehler.
+   Dazu verdünnte die Zählerei die Beschriftung: „Vor 7 Monaten · 12 Ordner / 40 Dateien" –
+   gleiche Größe, gleiche Farbe, gleiches Gewicht für die Überschrift und für ihre Fußnote.
+2. **Die kleinste Schrift trug die wichtigste Warnung.** Beide Statuszeilen standen in
+   `.caption` (10 pt) und `.secondary` (3,82:1) – darunter der einzige sichtbare Hinweis auf
+   einen gesetzten Filter (UX-06: kein stiller Zustand) und die Warnung „Daten veraltet". Die
+   Versionsnummer, die man am Telefon vorlesen soll, stand in `.tertiary` bei **1,86:1**.
+3. **Der Leiste fehlte Kontrast nicht – ihr fehlte eine Kante.** Zwölf Bedienelemente in einem
+   ununterbrochenen Zug lesen sich als graue Wand, auch wenn jedes einzelne Symbol scharf ist
+   (`idleTint` ist seit PR-30 `Color.primary`). Das Auge findet keinen Halt.
+
+**Umgesetzt:**
+- **Abschnittskopf typografisch statt farblich:** Beschriftung 15 pt halbfett, Zähler 12 pt
+  zurückgenommen. Drei Punkte und eine Gewichtsstufe Abstand zur Zeile – genug zum Überfliegen,
+  ohne zu brüllen. Dazu eine **Oberlinie**: die stärkste Zäsur je aufgewendeter Tinte, und sie
+  bringt keine weitere Graustufe in die Liste. Sie sitzt oben, weil der Kopf zu dem gehört, was
+  *unter* ihm folgt – eine Linie darunter trennte ihn von seinem eigenen Inhalt.
+- **`tertiary` entfernt** (1,86:1); beide Statuszeilen von `.caption` auf `.subheadline`
+  (10 → 11 pt). An der Systemfarbe `secondary` lässt sich nichts drehen, ohne die Zeilen laut
+  zu machen; an der Größe schon.
+- **Zwei Trennstriche in der Leiste:** einer zwischen Arbeitsablauf (Ort → Suche → Zeitraum) und
+  Anpassungen, einer zwischen Aktionen und Zuständen. Letzterer heilt nebenbei den Missgriff aus
+  v1.19.5, bei dem ein Anwender den Auto-Refresh-Schalter für „neu einlesen" hielt.
+
+**⚠️ Bewusst *nicht* getan: Beschriftungen an die Toolbar-Knöpfe.** Das wäre die andere
+gültige Antwort auf dieselbe Frage gewesen – sie hätte aber den in PR-30 in drei Anläufen
+erkämpften Platz sofort wieder aufgezehrt und die hinteren Elemente ins Überlaufmenü gedrängt.
+Zwei Striche kosten ~2 pt und leisten dasselbe.
+
+**⚠️ Stolperstein für den nächsten:** `ToolbarContentBuilder` nimmt höchstens **zehn** Elemente
+je Bauplan. Ein elftes bricht mit „extra argument in call" – einer Meldung, die den wahren Grund
+nicht nennt. Der erste Trennstrich hängt deshalb im selben `ToolbarItem` wie der Zeitraum.
+
+**PR-28 bleibt gültig:** Der angeheftete Abschnitt trägt weiterhin Symbol, getönten Grund und
+Unterlinie – der Unterschied ruht nicht auf Farbe allein.
+
+*Lehre: „Wirkt grau" heißt nicht „ist zu wenig Farbe". Zwei der drei Ursachen waren
+Schriftgrößen, die dritte war fehlende Gruppierung. Wer hier ohne Messung angefangen hätte,
+hätte die einzige Fläche kräftiger gefärbt, die bereits deutlich war.*
 
 ---
 
@@ -1490,3 +1528,5 @@ Farbe allein.
 - **Dateiverwaltung** (umbenennen, verschieben, löschen): Dafür gibt es den Finder. Die App
   soll *finden*, nicht *verwalten*.
 
+### Anforderung 03
+Ich möchte, dass das Toll (still - olso ohne Fehlermeldung, wenn kein Internet da ist oder github down ist) in einem sinnvollen Intervall nach Updates sucht und wenn ka - den Update-Button einblendet (kleiner Erweiterung der bereits implementierten Funktion.

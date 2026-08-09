@@ -294,13 +294,34 @@ struct ReportView: View {
 
     /// Kopfzeile eines Abschnitts.
     ///
-    /// **Angeheftet wird abgesetzt – und zwar nicht ueber Farbe allein.** Die
-    /// Zeitabschnitte („Heute", „Gestern" …) sind eine **Beobachtung**;
-    /// „Angeheftet" ist eine **Entscheidung des Anwenders**. Gleiche Gestaltung
-    /// fuer Ungleiches liess den Abschnitt in der Reihe untergehen. Der
-    /// Unterschied ruht deshalb auf drei Traegern: einem **Symbol** (traegt
-    /// allein, auch ohne Farbe und fuer Farbfehlsichtige), einer abgesetzten
-    /// Faerbung und einer Linie zum Inhalt darunter.
+    /// **⚠️ Gemeldet als Farbproblem – gemessen war es ein Schriftproblem.**
+    /// „Die Zeitsegmente gehen im grauen Schleier unter." Naheliegend waere,
+    /// den Grund kraeftiger zu faerben. Der Abstand der Kopfflaeche zu den
+    /// Zeilen betraegt aber bereits ΔE 9,1–11,6 (hell) bzw. 10,4–15,1 (dunkel)
+    /// – gegen ΔE 2,5/4,7 beim Zebra. Die Flaeche war nie das Problem.
+    ///
+    /// Es war die **Schrift**: Der Kopf stand in `.headline` (13 pt fett), die
+    /// Zeilen darunter in `.callout` (12 pt). **Ein Punkt Unterschied.** Das
+    /// ist keine Rangordnung, das ist ein Messfehler. Und die Beschriftung,
+    /// auf die es ankommt, wurde von der Zaehlerei verduennt: „Vor 7 Monaten ·
+    /// 12 Ordner / 40 Dateien" – gleiche Groesse, gleiche Farbe, gleiches
+    /// Gewicht fuer die Gliederung und fuer ihre Fussnote.
+    ///
+    /// Jetzt: Beschriftung 15 pt halbfett, Zaehler 12 pt zurueckgenommen. Der
+    /// Sprung zur Zeile betraegt drei Punkte und eine Gewichtsstufe – genug,
+    /// um beim Ueberfliegen als Gliederung zu lesen, ohne zu bruellen. Dazu
+    /// eine Oberlinie: Eine Linie ist die staerkste Zaesur je Tinte, die es
+    /// gibt, und kostet kein weiteres Grau.
+    ///
+    /// *Lehre: „Wirkt grau" heisst nicht „ist zu wenig Farbe". Erst messen,
+    /// welche Groesse tatsaechlich zu klein ist.*
+    ///
+    /// **Angeheftet bleibt abgesetzt – und zwar nicht ueber Farbe allein** (PR-28).
+    /// Die Zeitabschnitte („Heute", „Gestern" …) sind eine **Beobachtung**;
+    /// „Angeheftet" ist eine **Entscheidung des Anwenders**. Der Unterschied
+    /// ruht auf drei Traegern: einem **Symbol** (traegt allein, auch ohne Farbe
+    /// und fuer Farbfehlsichtige), einer abgesetzten Faerbung und einer Linie
+    /// zum Inhalt darunter.
     private func sectionHeader(_ bucket: BucketedEntries) -> some View {
         // Dateisumme live aus den sichtbaren Detaildateien der Ordner dieses
         // Zeitabschnitts (gleiche Logik wie in der Ordnerzeile).
@@ -309,15 +330,19 @@ struct ReportView: View {
             let live = model.visibleFileCount(in: entry.folder)
             return sum + (live > 0 ? live : entry.fileCount)
         }
-        let text = "\(bucket.label) · \(folderCount) Ordner / \(fileCount) \(fileCount == 1 ? "Datei" : "Dateien")"
+        let counter = "\(folderCount) Ordner · \(fileCount) \(fileCount == 1 ? "Datei" : "Dateien")"
         return HStack(spacing: 6) {
             if bucket.isPinned {
                 Image(systemName: "pin.fill")
-                    .font(.caption)
+                    .font(.system(size: 13))
                     .foregroundStyle(.tint)
             }
-            Text(text)
-                .font(.headline)
+            Text(bucket.label)
+                .font(.system(size: 15, weight: .semibold))
+            Text(counter)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 2)
             Spacer(minLength: 0)
         }
         .frame(height: RowMetrics.sectionHeaderHeight)
@@ -328,6 +353,14 @@ struct ReportView: View {
             } else {
                 RowMetrics.sectionHeaderBackground.overlay(RowMetrics.sectionHeaderOverlay)
             }
+        }
+        // Oberlinie: schliesst den vorigen Abschnitt ab. Sie sitzt **oben**,
+        // weil der Kopf zu dem gehoert, was unter ihm folgt (Gesetz der Naehe)
+        // – eine Linie darunter trennte ihn von seinem eigenen Inhalt.
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(RowMetrics.sectionHeaderRule)
+                .frame(height: 1)
         }
         .overlay(alignment: .bottom) {
             if bucket.isPinned {

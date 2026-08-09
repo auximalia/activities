@@ -55,9 +55,32 @@ struct MainToolbar: ToolbarContent {
             .accessibilityValue(model.hasNameFilter ? "Filter aktiv: \(model.namePattern)" : "kein Filter")
         }
 
-        // 3. Zeitraum
+        // 3. Zeitraum – mit dem Trennstrich zu den Anpassungen im selben Element.
+        //
+        // **⚠️ Gemeldet als „alles grau" – der Befund war ein anderer.** Der
+        // Kontrast der Symbole stimmt seit PR-30 (`idleTint` ist
+        // `Color.primary`, nicht die Systemfarbe). Was fehlte, war
+        // **Gruppierung**: Zwoelf Bedienelemente standen in einem einzigen Zug,
+        // ohne dass etwas den Ort-Suche-Zeitraum-Ablauf von den Schaltern
+        // trennte. Eine ununterbrochene Reihe gleich grosser Symbole liest sich
+        // als graue Wand – nicht weil die Symbole zu blass sind, sondern weil
+        // das Auge keine Kante findet, an der es sich festhalten kann.
+        //
+        // Ein Trennstrich kostet ~1 pt Breite. Das ist wichtig, weil die Leiste
+        // eng ist: Beschriftungen an den Knoepfen waeren die andere Antwort auf
+        // dieselbe Frage gewesen – sie haetten aber den in PR-30 muehsam
+        // erkaempften Platz sofort wieder aufgezehrt und die hinteren Elemente
+        // ins Ueberlaufmenue gedraengt.
+        //
+        // **⚠️ Der Strich haengt am Zeitraum, statt ein eigenes `ToolbarItem`
+        // zu sein.** `ToolbarContentBuilder` nimmt hoechstens zehn Elemente je
+        // Bauplan – ein elftes bricht mit „extra argument in call", einer
+        // Fehlermeldung, die den wahren Grund nicht nennt.
         ToolbarItem(placement: .navigation) {
-            timeRangeControls
+            HStack(spacing: 8) {
+                timeRangeControls
+                Divider().frame(height: 16)
+            }
         }
 
         // 4. Anpassungen – **Reihenfolge = Wichtigkeit**.
@@ -133,7 +156,14 @@ struct MainToolbar: ToolbarContent {
 
         // 4a. Anpassungen: Zustände (ändern die Darstellung, nicht die Datenmenge)
         // Als Gruppe: SwiftUI erlaubt hoechstens zehn ToolbarItems je Builder.
+        //
+        // Zweite Zaesur: Davor stehen **Aktionen** (etwas geschieht auf Zuruf),
+        // danach **Zustaende** (etwas bleibt ein- oder ausgeschaltet). Diese
+        // beiden Arten zu mischen war der Grund, warum ein Anwender den
+        // Auto-Refresh-Schalter fuer den Knopf „neu einlesen" hielt (v1.19.5).
         ToolbarItemGroup(placement: .navigation) {
+            Divider().frame(height: 16)
+
             ToolbarStateToggle(
                 isOn: Binding(
                     get: { model.allExpanded },

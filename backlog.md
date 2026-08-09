@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.23 · 2026-08-07*
+*Stand: v1.19.24 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1404,6 +1404,81 @@ Gemessen wurden ~83.000 Dateien (~20 MB, 1,3 s). Bei 500.000 Dateien ist das Ver
 **unbekannt**. Vor breiterer Verbreitung messen und, falls nötig, begrenzen –
 lieber vorher wissen als beim Anwender.
 
+## Thema H · Nachgemeldet aus dem Gebrauch (v1.19.x)
+
+### PR-32 · Zeitstempel einheitlich formatieren *(erledigt, v1.19.24)*
+**Aufwand:** S · **Nutzen:** mittel
+
+**Gemeldet:** „In beiden Ansichten (Tabelle/Baum) gibt es unterschiedliche Formatierungen des
+Zeitstempels. Klar – heute und gestern als Zeitstempel sind gewollt – aber die anderen sollten
+einheitlich sein."
+
+**⚠️ Der Formatierer war nie das Problem.** Beide Ansichten riefen dieselbe Funktion auf. Die
+Uneinheitlichkeit kam aus zwei anderen Richtungen:
+
+1. **Zwei Formen statt einer.** `dateTime` liess das Jahr **im laufenden Jahr** weg – gedacht
+   als Rauschminderung. Sobald eine Liste über den Jahreswechsel reicht (der Normalfall, die
+   Zeitabschnitte gehen bis „Vor N Jahren"), stehen „Mi., 05.08. 14:32" und
+   „Do., 12.12.2024 09:10" untereinander. Die Spalte franst aus, und der Leser prüft an jeder
+   Zeile erst, *welche* der beiden Formen er vor sich hat.
+2. **Drei Auszeichnungen für dieselbe Angabe.** Ordnerzeile (Liste) `primary`/regular, Ordnerzeile
+   (Baum) `primary` **oder** `secondary`, Dateizeile `secondary` + fett bei der datumstiftenden
+   Datei. Das war keine Entscheidung, sondern das Ergebnis dreier unabhängiger Änderungen über
+   die Zeit.
+
+**Umgesetzt:**
+- **Genau zwei Formen, keine dritte.** „Heute, 22:59" / „Gestern, 14:32" bleiben als Ausnahme –
+  sie beantworten eine andere Frage (*ist das noch frisch?*). Alles Ältere trägt **immer**
+  dieselbe Form **mit Jahr**: „Mi., 05.08.2025 14:32", kompakt „Mi. 05.08.25 14:32". Die
+  Fallunterscheidung Heute/Gestern liegt jetzt an *einer* Stelle, damit Lang- und Kurzform sich
+  nicht wieder auseinanderentwickeln können.
+- **Eine Darstellung für alle Zeilentypen** in `DateStampView`: durchgängig `secondary` (das
+  Datum ist die Nebenangabe, der Name der Gegenstand) und durchgängig regular. Die
+  datumstiftende Datei bleibt erkennbar – ihr **Name** steht fett. *Ein Signal, ein Träger.*
+- Der Farbwechsel für Durchgangsknoten im Baum entfällt; die Zeile daneben schreibt bereits
+  „… im Unterbaum".
+
+**⚠️ Spaltenbreite gemessen, nicht geschätzt.** In monospaced Callout (12 pt) misst
+„Mi., 05.08.2025 14:32" **155,8 pt** – die Spalte war 150 pt breit und hätte abgeschnitten.
+Jetzt 158 pt (kompakt 133,5 → 136 pt). Kosten: 8 pt Namensbreite. *Das ist derselbe Fehler wie
+bei UX-12 und dem Zebra, nur an anderer Stelle: eine Maßangabe, die zu ihrer Zeit stimmte, und
+eine Änderung, die ihre Grundlage wegzog.*
+
+**⚠️ Der Befund ist auch ein Struktur-Befund.** `DateFormatting` lag im App-Ziel und war damit
+nicht prüfbar – reine Funktionen über Datum und Kalender, ohne SwiftUI, ohne Zustand. Genau
+deshalb konnte die Formatierung unbemerkt zerfallen. Sie liegt jetzt in `ActivitiesCore`, der
+Bezugszeitpunkt ist einspeisbar (wie bei `TimeBucket`), und die Zusicherung „genau zwei Formen,
+alle Regelformen gleich lang" ist in `CoreChecks` **und** XCTest geprüft.
+
+*Lehre: Wenn sich eine Regel nicht prüfen lässt, ist es nur eine Frage der Zeit, bis sie keine
+mehr ist.*
+
+### PR-33 · Funktionsleiste und Zeitabschnitte lesbar machen
+**Aufwand:** M · **Nutzen:** hoch
+
+**Gemeldet:** „Die wichtige Funktionsleiste ist schwer lesbar – alles grau, graue Schrift,
+grauer Hintergrund. In der Tabellenansicht sollen die Zeitsegmente (z. B. „Vor 7 Monaten")
+deutlicher erkennbar sein. Hier geht viel im grauen Schleier unter. Deutliche Verbesserungen –
+ohne zu übertreiben."
+
+**Erster Befund (vor der Umsetzung):**
+- Der Leiste fehlt nicht *Kontrast*, sondern **Hierarchie und Gruppierung**. `idleTint` ist
+  bereits `Color.primary` (PR-30 hat den Kontrast angehoben). Alle Bedienelemente stehen aber
+  gleichrangig und fast alle als reines Symbol nebeneinander – Ordnerwahl, Suche und Zeitraum
+  (der Arbeitsablauf) sind nicht von den Schaltern zu unterscheiden.
+- Der Abschnittskopf trägt `.headline` auf Fensterhintergrund plus 6 % Überlagerung
+  (`RowMetrics.sectionHeaderOverlay`). Gegen das Zebra ist das zu wenig, und Beschriftung
+  („Vor 7 Monaten") und Zählerei („12 Ordner / 40 Dateien") stehen gleichrangig in einer Zeile –
+  die Zahl verdünnt das Wort.
+
+**Vorgesehen (dosiert, kein Umbau):** Gruppentrenner und Beschriftung für die Primäraktionen in
+der Leiste; Abschnittskopf mit kräftigerem Grund, Oberlinie und abgesetztem Zähler.
+
+**Akzeptanz:** Der Abschnittskopf hebt sich messbar (ΔE) von **beiden** Zebratönen ab; die
+Primäraktionen der Leiste sind ohne Symbolkenntnis benennbar; PR-28 bleibt gültig – der
+angeheftete Abschnitt bleibt vom Zeitabschnitt unterscheidbar, und zwar weiterhin nicht über
+Farbe allein.
+
 ---
 
 ## Was ich bewusst **nicht** vorschlage
@@ -1414,3 +1489,4 @@ lieber vorher wissen als beim Anwender.
   nichts" (PR-24).
 - **Dateiverwaltung** (umbenennen, verschieben, löschen): Dafür gibt es den Finder. Die App
   soll *finden*, nicht *verwalten*.
+

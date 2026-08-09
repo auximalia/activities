@@ -75,10 +75,7 @@ struct FolderRowView: View {
 
             // Feste Datumsspalte: haelt den Zeitstempel nah am Inhalt.
             // Die Dateianzahl steht im Zeitabschnitts-Kopf (spart hier Platz).
-            Text(isCompact ? DateFormatting.dateTimeCompact(displayDate) : DateFormatting.dateTime(displayDate))
-                .font(.system(.callout, design: .monospaced))
-                .lineLimit(1)
-                .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
+            DateStampView(date: displayDate, isCompact: isCompact)
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)

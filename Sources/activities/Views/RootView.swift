@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ActivitiesCore
 
 /// Fensteraufbau: **feste Kopfzone** (Diagramm + Legende), darunter die
 /// scrollende Liste, unten die Statuszeile. Die Bedienelemente liegen seit

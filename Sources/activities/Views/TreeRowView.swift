@@ -216,11 +216,7 @@ struct TreeFolderRowView: View {
 
                 Spacer(minLength: RowMetrics.itemSpacing)
 
-                Text(isCompact ? DateFormatting.dateTimeCompact(displayDate) : DateFormatting.dateTime(displayDate))
-                    .font(.system(.callout, design: .monospaced))
-                    .foregroundStyle(node.isPassThrough ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                    .lineLimit(1)
-                    .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
+                DateStampView(date: displayDate, isCompact: isCompact)
             }
             .padding(.leading, RowMetrics.itemSpacing)
         }

@@ -70,13 +70,7 @@ struct FileRowView: View {
             }
 
             Spacer(minLength: RowMetrics.itemSpacing)
-            Text(isCompact ? DateFormatting.dateTimeCompact(file.timestamp) : DateFormatting.dateTime(file.timestamp))
-                .font(.system(.callout, design: .monospaced))
-                .fontWeight(isDateSource ? .bold : .regular)
-                .foregroundStyle(.secondary)
-                .opacity(isInWindow ? 1 : RowMetrics.outOfWindowTextOpacity)
-                .lineLimit(1)
-                .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
+            DateStampView(date: file.timestamp, isCompact: isCompact, isDimmed: !isInWindow)
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)

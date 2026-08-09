@@ -950,6 +950,40 @@ do {
            "Abschnitt: TimeBucket.group liefert ausschliesslich Zeitabschnitte")
 }
 
+// MARK: - Zeitstempel: genau zwei Formen, sonst keine
+do {
+    // Fester Bezugstag, damit „Heute"/„Gestern" nicht von der Systemuhr abhaengen.
+    let jetzt = date(2026, 8, 3, 12)          // Montag
+    func lang(_ d: Date) -> String { DateFormatting.dateTime(d, calendar: calendar, now: jetzt) }
+    func kurz(_ d: Date) -> String { DateFormatting.dateTimeCompact(d, calendar: calendar, now: jetzt) }
+
+    // Die beiden gewollten Ausnahmen – in beiden Layouts gleich.
+    expectEqual(lang(date(2026, 8, 3, 22)), "Heute, 22:00", "Zeitstempel: heute")
+    expectEqual(kurz(date(2026, 8, 3, 22)), "Heute, 22:00", "Zeitstempel: heute kompakt")
+    expectEqual(lang(date(2026, 8, 2, 14)), "Gestern, 14:00", "Zeitstempel: gestern")
+    expectEqual(kurz(date(2026, 8, 2, 14)), "Gestern, 14:00", "Zeitstempel: gestern kompakt")
+
+    // ⚠️ Der eigentliche Punkt: Alles Aeltere traegt IMMER das Jahr – auch im
+    // laufenden Jahr. Frueher entfiel es dort, wodurch in einer Liste, die
+    // ueber den Jahreswechsel reicht, zwei verschiedene Formen untereinander
+    // standen.
+    expectEqual(lang(date(2026, 8, 1, 9)), "Sa., 01.08.2026 09:00",
+                "Zeitstempel: laufendes Jahr traegt das Jahr")
+    expectEqual(lang(date(2024, 12, 12, 9)), "Do., 12.12.2024 09:00",
+                "Zeitstempel: Vorjahr in derselben Form")
+    expectEqual(kurz(date(2026, 8, 1, 9)), "Sa. 01.08.26 09:00",
+                "Zeitstempel kompakt: laufendes Jahr traegt das Jahr")
+    expectEqual(kurz(date(2024, 12, 12, 9)), "Do. 12.12.24 09:00",
+                "Zeitstempel kompakt: Vorjahr in derselben Form")
+
+    // Gleiche Laenge = senkrecht ueberfliegbare Spalte. Das ist der Grund fuer
+    // die Vereinheitlichung, also wird es geprueft und nicht nur behauptet.
+    expectEqual(lang(date(2026, 8, 1, 9)).count, lang(date(2024, 12, 12, 9)).count,
+                "Zeitstempel: alle Nicht-Ausnahmen sind gleich lang")
+    expectEqual(kurz(date(2026, 8, 1, 9)).count, kurz(date(2024, 12, 12, 9)).count,
+                "Zeitstempel kompakt: alle Nicht-Ausnahmen sind gleich lang")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

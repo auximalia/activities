@@ -105,9 +105,17 @@ enum RowMetrics {
 
     /// Feste Breite der Datumsspalte. Verhindert, dass der Zeitstempel bei
     /// breitem Fenster weit vom Namen abrueckt (Gesetz der Naehe).
-    static let dateColumnWidth: CGFloat = 150
+    ///
+    /// **⚠️ Aus der laengsten Angabe gemessen, nicht geschaetzt.** In
+    /// monospaced Callout (12 pt) misst „Mi., 05.08.2025 14:32" **155,8 pt**;
+    /// mit 2 pt Luft ergibt das 158. Die frueheren 150 pt stammten aus der
+    /// Zeit, als das Jahr im laufenden Jahr entfiel (126,1 pt) – seit der
+    /// Vereinheitlichung haette die Spalte abgeschnitten.
+    static let dateColumnWidth: CGFloat = 158
     /// Schmalere Datumsspalte im Kompakt-Layout.
-    static let dateColumnWidthCompact: CGFloat = 124
+    ///
+    /// Ebenso gemessen: „Mi. 05.08.25 14:32" misst 133,5 pt, plus 2 pt Luft.
+    static let dateColumnWidthCompact: CGFloat = 136
 
     /// Ab welcher Fensterbreite auf das Kompakt-Layout umgeschaltet wird.
     ///

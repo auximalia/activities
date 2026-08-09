@@ -55,40 +55,7 @@ struct RootView: View {
         .navigationTitle("activities")
         .task { model.startInitialScanIfNeeded() }
         .task { await updates.check() }
-        // Ein Programm, das sich nicht starten laesst, muss **dastehen**. Der
-        // stille Rueckfall auf den Finder waere schlimmer als gar nichts: Der
-        // Anwender haelt den Handgriff fuer erledigt und sucht das Fenster im
-        // falschen Programm.
-        .alert(
-            "Öffnen nicht möglich",
-            isPresented: Binding(
-                get: { model.actionError != nil },
-                set: { if !$0 { model.actionError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { model.actionError = nil }
-        } message: {
-            Text(model.actionError ?? "")
-        }
-        .alert(
-            updates.manualResult?.title ?? "",
-            isPresented: Binding(
-                get: { updates.manualResult != nil },
-                set: { if !$0 { updates.manualResult = nil } }
-            )
-        ) {
-            if updates.manualResult?.offersInstall == true {
-                Button("Jetzt installieren") {
-                    updates.manualResult = nil
-                    updates.installUpdate()
-                }
-                Button("Später", role: .cancel) { updates.manualResult = nil }
-            } else {
-                Button("OK", role: .cancel) { updates.manualResult = nil }
-            }
-        } message: {
-            Text(updates.manualResult?.message ?? "")
-        }
+        .modifier(DialogsModifier(model: model, updates: updates))
     }
 
 
@@ -179,6 +146,114 @@ struct RootView: View {
             emptyState
         } else {
             ReportView(model: model)
+        }
+    }
+}
+
+/// Alle Meldungen und Rueckfragen des Hauptfensters an einer Stelle.
+///
+/// **⚠️ Ausgelagert, weil der Typechecker aufgab.** Mit der dritten
+/// Einblendung im `body` von ``RootView`` brach die Uebersetzung mit „unable to
+/// type-check this expression in reasonable time" ab. Das ist kein Zufall und
+/// kein Grund, an den Dialogen zu sparen: SwiftUI baut aus jedem angehaengten
+/// Modifier einen weiteren verschachtelten Typ, und die Kosten steigen nicht
+/// linear. Ein eigener `ViewModifier` schneidet den Baum an einer definierten
+/// Stelle durch.
+///
+/// Der Nebeneffekt ist der eigentliche Gewinn: Wer wissen will, was diese App
+/// den Anwender fragt, findet es hier vollstaendig – statt am Ende eines
+/// 60-Zeilen-Modifier-Stapels.
+private struct DialogsModifier: ViewModifier {
+    @Bindable var model: ReportViewModel
+    var updates: UpdateChecker
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(ActionErrorAlert(model: model))
+            .modifier(UpdateAlert(updates: updates))
+            .modifier(BulkActionConfirmation(model: model))
+    }
+}
+
+/// Meldung: Ein Handgriff ist fehlgeschlagen.
+///
+/// Ein Programm, das sich nicht starten laesst, muss **dastehen**. Der stille
+/// Rueckfall auf den Finder waere schlimmer als gar nichts: Der Anwender haelt
+/// den Handgriff fuer erledigt und sucht das Fenster im falschen Programm.
+private struct ActionErrorAlert: ViewModifier {
+    @Bindable var model: ReportViewModel
+
+    func body(content: Content) -> some View {
+        content.alert(
+            "Öffnen nicht möglich",
+            isPresented: Binding(
+                get: { model.actionError != nil },
+                set: { if !$0 { model.actionError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { model.actionError = nil }
+        } message: {
+            Text(model.actionError ?? "")
+        }
+    }
+}
+
+/// Ergebnis der **manuell** ausgeloesten Update-Suche.
+private struct UpdateAlert: ViewModifier {
+    var updates: UpdateChecker
+
+    func body(content: Content) -> some View {
+        content.alert(
+            updates.manualResult?.title ?? "",
+            isPresented: Binding(
+                get: { updates.manualResult != nil },
+                set: { if !$0 { updates.manualResult = nil } }
+            )
+        ) {
+            if updates.manualResult?.offersInstall == true {
+                Button("Jetzt installieren") {
+                    updates.manualResult = nil
+                    updates.installUpdate()
+                }
+                Button("Später", role: .cancel) { updates.manualResult = nil }
+            } else {
+                Button("OK", role: .cancel) { updates.manualResult = nil }
+            }
+        } message: {
+            Text(updates.manualResult?.message ?? "")
+        }
+    }
+}
+
+/// **Die erste Rueckfrage der App** (PR-26).
+///
+/// Bis hierher gab es nur Meldungen – Dinge, die bereits geschehen sind. Diese
+/// hier haelt etwas an, das sonst unwiderruflich losliefe: ⌘A ueber einen
+/// grossen Baum plus Enter startete zuvor ein Programm **je Datei**, ohne
+/// Obergrenze.
+///
+/// **⚠️ `confirmationDialog` statt `alert`.** Eine Rueckfrage ist keine
+/// Meldung, und der Unterschied ist nicht kosmetisch: Der Dialog stellt
+/// **Abbrechen** von sich aus als Fluchtweg bereit (Esc), und genau das soll
+/// hier die Vorgabe sein. Ein `alert` mit zwei Knoepfen haette dieselbe Optik,
+/// aber nicht dieselbe Zusage.
+private struct BulkActionConfirmation: ViewModifier {
+    @Bindable var model: ReportViewModel
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            model.pendingBulkAction?.question ?? "",
+            isPresented: Binding(
+                get: { model.pendingBulkAction != nil },
+                set: { if !$0 { model.cancelPendingBulkAction() } }
+            ),
+            titleVisibility: .visible,
+            presenting: model.pendingBulkAction
+        ) { action in
+            Button(action.confirmLabel) { model.confirmPendingBulkAction() }
+            Button("Abbrechen", role: .cancel) { model.cancelPendingBulkAction() }
+        } message: { action in
+            Text(action.explanation)
         }
     }
 }

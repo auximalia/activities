@@ -149,16 +149,16 @@ struct FileRowView: View {
             // Aktionen wirken auf die gesamte Auswahl, wenn diese Zeile dazugehoert.
             let targets = model.actionTargets(for: file.url)
             let suffix = targets.count > 1 ? " (\(targets.count))" : ""
-            Button("Öffnen" + suffix) { targets.forEach { FinderService.open($0) } }
-            Button("Im Finder anzeigen" + suffix) { targets.forEach { FinderService.reveal($0) } }
+            Button("Öffnen" + suffix) { model.requestOpen(targets) }
+            Button("Im Finder anzeigen" + suffix) { model.requestReveal(targets) }
             if let editor = model.editorApp {
-                Button("In \(editor.name) öffnen" + suffix) { model.openInEditor(targets) }
+                Button("In \(editor.name) öffnen" + suffix) { model.requestOpenInEditor(targets) }
                     .keyboardShortcut("e", modifiers: [.command, .shift])
             }
             if let terminal = model.terminalApp {
                 // Ohne Anzahl: Das Terminal oeffnet den **Ordner** der Auswahl,
                 // nicht die Dateien – eine Zahl daneben waere eine falsche Zusage.
-                Button("Ordner in \(terminal.name) öffnen") { model.openInTerminal(targets) }
+                Button("Ordner in \(terminal.name) öffnen") { model.requestOpenInTerminal(targets) }
                     .keyboardShortcut("t", modifiers: [.command, .shift])
             }
             Button((targets.count > 1 ? "Pfade kopieren" : "Pfad kopieren") + suffix) {

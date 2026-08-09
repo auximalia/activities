@@ -984,6 +984,111 @@ do {
                 "Zeitstempel kompakt: alle Nicht-Ausnahmen sind gleich lang")
 }
 
+// MARK: - Massenoeffnen: die Bremse (PR-26)
+do {
+    // Die Schwelle ist eine OBERgrenze fuer das stille Ausfuehren.
+    expect(!BulkAction.needsConfirmation(count: 1), "Bremse: eine Datei laeuft still durch")
+    expect(!BulkAction.needsConfirmation(count: BulkAction.confirmationThreshold),
+           "Bremse: genau an der Schwelle wird noch nicht gefragt")
+    expect(BulkAction.needsConfirmation(count: BulkAction.confirmationThreshold + 1),
+           "Bremse: ein Objekt ueber der Schwelle fragt")
+
+    // ⚠️ Der Alltagsfall darf NICHT fragen. Gemessen an ~/Documents ueber 30
+    // Tage: 3 Ordner, 3 Dateien. Eine Rueckfrage, die dort auftaucht, wird zur
+    // Gewohnheit und damit wirkungslos – das ist der Grund fuer die Schwelle,
+    // also wird er geprueft und nicht nur aufgeschrieben.
+    expect(!BulkAction.needsConfirmation(count: 3), "Bremse: der gemessene Alltagsfall bleibt still")
+
+    // Der Fall, um den es geht: ⌘A ueber einen grossen Baum (gemessen ~83.000).
+    expect(BulkAction.needsConfirmation(count: 83_000), "Bremse: der ganze Bestand fragt")
+
+    // Leere Menge: fragt nicht (der Aufrufer bricht ohnehin vorher ab).
+    expect(!BulkAction.needsConfirmation(count: 0), "Bremse: nichts zu tun, nichts zu fragen")
+
+    // Die Anzahl ist der ganze Zweck der Rueckfrage – sie MUSS im Text stehen.
+    for kind in [BulkAction.Kind.open, .reveal, .openInApp("Cursor")] {
+        expect(BulkAction.question(kind: kind, count: 47).contains("47"),
+               "Bremse: die Frage nennt die Anzahl (\(kind))")
+        expect(BulkAction.explanation(kind: kind, count: 47).contains("47"),
+               "Bremse: die Erlaeuterung nennt die Anzahl (\(kind))")
+    }
+
+    // Einzahl/Mehrzahl – „1 Objekte oeffnen?" waere schlampig.
+    expectEqual(BulkAction.question(kind: .open, count: 1), "1 Objekt öffnen?", "Bremse: Einzahl")
+    expectEqual(BulkAction.question(kind: .open, count: 2), "2 Objekte öffnen?", "Bremse: Mehrzahl")
+
+    // Der Programmname gehoert in Frage UND Knopf – „OK" allein sagt nicht,
+    // was gleich geschieht.
+    expect(BulkAction.question(kind: .openInApp("Cursor"), count: 12).contains("Cursor"),
+           "Bremse: die Frage nennt das Programm")
+    expect(BulkAction.confirmLabel(kind: .openInApp("Cursor")).contains("Cursor"),
+           "Bremse: der Knopf nennt das Programm")
+    expectEqual(BulkAction.confirmLabel(kind: .open), "Öffnen", "Bremse: Knopf benennt die Handlung")
+    expectEqual(BulkAction.confirmLabel(kind: .reveal), "Anzeigen", "Bremse: Knopf benennt die Handlung")
+}
+
+// MARK: - Arbeit fortsetzen: Gruppierung nach Kalendertag (PR-11)
+do {
+    let ordner = URL(fileURLWithPath: "/r/a")
+    func datei(_ name: String, _ y: Int, _ m: Int, _ d: Int, _ h: Int) -> RelevantFile {
+        RelevantFile(url: ordner.appendingPathComponent(name), folder: ordner, timestamp: date(y, m, d, h))
+    }
+    let jetzt = date(2026, 8, 3, 12)   // Montag
+
+    // Drei Tage, absichtlich in gemischter Reihenfolge hereingegeben.
+    let dateien = [
+        datei("b.txt", 2026, 8, 1, 9),
+        datei("a.txt", 2026, 8, 3, 22),
+        datei("c.txt", 2026, 8, 2, 14),
+        datei("d.txt", 2026, 8, 3, 8),
+        datei("e.txt", 2026, 8, 1, 17)
+    ]
+    let tage = WorkDays.group(dateien, calendar: calendar)
+    expectEqual(tage.count, 3, "Arbeitstage: drei Kalendertage")
+
+    // ⚠️ Juengster Tag zuerst – und zwar nach dem TAG sortiert, nicht in der
+    // Reihenfolge der Vorlage. Die Dateiliste folgt der eingestellten
+    // Sortierung (Name, Typ); danach stuenden die Tage sonst willkuerlich.
+    expectEqual(tage.map(\.count), [2, 1, 2], "Arbeitstage: absteigend nach Datum, mit Anzahl")
+    expect(tage[0].day > tage[1].day && tage[1].day > tage[2].day,
+           "Arbeitstage: streng absteigend sortiert")
+
+    // Der ganze Tag gehoert zusammen – 8 Uhr und 22 Uhr sind derselbe Tag.
+    expectEqual(tage[0].files.count, 2, "Arbeitstage: frueh und spaet am selben Tag zaehlen zusammen")
+    expect(tage[0].files.contains(ordner.appendingPathComponent("a.txt")),
+           "Arbeitstage: spaete Datei im Tag")
+    expect(tage[0].files.contains(ordner.appendingPathComponent("d.txt")),
+           "Arbeitstage: fruehe Datei im selben Tag")
+
+    // Beschriftung folgt derselben Regel wie die Zeitstempel (PR-32):
+    // genau zwei Ausnahmen, sonst immer dieselbe Form mit Jahr.
+    expectEqual(WorkDays.menuLabel(for: tage[0], calendar: calendar, now: jetzt), "Heute (2)",
+                "Arbeitstage: Heute mit Anzahl")
+    expectEqual(WorkDays.menuLabel(for: tage[1], calendar: calendar, now: jetzt), "Gestern (1)",
+                "Arbeitstage: Gestern mit Anzahl")
+    expectEqual(WorkDays.menuLabel(for: tage[2], calendar: calendar, now: jetzt), "Sa., 01.08.2026 (2)",
+                "Arbeitstage: aelterer Tag in der Regelform")
+
+    // Einzahl/Mehrzahl beim Einzeltag-Befehl.
+    expectEqual(WorkDays.singleDayLabel(for: WorkDay(day: date(2026, 8, 3), files: [ordner])),
+                "Arbeit fortsetzen (1 Datei)", "Arbeitstage: Einzahl")
+    expectEqual(WorkDays.singleDayLabel(for: tage[0]),
+                "Arbeit fortsetzen (2 Dateien)", "Arbeitstage: Mehrzahl")
+
+    // Obergrenze: ein Ordner mit vielen Tagen fuellt kein endloses Menue.
+    let viele = (1...30).map { datei("f\($0).txt", 2026, 7, $0, 10) }
+    expectEqual(WorkDays.group(viele, calendar: calendar).count, WorkDays.maxDays,
+                "Arbeitstage: auf maxDays gedeckelt")
+    expect(WorkDays.group(viele, calendar: calendar).first!.day
+           > WorkDays.group(viele, calendar: calendar).last!.day,
+           "Arbeitstage: gedeckelt wird am ALTEN Ende, die juengsten bleiben")
+
+    // Randfaelle.
+    expect(WorkDays.group([], calendar: calendar).isEmpty, "Arbeitstage: keine Dateien, keine Tage")
+    expect(WorkDays.group(dateien, calendar: calendar, limit: 0).isEmpty,
+           "Arbeitstage: Grenze 0 liefert nichts")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

@@ -94,6 +94,16 @@ public enum DateFormatting {
         return nil
     }
 
+    /// Ein **Tag** ohne Uhrzeit – „Heute" · „Gestern" · „Mi., 05.08.2025".
+    ///
+    /// Dieselben zwei Formen wie bei ``dateTime(_:calendar:now:)``, nur ohne
+    /// Zeitanteil: Wo ein ganzer Kalendertag gemeint ist (PR-11), waere eine
+    /// Uhrzeit eine falsche Genauigkeit.
+    public static func dayLabel(_ date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
+        if let relative = relativeDayLabel(date, calendar: calendar, now: now) { return relative }
+        return weekdayDate(date, calendar: calendar)
+    }
+
     private static let shortYearFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "de_DE")

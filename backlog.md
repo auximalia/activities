@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.25 · 2026-08-09*
+*Stand: v1.19.26 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -791,7 +791,7 @@ Ordnerwechsel. **Falsch** – `pruneSelection()` (`ReportViewModel.swift:675`) s
 Auswahl bei jedem Neuaufbau auf die sichtbaren Dateien zurück. *Lehre erneut bestätigt:
 Vermutung am Code prüfen, bevor sie als Mangel ins Backlog wandert (Konsistenz-Punkt 7).*
 
-### PR-26 · Massenöffnen begrenzen *(neu, aufgenommen bei der Planung von Sprint 9)*
+### PR-26 · Massenöffnen begrenzen *(erledigt, v1.19.26)*
 **Aufwand:** ~~S~~ **M** *(korrigiert bei der Durchsicht für Sprint 10)* · **Nutzen:** hoch · **Vorbedingung für:** PR-11
 
 ⌘A (`selectAllVisibleFiles()`) plus Enter (`openSelection()`) startet **für jede sichtbare Datei
@@ -834,7 +834,41 @@ nächstgelegene Vorlage für einen zweiknöpfigen Dialog im Haus.
 eine Rückfrage mit der genauen Anzahl; Abbrechen öffnet nichts. Gilt für **alle** Wege (Enter,
 Kontextmenü „Öffnen (n)", „Im Finder anzeigen (n)", Editor/Terminal, PR-11).
 
-### PR-11 · „Arbeit fortsetzen"
+**Umgesetzt:**
+- **`BulkAction` in `ActivitiesCore`** trägt Schwelle, Entscheidung und Wortlaut – reine
+  Funktionen, in `CoreChecks` und XCTest geprüft. Die Oberfläche bekommt nur noch fertige Sätze.
+- **`ReportViewModel.run(_:)` ist die eine Stelle.** Alle fünf Wege laufen über
+  `requestOpen` / `requestReveal` / `requestOpenInEditor` / `requestOpenInTerminal`; keiner
+  öffnet mehr selbst. Der `forEach` beim Aufrufer ist verschwunden.
+- **`FinderService` hat jetzt eine Mengen-Ebene** (`open(_ urls:)`, `reveal(_ urls:)`). Erst
+  dadurch ist „viele auf einmal" ein Begriff, über den sich eine Regel legen lässt.
+- **`confirmationDialog`, nicht `alert`** – die erste Rückfrage der App. Abbrechen ist der
+  Fluchtweg, den der Dialog von sich aus mitbringt.
+
+**Die Schwelle steht bei 10 – gesetzt, nicht gemessen, und das soll man ihr ansehen.** Es gibt
+keinen Wert, ab dem Öffnen „objektiv" zu viel wird. Die Zahl trennt zwei *Absichten*: Bis etwa
+zehn Dateien hat man jede angeklickt und weiß, was man tut; darüber stammt die Menge fast immer
+aus einem Befehl (⌘A). **⚠️ Der Grund, nicht tiefer zu gehen:** Eine Rückfrage, die im Alltag
+auftaucht, wird weggeklickt, ohne gelesen zu werden – und ist dann keine mehr. Der gemessene
+Alltagsfall (3 Dateien) hat deshalb eine eigene Prüfung, die sicherstellt, dass er **still**
+bleibt.
+
+**⚠️ Entdoppelt wird vor der Schwellenprüfung.** Das Terminal öffnet Ordner, nicht Dateien.
+Ohne diese Reihenfolge hätte die App bei fünfzig Dateien eines Ordners nachgefragt – und
+danach ein einziges Fenster geöffnet. Eine Rückfrage, die eine falsche Zahl nennt, ist
+schlimmer als keine: Beim nächsten Mal glaubt man ihr nicht mehr.
+
+**Zwei Funde nebenbei:**
+- **„Im Finder anzeigen (n)" öffnete N Finder-Fenster.** `activateFileViewerSelecting` nimmt
+  ein Array und zeigt Objekte desselben Ordners in *einem* Fenster – aufgerufen wurde es je
+  Objekt einzeln. Mit der Mengen-Ebene ist das erledigt, ohne dass es jemand suchen musste.
+- **Der Typechecker gab auf.** Mit der dritten Einblendung im `body` von `RootView` brach die
+  Übersetzung mit „unable to type-check this expression in reasonable time" ab. Die Dialoge
+  liegen jetzt in eigenen `ViewModifier`n (`DialogsModifier`). Der Nebeneffekt ist der
+  eigentliche Gewinn: Wer wissen will, was die App den Anwender fragt, findet es an *einer*
+  Stelle statt am Ende eines 60-Zeilen-Stapels.
+
+### PR-11 · „Arbeit fortsetzen" *(erledigt, v1.19.26)*
 **Aufwand:** M · **Nutzen:** hoch · **braucht:** PR-26
 Ein Befehl öffnet alle Dateien, die an einem Tag in einem Ordner bearbeitet wurden – der
 Zustand von gestern ist in Sekunden wieder da. **Das ist der eigentliche Zweck der App,
@@ -893,6 +927,37 @@ schließlich der Schalter „zeig mir auch das andere" –, muss aber entschiede
 der Befehl öffnet genau die Dateien dieses Kalendertags in diesem Ordner; die Auswahl der
 Dateimenge folgt denselben Filtern wie die Liste (Typ, Name, Rauschfilter); ab der Schwelle
 aus PR-26 wird zurückgefragt; die Tagesgruppierung ist in `CoreChecks` geprüft.
+
+**Umgesetzt:**
+- **`WorkDays` in `ActivitiesCore`** gruppiert nach `calendar.startOfDay` und liefert je Tag
+  Datum, Anzahl und URLs. In `CoreChecks` und XCTest geprüft.
+- **Der Eintrag steht ganz oben** in `FolderContextMenu` – und damit automatisch in **beiden**
+  Ansichten. Dass es dort nur *ein* Menü gibt, war die günstigste Vorbedingung dieses Sprints;
+  ohne sie wären es zwei Fassungen gewesen, die auseinanderlaufen.
+- Bei genau einem Tag entfällt das Untermenü: „Arbeit fortsetzen (4 Dateien)". Ein Untermenü
+  mit einem einzigen Eintrag ist ein Klick, der nichts entscheidet.
+
+**⚠️ Sortiert wird nach dem Tag, nicht nach der Reihenfolge der Vorlage.** Die Dateiliste kommt
+meist nach Datum absteigend herein – aber sie folgt der eingestellten Sortierung. Bei „nach
+Name" hätte das Untermenü die Tage in einer Reihenfolge angeboten, die niemand erklären kann.
+Eigene Prüfung dagegen, mit absichtlich gemischter Eingabe.
+
+**⚠️ Obergrenze von 8 Tagen.** Ein Ordner kann im „Alle"-Modus Dateien aus hunderten von Tagen
+enthalten; ein Menü mit 200 Einträgen ist kein Menü, sondern eine Liste. Und der Zweck ist,
+*dort weiterzumachen, wo man aufgehört hat* – was drei Monate zurückliegt, setzt niemand fort.
+Gedeckelt wird am **alten** Ende; eine Prüfung sichert, dass die jüngsten Tage bleiben.
+
+**Entschiedene Entwurfsfrage (aus der Durchsicht):** „Dieselben Filter wie die Liste" heißt
+`visibleFiles(in:)` – also Typ- und Namensfilter immer, das Zeitfenster nur, solange
+„Dateien außerhalb des Zeitraums zeigen" aus ist. Bei eingeschaltetem Schalter bietet das Menü
+folglich auch Tage außerhalb des Zeitraums an. Das ist richtig – der Schalter heißt „zeig mir
+auch das andere" –, es ist nur nichts, worüber man stolpern sollte; deshalb steht es im
+Doc-Kommentar von `workDays(in:)`.
+
+**Nicht gebraucht:** `FolderAggregator.countFilesPerDay` (der tote Code aus der Durchsicht)
+gruppiert zwar korrekt nach Kalendertag, liefert aber nur **Zahlen**, keine URLs – und genau
+die braucht der Befehl. Bewusst nicht aufgegriffen und auch nicht gelöscht: Das ist eine eigene
+Entscheidung, keine Beifuhr dieses Sprints.
 
 ### PR-12 · Ordner in einem Programm eigener Wahl öffnen · **erledigt (v1.19.7)**
 **Aufwand:** M · **Nutzen:** mittel
@@ -1661,12 +1726,12 @@ oder bei einem Fehler der GitHub-API passiert sichtbar nichts; der Takt überleb
 
 ---
 
-## Sprint 10 – „Die richtigen Dateien, sicher geöffnet" *(Zuschnitt nach Code-Durchsicht, Stand v1.19.25)*
+## Sprint 10 – „Die richtigen Dateien, sicher geöffnet" *(erledigt, v1.19.26)*
 
 | AP | Eintrag | Aufwand | |
 |---|---|---|---|
-| **AP1** | PR-26 · Massenöffnen begrenzen | M | zwingend vor AP2 |
-| **AP2** | PR-11 · „Arbeit fortsetzen" | M | der Zweck der App, zu Ende gedacht |
+| **AP1** | PR-26 · Massenöffnen begrenzen | M | ✅ zwingend vor AP2 |
+| **AP2** | PR-11 · „Arbeit fortsetzen" | M | ✅ der Zweck der App, zu Ende gedacht |
 
 **Der erste Zuschnitt hatte vier Punkte. Die Durchsicht hat drei Annahmen widerlegt** – und
 damit den Sprint auf zwei gekürzt. Das ist kein Rückzug, sondern die Korrektur einer

@@ -138,16 +138,17 @@ struct FolderContextMenu: View {
     @Bindable var model: ReportViewModel
 
     var body: some View {
+        resumeWork
         Button("Im Finder öffnen") { FinderService.open(folder) }
         Button("Im Finder anzeigen") { FinderService.reveal(folder) }
         // Eintraege erscheinen nur, wenn das Programm wirklich da ist –
         // ein Menuepunkt, der nichts tun kann, ist schlimmer als keiner.
         if let editor = model.editorApp {
-            Button("In \(editor.name) öffnen") { model.openInEditor([folder]) }
+            Button("In \(editor.name) öffnen") { model.requestOpenInEditor([folder]) }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
         }
         if let terminal = model.terminalApp {
-            Button("In \(terminal.name) öffnen") { model.openInTerminal([folder]) }
+            Button("In \(terminal.name) öffnen") { model.requestOpenInTerminal([folder]) }
                 .keyboardShortcut("t", modifiers: [.command, .shift])
         }
         Button("Pfad kopieren") { ClipboardService.copy(folder.path) }
@@ -156,5 +157,34 @@ struct FolderContextMenu: View {
             model.togglePinned(folder)
         }
         Button("Diesen Ordner nicht mehr zeigen") { model.hideFolder(folder) }
+    }
+
+    /// „Arbeit fortsetzen" – oeffnet alle Dateien **eines Kalendertags**.
+    ///
+    /// **Der Zweck der App, zu Ende gedacht** (PR-11). Die App zeigt, wo
+    /// gearbeitet wurde; dieser Befehl stellt den Zustand wieder her, statt ihn
+    /// nur zu benennen. Er steht deshalb **ganz oben** im Menue.
+    ///
+    /// **⚠️ Bei genau einem Tag entfaellt das Untermenue.** Ein Untermenue mit
+    /// einem einzigen Eintrag ist ein Klick, der nichts entscheidet.
+    ///
+    /// Die Anzahl steht in jedem Fall vorab da – ohne sie waere der Befehl eine
+    /// Wundertuete, und man erfuehre erst nach dem Klick, ob drei oder sechzig
+    /// Programme starten. Ab der Schwelle aus PR-26 fragt ``requestOpen``
+    /// zusaetzlich zurueck.
+    @ViewBuilder
+    private var resumeWork: some View {
+        let days = model.workDays(in: folder)
+        if days.count == 1, let day = days.first {
+            Button(WorkDays.singleDayLabel(for: day)) { model.requestOpen(day.files) }
+            Divider()
+        } else if days.count > 1 {
+            Menu("Arbeit fortsetzen") {
+                ForEach(days) { day in
+                    Button(model.workDayLabel(day)) { model.requestOpen(day.files) }
+                }
+            }
+            Divider()
+        }
     }
 }

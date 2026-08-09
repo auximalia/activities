@@ -147,12 +147,12 @@ struct ActivitiesApp: App {
                 // Platz erscheint der Befehl gar nicht – ein Menuepunkt „In
                 // (nichts) oeffnen" waere Ratlosigkeit in Menueform.
                 if let editor = model.editorApp {
-                    Button("In \(editor.name) öffnen") { model.openInEditor(model.commandTargets) }
+                    Button("In \(editor.name) öffnen") { model.requestOpenInEditor(model.commandTargets) }
                         .keyboardShortcut("e", modifiers: [.command, .shift])
                         .disabled(model.commandTargets.isEmpty)
                 }
                 if let terminal = model.terminalApp {
-                    Button("In \(terminal.name) öffnen") { model.openInTerminal(model.commandTargets) }
+                    Button("In \(terminal.name) öffnen") { model.requestOpenInTerminal(model.commandTargets) }
                         .keyboardShortcut("t", modifiers: [.command, .shift])
                         .disabled(model.commandTargets.isEmpty)
                 }

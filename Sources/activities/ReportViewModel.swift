@@ -383,12 +383,41 @@ final class ReportViewModel {
 
     // MARK: - In anderem Programm oeffnen
 
+    /// Ein Handgriff auf mehrere Objekte, der auf Bestaetigung wartet.
+    ///
+    /// Traegt alles, was der Dialog braucht **und** was zum Ausfuehren noetig
+    /// ist. Das Programm steht getrennt neben ``kind``, weil ``kind`` nur den
+    /// Namen fuer den Text kennt – „In Cursor oeffnen" sagt nichts darueber,
+    /// welches Bundle gestartet wird.
+    struct PendingBulkAction: Identifiable {
+        let id = UUID()
+        let kind: BulkAction.Kind
+        let urls: [URL]
+        /// Zielprogramm bei ``BulkAction/Kind/openInApp(_:)``, sonst ``nil``.
+        var app: ExternalApp?
+
+        var question: String { BulkAction.question(kind: kind, count: urls.count) }
+        var explanation: String { BulkAction.explanation(kind: kind, count: urls.count) }
+        var confirmLabel: String { BulkAction.confirmLabel(kind: kind) }
+    }
+
+    /// Wartet ein Handgriff auf Bestaetigung? (steuert die Rueckfrage)
+    var pendingBulkAction: PendingBulkAction?
+
+    /// Oeffnet Objekte mit ihrem jeweiligen Standardprogramm.
+    func requestOpen(_ urls: [URL]) {
+        run(PendingBulkAction(kind: .open, urls: urls))
+    }
+
+    /// Zeigt Objekte im Finder an.
+    func requestReveal(_ urls: [URL]) {
+        run(PendingBulkAction(kind: .reveal, urls: urls))
+    }
+
     /// Oeffnet Objekte im Editor.
-    func openInEditor(_ urls: [URL]) {
-        guard let editorApp, !urls.isEmpty else { return }
-        ExternalAppService.open(urls, with: editorApp) { [weak self] message in
-            self?.actionError = message
-        }
+    func requestOpenInEditor(_ urls: [URL]) {
+        guard let editorApp else { return }
+        run(PendingBulkAction(kind: .openInApp(editorApp.name), urls: urls, app: editorApp))
     }
 
     /// Oeffnet die zugehoerigen **Ordner** im Terminal.
@@ -397,16 +426,64 @@ final class ReportViewModel {
     /// Terminal arbeitet an einem Ort, nicht an einem Dokument. Deshalb wird bei
     /// Dateien der enthaltende Ordner genommen und die Menge entdoppelt: Fuenf
     /// markierte Dateien desselben Ordners sollen **ein** Fenster oeffnen.
-    func openInTerminal(_ urls: [URL]) {
+    ///
+    /// **⚠️ Entdoppelt wird vor der Schwellenpruefung.** Sonst fragte die App
+    /// bei fuenfzig Dateien eines einzigen Ordners nach – und oeffnete danach
+    /// ein einziges Fenster. Eine Rueckfrage, die eine falsche Zahl nennt, ist
+    /// schlimmer als keine: Beim naechsten Mal glaubt man ihr nicht mehr.
+    func requestOpenInTerminal(_ urls: [URL]) {
         guard let terminalApp else { return }
+        run(PendingBulkAction(
+            kind: .openInApp(terminalApp.name),
+            urls: enclosingFolders(of: urls),
+            app: terminalApp
+        ))
+    }
+
+    /// Die enthaltenden Ordner einer Menge, entdoppelt und in Reihenfolge.
+    private func enclosingFolders(of urls: [URL]) -> [URL] {
         var folders: [URL] = []
         for url in urls {
             let folder = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
             if !folders.contains(folder) { folders.append(folder) }
         }
-        guard !folders.isEmpty else { return }
-        ExternalAppService.open(folders, with: terminalApp) { [weak self] message in
-            self?.actionError = message
+        return folders
+    }
+
+    /// **Der einzige Weg**, auf dem in dieser App mehrere Objekte losgelassen
+    /// werden – und damit die eine Stelle, an der die Bremse sitzt.
+    private func run(_ action: PendingBulkAction) {
+        guard !action.urls.isEmpty else { return }
+        if BulkAction.needsConfirmation(count: action.urls.count) {
+            pendingBulkAction = action
+        } else {
+            perform(action)
+        }
+    }
+
+    /// Fuehrt den zurueckgestellten Handgriff aus.
+    func confirmPendingBulkAction() {
+        guard let action = pendingBulkAction else { return }
+        pendingBulkAction = nil
+        perform(action)
+    }
+
+    /// Verwirft den zurueckgestellten Handgriff.
+    func cancelPendingBulkAction() {
+        pendingBulkAction = nil
+    }
+
+    private func perform(_ action: PendingBulkAction) {
+        switch action.kind {
+        case .open:
+            FinderService.open(action.urls)
+        case .reveal:
+            FinderService.reveal(action.urls)
+        case .openInApp:
+            guard let app = action.app else { return }
+            ExternalAppService.open(action.urls, with: app) { [weak self] message in
+                self?.actionError = message
+            }
         }
     }
 
@@ -1137,10 +1214,33 @@ final class ReportViewModel {
             ClipboardService.copy(url.path)
         case .file(let url):
             // Enter oeffnet die gesamte Auswahl, wenn die Cursorzeile dazugehoert.
-            actionTargets(for: url).forEach { FinderService.open($0) }
+            // ⚠️ Ueber ``requestOpen``, nicht direkt: Das ist der Weg, auf dem
+            // ⌘A + Enter den gesamten Bestand loslassen konnte.
+            requestOpen(actionTargets(for: url))
         case nil:
             break
         }
+    }
+
+    /// Die Arbeitstage eines Ordners – Grundlage von „Arbeit fortsetzen" (PR-11).
+    ///
+    /// **⚠️ Speist sich aus ``visibleFiles(in:)``, nicht aus ``filesByFolder``.**
+    /// Der Befehl soll oeffnen, was in der Liste steht – nicht, was zufaellig
+    /// im Speicher liegt. Typ-Filter, Namensfilter und (je nach Schalter) das
+    /// Zeitfenster gelten also genauso wie fuer die Anzeige.
+    ///
+    /// **Folge, die man kennen muss:** Steht „Dateien ausserhalb des Zeitraums
+    /// zeigen" auf ein, bietet das Menue auch Tage ausserhalb des gewaehlten
+    /// Zeitraums an. Das ist richtig so – der Schalter heisst „zeig mir auch
+    /// das andere" –, es ist nur nichts, worueber man stolpern sollte.
+    func workDays(in folder: URL) -> [WorkDay] {
+        guard let files = visibleFiles(in: folder) else { return [] }
+        return WorkDays.group(files)
+    }
+
+    /// Menuebeschriftung eines Arbeitstags.
+    func workDayLabel(_ workDay: WorkDay) -> String {
+        WorkDays.menuLabel(for: workDay)
     }
 
     // MARK: - Detailansicht (alle Dateien des Ordners, Typ-gefiltert)

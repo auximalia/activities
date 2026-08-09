@@ -91,3 +91,22 @@ struct SizeStampView: View {
             .frame(width: RowMetrics.sizeColumnWidth, alignment: .trailing)
     }
 }
+
+/// Platzhalter in der Groessenspalte – fuer Zeilen **ohne** Groesse.
+///
+/// **⚠️ Ohne ihn verlieren Ordner- und Dateizeilen ihre gemeinsame
+/// Datumskante.** Seit die Groesse ganz rechts steht (PR-39), sitzt das Datum
+/// nicht mehr am Zeilenende. Eine Ordnerzeile, die die Groessenspalte einfach
+/// weglaesst, schoebe ihr Datum um die volle Spaltenbreite nach rechts – und
+/// genau die senkrechte Kante, die eine Liste ueberfliegbar macht, waere
+/// zerbrochen.
+///
+/// Der Platzhalter ist deshalb kein Schoenheitsmittel, sondern die Bedingung
+/// dafuer, dass die Groesse ueberhaupt nach rechts wandern durfte.
+struct SizeStampPlaceholder: View {
+    var body: some View {
+        Color.clear
+            .frame(width: RowMetrics.sizeColumnWidth)
+            .accessibilityHidden(true)
+    }
+}

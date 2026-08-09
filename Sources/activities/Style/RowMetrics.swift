@@ -120,15 +120,18 @@ enum RowMetrics {
     /// Ebenso gemessen: „Mi. 05.08.25 14:32" misst bei 11 pt 122,4 pt.
     static let dateColumnWidthCompact: CGFloat = 126
 
-    /// Feste Breite der Groessenspalte (PR-37).
+    /// Feste Breite der Groessenspalte (PR-37, verschmaelert in PR-39).
     ///
-    /// **⚠️ Die breiteste Angabe ist nicht die groesste Zahl.** Erwartet haette
-    /// man „999,9 MB"; gemessen ueber den ganzen Wertebereich stimmt das auch –
-    /// **54,4 pt** bei 11 pt monospaced. Kurz davor stand aber „999 Bytes" mit
-    /// 61,2 pt im Rennen, bis die Formatierung auf Finder-Zaehlweise umgestellt
-    /// wurde (dort wird daraus „1 kB"). Wer die Formatierung aendert, muss
-    /// diese Breite neu messen.
-    static let sizeColumnWidth: CGFloat = 58
+    /// **⚠️ Hier bestimmt die Spalte die Formatierung, nicht umgekehrt.** Die
+    /// Vorgabe lautet sechs Zeichen; ``SizeFormatting`` richtet sich danach und
+    /// rundet, wo es sonst nicht passt. Gemessen bei 11 pt monospaced sind
+    /// sechs Zeichen **40,8 pt**, plus gut 3 pt Luft.
+    ///
+    /// Die vorherige Fassung (58 pt) stammte aus der umgekehrten Richtung: Dort
+    /// gab die Systemformatierung die Breite vor, und die laengste Ausgabe
+    /// („999,9 MB") bestimmte die Spalte. Am rechten Rand ist eine ruhige,
+    /// schmale Kante mehr wert als die zweite Nachkommastelle.
+    static let sizeColumnWidth: CGFloat = 44
 
     /// Schriftgroesse aller **Nebenangaben** in einer Zeile (Datum, Groesse).
     ///

@@ -218,6 +218,7 @@ struct TreeFolderRowView: View {
                 Spacer(minLength: RowMetrics.itemSpacing)
 
                 DateStampView(date: displayDate, isCompact: isCompact)
+                if !isCompact { SizeStampPlaceholder() }
             }
             .padding(.leading, RowMetrics.itemSpacing)
         }

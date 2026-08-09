@@ -1258,38 +1258,65 @@ do {
     expectEqual(UpdateSchedule.interval, 24 * 60 * 60, "Takt: 24 Stunden")
 }
 
-// MARK: - Dateigroesse: Formatierung und Sortierung (PR-37)
+// MARK: - Dateigroesse: Formatierung und Sortierung (PR-37/PR-39)
 do {
-    // ⚠️ Diese Erwartungen sind nur haltbar, weil ``SizeFormatting`` die
-    // Sprache fest auf de_DE stellt. Ohne das lieferte derselbe Code auf einem
-    // englischen System „1.2 MB" – und diese Pruefung waere keine, sondern eine
-    // Aussage ueber die Maschine, auf der sie zufaellig lief.
-    expectEqual(SizeFormatting.short(1_000_000), "1 MB", "Groesse: Megabyte")
-    expectEqual(SizeFormatting.short(12_300_000), "12,3 MB", "Groesse: Komma statt Punkt")
-    expectEqual(SizeFormatting.short(1_230_000_000), "1,23 GB", "Groesse: Gigabyte")
-    expectEqual(SizeFormatting.short(1), "1 Byte", "Groesse: Einzahl")
+    // Inhalt ohne die Rasterfuellung geprueft – die Fuellung hat ihre eigene
+    // Zusicherung weiter unten.
+    func text(_ b: Int?) -> String {
+        SizeFormatting.short(b)
+            .replacingOccurrences(of: "\u{00A0}", with: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
 
-    // ⚠️ Sonderfall Null: Die Systemformatierung liefert „0 kB". Eine leere
-    // Datei ist aber keine Angelegenheit von Kilobytes.
-    expectEqual(SizeFormatting.short(0), "0 Bytes", "Groesse: leere Datei")
+    expectEqual(text(0), "0 B", "Groesse: leere Datei")
+    expectEqual(text(1), "1 B", "Groesse: Bytes sind ganzzahlig")
+    expectEqual(text(999), "999 B", "Groesse: knapp unter der Einheit")
+    expectEqual(text(1_000), "1,0 kB", "Groesse: Einheitenwechsel")
+    expectEqual(text(12_300), "12 kB", "Groesse: ab 10 ohne Nachkommastelle")
+    expectEqual(text(999_000), "999 kB", "Groesse: knapp unter MB")
+    expectEqual(text(1_230_000), "1,2 MB", "Groesse: Komma statt Punkt")
+    expectEqual(text(1_230_000_000), "1,2 GB", "Groesse: Gigabyte")
 
-    // Nicht lesbar heisst leer, nicht „0" und nicht „–": Eine Angabe ueber
-    // etwas, worueber wir nichts wissen, waere schlimmer als keine.
+    // **Dezimal wie der Finder**: 1 MB = 1.000.000 Bytes. Binaer gezaehlt
+    // staende hier „977 kB".
+    expectEqual(text(1_000_000), "1,0 MB", "Groesse: dezimal wie der Finder")
+
+    // ⚠️ Ueberlauf durch Runden: 999 950 Bytes ergaeben ohne Nachpruefung
+    // „1000 kB" – sieben Zeichen UND die falsche Einheit.
+    expectEqual(text(999_950), "1,0 MB", "Groesse: Rundung traegt in die naechste Einheit")
+
+    // ⚠️ Und die Rundung entscheidet auch ueber die Nachkommastelle: 9,99 GB
+    // ist roh kleiner als 10, gerundet aber „10,0" – das waere ein Zeichen zu
+    // viel. Gefunden hat das der Prueflauf unten, nicht das Auge.
+    expectEqual(text(9_999_999_999), "10 GB", "Groesse: Rundung entscheidet ueber die Nachkommastelle")
+
+    // Nicht lesbar heisst leer, nicht „0" und nicht „–".
     expectEqual(SizeFormatting.short(nil), "", "Groesse: unbekannt bleibt leer")
 
-    // **Dezimal wie der Finder**, nicht binaer: 1 MB = 1.000.000 Bytes.
-    // Bei binaerer Zaehlung staende hier „977 kB“.
-    expectEqual(SizeFormatting.short(1_000_000), "1 MB", "Groesse: dezimal wie der Finder")
-
-    // ⚠️ Ein Trennzeichen, nicht zwei. `ByteCountFormatStyle` setzt mal ein
-    // geschuetztes Leerzeichen (U+00A0), mal ein gewoehnliches – gemessen in
-    // derselben Sprache mit demselben Stil. Auf dem Bildschirm sieht man das
-    // nicht; jeder Vergleich waere aber ein Gluecksspiel je nach
-    // Groessenordnung. Lehre aus PR-32, an anderer Stelle.
-    for wert in [1, 1_000_000, 12_300_000, 1_230_000_000, 999_900_000] {
-        expect(!SizeFormatting.short(wert).unicodeScalars.contains("\u{00A0}"),
-               "Groesse: einheitliches Trennzeichen bei \(wert)")
+    // ⚠️ Die eigentliche Zusicherung: **immer genau** ``maxLength`` Zeichen.
+    // Rechtsbuendigkeit allein richtet nur die rechte Kante aus – „999 B" und
+    // „1,2 MB" haben verschieden lange Einheiten, wodurch die Ziffern von
+    // Zeile zu Zeile versetzt saessen. Geprueft ueber den ganzen Wertebereich
+    // statt an Beispielen: Ein Raster, das nur meistens haelt, ist keines.
+    for exponent in 0...15 {
+        let basis = Int(pow(10.0, Double(exponent)))
+        for faktor in [1, 2, 3, 5, 7, 9] {
+            for versatz in [0, -1, 1, basis / 2, basis - 1] {
+                let wert = basis * faktor + versatz
+                guard wert > 0 else { continue }
+                let ausgabe = SizeFormatting.short(wert)
+                expectEqual(ausgabe.count, SizeFormatting.maxLength,
+                            "Groesse: \(wert) ergibt >\(ausgabe)< mit \(ausgabe.count) Zeichen")
+            }
+        }
     }
+    expectEqual(SizeFormatting.short(0).count, SizeFormatting.maxLength, "Groesse: auch die Null im Raster")
+
+    // ⚠️ Gefuellt wird mit U+00A0. Gewoehnliche Leerzeichen am Rand sind das
+    // Erste, was Textdarstellung und Zwischenablage wegwerfen – mit ihnen ginge
+    // genau das Raster verloren, um dessentwillen sie da sind.
+    expect(!SizeFormatting.short(1).hasPrefix(" "), "Groesse: Fuellung ist kein gewoehnliches Leerzeichen")
+    expect(SizeFormatting.short(1).hasPrefix("\u{00A0}"), "Groesse: Fuellung ist geschuetzt")
 
     // --- Sortierung ---
     let f = URL(fileURLWithPath: "/r/a")

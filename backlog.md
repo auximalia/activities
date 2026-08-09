@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.29 · 2026-08-09*
+*Stand: v1.19.30 · 2026-08-09*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -2055,6 +2055,54 @@ dort hat der Dateiname jetzt *mehr* Platz als vorher.
 *Die Datumsspalte ist damit zum dritten Mal gewandert (150 → 158 → 146), und jedes Mal aus
 demselben Grund: eine Maßangabe, die zu ihrer Zeit stimmte, und eine Änderung, die ihr die
 Grundlage entzog. Deshalb steht die Messung jetzt im Doc-Kommentar daneben.*
+
+### PR-39 · Größe ganz nach rechts, festes Sechs-Zeichen-Raster *(erledigt, v1.19.30)*
+**Aufwand:** S · **Nutzen:** mittel · **Nachtrag zu PR-37**
+
+**Gewünscht:** „Größen- und Datumsspalte vertauschen (Größe ganz nach rechts), feste Breite
+z. B. 6 Zeichen – es darf gerundet werden, wenn es sonst nicht passt. Es müssen immer 6 Zeichen
+sein, sonst springt der Datumsstempel."
+
+**⚠️ Der Begründung widersprochen, dem Wunsch nicht.** Von der Zeichenzahl kann der
+Datumsstempel nicht springen: Die Größenspalte hat einen festen Rahmen, ihr Inhalt ändert die
+Breite nicht. Die Sorge zeigte auf die falsche Ursache – traf aber einen echten Fehler, der
+**erst durch das Tauschen entsteht**:
+
+**Ordner haben keine Größe.** Wandert die Größe nach rechts, säße das Datum in Dateizeilen 52 pt
+weiter links als in Ordnerzeilen – ein zeilenweiser Versatz mitten in der Liste, und genau die
+senkrechte Kante, die eine Liste überfliegbar macht, wäre zerbrochen. `SizeStampPlaceholder`
+hält den Platz in Ordner- und Baumzeilen leer. **Er ist nicht Kosmetik, sondern die Bedingung
+dafür, dass die Größe überhaupt nach rechts durfte.**
+
+**Was die sechs Zeichen wirklich leisten:** Rechtsbündigkeit richtet nur die *rechte Kante* aus.
+„999 B" und „1,2 MB" haben verschieden lange Einheiten – dadurch sitzen die **Ziffern** von
+Zeile zu Zeile versetzt, was in einer langen Liste flimmert. Erst ein festes Raster (Zahl rechts
+in drei Zellen, Einheit links in zwei) stellt die Zahlen untereinander.
+
+**⚠️ Hier bestimmt die Spalte die Formatierung, nicht umgekehrt.** `ByteCountFormatStyle` wurde
+dafür aufgegeben – es kennt keine Längenbegrenzung. Die eigene Regel ist eine einzige: *eine
+Nachkommastelle nur unterhalb von 10*. Damit ist „999 kB" bzw. „1,2 MB" die längste mögliche
+Ausgabe. Spaltenbreite 58 → **44 pt** (sechs Zeichen messen 40,8 pt bei 11 pt monospaced).
+
+**⚠️ Zwei frühere Entscheidungen umgestoßen – beide bewusst:**
+- „0 Bytes" (PR-37, mit Verweis auf den Finder) heißt jetzt „0 B". Für die Finder-Schreibweise
+  ist im Raster kein Platz; Einheitlichkeit *innerhalb* der Spalte wiegt hier schwerer als die
+  Anlehnung nach außen.
+- Das geschützte Leerzeichen, das PR-37 gerade **entfernt** hatte, ist als **Füllung** wieder
+  da. Damals war es ein unbeabsichtigter Zufall der Systemformatierung und machte Vergleiche
+  zum Glücksspiel; jetzt ist es eine bewusste, ausnahmslose Regel. Gewöhnliche Leerzeichen am
+  Rand sind das Erste, was Textdarstellung und Zwischenablage wegwerfen – mit ihnen ginge genau
+  das Raster verloren, um dessentwillen sie da sind.
+
+**⚠️ Der Prüflauf hat einen Fehler gefunden, den kein Beispiel gezeigt hätte.** 9 999 999 999
+Bytes sind roh 9,99 GB – kleiner als 10, also eine Nachkommastelle. Gerundet steht dort aber
+„10,0 GB": sieben Zeichen, die feste Spalte hätte abgeschnitten. Die Entscheidung über die
+Nachkommastelle muss gegen den **gerundeten** Wert fallen, nicht gegen den rohen. Gefunden hat
+das ein Lauf über den ganzen Wertebereich (Zehnerpotenzen × Faktoren × Randversätze), nicht das
+Auge und keine Beispieltabelle.
+
+*Lehre: Wer eine feste Breite zusichert, muss sie über den Wertebereich prüfen, nicht an
+Beispielen. Ein Raster, das nur meistens hält, ist keines.*
 
 ---
 

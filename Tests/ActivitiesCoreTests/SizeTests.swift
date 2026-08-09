@@ -8,17 +8,39 @@ import XCTest
 /// englischen System „1.2 MB" – und der Test wäre keine Zusicherung, sondern
 /// eine Aussage über die Maschine, auf der er zufällig lief.
 final class SizeFormattingTests: XCTestCase {
-    func test_kurzform() {
-        XCTAssertEqual(SizeFormatting.short(1_000_000), "1 MB")
-        XCTAssertEqual(SizeFormatting.short(12_300_000), "12,3 MB")
-        XCTAssertEqual(SizeFormatting.short(1_230_000_000), "1,23 GB")
-        XCTAssertEqual(SizeFormatting.short(1), "1 Byte")
+    /// Inhalt ohne die Rasterfüllung – die hat ihre eigene Zusicherung.
+    private func text(_ b: Int?) -> String {
+        SizeFormatting.short(b)
+            .replacingOccurrences(of: "\u{00A0}", with: "")
+            .trimmingCharacters(in: .whitespaces)
     }
 
-    /// Die Systemformatierung liefert „0 kB" – eine leere Datei ist aber keine
-    /// Angelegenheit von Kilobytes.
-    func test_leere_datei() {
-        XCTAssertEqual(SizeFormatting.short(0), "0 Bytes")
+    func test_kurzform() {
+        XCTAssertEqual(text(0), "0 B")
+        XCTAssertEqual(text(1), "1 B")
+        XCTAssertEqual(text(999), "999 B")
+        XCTAssertEqual(text(1_000), "1,0 kB")
+        XCTAssertEqual(text(12_300), "12 kB")
+        XCTAssertEqual(text(1_230_000), "1,2 MB")
+    }
+
+    /// Dezimal wie der Finder: 1 MB = 1.000.000 Bytes. Binär gezählt stünde
+    /// hier „977 kB".
+    func test_dezimal_wie_der_finder() {
+        XCTAssertEqual(text(1_000_000), "1,0 MB")
+    }
+
+    /// ⚠️ 999 950 Bytes ergäben ohne Nachprüfung „1000 kB" – sieben Zeichen
+    /// und die falsche Einheit dazu.
+    func test_rundung_traegt_in_die_naechste_einheit() {
+        XCTAssertEqual(text(999_950), "1,0 MB")
+    }
+
+    /// ⚠️ 9,99 GB ist roh kleiner als 10, gerundet aber „10,0" – ein Zeichen
+    /// zu viel. Die Entscheidung über die Nachkommastelle muss gegen den
+    /// **gerundeten** Wert fallen.
+    func test_rundung_entscheidet_ueber_die_nachkommastelle() {
+        XCTAssertEqual(text(9_999_999_999), "10 GB")
     }
 
     /// Eine Angabe über etwas, worüber wir nichts wissen, wäre schlimmer als
@@ -27,23 +49,31 @@ final class SizeFormattingTests: XCTestCase {
         XCTAssertEqual(SizeFormatting.short(nil), "")
     }
 
-    /// Dezimal wie der Finder: 1 MB = 1.000.000 Bytes. Bei binärer Zählung
-    /// stünde hier „977 kB".
-    func test_dezimal_wie_der_finder() {
-        XCTAssertEqual(SizeFormatting.short(1_000_000), "1 MB")
+    /// ⚠️ Die eigentliche Zusicherung: **immer genau** sechs Zeichen.
+    /// Rechtsbündigkeit richtet nur die rechte Kante aus; „999 B" und
+    /// „1,2 MB" haben verschieden lange Einheiten, wodurch die Ziffern
+    /// versetzt säßen. Geprüft über den ganzen Wertebereich – ein Raster, das
+    /// nur meistens hält, ist keines.
+    func test_immer_genau_sechs_zeichen() {
+        for exponent in 0...15 {
+            let basis = Int(pow(10.0, Double(exponent)))
+            for faktor in [1, 2, 3, 5, 7, 9] {
+                for versatz in [0, -1, 1, basis / 2, basis - 1] {
+                    let wert = basis * faktor + versatz
+                    guard wert > 0 else { continue }
+                    XCTAssertEqual(SizeFormatting.short(wert).count, SizeFormatting.maxLength,
+                                   "\(wert) -> >\(SizeFormatting.short(wert))<")
+                }
+            }
+        }
+        XCTAssertEqual(SizeFormatting.short(0).count, SizeFormatting.maxLength)
     }
 
-    /// ⚠️ `ByteCountFormatStyle` setzt mal ein geschütztes Leerzeichen
-    /// (U+00A0), mal ein gewöhnliches – in derselben Sprache, mit demselben
-    /// Stil. Auf dem Bildschirm sieht man das nicht; jeder Vergleich wäre aber
-    /// ein Glücksspiel je nach Größenordnung.
-    func test_ein_trennzeichen_nicht_zwei() {
-        for wert in [1, 1_000_000, 12_300_000, 1_230_000_000, 999_900_000] {
-            XCTAssertFalse(
-                SizeFormatting.short(wert).unicodeScalars.contains("\u{00A0}"),
-                "\(wert)"
-            )
-        }
+    /// ⚠️ Gewöhnliche Leerzeichen am Rand sind das Erste, was Textdarstellung
+    /// und Zwischenablage wegwerfen – mit ihnen ginge das Raster verloren.
+    func test_fuellung_ist_geschuetzt() {
+        XCTAssertTrue(SizeFormatting.short(1).hasPrefix("\u{00A0}"))
+        XCTAssertFalse(SizeFormatting.short(1).hasPrefix(" "))
     }
 }
 

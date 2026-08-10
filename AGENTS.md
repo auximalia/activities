@@ -38,6 +38,27 @@ friction; asking at the start is respect.
 
 Exception at both gates: a defect that hurts the user in the field. Fix and ship.
 
+## Two skills that must actually be run
+
+Both of these existed and were skipped on the day they were needed. A skill nobody
+invokes is worse than no skill: it creates the impression the check happened.
+
+**Before implementing a decision that is user-visible or hard to reverse — run
+`decision-check`.** Where a control belongs, what it is called, whether a rule is
+enforced at the boundary or repaired downstream, whether state is persisted. The
+trigger is simple: *if the decision would earn a `⚠️` doc comment, it earns the
+check first.*
+
+**Before shipping anything with a visible change — run `ux-review`.** Not only when
+asked for a review. It reads the running app through the eyes of someone who did not
+build it, which is exactly the eye the author has lost.
+
+⚠️ **An exception forced in another component is a finding, not a footnote.** If a
+placement or a responsibility makes some *other* part break its own documented rule,
+that is evidence the decision is wrong. The `⚠️` convention protects good decisions
+from being "fixed" back — it also makes bad ones look considered. Writing a
+justification is not the same as testing one.
+
 ## Build, check, release
 
 ```

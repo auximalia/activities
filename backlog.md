@@ -2,2445 +2,722 @@
 
 *Stand: v1.19.33 · 2026-08-10*
 
-Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
-Aus diesem Backlog werden einzelne Sprints geschnitten.
+Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
+bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
+(Regeln dazu in `AGENTS.md`).
 
-**Status:** ✅ erledigt · ⏳ offen
-**Erledigt in Sprint 1 (v1.6.0):** UX-01, UX-06, UX-07, UX-16.
-**Hotfix (v1.6.1):** UX-26.
-**Erledigt in Sprint 2a (v1.7.0):** UX-27, UX-11.
-**Erledigt in Sprint 2 (v1.8.0):** UX-03, UX-04, UX-05, UX-15.
-**Nachjustiert (v1.9.0):** Toolbar nach Arbeitsablauf sortiert; UX-05 teilweise **revidiert**
-(Zeitraum zurück ans Diagramm – siehe Konsistenz-Punkt 8).
-**Nachgemeldet:** UX-28.
-**v1.10.0 – Grundsatz „sparsam scannen":** Gescannt wird nur noch bei Start, Ordnerwechsel,
-⌘R und Auto-Refresh; Zeitraum und Filter arbeiten im Speicher. Vorbedingung von UX-02 damit
-erledigt.
-**Erledigt in Sprint 3 (v1.11.0):** UX-29, UX-02, UX-08, UX-09, UX-10, UX-12, UX-17.
-**Erledigt in Sprint 4 (v1.12.0):** UX-20, UX-30, UX-28, UX-21.
-**Erledigt in Sprint 5 (v1.13.1):** UX-19, UX-22.
-**Erledigt in Sprint 6 (v1.15.0):** UX-25, UX-18, UX-14.
-**Erledigt in Sprint 7 (v1.16.0):** UX-13, UX-23.
-**Sprint 8 (v1.17.0):** UX-31 erledigt, UX-24 **geschlossen ohne Umsetzung**.
-– **Alle 31 Einträge abgeschlossen** (30 umgesetzt, 1 begründet verworfen).
-
-**Prioritäten**
-- **P1** – Nutzererwartung ist verletzt oder Bedienung wird spürbar behindert. Zuerst.
-- **P2** – Lesbarkeit, Klarheit, Gestaltungs-Konsistenz.
-- **P3** – Zusatzfunktionen, die den Nutzen erweitern, aber nichts reparieren.
+**Prioritäten** – **P1** Nutzererwartung verletzt oder Bedienung behindert ·
+**P2** Lesbarkeit und Konsistenz · **P3** Zusatznutzen, repariert nichts.
 
 **Aufwand** – S ≈ unter 2 h · M ≈ halber Tag · L ≈ ein Tag oder mehr
 
----
-
-## P1 – Zuerst
-
-### ✅ UX-01 · Filterfeld kommuniziert das falsche Modell *(erledigt, v1.6.0)*
-**Aufwand:** S · **Nutzen:** hoch
-**Korrektur zum Design-Review:** Die ursprüngliche Annahme („`studium` findet nichts") war
-**falsch**. `NameFilter` behandelt Eingaben ohne Platzhalter bereits als Teilstring
-(`NameFilter.swift`, verifiziert). Funktional ist alles in Ordnung.
-**Das reale Problem:** Der Platzhaltertext `Filter, z. B. *Studium*.xls*` legt nahe, dass
-Glob-Syntax **erforderlich** ist. Wer das glaubt, tippt Sternchen, die er nicht braucht –
-oder benutzt den Filter gar nicht. Das ist ein Kommunikationsfehler, kein Funktionsfehler.
-**Lösung:** Platzhalter auf den Normalfall umstellen („Name filtern, z. B. studium"),
-Glob nur noch im Tooltip und in der Hilfe als Zusatzmöglichkeit erwähnen.
-**Akzeptanz:** Platzhalter zeigt eine Eingabe **ohne** Platzhalterzeichen; Tooltip nennt
-`*` und `?` als Option.
-**Umgesetzt:** Platzhalter „Name filtern, z. B. studium"; Tooltip und Hilfe stellen den
-Teilstring als Normalfall dar, Glob als Zusatz.
-
-### ✅ UX-02 · Namensfilter wirkt sofort (ohne Neuscan) *(erledigt, v1.11.0)*
-**Aufwand:** S (Rest) · **Nutzen:** sehr hoch
-Der Filter löst heute einen kompletten Neuscan aus. Filtern ist aber eine reine
-Anzeigeoperation auf bereits geladenen Daten.
-**Technisches Risiko (bewusst entscheiden):** Der Scanner filtert derzeit **während** des
-Scans (`ScanSettings.namePattern`). Für Live-Filterung muss ungefiltert gescannt und erst
-bei der Anzeige gefiltert werden → mehr Dateien im Speicher. Vor der Umsetzung an einem
-großen Baum (> 200 k Dateien) messen; notfalls Live-Filter nur unterhalb einer Schwelle.
-**Akzeptanz:** Tippen filtert ohne Verzögerung; nur Ordnerwechsel und Zeitraum lösen einen Scan aus.
-**Stand v1.10.0:** Die **Architektur-Vorbedingung ist erledigt** – der Scan ist ungefiltert,
-der Namensfilter wirkt im Speicher und löst **keinen** Suchlauf mehr aus. Gemessen: ~83.000
-Dateien, ~20 MB, Baumdurchlauf unverändert ~1,3 s. **Offen bleibt nur** das Filtern *je
-Tastendruck* (heute: Enter). Dafür ist eine Entprellung nötig, weil beim Tippen sonst für
-jede Zwischenstufe Detaildateien neu geladen würden.
-
-### ✅ UX-03 · Toolbar neu bauen (echte macOS-Toolbar) *(erledigt, v1.8.0)*
-**Aufwand:** L · **Nutzen:** sehr hoch
-Fünf unbeschriftete Bedienelemente, davon drei `Switch`. Switches gehören laut HIG in
-Einstellungs-Formulare, **nicht** in Toolbars; dort gehören Toggle-Buttons mit sichtbarem
-Aktiv-Zustand hin. Aktionen (Springen, Aktualisieren) und Zustände (Schalter) stehen
-ununterscheidbar nebeneinander.
-**Lösung:** `.toolbar` in der Titelleiste; nach Art gruppiert und durch Trenner separiert:
-`[Ordner] | [Zeitraum] | [Filter] | [Ansicht: 3 Toggles] | [Aktionen: ↑, Aktualisieren]`.
-Switches → Toggle-Buttons. Damit ist auch die Position des ↑-Symbols geklärt (es steht
-bei den Aktionen, nicht zwischen den Zuständen).
-**Akzeptanz:** Jede Schaltfläche hat Icon **und** erkennbaren Zustand; Aktion und Zustand
-sind visuell getrennt.
-
-### ✅ UX-04 · Diagramm + Legende fixieren (nicht mitscrollen) *(erledigt, v1.8.0)*
-**Aufwand:** M · **Nutzen:** hoch
-Beim Scrollen verschwinden Diagramm und Legende. Wer bei Zeile 200 einen Dateityp
-ausblenden will, muss zurückscrollen.
-**Lösung:** Oberer Bereich als **feste Kopfzone** (Material-Hintergrund, **eine** Haarlinie
-zur Tabelle). Ersetzt die Idee einer zusätzlichen Trennlinie – löst Abgrenzung und
-Bedienbarkeit in einem Zug.
-**Folge:** ⌘↑ / „An den Anfang" scrollt dann nur noch die Tabelle (bleibt sinnvoll).
-
-### ✅ UX-05 · Zeitraum in die Titelleiste, zentrierte Überschrift entfernen *(erledigt, v1.8.0)*
-**Aufwand:** S · **Nutzen:** mittel · **Abhängig von:** UX-03
-Die Titelleiste zeigt nur „activities" und verschenkt ~44 px. Gleichzeitig steht die
-Zeitraum-Überschrift **zentriert** in einem sonst durchgängig linksbündigen UI.
-**Lösung:** Titel „activities — Documents", Untertitel „07.07.–05.08.2026 · 30 Tage"
-(`navigationSubtitle`). Die zentrierte Überschrift entfällt ersatzlos.
-**Achtung:** Sie trägt heute den Top-Anker für ⌘↑ – Anker muss auf die Tabelle wandern.
-
-### ✅ UX-06 · Filter-Reset und „Filter aktiv"-Anzeige *(erledigt, v1.6.0)*
-**Aufwand:** S · **Nutzen:** hoch
-Sind mehrere Dateitypen über die Legende ausgeblendet, gibt es **keinen globalen Hinweis**
-darauf. Ergebnisse wirken unerklärlich unvollständig – ein klassischer „stiller Zustand".
-Hinzu kommt eine Inkonsistenz: Alle Einstellungen werden persistiert, die
-Legenden-Auswahl (`hiddenExtensions`) aber nicht.
-**Lösung:** Sichtbarer Indikator „3 Typen ausgeblendet" mit **Zurücksetzen**-Knopf;
-bewusste Entscheidung für/gegen Persistenz dokumentieren (Empfehlung: **nicht** persistieren,
-dafür Indikator).
-**Umgesetzt:** Hinweis unter der Legende (nur bei aktivem Filter), `resetTypeFilters()`,
-Menübefehl „Typ-Filter zurücksetzen" (⌥⌘R). Nicht-Persistenz ist jetzt als bewusste
-Entscheidung im Konzept §3.6 festgehalten; der Zeitfenster-Schalter zählt bewusst **nicht**
-als aktiver Filter (Konzept §4.2.1).
-
-### ✅ UX-07 · Vanity-Text aus der Arbeitsfläche entfernen *(erledigt, v1.6.0)*
-**Aufwand:** S · **Nutzen:** mittel
-„designed by matthias.riedel.dresden" belegt oben rechts die Fläche, auf die der Blick für
-Status und Aktionen fällt. Der Text steht bereits im „Über"-Fenster.
-**Lösung:** Aus der Steuerleiste entfernen. Versionsnummer wandert in die Titelleiste
-bzw. bleibt im „Über"-Fenster.
-**Umgesetzt:** Credit entfernt. Versionsnummer bleibt **vorerst** oben rechts – sie wandert
-mit UX-05 (Sprint 2) in die Titelleiste; ein zweifaches Umbauen wäre Verschwendung.
-
-### ✅ UX-26 · Liste springt beim Mausklick weg *(erledigt, v1.6.1)*
-**Aufwand:** S · **Nutzen:** sehr hoch · **Gefunden:** nach v1.6.0 im Betrieb
-Ein Klick auf eine Zeile zentriert die Tabelle sofort neu – die angeklickte Zeile rutscht
-unter dem Mauszeiger weg, man muss die Stelle erneut suchen. Betrifft die häufigste
-Interaktion der App überhaupt.
-
-**Ursache:** `ReportView.swift` scrollt bei **jeder** Änderung von `model.selection`
-(`proxy.scrollTo(selection, anchor: .center)`), unabhängig davon, woher die Auswahl kam.
-Die Auswahl hat vier Quellen, aber nur drei davon rechtfertigen ein Scrollen:
-
-| Quelle | Scrollen? | Begründung |
-|---|---|---|
-| Pfeiltasten (`moveSelection`) | ja | Ziel kann außerhalb des Sichtfelds liegen |
-| Klick auf ein Diagramm-Segment (`focus`) | ja | Ziel liegt fast immer weit entfernt |
-| QuickLook-Blättern (`quickLookNavigated`) | ja | dito |
-| **Mausklick auf die Zeile** | **nein** | Zeile ist bereits sichtbar |
-
-**Lösung (zweiteilig):**
-1. **Herkunft der Auswahl mitführen** (z. B. `SelectionOrigin { mouse, keyboard, chart, quickLook }`)
-   und **nur bei nicht-Maus-Quellen** scrollen. Deterministisch und billig.
-   *Verworfene Alternative:* Sichtbarkeit der Zeile messen (GeometryReader/PreferenceKey je
-   Zeile) – teuer und bei langen Listen fehleranfällig.
-2. **Minimal scrollen statt zentrieren:** `anchor: .center` zieht auch bei Tastaturnavigation
-   die ganze Liste bei jedem Tastendruck herum. `scrollTo(id)` ohne Anker scrollt nur so
-   weit, bis die Zeile sichtbar ist – das entspricht Finder und Mail.
-
-**Akzeptanz:** Klick auf eine sichtbare Zeile bewegt die Liste **überhaupt nicht**;
-Pfeiltasten an den Rändern scrollen weiterhin, aber minimal; Diagramm-Klick springt
-weiterhin zum Ziel.
-**Umgesetzt:** `SelectionOrigin` (`mouse` / `keyboard` / `chart` / `quickLook` /
-`programmatic`) mit `shouldScroll`; `select(_:origin:)` hat `.mouse` als Vorgabe, alle
-anderen Quellen kennzeichnen sich ausdrücklich. `scrollTo` jetzt ohne Anker (minimal).
-Regel im Konzept §4.3.5 festgehalten.
-
-### ✅ UX-27 · Dateityp-Farben sind nicht unterscheidbar *(erledigt, v1.7.0)*
-**Aufwand:** M · **Nutzen:** sehr hoch · **Gefunden:** nach v1.6.1 im Betrieb
-Balkensegmente und Legenden-Chips lassen sich farblich nicht auseinanderhalten – besonders
-die vielen **grauen** Segmente. Das Diagramm ist die zentrale Darstellung der App; wenn
-Kategorien darin verschmelzen, verfehlt es seinen Zweck.
-
-**Messung (nachgerechnet, nicht geschätzt):**
-
-| Befund | Ergebnis |
-|---|---|
-| Identische Grautöne | 7 von 16 geprüften Endungen (`.md`, `.log`, `.txt`, `.csv`, `.command`, `.conf`, `.bak`) liefern **exakt** H 0° / S 0.00 / B 0.72 → **ΔE = 0.0** |
-| „Sonstige" | `systemGray` (B 0.62) liegt im selben Graubereich |
-| Blau-Cluster | `.swift`, `.pdf`, `.png`, `.json`, `.sh` alle zwischen 203–225°; `.pdf` ↔ `.png` **ΔE = 0.0** |
-| Gesamt | 5 von 45 Paaren unter **ΔE 25** (Unterscheidbarkeitsschwelle für Kategorien) |
-
-**Ursache:** `IconColor.dominant` leitet die Farbe aus dem **Datei-Icon** ab. macOS-Symbole
-sind aber bewusst einheitlich gestaltet (weißes Blatt, kleiner blauer Akzent). Man greift
-damit ein System ab, das auf *Ähnlichkeit* optimiert ist, und benötigt *Unterscheidbarkeit* –
-ein grundsätzlicher Zielkonflikt, den kein Nachjustieren der Sättigung löst. Generische
-Dokumente haben schlicht **keine** eigene Farbe.
-
-**Grau ist dreifach belegt – Schichtenmodell nötig.** Grau tragen aktuell: generische
-Dateitypen, „Sonstige" **und** die Wochenend-Bänder. Nachgemessen (L\*/ΔE, sRGB→CIELAB):
-
-| Paar | Dark | Light |
-|---|---|---|
-| Wochenend-Band ↔ „Sonstige" | 41.1 ✓ | 32.1 ✓ |
-| Wochenend-Band ↔ Typ-Grau | 52.7 ✓ | **16.5 ✗** |
-| „Sonstige" ↔ Typ-Grau | **12.0 ✗** | **15.7 ✗** |
-
-Der Störenfried ist das **generische Typ-Grau**: Es kollidiert in beiden Modi mit
-„Sonstige" und im Light Mode zusätzlich mit dem Wochenend-Band. Entfällt es (weil künftig
-nur noch „Sonstige" grau ist), lösen sich **alle drei** Konflikte auf. Die Wochenend-Bänder
-liegen mit ΔE ≈ 9–11 zum Hintergrund korrekt in der Kontextschicht.
-
-**Regel (im Konzept festzuhalten):**
-- **Datenschicht** (Balkensegmente, Legenden-Farbfelder): paarweise **ΔE ≥ 25**,
-  und ΔE ≥ 25 zum Hintergrund. Enthält genau **ein** Grau – „Sonstige".
-- **Kontextschicht** (Wochenend-Bänder, Rasterlinien, Achsen): bewusst **ΔE ≤ 15 zum
-  Hintergrund** – sie sollen als Modulation des Hintergrunds gelesen werden, nie als Datum.
-- Damit ist Grau als „12. Farbe" sauber geregelt: Kontextgrau und Datengrau leben in
-  verschiedenen Schichten und sind durch die Helligkeit getrennt, nicht durch den Farbton.
-
-**Lösung: feste kategoriale Palette, die die Icon-Farbe überschreibt.**
-
-Anforderungen an die Palette:
-1. **Genau 11 Plätze** – das deckt sich mit `legendTopCount` (10) + „Sonstige". Mehr ist
-   perzeptuell nicht sinnvoll: Für kategoriale Kodierung gelten rund 11–12 Farben als
-   Obergrenze (Boyntons 11 Grundfarbbegriffe; Ware, *Information Visualization*).
-   → **10 bunte Farben + 1 reserviertes Neutralgrau** für „Sonstige".
-2. **Grau ist reserviert.** Keine der 10 bunten Farben darf grau oder nahezu grau sein,
-   sonst kollidiert sie mit „Sonstige".
-3. **Mindestabstand ΔE ≥ 25** zwischen allen Paaren – als Prüfung in CoreChecks
-   automatisiert, damit die Zusage nachweisbar bleibt.
-4. **Stabil je Endung, nicht je Rang** *(wichtigster Punkt)*. Würde die Farbe nach
-   Häufigkeit vergeben, bekäme `.py` bei jeder Änderung des Zeitraums eine andere Farbe.
-   Das zerstört die gelernte Zuordnung („grün = Tabellen") und macht zwei Auswertungen
-   unvergleichbar. Die Zuordnung muss allein von der Endung abhängen.
-5. **Light und Dark Mode** gleichermaßen tragfähig.
-6. *Optional:* farbfehlsichtigen-tauglich (Deuteranopie betrifft ~8 % der Männer) – dann
-   nicht Rot/Grün als Hauptunterscheidung nebeneinander.
-
-**Entwurfsvarianten:**
-- **(a) Palette nach stabilem Hash der Endung.** Garantiert unterscheidbar und stabil, aber
-  willkürlich (`.pdf` könnte grün werden) – bricht mit Erwartungen.
-- **(b) Kuratierte Zuordnung + Palette als Rückfall *(empfohlen)*.** Häufige Endungen
-  bekommen eine erwartungskonforme Farbe (`.pdf` rot, `.xlsx` grün, `.docx` blau,
-  `.py` gelb …), alle übrigen deterministisch aus der Restpalette. Erhält die Assoziation,
-  wo sie existiert, und garantiert trotzdem Unterscheidbarkeit.
-- **(c) Icon-Farbe behalten, nur Kollisionen verschieben.** Unzureichend: Sieben identische
-  Grautöne lassen sich nicht sinnvoll „auseinanderschieben", und das Ergebnis wäre je nach
-  Kombination instabil.
-
-**Akzeptanz:** Alle 11 Legenden-Plätze sind paarweise ΔE ≥ 25; „Sonstige" ist die einzige
-graue Fläche der Datenschicht; Kontextschicht bleibt ΔE ≤ 15 zum Hintergrund; dieselbe
-Endung hat bei jedem Zeitraum dieselbe Farbe; automatisierte Palettenprüfung in CoreChecks
-**für Light und Dark**.
-
-**Konsistenz:** Widerspricht Konzept **§3.10** („Balkenfarbe = dominierende Farbe des
-Datei-Icons"). §3.10 ist mit diesem Punkt neu zu fassen: Icon-Farbe wird zur *Anregung*
-für die Kuratierung, ist aber nicht mehr die Quelle zur Laufzeit.
-
-### ✅ UX-28 · Zeitraum abschaltbar (reines Suchwerkzeug) *(erledigt, v1.12.0)*
-**Aufwand:** M · **Nutzen:** hoch · **Gemeldet:** beim Toolbar-Umbau v1.9.0
-Wer gezielt nach einem Namen sucht, will das **über den gesamten Bestand** tun – nicht
-begrenzt auf 30 Tage. Der Zeitraum ist dann keine Hilfe, sondern eine versteckte
-Einschränkung, die Treffer unterschlägt.
-
-**Lösung:** Dritter Modus neben „Tage" und „Spanne", z. B. **„Alle"** – oder ein
-Ausschalter für die Zeitachse. Wirkung: `window` = unbegrenzt.
-
-**Zu klären (nicht trivial):**
-- Das **Diagramm** braucht eine Zeitachse. Bei „Alle" entweder ausblenden (Kopfzone
-  einklappen) oder die Achse auf den tatsächlichen Datenbereich spannen – bei mehreren
-  Jahren greift dann die 4000-Tage-Schutzgrenze (5.x).
-- Die **Zeitabschnitte** („Heute", „Diese Woche" …) bleiben sinnvoll, werden aber sehr lang.
-- **Laufzeit:** Ohne Zeitfenster fällt die stärkste Reduktion weg; die Ergebnismenge kann
-  sehr groß werden. Vorher an einem großen Baum messen.
-- Sinnvoll **nach** UX-02 (Live-Filter), weil beides denselben Pfad betrifft.
-
-### ✅ UX-29 · Leere Liste erklärt ihre Ursache nicht *(erledigt, v1.11.0)*
-**Aufwand:** S · **Nutzen:** hoch · **Gefunden:** im Betrieb nach v1.10.1
-Steht ein Suchbegriff im Feld und man **wechselt den Ordner**, kann die Liste leer bleiben,
-weil der Filter alles ausschließt. Der Nutzer sieht nur einen leeren Ordner und hält die App
-für defekt oder den Ordner für unbenutzt. *Beim Wechsel in „Downloads" reproduziert.*
-
-**Ursache:** `setRoot` lässt `namePattern` bewusst stehen (dasselbe Wort in mehreren Ordnern
-zu suchen ist ein sinnvoller Arbeitsablauf – **automatisches Löschen wäre falsch**). Der
-Leerzustand nennt aber drei mögliche Gründe auf einmal, ohne zu sagen, welcher zutrifft:
-> „Im gewählten Zeitraum wurde nichts bearbeitet. Erhöhe die Tage, wähle einen anderen
-> Ordner oder passe den Filter an."
-
-**Konsistenzlücke:** Für den **Typ**-Filter haben wir in UX-06 genau dieses Problem gelöst
-(sichtbarer Hinweis „N Typen ausgeblendet" + „Zurücksetzen"). Der **Namens**-Filter hat kein
-Gegenstück – er steht zwar im Suchfeld, aber beim Ordnerwechsel liegt die Aufmerksamkeit
-woanders.
-
-**Lösung – Ursache benennen statt aufzählen.** Der Leerzustand unterscheidet:
-- *Filter schließt alles aus:* „Keine Treffer für **»studium«**" + Knopf **„Filter löschen"**.
-- *Zeitraum leer:* „In den letzten 30 Tagen wurde hier nichts bearbeitet" + Knopf **„90 Tage"**.
-- *Ordner wirklich leer:* schlichte Aussage ohne Handlungsvorschlag.
-
-**Jetzt billig zu diagnostizieren:** Seit v1.10.0 liegen alle Dateien im Speicher
-(`scannedFiles`). Die Gegenprobe „wie viele wären es **ohne** Filter?" kostet einen
-`filter`-Durchlauf – also lässt sich sogar beziffern:
-„Ohne den Namensfilter wären es **231 Ordner**."
-
-**Zusätzlich erwägen:** Analog zu UX-06 einen dezenten Dauerhinweis, solange ein
-Namensfilter aktiv ist – dann fällt es schon **vor** dem Ordnerwechsel auf.
-
-**Akzeptanz:** Bei leerer Liste nennt die Meldung die tatsächliche Ursache und bietet genau
-einen passenden Knopf an; der Filter wird beim Ordnerwechsel **nicht** automatisch gelöscht.
+> **Verdichtet am 2026-08-10.** Die Planungsprosa der abgeschlossenen Sprints 1–13
+> (rund 1700 Zeilen) wurde entfernt; erhalten blieb, was eine künftige Änderung falsch
+> machen würde, wenn es fehlte — die Entscheidungen mit ⚠️, die Lehren und die
+> Historientabelle. Der Volltext steht in der Git-Historie dieser Datei.
 
 ---
 
-## P2 – Lesbarkeit und Gestaltung
+# Offen
 
-### ✅ UX-08 · Pfade relativ zum Wurzelordner anzeigen *(erledigt, v1.11.0)*
-**Aufwand:** S · **Nutzen:** hoch
-`/Users/mtri/Documents/opencode/activities/dist` wiederholt in **jeder** Zeile den
-Wurzelpfad, der bereits in der Statuszeile steht.
-**Lösung:** `opencode/activities/dist`; vollständiger Pfad im Tooltip und in der Zwischenablage.
+## Aus der UX-Durchsicht v1.19.33 *(2026-08-10)*
 
-### ✅ UX-09 · Nur ein Trennsystem in der Tabelle *(erledigt, v1.11.0)*
-**Aufwand:** S · **Nutzen:** mittel
-Zebra-Streifen **+** horizontale Trennlinien **+** Baumlinien wirken gleichzeitig. Jede
-Hilfe für sich ist richtig, zusammen erzeugen sie Unruhe.
-**Lösung:** Zebra behalten, horizontale Linien auf einen **Abstand** zwischen Ordner-Blöcken
-reduzieren. Baumlinien bleiben (andere Funktion: Hierarchie).
-**Konsistenz:** Widerspricht der aktuellen Spezifikation §4.3.2 – dort ist beides gefordert.
-§4.3.2 muss mit diesem Punkt angepasst werden.
+Durchgeführt mit dem Skill `ux-review`. **Drei der neun Befunde sind am Quelltext nicht zu
+sehen** – der Code deklariert sie korrekt, das laufende Programm zeigt etwas anderes. Sie
+stammen aus einem Auslesen der Menüleiste und der Werkzeugleiste des installierten Bündels
+über die Bedienhilfen-Schnittstelle, **gegengeprüft an einem frisch gestarteten Prozess der
+v1.19.33** – siehe UX-32, wo genau das zunächst versäumt wurde.
 
-### ✅ UX-10 · Relative Datumsangaben *(erledigt, v1.11.0)*
-**Aufwand:** S · **Nutzen:** mittel
-Unter der Überschrift „**Heute** · 18 Ordner" steht 19-mal „Mi 05.08.2026 22:59". Das
-Datum ist durch die Gruppierung bereits bekannt.
-**Lösung:** „Heute, 22:59" / „Gestern, 14:32" / ältere mit Datum.
-**Folge:** Die feste Datumsspalte (150 pt) darf schmaler werden → mehr Platz für Namen.
+### ⛔️ UX-32 · Widerlegt: „Zusammenfassung kopieren" fehle im Menü
+**Art:** Fehlbefund der Durchsicht · **geschlossen am Tag der Aufnahme**
 
-### ✅ UX-11 · Wochenend-Bänder und Raster zurücknehmen *(erledigt, v1.7.0)*
-**Aufwand:** S · **Nutzen:** mittel · **Gehört zu:** UX-27 (Kontextschicht)
-Die grauen Wochenend-Flächen wirken visuell **stärker** als die Datenbalken. Kontext darf
-nie lauter sein als Inhalt.
-**Lösung:** Deckkraft deutlich senken, Rasterlinien dünner und heller.
-**Verzahnung:** Unterliegt der Kontextschicht-Regel aus UX-27 (ΔE ≤ 15 zum Hintergrund).
-Beide Punkte wirken **in dieselbe Richtung** – ein schwächeres Band vergrößert zugleich den
-Abstand zum „Sonstige"-Grau. Deshalb gemeinsam in Sprint 2a umsetzen.
+**Behauptet war:** Der Menüeintrag „Zusammenfassung kopieren" fehle im Menü Ablage und
+⌥⌘C bewirke nichts – AP1 aus Sprint 13 sei damit unerreichbar.
 
-### ✅ UX-12 · Light-Mode-Parität prüfen *(erledigt, v1.11.0)*
-**Aufwand:** S · **Nutzen:** mittel
-Die Gestaltung ist im Dark Mode entstanden. Zebra (7 %), Baumlinien (45 %),
-Legenden-Chips und entsättigte Icons müssen im hellen Modus gegengeprüft werden.
-**Akzeptanz:** Screenshot-Vergleich beider Modi; kein Element „verschwindet" oder dominiert.
-**Ergebnis (v1.11.0):** Beide Modi geprüft (Screenshot) und Kontraste **gemessen**:
-Dateiname auf Zebra 13,6:1 (dark) / 18,0:1 (light); gedimmte Außerhalb-Dateien auf Zebra
-**8,4:1 / 9,5:1** – deutlich über WCAG-AA (4,5:1). Zebra liegt mit ΔE 7,6 / 6,2 dicht genug
-am Hintergrund, um nicht zu dominieren. Eine Palette trägt beide Modi.
-
-### ✅ UX-13 · Bedienelemente für Tastatur und VoiceOver zugänglich machen *(erledigt, v1.16.0)*
-**Aufwand:** S · **Nutzen:** hoch
-**Kontrast-Teil erledigt und widerlegt (v1.11.0):** Die Vermutung, gedimmte Namen auf Zebra
-lägen unter dem Mindestkontrast, war **falsch** – gemessen 8,4:1 (dark) / 9,5:1 (light) gegen
-4,5:1 gefordert. *Lehre: Kontrast messen, nicht schätzen.*
-
-**Am Code nachgeprüft (Stand v1.15.0) – der ursprüngliche Eintrag war untertrieben:**
-
-| Ort | Befund |
-|---|---|
-| **Legenden-Chips** | Nur `onTapGesture` auf einem `HStack` – **kein `Button`, kein `focusable`, keine `accessibility`-Angabe**. Für Bedienungshilfen sind sie reiner Text: Dateitypen lassen sich **ohne Maus überhaupt nicht** aus-/einblenden. |
-| **Toolbar** (`MainToolbar`) | **0** `accessibility`-Angaben. Reine Symbolknöpfe; VoiceOver liest bestenfalls den Symbolnamen. `.help` ist **kein** Ersatz für `accessibilityLabel`. |
-| Zeilen | Gut versorgt (Label/Value/Hint vorhanden). |
-
-**Lösung (klein und wirksam):**
-1. `LegendChip` zu einem **echten `Button`** machen – löst Tastatur *und* VoiceOver in einem
-   Schritt. Solo bleibt auf Doppelklick; für die Tastatur ein zusätzlicher Weg (z. B. ⌥+Klick
-   bzw. Kontextmenü „Nur diesen Typ").
-2. Je Toolbar-Knopf ein **`accessibilityLabel`** ergänzen (14 Elemente).
-
-**Akzeptanz:** Mit Tabulator sind Legenden-Chips erreichbar und mit Leertaste schaltbar;
-VoiceOver nennt für jeden Toolbar-Knopf eine sprechende Bezeichnung.
-
-### ✅ UX-31 · Diagramm für VoiceOver zugänglich machen *(erledigt, v1.17.0)*
-**Aufwand:** M · **Nutzen:** gering–mittel · **abgetrennt von UX-13**
-`HistoryChartView` hat **0** `accessibility`-Angaben – VoiceOver liest dort nichts. Die
-Hover-Kurzinfo ist rein visuell.
-
-**Lösung:** `accessibilityRepresentation` bzw. je Bündel ein Element mit Text
-„Mo 03.08., 24 Dateien, davon 12 .swift, 7 .md".
-
-**Bewusst getrennt:** Ein Balkendiagramm für Bedienungshilfen sinnvoll aufzubereiten ist
-ein eigenes Vorhaben und ungleich aufwendiger als UX-13. Zusammen in einem Eintrag hätte
-der kleine, wirksame Teil daran gehangen.
-**Umgesetzt (v1.17.0):** Jedes Balkensegment trägt Label und Wert
-(„Mo 03.08." / „12 Dateien .swift"); der Diagrammrahmen fasst vorab zusammen
-(Zeitraum, Bündelung, Gesamtzahl, drei häufigste Typen) – sonst müsste man sich durch
-alle Balken hangeln.
-
-### ✅ UX-14 · Kompakt-Layout für schmale Fenster *(erledigt, v1.15.0)*
-**Aufwand:** M · **Nutzen:** mittel
-Die Mindestbreite liegt bei 1000 pt. Auf einem 13″-Gerät bleibt neben Pfad und
-Datumsspalte wenig für den Namen.
-**Lösung:** Unterhalb einer Schwelle Pfad ausblenden und Datumsspalte verkürzen, statt
-alles zu quetschen.
-
-### ✅ UX-15 · Zwei Zeitraum-Bedienelemente zusammenführen *(erledigt, v1.8.0)*
-**Aufwand:** S · **Nutzen:** mittel · **Teil von:** UX-03
-„7 30 90" **und** Stepper „30 Tage" stehen nebeneinander – zwei Wege für dieselbe Größe.
-**Lösung:** Presets behalten, Feineinstellung hinter „Eigene …".
-
-### ✅ UX-16 · Statuszeile entrümpeln *(erledigt, v1.6.0)*
-**Aufwand:** S · **Nutzen:** gering
-„0.38 s" ist eine Entwicklermetrik ohne Nutzen für den Anwender.
-**Lösung:** Scandauer entfernen (oder nur im Tooltip/Diagnosefall zeigen).
-**Umgesetzt:** Aus der Statuszeile entfernt, als Tooltip der Ordner/Dateien-Anzeige
-weiterhin abrufbar.
-
-### ✅ UX-17 · Doppelte Zeitstempel prüfen *(erledigt, v1.11.0)*
-**Aufwand:** S · **Nutzen:** gering
-Ordnerzeile und ihre datumsstiftende Datei zeigen exakt denselben Wert untereinander.
-**Ergebnis (v1.11.0): als bewusste Entscheidung geschlossen – kein Code.** Die Dopplung ist
-richtig: Zugeklappt ist das Ordnerdatum die **einzige** Datumsinformation; verschwände es
-beim Aufklappen, spränge der Wert und die Datumsspalte bekäme Lücken. Die Fettschrift trifft
-zudem eine *andere* Aussage als das Datum – sie sagt, **welche** Datei die Quelle ist.
-Dokumentiert in Konzept §4.3.7. *Mein ursprünglicher Kritikpunkt war unterkomplex.*
-
-### ✅ UX-18 · App-Icon überarbeiten *(erledigt, v1.15.0)*
-**Aufwand:** M · **Nutzen:** mittel
-Das Icon ist ein generierter blauer Kreis – ein Platzhalter. Es ist der erste Eindruck im
-Dock und transportiert „zuletzt bearbeitet" nicht.
-**Lösung:** Echtes Icon-Konzept (Uhr/Verlauf + Ordner), macOS-Icon-Raster einhalten.
-
----
-
-## P3 – Erweiterungen
-
-### ✅ UX-30 · Adaptive Granularität im Diagramm *(erledigt, v1.12.0)*
-**Aufwand:** M · **Nutzen:** hoch · **Aufgenommen:** bei der Planung von Sprint 4
-Bei langen Zeiträumen bündelt das Diagramm nach **Woche** bzw. **Monat** statt nach Tag.
-
-**Behebt einen bestehenden Mangel:** Schon heute liefert `windowSpanDays > 4000` ein
-**leeres** Diagramm (Schutz vor Millionen-Elemente-Arrays). Wer in „Spanne" fünf Jahre
-wählt, sieht also nichts. Mit Bündelung entfällt der Grund für die harte Grenze.
-
-**Zugleich Voraussetzung für UX-28** („Alle"-Modus) – ohne Bündelung wäre dort nie ein
-Diagramm zu sehen.
-
-**Regel (automatisch, kein Bedienelement):**
-| Spanne | Bündelung |
-|---|---|
-| bis ~90 Tage | Tag |
-| bis ~2 Jahre | Woche |
-| darüber | Monat |
-
-**Technisch:** `FolderAggregator.countFilesPerDayByType` bündelt bereits über
-`calendar.startOfDay` – daraus wird ein Parameter (`startOfDay` / `startOfWeek` /
-`startOfMonth`). `DayExtensionCount.day` bedeutet dann „Beginn des Bündels".
-Achsenbeschriftung und die Klick-Auflösung (Segment → Datei) müssen mitziehen.
-
-### ✅ UX-19 · Sortierung *(erledigt, v1.13.1)*
-**Aufwand:** M · **Nutzen:** hoch
-Es gibt keine Sortiermöglichkeit. Erwartet werden Datum, Name und Anzahl – idealerweise
-über anklickbare Spaltenköpfe.
-
-### ✅ UX-20 · Hover-Rückmeldung im Diagramm *(erledigt, v1.12.0)*
-**Aufwand:** M · **Nutzen:** hoch
-Beim Überfahren passiert nichts. Erwartet: Fadenkreuz und Kurzinfo
-„Mo 03.08. · 24 Dateien (12 .swift, 7 .md …)".
-
-### ✅ UX-21 · Zeitraum im Diagramm aufziehen *(erledigt, v1.12.0)*
-**Aufwand:** M · **Nutzen:** hoch · **Abhängig von:** UX-20
-Bei einem Zeitstrahl erwartet man, mit gedrückter Maus einen Bereich zu markieren und so
-den Zeitraum zu setzen.
-**Konsistenz:** Die Regel „Zeitspanne wirkt erst mit *Aktualisieren*" muss hierfür
-aufgeweicht werden – ein aufgezogener Bereich wirkt **sofort**. Regel in der
-Spezifikation entsprechend präzisieren.
-
-### ✅ UX-22 · Drag & Drop in beide Richtungen *(erledigt, v1.13.1)*
-**Aufwand:** M · **Nutzen:** hoch
-- Datei aus der Liste **herausziehen** (Mail, Finder, Editor).
-- Ordner **auf das Fenster ziehen** = neuer Wurzelordner.
-
-### ✅ UX-23 · Mehrfachauswahl nach Apple-Standard *(erledigt, v1.16.0)*
-**Aufwand:** L · **Nutzen:** hoch *(aufgewertet: Mehrfach-Ziehen ist ein eigener Zweck)*
-
-Heute ist die Auswahl **einwertig** (`selection: RowID?`). Gefordert ist das gewohnte
-macOS-Verhalten – mit Maus **und** Tastatur:
-
-| Eingabe | Verhalten |
-|---|---|
-| Klick | einzeln auswählen |
-| ⌘-Klick | einzelnes Element hinzu/abwählen |
-| ⇧-Klick | Bereich vom Anker bis hierher |
-| ↑ / ↓ | Auswahl auf eines reduzieren und bewegen |
-| ⇧↑ / ⇧↓ | Auswahl per Tastatur erweitern |
-| **⌘A** | alles Sichtbare auswählen |
-| **Esc** | Auswahl aufheben |
-
-**Alle Aktionen wirken auf die gesamte Auswahl:** Kontextmenü (Öffnen, Im Finder anzeigen,
-Pfade kopieren), Enter, QuickLook (Leertaste blättert durch die Auswahl) – und
-**Drag & Drop mit mehreren Dateien**.
-
-**Ziehen mit Mehrfachauswahl (Finder-Regel):** Gehört die gezogene Zeile **zur** Auswahl,
-werden **alle** ausgewählten Dateien gezogen; gehört sie **nicht** dazu, wird sie zuerst
-allein ausgewählt und nur sie gezogen. Technisch: `.onDrag` liefert heute **einen**
-`NSItemProvider` – nötig ist `.draggable`/`itemProviders` mit mehreren, jeweils mit
-korrektem `suggestedName` (siehe Konzept 3.9.5).
-
-**Umfang – am Code gezählt (v1.15.0):** **46 Fundstellen** in **6 Dateien**
-(`ReportViewModel` 27, `ReportView` 7, `MainToolbar` 4, `RowNavigation` 3,
-`FileRowView` 3, `FolderRowView` 2). *Frühere Schätzung „20 Stellen" war zu niedrig.*
-`selection: RowID?` wird zu `Set<RowID>` plus **Anker** für ⇧-Bereiche; betroffen sind
-zusätzlich `pruneSelection`, `moveSelection`, `SelectionOrigin`/Scroll-Logik,
-`prepareFullFileList` und beide Zeilenansichten.
-
-**Entschieden (vor der Umsetzung festgelegt):**
-- **Ausgewählt werden können nur Dateien.** Es gibt keine gemischte und keine reine
-  Ordner-Auswahl.
-  *Begründung: Die Liste ist ein Baum – eine Auswahl aus Ast und Blatt zugleich hat keine
-  sinnvolle gemeinsame Aktion, und der Finder kennt das ebenfalls nicht. Zudem entfällt
-  damit die Frage, was beim Ziehen eines Ordners geschehen soll.*
-
-- **Cursor ≠ Auswahl (wichtige Unterscheidung).** Die Pfeiltasten müssen weiterhin auf
-  Ordnerzeilen stehen können – sonst ließe sich **kein Ordner mehr per Tastatur auf- oder
-  zuklappen** (←/→) und der Diagramm-Sprung auf einen Ordner (`focusDay`) verlöre sein Ziel.
-  Daher zwei getrennte Begriffe:
-  - **Cursor** (`focusedRow: RowID?`) – wandert über **alle** Zeilen, trägt die
-    Tastatur-Navigation, ←/→ und Enter. Dezent dargestellt (Fokusrahmen).
-  - **Auswahl** (`selectedFiles: Set<URL>`) – enthält **ausschließlich Dateien**, trägt
-    Hervorhebung, Kontextmenü, QuickLook und Ziehen.
-  Steht der Cursor auf einer Ordnerzeile, ist die Auswahl leer; ein Klick auf einen Ordner
-  **verwirft** eine bestehende Dateiauswahl.
-- **Nur Dateien sind ziehbar.** Ordnerzeilen bekommen kein `.onDrag`.
-- **⌘A wählt nur die sichtbaren Zeilen** – also die Dateien der aktuell **aufgeklappten**
-  Ordner in `displayBuckets`, nicht die Dateien zugeklappter Ordner.
-  *Begründung: „Alles auswählen" darf nur greifen, was man auch sieht – sonst zieht man
-  unbemerkt hunderte Dateien mit.*
-
-**Daraus folgt für das Modell:** Das heutige `selection: RowID?` wird zum **Cursor**
-(umbenennen, Verhalten bleibt) und bekommt `selectedFiles: Set<URL>` zur Seite – statt
-`selection` selbst zu einer Menge zu machen. Das hält Ordnerlogik, `SelectionOrigin` und
-die Scroll-Regeln (4.3.5) unangetastet und verkleinert den Umbau spürbar.
-
-**Offene Kleinigkeit für die Umsetzung:** Cursor und Auswahl brauchen **unterscheidbare
-Darstellungen** – sonst weiß niemand, worauf eine Aktion wirkt. Vorschlag: Auswahl wie
-heute getönt, Cursor nur mit feinem Rahmen.
-
-**Bleibt ein eigener Sprint:** Umbau des Auswahlmodells, nicht mit anderen Neuerungen mischen.
-*Durch die Beschränkung auf Dateien fällt der Aufwand von L auf **M–L**.*
-
-### ⛔️ UX-24 · Einstellungen-Fenster (⌘,) — *geschlossen ohne Umsetzung (v1.17.0)*
-**Aufwand:** M · **Nutzen:** — · **Begründung des Abschlusses:**
-
-Der Eintrag stammt aus dem Design-Review und ist überholt. Von den vier genannten Inhalten
-existieren zwei gar nicht, einer ist bewusst fest:
-
-| Genannter Inhalt | Stand |
-|---|---|
-| „Standard-Zeitraum" | Wird persistiert; ein separater Standard existiert nicht. |
-| „Ausschlüsse" | **Gibt es nicht** als Einstellung (`ExclusionRules.default` ist fest). |
-| „Anzahl Legenden-Einträge" | Fest auf 10 – **bewusst**, weil an die 11-Farben-Palette gekoppelt (3.10). Einstellbar zu machen hieße, die zugesicherte Unterscheidbarkeit aufzugeben. |
-| „Update-Verhalten" | Nicht einstellbar; die Prüfung läuft still beim Start (10.1). |
-
-Die im Eintrag genannte Sorge („sobald eine Option dazukommt, platzt die Toolbar") ist
-**eingetreten** – beim Sortier-Menü lief die Toolbar in die Grenze von zehn `ToolbarItem`s.
-Gelöst wurde das durch **Gruppierung**, nicht durch ein Einstellungen-Fenster.
-
-**Ein Fenster hätte derzeit fast nichts zu zeigen.** Entsteht später eine echte Option
-(z. B. eigene Ausschlussmuster), gehört sie als **neuer, eigens begründeter Eintrag**
-ins Backlog – nicht in diese Vorratshülle.
-
-### ✅ UX-25 · Erstkontakt (First Run) *(erledigt, v1.15.0)*
-**Aufwand:** S · **Nutzen:** mittel
-Beim ersten Start erscheint sofort ein Ergebnis, ohne dass erklärt wird, was die App tut
-und dass der Ordner wechselbar ist.
-**Lösung:** Einmaliger, wegklickbarer Hinweis mit drei Sätzen und Verweis auf die Hilfe.
-
----
-
-## Konsistenz-Entscheidungen
-
-Beim Zusammenstellen aufgelöste Widersprüche – hier festgehalten, damit die Gestaltung
-aus einem Guss bleibt:
-
-1. **Trennlinie vs. fixierte Kopfzone.** Die ursprüngliche Idee „zusätzliche Trennlinie
-   unter der Legende" wird **verworfen** zugunsten von **UX-04** (feste Kopfzone mit
-   *einer* Haarlinie). Sonst hätten wir ein viertes Trennsystem – im Widerspruch zu **UX-09**.
-2. **UX-09 widerspricht der Spezifikation §4.3.2**, die Zebra **und** Trennlinien fordert.
-   Mit Umsetzung von UX-09 ist §4.3.2 anzupassen.
-3. **UX-21 widerspricht der Regel „Zeitspanne wirkt erst mit *Aktualisieren*"** (§3.x).
-   Auflösung: Ein im Diagramm aufgezogener Bereich wirkt sofort; die Regel gilt weiterhin
-   für die manuelle Eingabe in den Datumsfeldern.
-4. **UX-05 verschiebt den Top-Anker.** ⌘↑ hängt heute an der zentrierten Überschrift, die
-   entfällt. Der Anker muss auf die erste Tabellenzeile wandern.
-5. **UX-17 bewusst nicht „einfach umsetzen".** Das Entfernen eines Zeitstempels erzeugt
-   Folgeprobleme (leere Spalte, Springen beim Aufklappen) – deshalb als Entwurfsaufgabe
-   markiert, nicht als Fix.
-6. **UX-02 hat eine Architektur-Vorbedingung.** Live-Filterung erfordert einen
-   ungefilterten Scan; das ist kein reiner UI-Umbau und braucht eine Messung.
-8. **UX-05 teilweise revidiert (v1.9.0).** Der Zeitraum wurde in Sprint 2 in die
-   Titelleiste verschoben – das war falsch: Er **beschriftet das Diagramm** (ohne ihn sind
-   die Balken nicht deutbar) und gehört damit in dessen Nähe, nicht in die Fenster-Metazeile.
-   *Dies widerspricht ausgerechnet UX-08/4.3.2 („Gesetz der Nähe"), das wir selbst
-   aufgestellt hatten.* Gültig ist jetzt: Fenstertitel = „activities — <Ordner>",
-   Zeitraum = linksbündige Überschrift über dem Diagramm, auch im eingeklappten Zustand sichtbar.
-9. **`.searchable` wurde durch ein eigenes `NSSearchField` ersetzt (v1.9.0).** SwiftUI
-   platziert `.searchable` zwingend ganz rechts; die Ablauf-Reihenfolge
-   *Ort → Suche → Zeitraum → Anpassungen* verlangt die zweite Position. Der
-   `NSViewRepresentable`-Umweg erhält die native Optik bei freier Platzierung.
-   *Abweichung von der macOS-Konvention (Suchfeld rechts) – bewusst, weil Suchen hier
-   Hauptarbeit ist und nicht Nebensache.*
-7. **UX-01 wurde nach Code-Prüfung entschärft.** Der vermutete Funktionsfehler existiert
-   nicht – der Teilstring-Filter ist implementiert. *Lehre: Annahmen aus der Oberfläche
-   am Code prüfen, bevor sie als Fehler ins Backlog wandern.*
-
----
-
-## Sprint-Vorschlag
-
-**✅ Sprint 1 – „Der Nutzer sieht, was gerade wirkt" (abgeschlossen, v1.6.0)**
-UX-01, UX-06, UX-07, UX-16
-→ Filterfeld erklärt sich richtig, ausgeblendete Typen sind sichtbar und zurücksetzbar,
-Arbeitsfläche und Statuszeile aufgeräumt. Kein Architektur-Eingriff.
-*Erkenntnis: UX-01 war nach Code-Prüfung kein Funktionsfehler – siehe Konsistenz-Punkt 7.*
-
-**✅ Hotfix vor Sprint 2 – UX-26 (abgeschlossen, v1.6.1)**
-Behob eine Störung der häufigsten Interaktion; zusätzlich wird jetzt minimal statt
-zentriert gescrollt.
-
-**✅ Sprint 2a – „Farbsystem" (abgeschlossen, v1.7.0)**
-UX-27 **und UX-11** (Datenschicht + Kontextschicht – dieselbe Entwurfsentscheidung).
-Ergebnis: 11 Farben mit zugesichertem ΔE ≥ 25, in CoreChecks automatisiert geprüft;
-§3.10 neu gefasst; `IconColor` entfernt.
-*Vorher/nachher für die Endungen aus dem Befund: kleinster Abstand 0.0 → 26.8.*
-
-**✅ Sprint 2 – „Kopfzone und Toolbar" (abgeschlossen, v1.8.0)**
-UX-03, UX-04, UX-05, UX-15
-*Spike vorab:* `.searchable` rendert ohne `NavigationStack` – die Hülle war unnötig.
-*Ungeplant mitgemacht (aus Platzberechnung nötig):* Diagramm 260→180, Kopfzone einklappbar,
-Mindesthöhe 520→600, Mindestbreite 1000→1180 (sonst kollabiert das Suchfeld zur Lupe).
-*Nebenbefund:* `defaultSize` (980) war kleiner als `minWidth` (1000) – behoben.
-→ Der große Gestaltungsschritt; danach wirkt die App native.
-
-**✅ Sprint 3 – „Lesen und Finden" (abgeschlossen, v1.11.0)**
-UX-29, UX-02, UX-08, UX-09, UX-10, UX-17, UX-12
-*UX-17 als Entscheidung geschlossen statt umgesetzt; UX-12 hat den Kontrast-Verdacht aus
-UX-13 messtechnisch widerlegt.*
-
-**✅ Sprint 4 – „Zeitachse beherrschen" (abgeschlossen, v1.12.0)**
-AP1 UX-20 (Hover) → AP2 UX-30 (Granularität) → AP3 UX-28 („Alle") → AP4 UX-21 (Aufziehen).
-Reihenfolge zwingend: AP2 vor AP3 (sonst leeres Diagramm), AP1 vor AP4 (Rückmeldung vor Auswahl).
-
-**✅ Sprint 5 – „Mit Treffern arbeiten" (abgeschlossen, v1.13.1)**
-UX-19 (Sortierung, auch nach Typ), UX-22 (Drag & Drop).
-*UX-23 bewusst herausgelassen: Mehrfachauswahl ist ein Umbau des Auswahlmodells
-(20 betroffene Stellen) und bekommt einen eigenen Sprint.*
-
-**Offen:** UX-23 (Mehrfachauswahl, eigener Sprint) · UX-13, UX-14, UX-18, UX-24, UX-25 (Feinschliff)
-
-**✅ Sprint 6 – „Weitergabereif" (abgeschlossen, v1.15.0)**
-UX-25 (Erstkontakt), UX-18 (App-Icon „Ordner + Uhr"), UX-14 (Kompakt-Layout;
-Mindestbreite 1180 → 820).
-
-**✅ Sprint 7 – „Auswahl und Zugänglichkeit" (abgeschlossen, v1.16.0)**
-UX-13 (Chips + Toolbar für Tastatur/VoiceOver), UX-23 (Mehrfachauswahl nach
-Apple-Standard inkl. Mehrfach-Ziehen).
-
-**✅ Sprint 8 – „Abschluss" (abgeschlossen, v1.17.0)**
-UX-31 (Diagramm für VoiceOver), UX-24 (geschlossen ohne Umsetzung),
-Portabilität (Kern von `fnmatch`/`os` befreit, Konzept 10.2), Dokumentation aktualisiert.
-
-**Backlog abgearbeitet.** Neue Einträge entstehen künftig aus dem Betrieb – so wie
-UX-26 bis UX-31, die alle erst bei der Benutzung auffielen.
-
----
----
-
-# Teil 2 – Produkt-Roadmap (aufgenommen als PO/UX, Stand v1.17.0)
-
-## Kernbefund
-
-**Die App meldet heute Dateisystem-Ereignisse, nicht menschliche Arbeit.**
-
-Beleg aus dem eigenen Projekt: In den Bildschirmfotos der letzten Wochen erschienen
-wiederholt `dist/activities.app/Contents/_CodeSignature`, `.../MacOS` und `.../Resources`
-als „Ordner, in denen zuletzt gearbeitet wurde". Dort hat **niemand gearbeitet** – die
-Ordner entstanden beim Übersetzen. Dasselbe gilt für Zwischenstände von Werkzeugen,
-Sicherungen und Synchronisierungsdiensten (iCloud, Dropbox), die Zeitstempel setzen,
-ohne dass ein Mensch etwas getan hat.
-
-Für das Versprechen der App – *„Ich finde nicht wieder, woran ich gearbeitet habe"* – ist
-das die größte Schwäche: Das Signal steht neben Rauschen, und der Anwender muss selbst
-trennen. **Alles Weitere ist Kür, solange das nicht gelöst ist.**
-
-Die Ausschlussregeln existieren (`ExclusionRules`), sind aber **fest verdrahtet**
-(`.default`) und decken typische Bau-Verzeichnisse nicht ab (`dist`, `.build`,
-`DerivedData`, `target`, `out`, `Pods`, `.gradle`, `*.app`).
-
-## Drei strategische Richtungen
-
-| Richtung | Kernfrage | Einschätzung |
-|---|---|---|
-| **A · Verlässlicher Finder** | „Zeig mir zuverlässig, woran *ich* gearbeitet habe." | **Empfohlen.** Schärft das bestehende Versprechen; ohne das trägt nichts anderes. |
-| **B · Täglicher Begleiter** | „Sei da, ohne dass ich dich öffne." | Menüleiste, Anmeldestart. Macht aus dem Werkzeug eine Gewohnheit. |
-| **C · Rückblick und Bericht** | „Was habe ich diese Woche gemacht?" | Neuer Nutzen (Zeiterfassung, Standup, Rechnungsstellung) – aber ein anderes Produkt. Erst nach A. |
-
-**Empfehlung:** A → B → C. Erst verlässlich, dann gewohnt, dann berichtsfähig.
-
-## Roadmap
-
-| Release | Thema | Inhalt |
-|---|---|---|
-| **v1.18** ✅ | Signal statt Rauschen | PR-01 … PR-06 – **abgeschlossen** |
-| **v1.19** ✅ | Täglicher Begleiter | PR-07 … PR-10 – **abgeschlossen** |
-| **v1.20** | Schneller wieder reinkommen | PR-26, PR-11 … PR-14 – **Sprint 9 geplant**, PR-12 ✅ |
-| **v1.21** | Struktur statt Liste | **PR-27** (Baumdarstellung, Einstiegsansicht) · PR-28 · PR-30 · PR-31 · PR-29 ⏸ |
-| **v1.22** | Rückblick und Bericht | PR-15 … PR-18 |
-| **v1.23** | Suchen und Finden | PR-19 … PR-21 |
-| **v2.0** | Vertrauen und Verbreitung | PR-22 … PR-25 |
-
-**PR-27 rückt vor den Rückblick (früher v1.21).** Die Baumdarstellung ändert die Leitfrage
-der App von „wann?" zu „wo?, mit dem Wann daneben" – und gemessen sind 97 % aller
-Ergebnisordner von der heutigen flachen Darstellung betroffen. Einen Wochenrückblick (PR-15)
-auf einer Darstellung zu bauen, die davor umgestellt wird, wäre Arbeit auf Sand.
-
----
-
-## Thema A · Signal statt Rauschen (v1.18)
-
-### ✅ PR-01 · Bau- und Werkzeugordner standardmäßig ausschließen *(erledigt, v1.18.0)*
-**Aufwand:** S · **Nutzen:** sehr hoch
-`ExclusionRules.default` um die üblichen Erzeugnisverzeichnisse erweitern: `dist`, `build`,
-`.build`, `out`, `target`, `DerivedData`, `Pods`, `.gradle`, `.next`, `.nuxt`, `vendor`,
-`.terraform`, `.pytest_cache`, `.mypy_cache`, `.tox`, `.parcel-cache`.
-**Vorsicht:** `build` und `out` sind auch legitime Ordnernamen. Deshalb PR-06 (sichtbar
-machen, was ausgeblendet wurde) **zusammen** ausliefern – stilles Verschlucken wäre schlimmer
-als Rauschen.
-
-### ✅ PR-02 · App-Bündel als eine Einheit behandeln *(erledigt, v1.18.0)*
-**Aufwand:** S · **Nutzen:** sehr hoch
-`.app`, `.bundle`, `.framework`, `.photoslibrary`, `.rtfd` sind für macOS **Dokumente**,
-technisch aber Ordner. Der Scanner läuft heute hinein und meldet deren Innereien als Arbeit.
-**Lösung:** nicht betreten, sondern als **eine Datei** werten (Zeitstempel des Bündels).
-
-### ✅ PR-03 · Ausschlüsse einstellbar machen *(erledigt, v1.18.0)*
-**Aufwand:** M · **Nutzen:** hoch · **braucht:** ein Einstellungen-Fenster
-Eigene Ordnernamen und Muster ergänzen/entfernen. *Damit bekäme das in UX-24 verworfene
-Einstellungen-Fenster erstmals einen echten Inhalt.*
-
-### ✅ PR-04 · „Diesen Ordner nicht mehr zeigen" im Kontextmenü *(erledigt, v1.18.0)*
-**Aufwand:** S · **Nutzen:** hoch
-Ein Klick statt Konfiguration – die App lernt aus der Benutzung. Rücknahme über die
-Einstellungen (PR-03).
-
-### ✅ PR-05 · Ordner anheften (Favoriten) *(erledigt, v1.18.0)*
-**Aufwand:** M · **Nutzen:** hoch
-Wichtige Projekte oben festhalten, unabhängig vom Zeitraum. Kehrt die Logik um: nicht
-„was war zuletzt", sondern „was ist mir wichtig".
-
-### ✅ PR-06 · Ausgeblendetes sichtbar machen *(erledigt, v1.18.0)*
-**Aufwand:** S · **Nutzen:** hoch · **zwingend mit PR-01**
-Hinweis wie bei den Typ-Filtern (UX-06): „14 Ordner ausgeblendet (Bau-Artefakte)" mit
-Möglichkeit, sie einmalig einzublenden. **Kein stiller Zustand** – das ist eine der
-Lehren aus Sprint 1.
-
----
-
-## Thema B · Täglicher Begleiter (v1.19)
-
-### ✅ PR-07 · Menüleisten-Symbol mit Kurzansicht *(erledigt, v1.19.0)*
-**Aufwand:** L · **Nutzen:** sehr hoch
-Klick zeigt die fünf zuletzt bearbeiteten Ordner mit Sprung dorthin. Senkt die Hürde von
-„App öffnen" auf „hinsehen" – der stärkste Hebel für tägliche Nutzung.
-
-### ✅ PR-08 · Beim Anmelden starten (optional) *(erledigt, v1.19.0)*
-**Aufwand:** S · **Nutzen:** mittel · **braucht:** PR-07
-`SMAppService`. Sinnvoll erst mit Menüleisten-Symbol; ein unsichtbar startendes
-Fenster wäre aufdringlich.
-
-### ✅ PR-09 · Globales Tastenkürzel *(erledigt, v1.19.0)*
-**Aufwand:** M · **Nutzen:** mittel
-Frei belegbar, holt die App aus jeder Anwendung nach vorn.
-
-### ✅ PR-10 · Zustand über Neustarts erhalten *(erledigt, v1.19.0)*
-**Aufwand:** S · **Nutzen:** mittel
-Aufgeklappte Ordner, Bildlaufposition und Auswahl wiederherstellen. Heute beginnt jede
-Sitzung bei null.
-
----
-
-## Thema C · Schneller wieder reinkommen (v1.20)
-
-### Sprint 9 – Zuschnitt *(geplant nach Code-Durchsicht, Stand v1.19.3)*
-
-| AP | Eintrag | Aufwand |
-|---|---|---|
-| **AP1** | PR-26 · Massenöffnen begrenzen *(neu)* | S |
-| **AP2** | PR-11 · „Arbeit fortsetzen" | M |
-| **AP3** | PR-12 · Ordner in einem Programm eigener Wahl öffnen | M |
-| **AP4** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | M |
-| **AP5** | PR-13 · Typverteilung in der Ordnerzeile *(umformuliert)* | M |
-
-**AP1 zwingend vor AP2:** PR-11 würde einen bestehenden Mangel zu einem prominenten Knopf
-befördern. Die übrigen Punkte sind voneinander unabhängig.
-
-**Drei Befunde aus der Code-Durchsicht haben den Zuschnitt geändert:**
-
-1. **PR-11 hat die Datenbasis vollständig – aber es gibt keine Bremse.** `filesByFolder`
-   (`ReportViewModel.swift:192`), `visibleFiles(in:)` (`:908`), `chartBucketRange(containing:)`
-   (`:1027`) und der Begriff Ordner+Tag als `ChartFocus` (`:8`) liegen bereit; „mehrere URLs
-   öffnen" existiert zweimal (`:876`, `FileRowView.swift:150`). **Ohne jede Obergrenze** –
-   daraus wurde PR-26.
-2. **PR-13 stand auf einer falschen Prämisse** (siehe dort) – umformuliert.
-3. **PR-14 ist zur Hälfte vorhanden**, der interessantere Teil fehlt (siehe dort) – erweitert.
-
-**Zurückgezogene Vermutung:** Ich hatte angenommen, die Dateiauswahl überlebe einen
-Ordnerwechsel. **Falsch** – `pruneSelection()` (`ReportViewModel.swift:675`) schneidet die
-Auswahl bei jedem Neuaufbau auf die sichtbaren Dateien zurück. *Lehre erneut bestätigt:
-Vermutung am Code prüfen, bevor sie als Mangel ins Backlog wandert (Konsistenz-Punkt 7).*
-
-### PR-26 · Massenöffnen begrenzen *(erledigt, v1.19.26)*
-**Aufwand:** ~~S~~ **M** *(korrigiert bei der Durchsicht für Sprint 10)* · **Nutzen:** hoch · **Vorbedingung für:** PR-11
-
-⌘A (`selectAllVisibleFiles()`) plus Enter (`openSelection()`) startet **für jede sichtbare Datei
-eine Anwendung** – ohne Rückfrage, ohne Obergrenze, ohne Drosselung. Dasselbe gilt für
-„Öffnen (n)" im Kontextmenü (`FileRowView.swift:152`). Die App besitzt heute **keinen einzigen**
-`confirmationDialog` und kein `NSAlert`; die beiden `.alert` in `RootView.swift:62-91` sind
-Meldungen, keine Rückfragen.
-
-Gemessen im Alltagsfall (`~/Documents`, 30 Tage): 3 Ordner · 3 Dateien – harmlos. Im
-„Alle"-Modus (UX-28) über einen großen Baum umfasst dieselbe Tastenfolge den **gesamten
-Bestand**; für diesen Baum sind ~83.000 Dateien gemessen (Konzept 10.1).
-
-**Lösung:** Ab einer Schwelle eine Rückfrage, die die **Anzahl nennt** („47 Dateien öffnen?")
-und **Abbrechen als Vorgabe** hat.
-
-**⚠️ Die Grenze gehört an genau eine Stelle** – in die Öffnen-Aktion selbst, nicht zu den
-Aufrufern. Sonst driften Enter, Kontextmenü und PR-11 auseinander, und der Schutz gilt je nach
-Weg oder nicht.
-
-**⚠️ Genau diese eine Stelle gibt es heute nicht – das ist der Grund für die Höherstufung.**
-`FinderService.open` (`FinderService.swift:8-10`) nimmt ein **einzelnes** `URL`; die Vielfachheit
-entsteht erst in den `forEach`-Schleifen der Aufrufer (`ReportViewModel.swift:1140`,
-`FileRowView.swift:152`, `:153`). Eine Sperre dort wüsste nicht, dass sie Teil einer Serie ist.
-Es fehlt also die **Mengen-Ebene**, an der die Grenze laut Beschluss sitzen soll – die muss
-PR-26 erst schaffen, samt Umstellung der Aufrufer.
-
-**⚠️ Es sind zwei Schadensmechanismen, nicht einer.** Die Wege über `FinderService` starten
-**N Systemaufrufe in einer Schleife**; die Wege über `ExternalAppService.open`
-(`ExternalAppService.swift:118`, genutzt von „In Editor öffnen (n)", ⌘⇧E, ⌘⇧T) übergeben das
-ganze Array in **einem** Aufruf – dort entscheidet die Zielanwendung, was sie mit 500 Dateien
-anfängt. Die Rückfrage ist in beiden Fällen richtig, aber eine gemeinsame Sperre muss beide
-Formen kennen.
-
-**Zu entscheiden (Entwurf, keine Beobachtung):** Ob `actionError` (`ReportViewModel.swift:249`,
-heute nur ein `String?`) zu einem Zustand mit Aktion erweitert wird oder ob ein zweiter Zustand
-(`pendingBulkOpen: [URL]?`) danebentritt. Der Update-Dialog (`RootView.swift:73-91`) ist die
-nächstgelegene Vorlage für einen zweiknöpfigen Dialog im Haus.
-
-**Akzeptanz:** Unterhalb der Schwelle öffnet es wie bisher ohne Rückfrage; oberhalb erscheint
-eine Rückfrage mit der genauen Anzahl; Abbrechen öffnet nichts. Gilt für **alle** Wege (Enter,
-Kontextmenü „Öffnen (n)", „Im Finder anzeigen (n)", Editor/Terminal, PR-11).
-
-**Umgesetzt:**
-- **`BulkAction` in `ActivitiesCore`** trägt Schwelle, Entscheidung und Wortlaut – reine
-  Funktionen, in `CoreChecks` und XCTest geprüft. Die Oberfläche bekommt nur noch fertige Sätze.
-- **`ReportViewModel.run(_:)` ist die eine Stelle.** Alle fünf Wege laufen über
-  `requestOpen` / `requestReveal` / `requestOpenInEditor` / `requestOpenInTerminal`; keiner
-  öffnet mehr selbst. Der `forEach` beim Aufrufer ist verschwunden.
-- **`FinderService` hat jetzt eine Mengen-Ebene** (`open(_ urls:)`, `reveal(_ urls:)`). Erst
-  dadurch ist „viele auf einmal" ein Begriff, über den sich eine Regel legen lässt.
-- **`confirmationDialog`, nicht `alert`** – die erste Rückfrage der App. Abbrechen ist der
-  Fluchtweg, den der Dialog von sich aus mitbringt.
-
-**Die Schwelle steht bei 10 – gesetzt, nicht gemessen, und das soll man ihr ansehen.** Es gibt
-keinen Wert, ab dem Öffnen „objektiv" zu viel wird. Die Zahl trennt zwei *Absichten*: Bis etwa
-zehn Dateien hat man jede angeklickt und weiß, was man tut; darüber stammt die Menge fast immer
-aus einem Befehl (⌘A). **⚠️ Der Grund, nicht tiefer zu gehen:** Eine Rückfrage, die im Alltag
-auftaucht, wird weggeklickt, ohne gelesen zu werden – und ist dann keine mehr. Der gemessene
-Alltagsfall (3 Dateien) hat deshalb eine eigene Prüfung, die sicherstellt, dass er **still**
-bleibt.
-
-**⚠️ Entdoppelt wird vor der Schwellenprüfung.** Das Terminal öffnet Ordner, nicht Dateien.
-Ohne diese Reihenfolge hätte die App bei fünfzig Dateien eines Ordners nachgefragt – und
-danach ein einziges Fenster geöffnet. Eine Rückfrage, die eine falsche Zahl nennt, ist
-schlimmer als keine: Beim nächsten Mal glaubt man ihr nicht mehr.
-
-**Zwei Funde nebenbei:**
-- **„Im Finder anzeigen (n)" öffnete N Finder-Fenster.** `activateFileViewerSelecting` nimmt
-  ein Array und zeigt Objekte desselben Ordners in *einem* Fenster – aufgerufen wurde es je
-  Objekt einzeln. Mit der Mengen-Ebene ist das erledigt, ohne dass es jemand suchen musste.
-- **Der Typechecker gab auf.** Mit der dritten Einblendung im `body` von `RootView` brach die
-  Übersetzung mit „unable to type-check this expression in reasonable time" ab. Die Dialoge
-  liegen jetzt in eigenen `ViewModifier`n (`DialogsModifier`). Der Nebeneffekt ist der
-  eigentliche Gewinn: Wer wissen will, was die App den Anwender fragt, findet es an *einer*
-  Stelle statt am Ende eines 60-Zeilen-Stapels.
-
-### PR-11 · „Arbeit fortsetzen" *(erledigt, v1.19.26)*
-**Aufwand:** M · **Nutzen:** hoch · **braucht:** PR-26
-Ein Befehl öffnet alle Dateien, die an einem Tag in einem Ordner bearbeitet wurden – der
-Zustand von gestern ist in Sekunden wieder da. **Das ist der eigentliche Zweck der App,
-zu Ende gedacht.**
-
-**Entschieden – Untermenü mit Tagen und Anzahl:**
+**Tatsächlich ist beides vorhanden.** Am frisch gestarteten Programm:
 
 ```
-Arbeit fortsetzen ▸  Heute (4)
-                     Gestern (2)
-                     Mi., 05.08. (7)
+Menü Ablage: Schließen · (Trenner) · Als CSV exportieren … · Als HTML exportieren …
+             · (Trenner) · Zusammenfassung kopieren  [⌥⌘C]
+
+Zwischenablage nach ⌥⌘C:
+  Di., 04.08.2026 – Mo., 10.08.2026 · 7 Tage · 23 Ordner · 93 Dateien
+  ActivitiesCore (21), Views (14), activities (10), … und 18 weitere
 ```
 
-Bei genau einem Tag entfällt das Untermenü; der Eintrag heißt dann direkt
-„Arbeit fortsetzen (4 Dateien)".
+**⚠️ Wie der Fehlbefund entstand – das ist der eigentliche Ertrag dieses Eintrags.** Die
+Menüleiste wurde an einem **laufenden Prozess** ausgelesen, der um 09:22:42 gestartet war;
+die Binärdatei im Bündel wurde um 09:38:44 geschrieben. Der Prozess lief also noch mit
+**v1.19.32** – der Version *vor* Sprint 13, in der der Befehl es tatsächlich nicht gab.
+Als Beleg für „v1.19.33" diente die `CFBundleShortVersionString` **aus der Datei auf der
+Platte**, nicht aus dem laufenden Programm. Beides sah zusammengehörig aus und war es
+nicht.
 
-**Warum die Anzahl vorab im Menü steht:** Ohne sie ist der Befehl eine Wundertüte – man
-erfährt erst nach dem Klick, ob 3 oder 60 Programme starten. Die Zahl kostet nichts (sie
-liegt bereits vor) und macht die Rückfrage aus PR-26 im Normalfall überflüssig.
+Zwei Gegenproben hatten den Fehlbefund vorher sogar noch bestärkt, statt ihn aufzudecken:
+Der Sentinel in der Zwischenablage blieb unverändert (richtig gemessen, falscher Stand),
+und eine eigens gebaute SwiftUI-Minimalanwendung zeigte, dass
+`CommandGroup(replacing: .saveItem)` einen Trenner und Einträge dahinter anstandslos
+darstellt – was damals als „also liegt es an unserem Code" gelesen wurde und in Wahrheit
+schon die Entwarnung war.
 
-**Warum die Ordnerzeile nicht genügt:** Sie kennt heute nur `newestVisibleDate`
-(`FolderRowView.swift:20`) – ein einzelnes Datum. Die Tage samt Anzahl entstehen aus
-`visibleFiles(in:)` (`ReportViewModel.swift:1182`), gruppiert nach Kalendertag.
+**Nicht gestrichen, sondern als Fehlbefund verbucht.** Ein gelöschter Irrtum wird
+wiederholt. Siehe Lehre 2.
 
-**⚠️ Kalendertag, nicht Diagramm-Bündel.** `chartBucketRange(containing:)` (`:1343`) liefert
-bei langen Zeiträumen Wochen- oder Monatsgrenzen (UX-30). Für „an einem Tag gearbeitet" wäre
-das falsch: Der Tag ist eine **menschliche** Einheit, keine Darstellungsentscheidung. Sonst
-öffnete derselbe Befehl je nach eingestelltem Zeitraum eine andere Dateimenge.
+---
 
-**Günstige Ausgangslage (Durchsicht Sprint 10):** `FolderContextMenu`
-(`FolderRowView.swift:136-159`) ist bereits **ein** Menü für beide Ansichten – in der Baumzeile
-über `TreeRowView.swift:140` eingehängt. Ein Eintrag dort erscheint automatisch in Liste und
-Baum; es gibt nichts zu verdoppeln.
+### UX-33 · Menütitel englisch, Befehle deutsch
+**Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt · **P1**
 
-**⚠️ Es wäre das erste verschachtelte Kontextmenü der App.** `Menu { … }` innerhalb eines
-`.contextMenu` kommt bisher nirgends vor (nur in der Toolbar, `MainToolbar.swift:136`, `:268`).
-Kein Vorbild im Haus – Verhalten bei Tastaturbedienung und VoiceOver ist zu prüfen, nicht
-anzunehmen.
+**Beobachtet:** Die Menüleiste heißt `File · Edit · View · Window · Help`. Darin stehen
+deutsche Befehle („Schließen", „Alles auswählen", „Aktualisieren"), dazwischen englische
+Systemeinträge: `Settings…`, `Hide activities`, `Show All`, `Quit activities`,
+`Undo`/`Redo`, `Minimize`, `Zoom`, `Enter Full Screen`, `Bring All to Front`,
+`AutoFill`, `Start Dictation`, `Emoji & Symbols`.
 
-**⚠️ Kein vorhandener Baustein liefert die Tagesgruppierung.** `TimeBucket.label` verschmilzt
-ab sieben Tagen mehrere Tage zu einem Etikett („Diese Woche") und taugt daher nicht für die
-Untermenü-Zeilen; `countFilesPerDayByType` (`FolderAggregator.swift:147`) rechnet in
-Diagramm-Bündeln. `countFilesPerDay` (`:77`) gruppiert zwar korrekt nach
-`calendar.startOfDay`, wird aber **nirgends im App-Code aufgerufen** – toter Code aus früherer
-Fassung, nur von den Tests gehalten. Die Gruppierung nach Kalendertag samt Anzahl **und URLs**
-muss neu entstehen; sie gehört als reine Funktion nach `ActivitiesCore` und in `CoreChecks`.
+**Warum das schadet:** Es ist das Erste, was jeder Anwender sieht, und es sieht nach einer
+unfertigen Übersetzung aus – die App wirkt weniger vertrauenswürdig als sie ist. Für eine
+Anwendung, deren gesamter Text sorgfältig deutsch formuliert ist, ist das ein
+unverhältnismäßiger Ansehensverlust für einen kleinen Eingriff.
 
-**⚠️ Offene Entwurfsfrage: Was heißt „dieselben Filter wie die Liste"?** `visibleFiles(in:)`
-wendet Typ- und Namensfilter immer an, das **Zeitfenster aber nur**, solange
-`showOutOfWindowFiles` aus ist (`ReportViewModel.swift:1163`). Bei eingeschaltetem Schalter böte
-das Untermenü also auch Tage außerhalb des gewählten Zeitraums an. Das ist vertretbar – es ist
-schließlich der Schalter „zeig mir auch das andere" –, muss aber entschieden und nicht
-übersehen werden.
+**Beleg:**
+- Auslesen der Menüleiste am laufenden Programm (siehe oben).
+- `/Applications/activities.app/Contents/Resources` enthält genau eine Datei:
+  `AppIcon.icns`. **Kein `.lproj`-Verzeichnis.**
+- `Packaging/Info.plist` setzt **kein** `CFBundleDevelopmentRegion`.
+- Ohne deklarierte Lokalisierung liefert AppKit seine Standardmenüs in der Basissprache
+  des Rahmenwerks, also Englisch – unabhängig von der Systemsprache.
 
-**Akzeptanz:** Das Untermenü nennt je Tag Beschriftung und Anzahl, absteigend nach Datum;
-der Befehl öffnet genau die Dateien dieses Kalendertags in diesem Ordner; die Auswahl der
-Dateimenge folgt denselben Filtern wie die Liste (Typ, Name, Rauschfilter); ab der Schwelle
-aus PR-26 wird zurückgefragt; die Tagesgruppierung ist in `CoreChecks` geprüft.
+**Vorschlag:** `CFBundleDevelopmentRegion = de` setzen und ein `de.lproj` mitliefern
+(mindestens leer bzw. mit `InfoPlist.strings`), damit macOS die Standardmenüs deutsch
+zieht. Verworfen: die Standardeinträge selbst nachbauen – man ersetzte damit vom System
+gepflegte, seit Jahrzehnten eingeübte Befehle durch eigene Kopien, die bei jeder
+Systemänderung nachgezogen werden müssten.
 
-**Umgesetzt:**
-- **`WorkDays` in `ActivitiesCore`** gruppiert nach `calendar.startOfDay` und liefert je Tag
-  Datum, Anzahl und URLs. In `CoreChecks` und XCTest geprüft.
-- **Der Eintrag steht ganz oben** in `FolderContextMenu` – und damit automatisch in **beiden**
-  Ansichten. Dass es dort nur *ein* Menü gibt, war die günstigste Vorbedingung dieses Sprints;
-  ohne sie wären es zwei Fassungen gewesen, die auseinanderlaufen.
-- Bei genau einem Tag entfällt das Untermenü: „Arbeit fortsetzen (4 Dateien)". Ein Untermenü
-  mit einem einzigen Eintrag ist ein Klick, der nichts entscheidet.
+**⚠️ Berührt PR-23 (Englische Sprachfassung).** Das ist kein Widerspruch, sondern die
+Vorarbeit: Erst wenn die App eine *deklarierte* Sprache hat, kann sie eine zweite
+bekommen. Der Aufwand von PR-23 sinkt dadurch nicht – die 180 fest verdrahteten
+Zeichenketten bleiben –, aber der Rahmen steht.
 
-**⚠️ Sortiert wird nach dem Tag, nicht nach der Reihenfolge der Vorlage.** Die Dateiliste kommt
-meist nach Datum absteigend herein – aber sie folgt der eingestellten Sortierung. Bei „nach
-Name" hätte das Untermenü die Tage in einer Reihenfolge angeboten, die niemand erklären kann.
-Eigene Prüfung dagegen, mit absichtlich gemischter Eingabe.
+**Akzeptanz:** Auf einem deutschen System heißen die Menüs Ablage, Bearbeiten,
+Darstellung, Fenster, Hilfe, und die Systemeinträge darin sind deutsch; am laufenden
+Programm ausgelesen, nicht am Quelltext geschlossen.
 
-**⚠️ Obergrenze von 8 Tagen.** Ein Ordner kann im „Alle"-Modus Dateien aus hunderten von Tagen
-enthalten; ein Menü mit 200 Einträgen ist kein Menü, sondern eine Liste. Und der Zweck ist,
-*dort weiterzumachen, wo man aufgehört hat* – was drei Monate zurückliegt, setzt niemand fort.
-Gedeckelt wird am **alten** Ende; eine Prüfung sichert, dass die jüngsten Tage bleiben.
+---
 
-**Entschiedene Entwurfsfrage (aus der Durchsicht):** „Dieselben Filter wie die Liste" heißt
-`visibleFiles(in:)` – also Typ- und Namensfilter immer, das Zeitfenster nur, solange
-„Dateien außerhalb des Zeitraums zeigen" aus ist. Bei eingeschaltetem Schalter bietet das Menü
-folglich auch Tage außerhalb des Zeitraums an. Das ist richtig – der Schalter heißt „zeig mir
-auch das andere" –, es ist nur nichts, worüber man stolpern sollte; deshalb steht es im
-Doc-Kommentar von `workDays(in:)`.
+### UX-34 · Die Warnung „Daten sind veraltet" ist im hellen Modus die unleserlichste Stelle im Fenster
+**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P1**
 
-**Nicht gebraucht:** `FolderAggregator.countFilesPerDay` (der tote Code aus der Durchsicht)
-gruppiert zwar korrekt nach Kalendertag, liefert aber nur **Zahlen**, keine URLs – und genau
-die braucht der Befehl. Bewusst nicht aufgegriffen und auch nicht gelöscht: Das ist eine eigene
-Entscheidung, keine Beifuhr dieses Sprints.
+**Beobachtet:** Ist der Bestand älter als die Frist, färbt sich die Statuszeile
+„Stand: …" orange. Im hellen Erscheinungsbild ist sie damit kaum zu lesen.
 
-### PR-12 · Ordner in einem Programm eigener Wahl öffnen · **erledigt (v1.19.7)**
-**Aufwand:** M · **Nutzen:** mittel
+**Warum das schadet:** Diese Zeile beantwortet die einzige Frage, auf die es ankommt –
+*darf ich dem Gezeigten glauben?* Der Doc-Kommentar an `RootView.swift:331-335` sagt das
+selbst. Eine Warnung, die schlechter lesbar ist als alles, wovor sie warnt, wird nicht
+gelesen.
 
-**Umgesetzt – aber mit *zwei* Plätzen statt einem.** Die ursprüngliche Festlegung („genau
-*ein* bevorzugtes Programm") hielt der Nachfrage nicht stand: Verlangt wurden Editor **und**
-Terminal. Das sind keine zwei Einträge einer Liste, sondern zwei verschiedene Handgriffe –
-*Code ansehen* und *hier arbeiten*. Zwei benannte Plätze sind deshalb keine Aufweichung der
-Entscheidung, sondern ihre Korrektur: Es bleibt bei festen Rollen statt einer Programmliste.
+**Beleg** (gemessen, beide Erscheinungsbilder):
 
-**⚠️ Das naheliegende „Öffnen mit …"-Untermenü wurde geprüft und verworfen.** Gemessen an
-`~/Documents` liefert `NSWorkspace.urlsForApplications(toOpen:)` neun Programme, davon fünf
-sinnlose (QuickTime, Archivierungsprogramm, Books, VLC, MacWhisper) – und **Terminal.app
-fehlt darin ganz**, weil sie sich bei LaunchServices nicht als Ordner-Öffner registriert.
-Ein Menü, in dem man den einen brauchbaren Eintrag zwischen Rauschen sucht und den
-wichtigsten gar nicht findet, ist keine Hilfe. Die gezielte Abfrage über
-`urlForApplication(withBundleIdentifier:)` ist dagegen zuverlässig.
+```
+#FF9500 (systemOrange, hell) auf windowBackground  →  1,86:1   unter AA
+#FF9F0A (systemOrange, dunkel) auf windowBackground →  6,24:1   AA
+```
 
-**Erkennen statt fragen.** Ohne gespeicherte Wahl wird der erste installierte Kandidat aus
-einer kurzen Liste genommen (`ExternalAppService.editorCandidates` / `terminalCandidates`).
-Damit stehen die Einträge beim ersten Start da, ohne dass jemand etwas einstellt – und wo
-nichts Passendes installiert ist, fehlt der Menüpunkt, statt ins Leere zu zeigen.
-`Terminal.app` steht am **Ende** der Terminal-Liste: Sie ist auf jedem Mac vorhanden und
-verdeckte sonst jede bewusst installierte Alternative.
+WCAG AA verlangt 4,5:1 für normalen Text. Die Zeile steht in `.subheadline` (11 pt),
+`RootView.swift:349` und `:324`.
 
-**Umgesetzt wie beschlossen:** Bundle-ID gespeichert (nicht der Pfad); der Menütext trägt den
-**echten** Namen aus dem Bundle (wer Cursor nutzt, liest „In Cursor öffnen"); ein
-fehlgeschlagener Start erzeugt einen sichtbaren Hinweis statt eines stillen Rückfalls auf den
-Finder (`ReportViewModel.actionError` + Alert in `RootView`).
+**⚠️ Berührt eine dokumentierte Entscheidung – und bestätigt sie.** Zwölf Zeilen darüber
+steht in derselben Datei (`RootView.swift:308-310`): *„Früher `.tertiary` – gemessen
+**1,86:1** im hellen Modus (WCAG AA verlangt 4,5:1). Eine Angabe, die man am Telefon
+vorlesen soll, darf nicht die unleserlichste im Fenster sein."* Für die Versionsnummer
+wurde daraus eine Korrektur; die Warnung daneben trägt **exakt denselben Messwert** und
+blieb unangetastet. UX-12 und PR-33 haben diese Zeile beide angefasst, ohne die Warnfarbe
+zu messen.
 
-**Erweitert gegenüber der Festlegung:** Die Einträge stehen auch im **Datei**-Kontextmenü.
-Der Editor öffnet dort die Dateien, das Terminal deren Ordner – entdoppelt, damit fünf
-markierte Dateien desselben Ordners *ein* Fenster öffnen und nicht fünf.
+**Zweiter Mangel an derselben Stelle:** Der Text ist in beiden Zuständen wortgleich
+(„Stand: <Zeitpunkt>"); unterschieden wird ausschließlich über Farbe und Symbol
+(`exclamationmark.triangle.fill` gegen `clock.arrow.circlepath`, `:346`). Ein
+`accessibilityLabel` gibt es nicht, nur `.help` (`:350-356`) – VoiceOver sagt in beiden
+Zuständen dasselbe. Die Warnung existiert für Vorleseprogramme nicht.
 
-**Kürzel ⇧⌘E / ⇧⌘T.** ⇧⌘E war vom HTML-Export belegt; der ist auf ⌥⌘E gewichen. Ein Ordner
-im Editor ist ein täglicher Handgriff, ein HTML-Bericht eine Ausnahme – das leichter
-erreichbare Kürzel gehört dem häufigeren Befehl. ⌘E/⌥⌘E bleiben als Paar beieinander.
+**Vorschlag:** Den Zustand in den **Text** nehmen („Stand: … · veraltet"). Dann trägt die
+Sprache die Aussage, die Farbe darf dekorativ bleiben, und das Vorleseprogramm bekommt sie
+geschenkt. Verworfen: ein eigenes, dunkleres Orange – der Systemwert ist im dunklen Modus
+richtig (6,24:1), und eine selbst gemischte Farbe für beide Modi erzeugt einen Wert, der
+bei jeder Systemänderung neu gemessen werden muss.
 
-**Belegt:** `NSWorkspace.open(_:withApplicationAt:configuration:)` startet Terminal.app
-tatsächlich mit einem Ordner (gemessen: neues Fenster, Arbeitsverzeichnis = Zielordner),
-obwohl sie kein registrierter Ordner-Öffner ist – der API-Weg entspricht `open -a` und
-übergeht den Typ-Abgleich. Mit `NSWorkspace.open(_:)` allein wäre es beim Finder geblieben.
+**Akzeptanz:** Der veraltete Zustand ist ohne Farbwahrnehmung erkennbar; das gewählte
+Farb-/Größenpaar erreicht in beiden Erscheinungsbildern mindestens 4,5:1, gemessen und im
+Doc-Kommentar neben dem Wert notiert; VoiceOver liest die Warnung als Warnung.
 
-**Offen:** Eine frei wählbare Liste mehrerer Programme bleibt ungebaut – der Bedarf hat sich
-weiterhin nicht gezeigt.
+---
 
-### PR-13 · Typverteilung in der Ordnerzeile *(umformuliert)*
-**Aufwand:** M · **Nutzen:** mittel
+### UX-35 · Der Schalter „alle auf- und zuklappen" ist nicht auffindbar
+**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P1**
 
-**Ursprünglich:** „Typverteilung und Anzahl **beim Überfahren** – Orientierung ohne Klick."
+**Beobachtet:** Feldmeldung des Auftraggebers: *„Ich finde den Knopf zum Alles Auf- und
+Zuklappen (Anzeige der Dateien in den Ordnern) nicht mehr."*
 
-**⚠️ Zwei Einwände, beide am Code belegt:**
-1. **Die Prämisse stimmt nicht.** „Vorschau *ohne Aufklappen*" setzt voraus, dass Ordner
-   üblicherweise zugeklappt sind. `finishDetailLoad()` setzt nach jedem Scan
-   `expandedFolders = displayed` (`ReportViewModel.swift:1408`) – der Normalzustand ist
-   **alles aufgeklappt**. Die Vorschau löste einen Zustand, den man selten sieht.
-2. **Hover ist für VoiceOver unsichtbar.** Nach UX-13 und UX-31 wäre eine ausschließlich per
-   Maus erreichbare Information ein Rückschritt. Die Lehre aus UX-13 lautete ausdrücklich:
-   `.help` ist **kein** Ersatz für `accessibilityLabel`.
+**Warum das schadet:** Wenn der Erbauer der App ihr eigenes Bedienelement nicht wiederfindet,
+findet es niemand. Es ist zudem der einzige Weg zu dieser Funktion – es gibt keinen zweiten,
+über den man sie wiederentdecken könnte.
 
-**Neu:** Die Typverteilung steht **dauerhaft** in der Ordnerzeile – ein schmaler Streifen aus
-den Farben der `TypePalette`, also derselben Zuordnung wie Diagramm und Legende (3.10). Damit
-ist sie unabhängig vom Aufklappzustand sichtbar, ohne Maus erreichbar und beantwortet
-zusätzlich eine Frage, die die Hover-Fassung gar nicht stellte: *Was für Arbeit war das?*
+**Beleg:** Der Schalter ist vorhanden und **nicht** im Überlaufmenü. Auslesen der
+Werkzeugleiste des laufenden Fensters (1920 pt breit): alle zehn Werkzeugleisten-Einträge
+sind sichtbar, kein „»". Vier Ursachen wirken zusammen:
 
-**⚠️ Der Streifen gehört zur Datenschicht** (UX-27): dieselben Farben wie die Legende, kein
-eigenes Grau neben „Sonstige". Er darf die Zeile nicht dominieren – die Zeile trägt weiterhin
-Name, Datum und Anzahl.
+1. **Symbol ohne Text**, als drittes von neun symbolonly-Bedienelementen in einer Reihe
+   (`MainToolbar.swift:167-183`).
+2. **Das Symbol wechselt mit dem Zustand** (`list.bullet.indent` ↔ `list.bullet`,
+   `:172-173`) – man sucht die halbe Zeit nach dem falschen Glyph.
+3. **Der Name wechselt mit der Gliederung**: „Dateien in allen Ordnern anzeigen" im Baum,
+   „Alle Ordner auf- oder zuklappen" in der Zeitansicht (`:178-180`). Selbst der Tooltip
+   ist kein fester Suchbegriff.
+4. **Kein Menüeintrag, kein Kürzel** – siehe UX-36.
 
-**Akzeptanz:** Jede Ordnerzeile zeigt die Typverteilung ihrer sichtbaren Dateien in
+**⚠️ Zweites Auftreten desselben Fehlers.** `MainToolbar.swift:197-203` hält fest, dass ein
+Anwender in v1.19.5 den Auto-Refresh-Schalter für den Knopf „neu einlesen" hielt; die
+Antwort war damals ein anderes Symbol. Der Befund war richtig, die Ursache aber nur zum
+Teil: Nicht das einzelne Symbol war das Problem, sondern **neun symbolonly-Bedienelemente
+nebeneinander**. Die Werkzeugleiste ist an ihrer Unterscheidbarkeitsgrenze (ISO 9241-12,
+Merkmal *Unterscheidbarkeit*).
+
+**Vorschlag:** Zwei Eingriffe, die einzeln wirken und zusammen mehr:
+- Menüeintrag mit Kürzel (Teil von UX-36) – ein zweiter Weg, über den man den Befehl
+  namentlich findet, statt ihn als Glyph zu suchen.
+- Einen **stabilen** Namen wählen, der in beiden Gliederungen stimmt (etwa „Dateien in
+  allen Ordnern"), und den Zustand über den Zustandsträger der Werkzeugleiste zeigen statt
+  über zwei verschiedene Symbole.
+
+Verworfen: die Werkzeugleiste beschriften (`.titleAndIcon`) – bei zehn Einträgen sprengte
+das jede übliche Fensterbreite und triebe die hinteren Einträge genau in den Überlauf, den
+`MainToolbar.swift:86-96` bewusst vermeidet.
+
+**Akzeptanz:** Der Befehl ist im Menü unter einem Namen zu finden, der sich nicht mit der
+Gliederung ändert; wer den Schalter in der Werkzeugleiste sucht, findet ihn über den
+Menüeintrag samt dort angezeigtem Kürzel.
+
+---
+
+### UX-36 · Zentrale Befehle stehen in keinem Menü
+**Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt · **P1**
+
+**Beobachtet:** Folgende Befehle sind ausschließlich über die Werkzeugleiste, das Diagramm
+oder die Statuszeile erreichbar – in keinem Menü, mit keinem Kürzel:
+
+| Befehl | einziger Weg |
+|---|---|
+| Zeitraum wählen (Heute / −3 / −7 / −30 / −90 / eigene / Spanne / Alle) | `MainToolbar.swift:307-335` |
+| Wurzelordner wählen · zuletzt genutzter Ordner | `MainToolbar.swift:269-277` |
+| Alle Ordner auf-/zuklappen | `MainToolbar.swift:167-183` |
+| Suchlauf abbrechen | `MainToolbar.swift:239-247` |
+| Namensfilter löschen | `ChartHeaderView.swift:191` |
+| Diagramm ein-/ausblenden | `ChartHeaderView.swift:99-115` |
+| Ausgeblendete Ordner zeigen | `ChartHeaderView.swift:229-247` |
+| QuickLook-Vorschau | nur Leertaste, `ReportView.swift:150` |
+
+**Warum das schadet:** Die HIG sagt es wörtlich: *„Even when commands are available
+elsewhere in your app, it's important to list them in the menu bar. Putting commands in the
+menu bar makes them easier for people to find, lets you assign keyboard shortcuts to them,
+and makes them more accessible to people using Full Keyboard Access. Excluding commands
+from the menu bar — even infrequently used or advanced commands — risks making them
+difficult for everyone to find."* (`the-menu-bar`)
+
+Der **Zeitraum** ist die Hauptachse dieser App – die halbe Oberfläche erklärt sich über
+ihn – und hat keinen einzigen Tastenweg. UX-35 ist der Beweis, dass die Folge nicht
+theoretisch ist.
+
+**Beleg:** `ActivitiesApp.swift:121-273` enthält keine Entsprechung zu den obigen Zeilen;
+Auslesen der laufenden Menüleiste bestätigt es.
+
+**Vorschlag:** Ein eigenes App-Menü zwischen Darstellung und Fenster – die HIG sieht genau
+dafür den Platz vor (*„Your app's custom menus appear in the menu bar between the View menu
+and the Window menu"*). Es nimmt auf, was heute in „Darstellung" falsch liegt (UX-41), und
+was heute in gar keinem Menü steht. Der Zeitraum bietet sich als Untermenü an, weil er acht
+Zustände hat.
+
+Verworfen: alles zusätzlich in „Darstellung" hängen – das Menü trägt schon 15 Befehle und
+ist damit die Ursache von UX-41, nicht die Lösung.
+
+**⚠️ Nicht anfassen:** die Reihenfolge und Zusammensetzung der Werkzeugleiste selbst. Sie
+folgt dem Arbeitsablauf *Ort → Suche → Zeitraum → Anpassungen* (Konsistenzentscheidung 9)
+und der Überlaufregel aus `MainToolbar.swift:86-96`. Menüeinträge treten **neben** die
+Werkzeugleiste, nicht an ihre Stelle.
+
+**Akzeptanz:** Jeder Befehl der Tabelle hat einen Menüeintrag; die häufigen haben ein
+Kürzel; die Werkzeugleiste bleibt unverändert; am laufenden Programm ausgelesen.
+
+---
+
+### UX-37 · VoiceOver sagt nicht, was ausgewählt, angeheftet oder aufgeklappt ist
+**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P2**
+
+**Beobachtet:** Drei Zustände, die das Auge sofort sieht, erreichen das Vorleseprogramm
+nicht:
+
+- **Ausgewählt.** `.accessibilityAddTraits(.isSelected)` kommt im gesamten Quellbaum nicht
+  vor; Zeilen tragen nur `.isButton` (`FileRowView.swift:203`, `FolderRowView.swift:126`,
+  `TreeRowView.swift:149`). Die Auswahl wird ausschließlich farblich getragen
+  (`SelectionBackground.swift:13`).
+- **Angeheftet.** Das Symbol trägt nur `.help("Angeheftet")`
+  (`FolderRowView.swift:53-57`, `TreeRowView.swift:195-200`) – und `.help` existiert für
+  Vorleseprogramme nicht. Erschwerend: Die Zeile fasst mit
+  `.accessibilityElement(children: .combine)` zusammen, das anschließende ausdrückliche
+  `.accessibilityLabel` (`FolderRowView.swift:123`, `TreeRowView.swift:142`,
+  `FileRowView.swift:200`) **ersetzt** das zusammengefasste Label vollständig. Auch die
+  Kindbeschriftungen, die es gibt, gehen dabei verloren – etwa `clock.badge.xmark` für
+  Dateien außerhalb des Zeitraums (`FileRowView.swift:65-69`).
+- **Auf-/zugeklappt.** Der Wert nennt Ebene, Dateizahl und Datum
+  (`TreeRowView.swift:156-163`), nicht den Aufklappzustand – während die angebotene
+  Bedienhilfe-Aktion genau ihn umschaltet (`:150-153`).
+
+**Warum das schadet:** Die Mehrfachauswahl (UX-23) und die Zugänglichkeit (UX-13, UX-31)
+wurden in Sprint 7 und 8 ausdrücklich gebaut. Wer sie ohne Blick benutzt, kann nicht
+feststellen, was markiert ist – und ⌘A gefolgt von ↩︎ öffnet dann eine unbekannte Menge
+Dateien. Die Bremse aus PR-26 fängt das ab, ihre Rückfrage nennt aber eine Zahl, die der
+Anwender nicht einordnen kann, weil er den Ausgangszustand nie erfahren hat.
+
+**Gegenprobe zur Sichtbarkeit** (die visuelle Seite ist in Ordnung, nur die vorgelesene
+nicht):
+
+```
+Zeilengrund ↔ Auswahl (accent@0.12)   ΔE 11,3 hell · 13,1 dunkel
+Zebra zum Vergleich                    ΔE  2,5 hell ·  4,7 dunkel
+Cursor ohne Auswahl (accent@0.55)      ΔE 50,8 hell · 51,8 dunkel
+```
+
+Die Auswahl liegt sauber über dem Zebra und deutlich unter dem Cursor – hier ist nichts zu
+ändern.
+
+**Kleineres aus derselben Familie:** Das Zeitraum-Segment „eigene Tageszahl" ist ein bloßes
+`Image` ohne Beschriftung (`MainToolbar.swift:324`); der `ProgressView` des laufenden
+Suchlaufs hat weder Label noch `.help` (`MainToolbar.swift:238`).
+
+**Vorschlag:** `.isSelected` an die drei Zeilentypen; Anheftung und Zeitfenster-Zustand in
+den `accessibilityValue` der Zeile aufnehmen statt sie einem `.help` am Symbol zu
+überlassen; den Aufklappzustand ebenso.
+
+**Akzeptanz:** VoiceOver nennt bei jeder Zeile, ob sie ausgewählt ist; angeheftete Ordner
+klingen anders als nicht angeheftete; der Aufklappzustand wird angesagt, bevor die Aktion
+ihn umschaltet.
+
+---
+
+### UX-38 · ⌘[ / ⌘] heißen auf deutscher Tastatur ⌘Ö und ⌘Ä
+**Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt · **P2**
+
+**Beobachtet:** Im Menü Darstellung steht bei „Zurück zum vorherigen Ordner" das Kürzel
+**⌘Ö**, bei „Vorwärts" **⌘Ä**.
+
+**Warum das schadet:** Das Kürzel wurde gewählt, weil es „Browser-Konvention" ist. Auf einer
+deutschen Tastatur trägt die Taste an dieser Stelle kein `[`, und die Konvention, die den
+Ausschlag gab, trägt damit nicht. Backlog, Hilfe und Menü behaupten drei verschiedene
+Dinge: das Backlog sagt ⌘[ / ⌘], die Hilfe sagt gar nichts (siehe UX-39), das Menü zeigt
+⌘Ö / ⌘Ä.
+
+**Beleg:** Auslesen der laufenden Menüleiste, Attribut `AXMenuItemCmdChar`: `Ö` bzw. `Ä`.
+Deklariert in `ActivitiesApp.swift:163` und `:166` als `"["` / `"]"`.
+
+**⚠️ Das löst eine offene Prüfschuld ein.** Sprint 11, Festlegung 2, verlangte
+ausdrücklich: *„Vor der Auslieferung am laufenden System zu prüfen … ob das im Suchfeld
+(⌘F) kollidiert, ließ sich am Code **nicht** belegen."* Ausgeliefert wurde in v1.19.28,
+ohne dass die Prüfung stattfand oder ihr Ergebnis vermerkt wurde. Sie ist hiermit
+nachgeholt – mit einem anderen Ergebnis als dem befürchteten: Eine Kollision gibt es nicht,
+wohl aber eine Kürzelbezeichnung, die niemand erwartet.
+
+**Vorschlag:** Zur Entscheidung – kein Defekt, der etwas zerstört. Entweder ⌘Ö / ⌘Ä
+akzeptieren und **so** dokumentieren (Backlog und Hilfe angleichen), oder auf ein Kürzel
+ausweichen, das auf deutscher Tastatur so heißt, wie es gemeint ist. Verworfen: ⌘← / ⌘→ –
+die Pfeiltasten bewegen in dieser App die Auswahl, ein Menükürzel darauf verwirrte mehr,
+als es hilft.
+
+**Akzeptanz:** Menü, Hilfe und Backlog nennen dasselbe Kürzel.
+
+---
+
+### UX-39 · Die Hilfe kennt fünf ausgelieferte Kürzel nicht
+**Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt · **P2**
+
+**Beobachtet:** Die Kürzeltabelle der Hilfe (`HelpView.swift:183-210`) führt 20 Einträge.
+Es fehlen:
+
+| Kürzel | Befehl | ausgeliefert |
+|---|---|---|
+| ⌘Ö / ⌘Ä (dekl. ⌘[ / ⌘]) | Zurück / Vorwärts | v1.19.28 |
+| ⌥⌘1–4 | Sortierung nach Datum / Name / Typ / Größe | v1.19.29 |
+| ⌥⌘C | Zusammenfassung kopieren | v1.19.33 |
+| ⇧⌘A | Auswahl aufheben | — |
+| ⌘? | activities Hilfe | — |
+
+**Warum das schadet:** Eine Hilfe, die etwas anderes sagt als das Programm, ist schlechter
+als keine – ihr glaubt man. PR-24 hat genau diesen Fehler schon zweimal behoben (der
+Abschnitt „Updates" und das Export-Kürzel), ohne die Tabelle selbst zu prüfen.
+
+**Vorschlag:** Die Kürzel aus **einer** Quelle beziehen, so wie es PR-32 mit der
+Zeitstempel-Formatierung getan hat: eine Liste in `ActivitiesCore`, aus der sowohl die
+Menübefehle als auch die Hilfetabelle entstehen, und eine Prüfung in `CoreChecks`, dass
+kein Befehl ohne Eintrag bleibt. Verworfen: die Tabelle von Hand nachtragen – das ist der
+Zustand, der schon dreimal auseinandergelaufen ist.
+
+**Akzeptanz:** Jeder Menübefehl mit Kürzel erscheint in der Hilfe; ein neuer Befehl ohne
+Hilfeeintrag lässt `CoreChecks` scheitern.
+
+---
+
+### UX-40 · Das Diagramm ist nur mit der Maus bedienbar
+**Aufwand:** M · **Nutzen:** mittel · **Art:** Defekt · **P2**
+
+**Beobachtet:** Drei Handgriffe am Diagramm haben weder Kürzel noch Menübefehl noch
+Bedienhilfe-Aktion:
+
+- Klick springt zur passenden Datei (`HistoryChartView.swift:244-252`)
+- Ziehen setzt den Zeitraum (`:220-243`)
+- Überfahren zeigt die Kurzinfo mit Tagessumme und Typverteilung (`:255-271`)
+
+**Warum das schadet:** Der Erstkontakt-Streifen bewirbt ausgerechnet die erste dieser
+Gesten: *„Ein Klick ins Diagramm springt zur passenden Datei"* (`RootView.swift:90`). Wer
+ohne Maus arbeitet, liest ein Versprechen, das für ihn nicht gilt. UX-31 hat die Balken
+**vorlesbar** gemacht (`:135-139`, `:149-151`) – benutzbar sind sie damit nicht. Die
+Kurzinfo enthält zudem die Tagessumme, die es sonst nirgends gibt (`:293`).
+
+**Vorschlag:** Den Sprung zum Tag als Menübefehl auf der Auswahl anbieten und die
+Zeitraumwahl über das Zeitraum-Untermenü aus UX-36 abdecken – dann braucht das Diagramm
+selbst keine Tastaturbedienung, und die Funktionen sind trotzdem erreichbar. Verworfen: das
+Diagramm fokussierbar machen und mit Pfeiltasten durchfahren – ein zweites
+Navigationsmodell neben der Liste, für einen selten gebrauchten Weg.
+
+**⚠️ Zu prüfen, nicht behauptet:** ob die Kurzinfo einen Ersatz braucht, lässt sich am Code
+nicht entscheiden. Erst klären, welche ihrer Angaben anderswo fehlt.
+
+**Akzeptanz:** Sprung zum Tag und Setzen des Zeitraums sind ohne Maus möglich; der
+Erstkontakt-Satz beschreibt einen Weg, den es für alle gibt.
+
+---
+
+### UX-41 · „Darstellung" ist zum Sammelbecken geworden
+**Aufwand:** S · **Nutzen:** mittel · **Art:** Grenzfall Defekt/Geschmack · **P3**
+
+**Beobachtet:** Das Menü Darstellung trägt 15 Befehle und 4 Trenner. Darunter Dinge, die
+keine Darstellung sind: „Zurück zum vorherigen Ordner", „Vorwärts", „In <Editor> öffnen",
+„In <Terminal> öffnen", „Aktualisieren".
+
+**Warum das schadet:** Wer einen Öffnen-Handgriff sucht, sucht ihn nicht unter
+Darstellung. Die HIG umreißt das Menü eng (*„The View menu lets people customize the
+appearance of all an app's windows"*) und warnt vor der Länge (*„Be mindful of menu length …
+If a menu is too long, consider dividing it into separate menus"*).
+
+**Beleg:** `ActivitiesApp.swift:142-218`; Auslesen der laufenden Menüleiste bestätigt die
+Reihenfolge.
+
+**Vorschlag:** Zusammen mit UX-36 lösen – das dort vorgeschlagene App-Menü nimmt Verlauf,
+Ordnerwahl, Zeitraum und die Öffnen-Handgriffe auf. In Darstellung bleiben Gliederung,
+Sortierung, die beiden Anzeigeschalter und „An den Anfang". Getrennt umzusetzen wäre
+zweimal dieselbe Umsortierung.
+
+**Akzeptanz:** Jeder Befehl steht in dem Menü, in dem man ihn zuerst sucht; Darstellung
+enthält nur, was die Darstellung ändert.
+
+---
+
+### Nachrangig *(festgehalten, nicht eingeplant)*
+
+- **Der Fokusring der Liste ist unterdrückt** (`ReportView.swift:127`,
+  `.focusEffectDisabled()`, ohne begründenden Kommentar), während die Legendenchips ihn
+  ausdrücklich behalten (`HistoryChartView.swift:509`, `.focusEffectDisabled(false)`).
+  Zwei Antworten auf dieselbe Frage in einem Fenster. In der Praxis abgefedert, weil der
+  Cursor-Rahmen der Zeile mit ΔE ~51 sehr deutlich ist.
+- **Das Fenster-Menü listet „Über activities" und „activities Hilfe"** als offene Fenster.
+  Regelkonform, aber Beiwerk.
+- **Wochenendbänder tragen ihre Aussage allein über Farbe** (`HistoryChartView.swift:116-124`),
+  gemessen ΔE 2,5 hell / 3,1 dunkel gegen den Grund. **Bewusst nicht ändern** – siehe
+  Entscheidung 8; die Wochentagskürzel der Achse tragen die Aussage mit.
+- **Undo/Redo stehen dauerhaft abgeblendet im Menü Bearbeiten.** HIG-konform
+  (*„disable the action instead of hiding it"*), kein Handlungsbedarf.
+
+### Rangfolge der Durchsicht
+
+1. **UX-34** – gemessen, klein, und widerspricht einer Entscheidung, die zwölf Zeilen
+   darüber in derselben Datei steht. Die Warnung, der man am wenigsten glauben kann, ist
+   ausgerechnet die über die Glaubwürdigkeit der Daten.
+2. **UX-35 + UX-36 + UX-41** – **eine** Arbeit, nicht drei: eine Menü-Umsortierung, die
+   den verlorenen Schalter nebenbei wiederfindbar macht. Trägt einen Release allein und
+   ist damit das M, das die kleinen Punkte finanziert.
+3. **UX-33** – am sichtbarsten von allen, aber M und braucht eine Entscheidung über die
+   Lokalisierung; zugleich die Vorarbeit für PR-23.
+4. **UX-37, UX-38, UX-39** – klein, als Beifahrer in Punkt 2 oder 3.
+5. **UX-40** – zuletzt; der schwächste Nutzen bei M.
+
+**Kein Punkt dieser Durchsicht ist ein Felddefekt**, der sofort ausgeliefert werden müsste.
+Der einzige Kandidat dafür war UX-32 – und der war keiner.
+
+---
+
+## Aus der Produkt-Roadmap
+
+### PR-13 · Typverteilung in der Ordnerzeile
+**Aufwand:** M · **Nutzen:** mittel · **P3**
+
+Ein schmaler Streifen aus den Farben der `TypePalette` in jeder Ordnerzeile, **dauerhaft**
+statt beim Überfahren.
+
+**⚠️ Die ursprüngliche Hover-Fassung wurde aus zwei Gründen verworfen:** Die Prämisse
+„Vorschau ohne Aufklappen" stimmte nicht (nach jedem Scan ist alles aufgeklappt), und Hover
+ist für VoiceOver unsichtbar. **⚠️ Der Streifen gehört zur Datenschicht** (UX-27) –
+dieselben Farben wie die Legende, kein eigenes Grau neben „Sonstige", und er darf die Zeile
+nicht dominieren.
+
+**Nicht eingeplant, weil** es gestalterisch zu PR-31/PR-33 gehört: Ein Farbstreifen in eine
+Zeile zu legen, die gerade auf 22 pt verdichtet wurde, verlangt eigene Messungen.
+
+**Akzeptanz:** Jede Ordnerzeile zeigt die Verteilung ihrer sichtbaren Dateien in
 Legendenfarben; VoiceOver liest sie als Text („3 .swift, 2 .md"); ausgeblendete Typen
 (UX-06) erscheinen nicht; die Zeilenhöhe wächst nicht.
 
-### PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand *(erledigt, v1.19.28)*
-**Aufwand:** ~~M~~ **L** *(korrigiert bei der Durchsicht für Sprint 10)* · **Nutzen:** mittel
-
-**Die Hälfte existiert schon:** `recentFolders` (max. 8, `SettingsStore.swift:55,74`, gefüllt in
-`setRoot`, `ReportViewModel.swift:1446`) steht im Toolbar-Ordnermenü. Reines Vor/Zurück wäre
-also nur eine Abkürzung für ein Menü, das einen Klick entfernt liegt – **das allein trägt keinen
-Sprintpunkt.**
-
-**Der eigentliche Mangel liegt daneben: Der Aufklappzustand ist global, nicht je
-Wurzelordner.** `saveExpandedFolders` (`SettingsStore.swift:206`) kennt genau **einen**
-Schlüssel. Wer von `Documents` nach `Projekte` und zurück wechselt, findet alles aufgeklappt
-vor, und die gemerkten Pfade des einen Ordners werden beim anderen gegen dessen Baum
-geschnitten. **Ein „Zurück" ohne den Zustand, den man dort verlassen hat, ist kein Zurück** –
-und genau darum geht es in diesem Thema.
-
-**Zwei Teile:**
-- **(a) Vor/Zurück** zwischen Wurzelordnern (⌘[ / ⌘]), Stapel wie im Browser. *(S)*
-- **(b) Aufklappzustand je Wurzelordner** statt global. *(L)*
-
-**⚠️ (a) und (b) sind unterschiedlich riskant – aber nicht trennbar.** Der Stapel allein ist
-klein und gefahrlos; er wäre nach dem eigenen Befund oben aber auch **wertlos**, weil er nur
-das Ordnermenü abkürzt. Die Kopplung ist damit keine technische, sondern eine inhaltliche: Ein
-„Zurück", das den Zustand nicht mitbringt, ist die Funktion, die dieser Eintrag ausdrücklich
-verwirft. Beide Teile gehen gemeinsam oder gar nicht.
-
-**⚠️ Der Vorwärtszweig muss abgeschnitten werden**, sobald von einer zurückliegenden Position
-aus ein neues Ziel angesteuert wird – sonst führt „Vorwärts" in eine Vergangenheit, die es
-nicht mehr gibt. Das ist der Punkt, an dem Verlaufsstapel üblicherweise falsch sind.
-
-**⚠️ (b) greift in die asynchrone Kern-Ladekette ein – das ist die Höherstufung.** Die Kette
-lautet `setRoot` (`:1444`) → `rescan` (`:1590`) → `reconcileState` (`:1658`) → `loadDetails`
-(`:1671`) → **`finishDetailLoad`** (`:1722`). Erst ganz am Ende wird der Aufklappzustand
-gesetzt, und im Normalfall auf `expandedFolders = displayed` – **alles auf** (`:1737`). Der
-einzige Wiederherstellungspfad läuft über `restoredExpansion` (`:289`), das im `init` **einmal**
-befüllt (`:339`) und nach dem ersten Laden geleert wird (`:1735`). Beim zweiten Wurzelwechsel
-greift also zwingend der „alles auf"-Zweig. Ein Verlaufssprung muss seinen Zustand deshalb
-**vor** `finishDetailLoad` bereitstellen, nach dem Muster von `restoredExpansion` – ihn danach
-zu setzen, überschriebe ihn.
-
-**⚠️ Schemawechsel mit Migrationsfrage.** `expandedFolders` ist heute eine flache `[String]`
-unter einem Schlüssel (`SettingsStore.swift:206-208`). „Je Wurzel" heißt: neues Format, und eine
-Entscheidung, was mit dem bestehenden Wert geschieht (dem ersten Ordner zuschlagen oder
-verwerfen). Dazu kommt: `withAncestors(_:)` (`:1754`) ist zwingend – der Doc-Kommentar `:1744`
-beschreibt den gemessenen Fehlschlag ohne ihn.
-
-**Mitzunehmender Nebenbefund:** `setAllExpanded(_:)` (`:1259`) und `reveal(_:)` (`:1283`)
-rufen `persistExpansion()` **nicht** auf – „alles zuklappen" überlebt heute keinen Neustart.
-Ein kleiner eigenständiger Defekt, der bei (b) ohnehin angefasst wird.
-
-**Prüfbarkeit – als Kernlogik anlegen.** Der Stapel (Push, Zurück, Vorwärts, Trunkierung,
-Deduplizierung, Obergrenze) gehört als Foundation-Typ nach `Sources/ActivitiesCore/` und wird in
-`CoreChecks` geprüft. **Heute gibt es dort keine einzige Prüfung für Verlauf oder Persistenz** –
-`ReportViewModel` und `SettingsStore` liegen im App-Target und sind für `CoreChecks`
-unerreichbar (`Package.swift:26-29`).
-
-**⚠️ Es wäre der erste zustandsbehaftete Typ in `ActivitiesCore`.** Der Backlog nannte bisher
-`RowNavigation` als Analogie – das ist keine: `move(cursor:in:by:)` (`RowNavigation.swift:31`)
-bekommt den Cursor herein und gibt ihn zurück, es hält nichts. Alles in `ActivitiesCore` ist
-heute entweder zustandsloser Namensraum oder unveränderlicher Wert. Ein `FolderHistory` mit
-Stapel, Position und Vorwärtszweig setzt dort ein neues Muster – bewusst, aber nicht nebenbei.
-
-**Akzeptanz:** ⌘[ / ⌘] bewegen sich durch die besuchten Wurzelordner und sind am Rand des
-Stapels deaktiviert; ein neues Ziel von einer zurückliegenden Position verwirft den
-Vorwärtszweig; Zurückkehren stellt den Aufklappzustand *dieses* Ordners wieder her; der
-Stapel ist in `CoreChecks` geprüft; ein bestehender gespeicherter Zustand geht beim Umstieg auf
-das neue Format nicht verloren.
-
-**⚠️ Vor der Umsetzung zu klären:** ⌘[ / ⌘] sind im Quellbaum frei, macOS belegt sie in
-Textkontexten aber systemweit mit „Einzug verringern/vergrößern". Ob das im Suchfeld (⌘F)
-kollidiert, ließ sich am Code **nicht** belegen – das ist am laufenden System zu prüfen, nicht
-zu vermuten.
-
-**Umgesetzt:**
-- **`FolderHistory` in `ActivitiesCore`** – Push, Zurück, Vorwärts, Abschneiden des
-  Vorwärtszweigs, Deduplizierung, Obergrenze. Der **erste zustandsbehaftete Typ** dort, bewusst:
-  Ein Verlauf *ist* Zustand, und ihn im 1795-Zeilen-ViewModel zu führen hieße, ausgerechnet die
-  Logik zu verstecken, die erfahrungsgemäß falsch gebaut wird.
-- **`ExpansionState` in `ActivitiesCore`** – Aufklappzustand je Wurzel, Aufräumen, Migration.
-- **`setRoot` und `applyRoot` sind getrennt.** Ein Verlaufssprung darf den Verlauf nicht
-  verändern; sonst schnitte „Zurück" den Vorwärtszweig ab, den es gerade erst betreten hat, und
-  man säße fest.
-- ⌘[ / ⌘] als Menübefehle, am Rand des Stapels deaktiviert.
-
-**⚠️ Ein Wörterbuch unter einem Schlüssel, nicht ein Schlüssel je Wurzel.** Naheliegend wäre
-`expandedFolders:/Users/x/Projekte` gewesen. Das hätte funktioniert und einen stillen Mangel
-gehabt: Jeder je geöffnete Ordner ließe einen Eintrag in den Voreinstellungen zurück, für immer.
-Mit einem Wörterbuch ist Aufräumen ein Einzeiler – und es passiert bei jedem Speichern, ohne
-dass jemand daran denken muss. Behalten wird, was in „Zuletzt benutzt" steht; damit gibt es
-keine zweite Obergrenze, die jemand pflegen müsste.
-
-**⚠️ Der Fund, der das Verhalten am stärksten ändert: `nil` ist nicht `[]`.**
-„Von diesem Ordner ist nichts bekannt" und „hier ist ausdrücklich nichts aufgeklappt" sind zwei
-verschiedene Zustände. Behandelte man sie gleich, machte die Wiederherstellung dem Anwender
-sein „alles zuklappen" bei jedem Ordnerwechsel wieder rückgängig – ein Fehler, der erst Wochen
-später als „die App vergisst das" gemeldet worden wäre. Die Unterscheidung steckt jetzt im
-Rückgabetyp und ist geprüft.
-
-**Der Einweg-Mechanismus ist verschwunden.** `restoredExpansion` wurde im `init` einmal befüllt
-und nach dem ersten Laden geleert; ab dem zweiten Wurzelwechsel griff zwingend „alles
-aufklappen". Jetzt fragt `finishDetailLoad` bei **jedem** Ladelauf den Stand des aktuellen
-Wurzelordners ab. Erster Start, Ordnerwechsel und Verlaufssprung sind damit **derselbe Fall** –
-und keiner davon kann vergessen werden. Das war der riskanteste Eingriff des Sprints und
-deshalb der letzte Schritt, nach dem prüfbaren Kern.
-
-**Nebenbefund erledigt:** `setAllExpanded` und `reveal` riefen `persistExpansion()` nicht auf –
-„alles zuklappen" überlebte keinen Neustart.
-
-**Migration:** Der alte globale Wert wird dem **aktuellen** Wurzelordner zugeschlagen und der
-alte Schlüssel danach entfernt. Er stammte zwangsläufig vom zuletzt geöffneten Ordner, und der
-ist beim Start wieder der aktuelle – die Zuordnung ist also nicht bequem, sondern wahr. Der
-Schlüssel wird gelöscht, weil man sonst bei jedem Start erneut prüfen müsste, ob er schon
-übernommen wurde – und irgendwann jemand glaubt, er gelte noch.
-
----
-
-## Thema D · Struktur statt Liste (v1.21)
-
-### PR-27 · Ordner als Baum darstellen *(AP1+AP2 erledigt, v1.19.11)*
-**Aufwand:** L · **Nutzen:** hoch
-
-**Stand:** AP1 (Kern) und AP2 (Darstellung, Navigation, Umschalter) sind ausgeliefert; offen
-ist AP3.
-
-**⚠️ Zwei Entwurfsannahmen sind beim Bauen gefallen, beide an einer Messung:**
-
-1. *„Wurzelzeile als Kopfzeile, deren Kinder nicht einrücken."* Verworfen. Die Regel müsste
-   die Wurzel an ihrer **Form** erkennen (ein oberster Knoten mit Kindern) – und traf damit
-   auch einen gewöhnlichen Ordner, der allein oben steht; die erste Prüfung fiel prompt
-   darüber. Eine Regel, die raten muss, ist die falsche Regel. Der Preis ist eine
-   Einrückungsstufe; dafür ist die Ebene **immer** die Tiefe im Baum, ohne Ausnahme.
-2. *Knoten-URLs aus dem vereinheitlichten Pfad neu bauen.* Grober Fehler:
-   `standardizedFileURL` streicht das `/private`-Präfix, der Verzeichnis-Enumerator liefert
-   aber die aufgelöste Form. Die nachgebaute URL sah richtig aus, war aber ein **anderer
-   Wörterbuch-Schlüssel** – im Baum blieb dadurch jede Dateizeile weg. Der Pfad taugt zum
-   Vergleichen, nie als Ersatz für die URL. Dagegen läuft jetzt eine eigene Prüfung.
-
-**Zebra: erst gestrichen, dann zurückgenommen.** Die erste Fassung strich es mit der
-Begründung, die Baumlinien führten das Auge bereits. Das war falsch gedacht: Die Baumlinien
-beantworten die **senkrechte** Frage (wer hängt unter wem), das Zebra die **waagerechte**
-(welches Datum am rechten Rand gehört zu dieser Zeile). Zwei verschiedene Aufgaben, also kein
-doppeltes Trennsystem. Im Baum läuft es über **alle** Zeilen – Ordner wie Dateien –, weil dort
-anders als in der Zeitansicht alles eine durchgehende Folge ist.
-
-**⚠️ „Alles auf/zu" heißt im Baum etwas anderes.** Die erste Fassung leerte `expandedFolders`
-– und ließ damit alle Ordner bis auf die Wurzel verschwinden (gemeldet). Gemeint ist aber nur,
-die **Dateien** unter den Ordnern ein- und auszublenden; das Gerüst bleibt stehen. In der
-Zeitansicht fällt beides zusammen, weil unter einem Ordner dort ausschließlich Dateien hängen
-– im Baum nicht. Der Schalter trägt deshalb je Ansicht eine andere Beschriftung und im Baum
-einen eigenen Zustand (`treeShowsFiles`), der die Aufklappstellung der Ordner unangetastet
-lässt.
-
-**Zeilenfarben aus den Systemfarben.** `NSColor.alternatingContentBackgroundColors` – Weiß und
-sehr helles Grau im hellen Erscheinungsbild, passend invertiert im dunklen. Die früheren Werte
-(Fensterhintergrund plus `secondary.opacity(0.07)`) lagen beide im Grau und wirkten zu dunkel.
-Die Abschnittsköpfe der Zeitansicht mussten dadurch **dunkler** werden, sonst wäre die Zäsur
-zwischen „Heute" und „Gestern" im Zeilenwechsel untergegangen.
-
-**⚠️ Der Zeilengrund gehört nach außen, nicht in die Zeile.** `FileRowView` malte ihn hinter
-den bereits eingerückten Inhalt. In beiden Ansichten endete er dadurch an der Einrückung und
-ließ den Rest in der Nachbarfarbe stehen – im Baum als senkrechte Bänder entlang der
-Baumlinien, in der Liste als Stufe an der Baumlinie. Bei einem schwachen Zebra fiel das nicht
-auf, bei Weiß gegen Hellgrau sofort.
-
-**Maße sind gekoppelt, nicht frei gewählt.** Die Verzweigungslinie soll aus der Mitte des
-Ordnersymbols kommen (`connectorX` = 39 pt). Daraus folgt zwingend eine Einrückung über 31 pt
-(gewählt: 34), damit die Linie links vom Aufklapppfeil des Kindes bleibt. Und der Pfeil sitzt
-mittig zwischen Linie und Symbol, ohne die Symbolmitte zu verschieben:
-`12 + 12 + 4 + 2 + 9 = 39`.
-
-Heute stehen Ordner in einer **flachen** Liste. Dadurch geraten
-`opencode/activities/dist` und sein Elternteil `opencode/activities` untereinander, ohne dass
-die Verwandtschaft sichtbar wäre. Der Anwender liest zwei Pfade und muss die Beziehung selbst
-herstellen.
-
-**Gemessen** (`~/Documents`, 30 Tage, ohne Namensfilter, 47 Ordner im Ergebnis):
-
-```
-Ordner mit einem Vorfahren im Ergebnis    46 von 47   (97 %)
-   davon im GLEICHEN Zeitabschnitt           27
-   davon in einem ANDEREN Zeitabschnitt      19
-Tiefe unter dem Wurzelordner        min 0 · median 4 · max 6
-Nötige Zwischenknoten ohne eigene Treffer    19  (+40 % Zeilen)
-   davon mit genau einem Kind                13
-Knoten auf oberster Ebene                     3  (PM2025, lerngruppe, opencode)
-```
-
-**97 % ist kein Randfall, sondern der Normalfall.** Die Schachtelung ist die richtige
-Darstellung dieser Daten.
-
-#### Der eigentliche Konflikt: Zeit gegen Ort
-
-Die Liste gliedert nach **Zeit** (`TimeBucket.group`, `TimeBucket.swift:47`), ein Baum nach
-**Ort**. Beides gleichzeitig als *primäre* Ordnung geht nicht, und das lässt sich nicht
-wegdefinieren:
-
-```
-opencode/activities/Packaging [Gestern]  ⊂  opencode/activities [Heute]
-PM2025/…/Testkonzepte        [Heute]     ⊂  .                   [Diese Woche]
-lerngruppe/pm2025            [Heute]     ⊂  lerngruppe          [Vor 4 Wochen]
-```
-
-Ein Kind kann **älter** sein als sein Elternteil, und der Wurzelordner selbst ist ein Eintrag
-in einem dritten Abschnitt. 19 von 46 Verwandtschaften (41 %) kreuzen eine Abschnittsgrenze.
-
-**⚠️ Drei naheliegende Wege wurden geprüft und verworfen – jeder an einer Messung:**
-
-1. **Baum *innerhalb* jedes Zeitabschnitts.** `opencode/activities` erschiene in „Heute" als
-   echter Knoten und in „Gestern" nochmals als Durchgangsknoten für `Packaging`. Bei 19
-   kreuzenden Beziehungen entstehen reihenweise Dubletten – also genau das Ausgangsproblem,
-   nur schlimmer. Nebenwirkung: `expandedFolders: Set<URL>` könnte eine Zeile nicht mehr
-   eindeutig benennen, `RowID` müsste den Abschnitt mittragen.
-2. **Nur schachteln, wenn Elternteil und Kind im selben Abschnitt liegen.** Deckt 27 von 46
-   Fällen ab. Dieselbe Paarung schachtelt heute und morgen nicht mehr, weil das Elternteil in
-   einen anderen Abschnitt gealtert ist. Eine Regel, die sich mit der Uhr ändert, kann
-   niemand lernen.
-3. **Zeitabschnitte nur auf oberster Ebene.** Die oberste Ebene hat **3 Knoten**. Die
-   Gliederung schrumpfte auf „Heute: 3 Ordner" und wäre wertlos.
-
-#### Entschieden
-
-**Zwei gleichrangige Blickrichtungen: „Wann" und „Wo".** Die Baumansicht (*wo?*) ist die
-Einstiegsansicht, die Zeitgliederung (*wann?*) bleibt als vollwertige zweite Ansicht
-erhalten. Im Baum kommt jeder Ordner **genau einmal** vor, Zeitabschnitte entfallen dort. Das
-Datum bleibt in jeder Zeile, die Zeitachse im Diagramm.
-
-**⚠️ Die Listenansicht ist kein Auslaufmodell.** Sie ist die gewachsene, tragende Lösung –
-Zeitabschnitte, Datumsspalte, Zebra, Baumlinien, die datumstiftende Datei in Fett, das
-Zusammenspiel mit Diagramm und Legende. Der Baum tritt **daneben**, nicht darüber. Kein
-Arbeitspaket darf die Listenansicht funktional beschneiden, um den Baum leichter zu machen;
-im Zweifel bekommt der Baum den Sonderfall, nicht die Liste den Verlust.
-
-**⚠️ Das ist eine Änderung der Leitfrage.** Die App beantwortete bisher zuerst *„wann?"*.
-Künftig zuerst *„wo?"*, mit dem Wann daneben. Die Zeitansicht darf deshalb nicht zur
-versteckten Sonderfunktion verkommen – sie bleibt gleichrangig erreichbar und benannt.
-
-- **Durchgangsknoten** (Zwischenknoten ohne eigenen Dateibeitrag) bekommen eine **eigene
-  Zeile in schwächerer Schrift**. Sie dürfen nicht aussehen wie ein Ordner, in dem gearbeitet
-  wurde – sonst behauptet die App Arbeit, die nicht stattfand. Ihr Datum ist das Maximum des
-  Teilbaums (sonst unsortierbar), ihre Zählung die des Teilbaums und als solche gekennzeichnet.
-  **VoiceOver muss den Unterschied sagen, nicht nur die Schrift ihn zeigen.**
-- **Angeheftete Ordner** werden im Baum zur **Markierung am Knoten**. Heute werden sie aus
-  ihrem Abschnitt herausgezogen (`ReportViewModel.swift:756-772`); in einem Baum kann man
-  einen Knoten nicht entfernen, ohne seine Kinder zu verwaisen. In der Listenansicht bleibt
-  der Abschnitt „Angeheftet" bestehen (siehe PR-28).
-- **Export bleibt flach.** `ReportExport.csv/html` (`:13`, `:38`) arbeitet weiter auf
-  `[BucketedEntries]`. Ein Bericht ist eine Liste; die Einrückung mitzunehmen kann später
-  folgen, wenn sich der Bedarf zeigt.
-
-#### Was bedacht werden muss
-
-**Alles, was die Liste kann, muss der Baum auch können.** Die Baumansicht ist eine andere
-*Gliederung* derselben Daten, keine andere Funktionsmenge:
-
-- **Auf- und Zuklappen** einzelner Ordner sowie „alle auf/zu" (`setAllExpanded`, `:1070`).
-  Neu ist nur, dass Zuklappen ganze **Teilbäume** verbirgt. ⚠️ Im Modus „Alle" umfasst der
-  Baum gemessen **1 410 Knoten** – „alle aufklappen" ist dort ein anderer Handgriff als bei
-  66 Knoten und braucht dieselbe Bremse wie PR-26.
-- **Dateien zeigen oder nicht** – die Dateizeilen hängen wie bisher am Aufklappzustand.
-- **Der Zeitfenster-Schalter** („Dateien außerhalb des Zeitraums zeigen",
-  `setShowOutOfWindowFiles`, `:1071`) wirkt unverändert über `isVisibleDetail`.
-- **Der Typ-Filter der Legende** wirkt unverändert auf die Dateizeilen.
-
-**⚠️ Neue Regel, die es in der Liste nicht gibt: der leergefilterte Ordner.** Heute
-verschwindet ein Ordner schlicht, sobald Zeitfenster oder Typ-Filter alle seine Dateien
-ausblenden (`FolderAggregator.folderEntries` liefert ihn nicht mehr). In einem Baum darf er
-das **nicht**, solange ein Nachfahre noch Treffer hat – sonst reißt der Ast ab und die Kinder
-hängen in der Luft. Er wird dann zum **Durchgangsknoten**. Damit ist dieselbe Zeile mal echter
-Treffer, mal Durchgang, je nach Filterstellung; die Darstellung muss diesen Wechsel tragen,
-ohne zu springen.
-
-**Kern** (`ActivitiesCore`, bleibt Foundation-only):
-- Neuer Typ `FolderNode`: `folder`, eigenes `newestDate` **und** `subtreeNewestDate`, eigener
-  `fileCount` **und** `subtreeFileCount`, `children`, `hasOwnFiles`.
-- Aufbau aus dem vorhandenen `[FolderEntry]` (`FolderAggregator.swift:48`) plus Wurzel-URL;
-  die fehlenden Zwischenknoten werden erzeugt.
-- **⚠️ Pfadverdichtung** wie VS Codes „compact folders": 13 der 19 Zwischenknoten haben genau
-  ein Kind. Ketten zu einer Zeile zusammenfassen (`lerngruppe/ubuntu/ChatGPT/pdf_cleanup/src`)
-  senkt die Zusatzzeilen von 19 auf ~6 und die Einrückung von **median 4 / max 6 auf
-  median 3 / max 5** – gemessen. Ohne sie wird die Darstellung breit und leer.
-- Baumaufbau, Verdichtung und Geschwistersortierung gehören nach `CoreChecks` (Regel aus
-  `CONTRIBUTING.md`) – sie sind reine Funktionen und gut prüfbar.
-
-**Einrückung und Platz:**
-- Nach Verdichtung bis zu 5 Ebenen plus Dateiebene.
-- **⚠️ Eine horizontale Bildlaufleiste ist nicht nötig – gemessen.** Die Zeile hat feste
-  Kosten von 224 pt (Rand 8 + Pfeil 12 + Abstand 8 + Symbol 22 + Abstand 8 · rechts Abstand 8
-  + Datumsspalte 150 + Rand 8). Dazu Name und Einrückung. Mit den echten Schriften
-  ausgemessen:
-
-  | Zeitraum | Zeilen | median | 99 % | max | zu breit bei 820 pt | bei 1280 pt |
-  |---|---|---|---|---|---|---|
-  | 30 Tage | 461 | 420 pt | 719 pt | 813 pt | **0 %** | 0 % |
-  | Alle | 16 239 | 442 pt | 856 pt | 1 476 pt | 1,4 % | 0,02 % |
-
-  Die Schrittweite ist dabei fast belanglos: von 12 auf 20 pt je Ebene wächst die breiteste
-  Zeile um **8 pt** (809 → 817). **Die Breite kommt nicht von der Einrückung, sondern von
-  langen Dateinamen** – die breiteste Zeile überhaupt (1 476 pt, eine `.eml`-Datei) liegt auf
-  Ebene 4, die zweitbreiteste auf **Ebene 1**. Dasselbe Problem besteht also schon heute in
-  der flachen Liste.
-- **⚠️ Eine horizontale Leiste stünde zudem im Widerspruch zur Datumsspalte.** Sie sitzt
-  rechts, gehalten von einem `Spacer` (`FolderRowView.swift:74-81`). Scrollt der Inhalt
-  waagerecht, scrollt das Datum mit aus dem Bild. Es bräuchte eine **eingefrorene Spalte** –
-  also eine echte Tabelle statt einer `LazyVStack`. Das ist ein eigenes Vorhaben (PR-29), kein
-  Nebenprodukt der Baumdarstellung.
-- **Stattdessen kürzen, wie Finder und Xcode es tun.** Dateinamen kürzen bereits mittig
-  (`FileRowView.swift:48-54`). **Ordnernamen nicht:** `.fixedSize(horizontal: true)`
-  (`FolderRowView.swift:61`) verhindert das Kürzen – in der flachen Liste harmlos, im Baum
-  nicht mehr. Diese eine Zeile ist die eigentliche Änderung; vollständiger Name in Tooltip
-  und Bedienhilfen.
-- `TreeConnector` (`RowMetrics.swift:79`) kennt heute nur `isLast` für Dateizeilen. Für
-  beliebige Tiefe braucht er „welche Vorfahren haben noch Geschwister danach" – durchgezogene
-  gegen abbrechende Linien.
-- Der Pfad in der Ordnerzeile (`relativePath(of:)`) wird weitgehend überflüssig: Die
-  Einrückung **ist** der Pfad. Nur der verdichtete Rest gehört noch hin.
-
-**Sortierung:**
-- `RowSorting.folders` (`:49`) sortiert eine flache Liste; im Baum werden **Geschwister**
-  sortiert.
-- **⚠️ Der Sortierschlüssel eines Elternteils muss `subtreeNewestDate` sein.** Sonst rutscht
-  ein Ordner mit alten eigenen Dateien nach unten, während seine Kinder das Neueste auf dem
-  Bildschirm sind.
-
-**Aufklappen:**
-- `expandedFolders: Set<URL>` bleibt tragfähig, weil jede URL genau einmal vorkommt.
-- Die Bedeutung ändert sich: Zuklappen verbirgt ganze Teilbäume. `finishDetailLoad` setzt
-  heute `expandedFolders = displayed` (`ReportViewModel.swift:1527`) – die erzeugten
-  Zwischenknoten müssen mit hinein.
-- ←/→ sollte Standard-Verhalten einer Gliederung bekommen: ← auf einem bereits zugeklappten
-  Knoten springt zum **Elternteil**.
-
-**Was am Baum hängt:**
-
-| Stelle | Was zu tun ist |
-|---|---|
-| `RowNavigation.flatten` (`:13`) | tiefensuchend über den Baum statt Abschnitt → Ordner → Dateien |
-| `prepareFullFileList` (`ReportViewModel.swift:818`) | QuickLook muss in **sichtbarer** Reihenfolge blättern |
-| `focusDay` / `applyChartFocus` (`:1145`) | Diagramm-Sprung muss **alle Vorfahren** aufklappen, nicht nur den Zielordner |
-| `setAllExpanded` (`:1070`) | betrifft jetzt einen echten Baum |
-| `mostRecentFolders` (`:516`) | leitet aus `displayBuckets` ab – die gibt es im Baummodus nicht mehr |
-| Abschnittsköpfe | „Heute · 1 Ordner / 2 Dateien" entfällt im Baum; Ersatz klären |
-
-**Der Wurzelordner selbst:** hat gemessen **eigene Treffer**, ist also selbst ein Eintrag. Er
-bekommt nur dann eine Zeile, wenn er eigene Dateien beiträgt – sonst beginnt der Baum bei
-seinen Kindern.
-
-**Umschalter:** Die Toolbar ist voll. Vorschlag: das Sortier-Menü (⇅, `MainToolbar.swift:88`)
-bekommt einen Abschnitt „Gliederung: Baum / Nach Zeit" – es *ist* eine Ordnungsentscheidung.
-Zu speichern wie `sort` (`SettingsStore.saveSort`).
-
-#### Zuschnitt
-
-| AP | Inhalt | Aufwand |
-|---|---|---|
-| **AP1** | Kern: `FolderNode`, Zwischenknoten, Pfadverdichtung, Geschwistersortierung, `CoreChecks` – **ohne Oberfläche** | M |
-| **AP2** | Darstellung und Navigation: Umschalter, Einrückung, `TreeConnector` verallgemeinert, `flatten`, Aufklapplogik, ←/→ | L |
-| **AP3** | Anschlüsse: Diagramm-Sprung mit Vorfahren, QuickLook-Reihenfolge, Anheften als Markierung, Kurzansicht, VoiceOver-Ebenenansage | M |
-
-AP1 ist ohne sichtbare Wirkung und damit gefahrlos zuerst lieferbar.
-
-**Akzeptanz:** Ordner erscheinen eingerückt entsprechend ihrer Lage im Dateisystem, jeder
-genau einmal; Ketten aus Zwischenknoten sind zu einer Zeile zusammengefasst; Durchgangsknoten
-sind optisch **und** für VoiceOver von Ordnern mit eigenen Treffern unterscheidbar; ein
-Elternteil sortiert nach dem jüngsten Datum seines Teilbaums; Aufklappen, „alle auf/zu", der
-Zeitfenster-Schalter und der Typ-Filter wirken im Baum genauso wie in der Liste; ein durch
-Filter leergeräumter Ordner bleibt als Durchgangsknoten stehen, solange ein Nachfahre Treffer
-hat; der Sprung aus dem Diagramm klappt alle Vorfahren auf; Baumaufbau und Verdichtung sind
-in `CoreChecks` geprüft.
-
-**⚠️ Zusätzliche Akzeptanz – Schutz des Erreichten:** Die Listenansicht verhält sich nach der
-Umstellung in **jedem** Punkt wie vorher: Zeitabschnitte, Abschnittsköpfe mit Ordner- und
-Dateizahl, angeheftete Ordner als eigener Abschnitt, Sortierung, Zebra, Baumlinien,
-datumstiftende Datei in Fett, Diagramm-Sprung, Export. Der flache Pfad behält eigene
-Prüfungen in `CoreChecks`, damit ein Rückschritt auffällt und nicht erst im Gebrauch bemerkt
-wird.
-
-### PR-28 · Abschnitt „Angeheftet" deutlicher absetzen *(erledigt, v1.19.16)*
-**Aufwand:** S · **Nutzen:** mittel
-
-In der Listenansicht stand „Angeheftet" als Abschnittskopf **gleichrangig** neben „Heute",
-„Gestern", „Diese Woche". Er ist aber von anderer Art: Die Zeitabschnitte sind eine
-*Beobachtung*, „Angeheftet" ist eine *Entscheidung des Anwenders*. Gleiche Gestaltung für
-Ungleiches liess den Abschnitt in der Reihe untergehen.
-
-**Umgesetzt:** Nadel-Symbol im Kopf, getönter Grund statt `.bar`, Unterlinie und ein sichtbarer
-Abstand zum ersten Zeitabschnitt. **⚠️ Der Unterschied ruht nicht auf Farbe allein** – das
-Symbol trägt für sich, auch für Farbfehlsichtige. VoiceOver nennt den Abschnitt „Angeheftete
-Ordner" statt „Zeitabschnitt …".
-
-**⚠️ Ein Merkmal, kein Namensvergleich.** `BucketedEntries` hat dafür ein `isPinned` bekommen.
-Auf die Beschriftung „Angeheftet" zu prüfen wäre die naheliegende Abkürzung gewesen – ein
-Anzeigetext ist aber kein Datenmerkmal; er ändert sich mit der Sprache. Eigene Prüfung dagegen.
-
-Betrifft nur die **Listenansicht**. Im Baum ist Anheften eine Markierung am Knoten (PR-27).
-
-### PR-30 · Aktive Zustände sofort erkennbar *(erledigt, v1.19.19)*
-**Aufwand:** M · **Nutzen:** hoch
-
-**Gemeldet:** „Die Buttons in der Steuerungsleiste sind zu unscheinbar – alles in Grautönen.
-Aktive Buttons oder eingegebene Suchstrings müssen sofort wahrnehmbar sein."
-
-**⚠️ Beides stand längst im Backlog – und blieb trotzdem liegen.** Das ist der eigentliche
-Befund:
-
-1. **UX-03** (als *erledigt* markiert, v1.8.0) trug die Akzeptanz „Jede Schaltfläche hat Icon
-   **und** erkennbaren Zustand". Umgesetzt wurde nur `toggleStyle(.button)` – dessen
-   Aktiv-Zustand ist ein Hauch dunkleres Grau. Die Akzeptanz war nie geprüft, der Eintrag
-   trotzdem geschlossen.
-2. **UX-29** (erledigt, v1.11.0) enthielt die Randnotiz „Zusätzlich erwägen: Analog zu UX-06
-   einen dezenten Dauerhinweis, solange ein Namensfilter aktiv ist". Eine offene Aufgabe in
-   einem geschlossenen Eintrag wird nicht mehr gefunden.
-
-*Lehre: Ein Eintrag, dessen Akzeptanz niemand nachmisst, ist nicht erledigt – er ist
-unbeobachtet. Und offene Punkte gehören nicht in geschlossene Einträge.*
-
-**Umgesetzt:**
-- Eingeschaltete Toolbar-Schalter tragen eine **gefüllte Akzentfläche** mit weißem Symbol
-  statt nur eines getönten Glyphs.
-- Das Suchfeld bekommt bei gesetztem Filter einen **Akzentrahmen**; ein Feld mit Text sah
-  vorher fast aus wie eines ohne.
-- Der Namensfilter erscheint als **Dauerhinweis** neben „N Typen ausgeblendet" – mit
-  Klartext („Namensfilter „swift"") und einem Knopf zum Löschen.
-- Der Fenstertitel „activities" ist aus der Leiste genommen (er stand redundant neben dem
-  Ordnernamen); der Fenstername wird per AppKit nachgesetzt, damit das Fenster im Menü
-  „Fenster" nicht namenlos bleibt.
-
-**Breite — gelöst, aber erst im dritten Anlauf.** Die vollständige Leiste passte zunächst
-erst ab 1432 pt; bei 1280 lagen vier Bedienelemente im Überlaufmenü „»".
-
-1. *Fenstertitel leeren* (`navigationTitle("")`) — half nicht. Der Platz blieb **reserviert**:
-   ~210 pt sichtbare Lücke, in die von links nichts nachrückte.
-2. *Elemente nach `.primaryAction` verschieben* — half auch nicht; die Lücke füllt sich von
-   rechts genauso wenig.
-3. *`windowToolbarStyle(.unifiedCompact(showsTitle: false))`* — das war es. Der Schalter nimmt
-   den **Titelstreifen** aus der Leiste, nicht nur den Text darin.
-
-*Lehre: Wer Platz sucht, muss wissen, wer ihn belegt. Zwei Versuche gingen daneben, weil sie
-den Text bekämpften statt den Streifen.*
-
-**Zusätzlich zusammengezogen:** Zeitmodus und Tageszahl standen als zwei Segmentwahlen
-nebeneinander – zwei Bedienelemente für *eine* Frage. Jetzt eine Reihe:
-`Heute · −3 · −7 · −30 · −90 · ⚙ · Spanne · Alle`. Der Platzgewinn war mit ~15 pt klein (die
-Zahl der Segmente bleibt ja), der Gewinn an Klarheit größer: Die Zeitwahl liest sich in einem
-Zug statt in zwei Schritten.
-
-### PR-31 · Zeilendichte *(erledigt, v1.19.21)*
-**Aufwand:** S · **Nutzen:** hoch
-
-**Gemeldet:** „Bei diesen Zeilenhoehen verschwenden wir ganz schoen viel Platz – besonders in
-der Baumansicht."
-
-**⚠️ Die Hoehe kam vom Symbol, nicht vom Text.** Gemessen: Ordnersymbol 18 pt plus 2 pt
-Innenabstand ergaben 22 pt Inhalt, mit dem Zeilenabstand **32 pt je Zeile**. Die Schriftzeile
-selbst misst rund 16 pt – der Text haette also nie so viel gebraucht. Finder kommt mit ~24 pt
-aus, Xcode mit ~22.
-
-**Umgesetzt:** Symbole 18 → 16 pt, Innenabstand 2 → 1, Zeilenabstand 5/3 → 3/2, Fuge zwischen
-den Zeilen 2 → 1 pt. Ergebnis **24 pt je Zeile** – im selben Fenster 21 statt 15 Zeilen
-(+40 %). Die Schrift bleibt unveraendert; es verschwindet nur Luft, die niemand gebraucht hat.
-
-**Nachgezogen (v1.19.23): eine Höhe für alle Zeilen.** Ordner- und Dateizeile hatten 3 bzw.
-2 pt Innenabstand – bei gleichem Symbol 24 gegen 22 pt. In einer langen Liste liest sich das
-als Stocken. Statt die Abstände anzugleichen steht jetzt eine **feste Zeilenhöhe** (22 pt):
-Sie hält auch dann, wenn später jemand eine Schrift oder ein Symbol ändert – der häufigste
-Weg, wie so eine Angleichung wieder verlorengeht. Die **Abschnittsköpfe** der Zeitansicht
-bleiben mit 30 pt bewusst höher: Sie gliedern die Liste, sie sind kein Eintrag darin.
-
-**Folgewirkung, die man leicht uebersieht:** `connectorX` (die Mitte des Ordnersymbols, an der
-die Verzweigungslinie haengt) sank dadurch von 39 auf 37 pt. Damit fiel die **Untergrenze fuer
-die Einrueckung** von 31 auf 25 pt – die Baumeinrueckung konnte von 34 auf 28 pt zurueck, ohne
-dass die Linie ihren Platz verliert. Bei fuenf Ebenen sind das 30 pt weniger Einrueckung. Die
-Masse haengen zusammen; wer eines aendert, muss die Kette nachrechnen (siehe `RowMetrics`).
-
-### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
-**Aufwand:** L · **Nutzen:** gering, solange die Messung gilt
-
-Aufgekommen bei der Planung von PR-27: Wenn die Einrückung die Zeilen zu breit macht, bräuchte
-es eine waagerechte Bildlaufleiste.
-
-**Zurückgestellt, weil die Prämisse gemessen nicht trägt.** Bei 30 Tagen ist **keine einzige**
-von 461 Zeilen zu breit für das schmalste Fenster (820 pt); im Modus „Alle" sind es 1,4 % bei
-820 pt und 0,02 % bei 1280 pt. Die Schrittweite der Einrückung verschiebt die breiteste Zeile
-um ganze 8 pt. Verursacher sind **lange Dateinamen**, nicht die Schachtelung – und die kürzen
-heute schon mittig.
-
-**Wenn es doch kommt, ist es kein kleiner Zusatz.** Die Datumsspalte sitzt rechts, gehalten
-von einem `Spacer` (`FolderRowView.swift:74-81`, `FileRowView.swift:64-70`). Bei waagerechtem
-Bildlauf verschwände sie aus dem Bild. Voraussetzung wäre also eine **eingefrorene Spalte** –
-und damit der Umbau der `LazyVStack` zu einer echten Tabelle mit Spaltenlayout. Das berührt
-Zebra, Baumlinien, Auswahlhintergrund und das Kompakt-Layout gleichzeitig.
-
-**Auslöser für eine Wiedervorlage:** Ein realer Bestand, in dem mehr als ~5 % der Zeilen bei
-üblicher Fensterbreite abgeschnitten werden. Dann neu messen, nicht schätzen.
-
-
----
-
-## Thema E · Rückblick und Bericht (v1.22)
-
 ### PR-15 · Wochenrückblick
-**Aufwand:** L · **Nutzen:** hoch
-Eigene Ansicht: „Deine Woche" – wichtigste Ordner, Verteilung nach Tagen und Typen,
-Vergleich zur Vorwoche. Macht aus Daten eine Aussage.
+**Aufwand:** L · **Nutzen:** hoch · **P3**
 
-### PR-16 · Zusammenfassung in die Zwischenablage *(erledigt, v1.19.33)*
-**Aufwand:** S · **Nutzen:** hoch
-Ein Knopf erzeugt Text für Standup, Zeiterfassung oder Rechnung – der schnellste Weg von Daten
-zu Nutzen.
+Eigene Ansicht „Deine Woche": wichtigste Ordner, Verteilung nach Tagen und Typen, Vergleich
+zur Vorwoche.
 
-**⚠️ Das Beispiel im ursprünglichen Eintrag war falsch.** Dort stand „KW 32: PM2025
-(14 Dateien) …". Der eingestellte Zeitraum ist aber selten eine Kalenderwoche – Vorgabe sind
-30 Tage, dazu freie Spanne und der Modus „Alle". Eine Zeile, die in eine **Zeiterfassung oder
-Rechnung** wandert, darf den Zeitraum nicht falsch benennen; das ist derselbe Fehlertyp wie die
-falsche Zahl in der Rückfrage aus PR-26, nur mit teureren Folgen.
-
-**Umgesetzt** – ⌥⌘C legt zwei Zeilen in die Zwischenablage:
-
-```
-Sa., 01.08.2026 – Mo., 03.08.2026 · 3 Tage · 6 Ordner · 32 Dateien
-PM2025 (14), Lerngruppe (7), doc (5), Bilder (3), Notizen (2) … und 1 weitere
-```
-
-**⚠️ Der Fund, der den ganzen Sprint geprägt hat: Die Zeitraum-Formulierung lag privat in einer
-View** (`ChartHeaderView.rangeHeadline`). Solange sie nur die Überschrift beschriftete, fiel das
-nicht auf. Eine zweite Stelle, die den Zeitraum nennt, hätte eine zweite Formulierung erzeugt –
-der Anfang genau des Zerfalls, der die Zeitstempel vor PR-32 auseinandergebracht hat. Sie steht
-jetzt als `DateFormatting.range(from:to:days:)` im Kern, wird von Überschrift **und** Export
-benutzt und ist geprüft.
-
-**Weitere Festlegungen:**
-- **Nach Anzahl sortiert**, nicht nach Datum: Die Frage hinter der Zeile ist „woran habe ich
-  gearbeitet", nicht „was war zuletzt dran" – dafür gibt es die Liste.
-- **Fünf Ordner namentlich**, der Rest gezählt („… und 7 weitere"). Eine gekürzte Liste, die
-  ihre Kürzung nicht zugibt, wäre eine falsche Auskunft. Fünf sind die Menge, die man noch
-  vorlesen kann.
-- **Ordnernamen, keine Pfade.** Ein Standup-Satz mit `/Users/x/Documents/…` ist unlesbar. Preis:
-  zwei gleichnamige Ordner sind in der Zeile nicht zu unterscheiden – wer den Pfad braucht, hat
-  CSV und HTML.
-- **⌥⌘C, nicht ⌘C.** ⌘C gehört dem Kopieren der Auswahl und muss auch im Suchfeld
-  funktionieren.
-
-### PR-17 · Berichte, die man zeigen kann *(erledigt, v1.19.33)*
-**Aufwand:** M · **Nutzen:** mittel
-Der HTML-Export war eine rohe Tabelle (88 Zeilen, kein Kopf außer „Erstellt: …").
-
-**Umgesetzt:** Kopfzeile mit **Zeitraum**, Wurzelordner und der Zusammenfassung aus PR-16, dazu
-ein **Balkendiagramm** der Tageswerte.
-
-**⚠️ Das Diagramm zeichnet aus `DayExtensionCount` – derselben Aggregation, die auch die Ansicht
-speist.** Nur das Zeichnen unterscheidet sich (SVG statt SwiftUI). Entstünde hier eine zweite
-Rechnung, zeigten Bericht und Fenster irgendwann verschiedene Zahlen für denselben Tag, und
-niemand wüsste, welcher zu glauben ist.
-
-**⚠️ SVG und kein Bild.** Der Bericht soll eine **einzelne Datei** bleiben, die man verschicken
-kann. Ein PNG wäre ein zweiter Anhang oder ein aufgeblähter Base64-Block. Eigene Prüfungen
-sichern, dass weder `<img>` noch `<script>` im Ergebnis stehen.
-
-**PDF bewusst weggelassen** (mit Zustimmung). Der Eintrag nannte es beiläufig, es ist aber ein
-eigener Ausgabeweg mit eigener Seitenaufteilung – ein zweites Ziel, das dieselbe Darstellung
-noch einmal erzeugen muss. Ein HTML-Bericht lässt sich über den Systemdruck als PDF sichern;
-solange niemand das vermisst, ist das die kleinere Antwort.
+**⚠️ Erst nach PR-16 zu bewerten.** PR-16 (Zusammenfassung, v1.19.33) beantwortet dieselbe
+Frage als S. Ein L zu bauen, das ein S überflüssig gemacht hätte, wäre die teuerste Art,
+das herauszufinden. *Zur Wiedervorlage, sobald PR-16 eine Weile im Gebrauch war.*
 
 ### PR-18 · Zwei Zeiträume vergleichen
-**Aufwand:** M · **Nutzen:** mittel
+**Aufwand:** M · **Nutzen:** mittel · **P3**
 „Diese Woche gegen letzte" – zeigt Verlagerung statt nur Bestand.
 
----
-
-## Thema F · Suchen und Finden (v1.23)
-
 ### PR-19 · Mehrere Wurzelordner gleichzeitig
-**Aufwand:** L · **Nutzen:** hoch
+**Aufwand:** L · **Nutzen:** hoch · **P3**
 Heute genau ein Ordner. Wer in `Documents` **und** `Projekte` arbeitet, muss wechseln.
 
-### PR-20 · Weitere Filter: Größe und Alter
-**Aufwand:** M · **Nutzen:** mittel
-„Nur Dateien über 10 MB", „nur heute geändert" – zusätzlich zu Name und Typ.
+### PR-20 · Filter nach Größe *(neu zu fassen)*
+**Aufwand:** S–M · **Nutzen:** gering–mittel · **P3**
+
+**⚠️ Der Eintrag ist zur Hälfte überholt und darf nicht in alter Form geschätzt werden.**
+Ursprünglich „Filter: Größe **und Alter**". Die Alters-Hälfte leistet der Zeitraum längst;
+die Größen-Hälfte ist seit PR-37 fast geschenkt, weil `RelevantFile.size` vorliegt.
 
 ### PR-21 · Suchbegriffe merken
-**Aufwand:** S · **Nutzen:** gering–mittel
+**Aufwand:** S · **Nutzen:** gering–mittel · **P3**
 Zuletzt verwendete Filter im Suchfeld anbieten.
 
----
-
-## Thema G · Vertrauen und Verbreitung (v2.0)
-
 ### PR-22 · Notarisierung
-**Aufwand:** M (plus Apple-Mitgliedschaft) · **Nutzen:** hoch
+**Aufwand:** M (plus Apple-Mitgliedschaft) · **Nutzen:** hoch · **P2**
+
 `Packaging/notarize.sh` ist vorbereitet. Ohne sie muss jeder Empfänger den
 Gatekeeper-Dialog umgehen – die größte Hürde bei der Weitergabe.
 
+**⚠️ PR-25 gehört davor**, nicht danach: erst messen, wie sich die App bei sehr großen
+Beständen verhält, dann breiter verteilen.
+
 ### PR-23 · Englische Sprachfassung
-**Aufwand:** L · **Nutzen:** mittel
+**Aufwand:** L · **Nutzen:** mittel · **P3**
+
 Heute **180 deutsche Zeichenketten** fest im Quelltext und `Locale(identifier: "de_DE")`
-fest verdrahtet. Ohne Lokalisierung bleibt die App auf den deutschen Sprachraum begrenzt.
-*Auch für Datums- und Zahlenformate relevant: Ein englischer Nutzer sähe heute deutsche
-Wochentagskürzel.*
+fest verdrahtet. Auch für Datums- und Zahlenformate relevant: Ein englischer Nutzer sähe
+heute deutsche Wochentagskürzel.
 
-### PR-24 · Erklären, was gelesen wird *(erledigt, v1.19.33)*
-**Aufwand:** S · **Nutzen:** hoch
-Die App liest den gesamten Dateibaum. Das ist harmlos (nichts verlässt das Gerät), aber es
-sollte **dastehen** – im Erstkontakt und in der Hilfe. Vertrauen entsteht durch Auskunft,
-nicht durch Schweigen.
-
-**Umgesetzt:** Ein Satz im Erstkontakt-Streifen („liest dafür den gesamten Ordnerbaum – nur
-lesend, nur lokal: Es wird nichts gesendet und nichts verändert") und ein **eigener Abschnitt**
-in der Hilfe: „Was gelesen wird".
-
-**⚠️ Eigener Abschnitt, kein Halbsatz beim Rauschfilter.** Wer wissen will, was ein Programm mit
-seinen Dateien tut, sucht eine Überschrift – nicht eine Zeile zwischen Bedienhinweisen.
-
-**⚠️ Ein Satz, kein Absatz.** Ein Erstkontakt, der zur Datenschutzerklärung wird, wird
-weggeklickt – und dann hat niemand etwas davon.
-
-**Zwei veraltete Hilfetexte nebenbei gefunden und behoben:** Der Abschnitt „Updates" behauptete
-„Beim Start prüft die App still …" – seit PR-34 prüft sie **täglich**, was der eigentliche Punkt
-jener Änderung war. Und der Export nannte ⇧⌘E, obwohl das Kürzel seit PR-12 ⌥⌘E ist. *Eine
-Hilfe, die etwas anderes sagt als das Programm, ist schlechter als keine – ihr glaubt man.*
+**⚠️ UX-33 ist die Vorarbeit** – ohne deklarierte Basissprache gibt es keine zweite.
 
 ### PR-25 · Leistung bei sehr großen Bäumen absichern
-**Aufwand:** M · **Nutzen:** mittel
+**Aufwand:** M · **Nutzen:** mittel · **P2**
+
 Gemessen wurden ~83.000 Dateien (~20 MB, 1,3 s). Bei 500.000 Dateien ist das Verhalten
-**unbekannt**. Vor breiterer Verbreitung messen und, falls nötig, begrenzen –
-lieber vorher wissen als beim Anwender.
+**unbekannt**. Eine Messaufgabe, kein Bauvorhaben – gehört vor PR-22.
 
-## Thema H · Nachgemeldet aus dem Gebrauch (v1.19.x)
+### PR-27 AP3 · Anschlüsse im Baum *(zu prüfen, vermutlich erledigt)*
+**Aufwand:** S (Durchsicht) · **P3**
 
-### PR-32 · Zeitstempel einheitlich formatieren *(erledigt, v1.19.24)*
-**Aufwand:** S · **Nutzen:** mittel
+Diagramm-Sprung mit Vorfahren, Anheften im Baum und die VoiceOver-Ebenenansage sind im Code
+vorhanden (`TreeRowView.swift:156-163` u. a.). Der Eintrag steht seit v1.19.11 als offen.
+**Braucht eine Durchsicht, kein Bauvorhaben** – dann schließen.
 
-**Gemeldet:** „In beiden Ansichten (Tabelle/Baum) gibt es unterschiedliche Formatierungen des
-Zeitstempels. Klar – heute und gestern als Zeitstempel sind gewollt – aber die anderen sollten
-einheitlich sein."
+### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
+**Aufwand:** L · **Nutzen:** gering, solange die Messung gilt · **P3**
 
-**⚠️ Der Formatierer war nie das Problem.** Beide Ansichten riefen dieselbe Funktion auf. Die
-Uneinheitlichkeit kam aus zwei anderen Richtungen:
+**⚠️ Zurückgestellt, weil die Prämisse gemessen nicht trägt.** Bei 30 Tagen ist **keine
+einzige** von 461 Zeilen zu breit für das schmalste Fenster (820 pt); im Modus „Alle" sind
+es 1,4 % bei 820 pt und 0,02 % bei 1280 pt. Verursacher sind **lange Dateinamen**, nicht
+die Schachtelung.
 
-1. **Zwei Formen statt einer.** `dateTime` liess das Jahr **im laufenden Jahr** weg – gedacht
-   als Rauschminderung. Sobald eine Liste über den Jahreswechsel reicht (der Normalfall, die
-   Zeitabschnitte gehen bis „Vor N Jahren"), stehen „Mi., 05.08. 14:32" und
-   „Do., 12.12.2024 09:10" untereinander. Die Spalte franst aus, und der Leser prüft an jeder
-   Zeile erst, *welche* der beiden Formen er vor sich hat.
-2. **Drei Auszeichnungen für dieselbe Angabe.** Ordnerzeile (Liste) `primary`/regular, Ordnerzeile
-   (Baum) `primary` **oder** `secondary`, Dateizeile `secondary` + fett bei der datumstiftenden
-   Datei. Das war keine Entscheidung, sondern das Ergebnis dreier unabhängiger Änderungen über
-   die Zeit.
+**Wenn es doch kommt, ist es kein kleiner Zusatz:** Die Datumsspalte wird von einem `Spacer`
+rechts gehalten und verschwände beim waagerechten Bildlauf. Voraussetzung wäre eine
+eingefrorene Spalte – also der Umbau der `LazyVStack` zu einer echten Tabelle, was Zebra,
+Baumlinien, Auswahlhintergrund und Kompakt-Layout gleichzeitig berührt.
 
-**Umgesetzt:**
-- **Genau zwei Formen, keine dritte.** „Heute, 22:59" / „Gestern, 14:32" bleiben als Ausnahme –
-  sie beantworten eine andere Frage (*ist das noch frisch?*). Alles Ältere trägt **immer**
-  dieselbe Form **mit Jahr**: „Mi., 05.08.2025 14:32", kompakt „Mi. 05.08.25 14:32". Die
-  Fallunterscheidung Heute/Gestern liegt jetzt an *einer* Stelle, damit Lang- und Kurzform sich
-  nicht wieder auseinanderentwickeln können.
-- **Eine Darstellung für alle Zeilentypen** in `DateStampView`: durchgängig `secondary` (das
-  Datum ist die Nebenangabe, der Name der Gegenstand) und durchgängig regular. Die
-  datumstiftende Datei bleibt erkennbar – ihr **Name** steht fett. *Ein Signal, ein Träger.*
-- Der Farbwechsel für Durchgangsknoten im Baum entfällt; die Zeile daneben schreibt bereits
-  „… im Unterbaum".
-
-**⚠️ Spaltenbreite gemessen, nicht geschätzt.** In monospaced Callout (12 pt) misst
-„Mi., 05.08.2025 14:32" **155,8 pt** – die Spalte war 150 pt breit und hätte abgeschnitten.
-Jetzt 158 pt (kompakt 133,5 → 136 pt). Kosten: 8 pt Namensbreite. *Das ist derselbe Fehler wie
-bei UX-12 und dem Zebra, nur an anderer Stelle: eine Maßangabe, die zu ihrer Zeit stimmte, und
-eine Änderung, die ihre Grundlage wegzog.*
-
-**⚠️ Der Befund ist auch ein Struktur-Befund.** `DateFormatting` lag im App-Ziel und war damit
-nicht prüfbar – reine Funktionen über Datum und Kalender, ohne SwiftUI, ohne Zustand. Genau
-deshalb konnte die Formatierung unbemerkt zerfallen. Sie liegt jetzt in `ActivitiesCore`, der
-Bezugszeitpunkt ist einspeisbar (wie bei `TimeBucket`), und die Zusicherung „genau zwei Formen,
-alle Regelformen gleich lang" ist in `CoreChecks` **und** XCTest geprüft.
-
-*Lehre: Wenn sich eine Regel nicht prüfen lässt, ist es nur eine Frage der Zeit, bis sie keine
-mehr ist.*
-
-### PR-33 · Funktionsleiste und Zeitabschnitte lesbar machen *(erledigt, v1.19.25)*
-**Aufwand:** M · **Nutzen:** hoch
-
-**Gemeldet:** „Die wichtige Funktionsleiste ist schwer lesbar – alles grau, graue Schrift,
-grauer Hintergrund. In der Tabellenansicht sollen die Zeitsegmente (z. B. „Vor 7 Monaten")
-deutlicher erkennbar sein. Hier geht viel im grauen Schleier unter. Deutliche Verbesserungen –
-ohne zu übertreiben."
-
-**⚠️ Gemessen, bevor gestrichen wurde – und die Messung hat die Aufgabe umgeschrieben.**
-Die naheliegende Antwort auf „alles grau" ist mehr Farbe. Die Zahlen sagen etwas anderes
-(ΔE an den gezeichneten Pixeln, WCAG-Kontrastverhältnis gegen den Fenstergrund):
-
-| Messung | hell | dunkel |
-|---|---|---|
-| Zebra untereinander | ΔE 2,5 | ΔE 4,7 |
-| **Abschnittskopf gegen Zeile** | **ΔE 9,1–11,6** | **ΔE 10,4–15,1** |
-| `secondary`-Text | **3,82:1** | 5,06:1 |
-| `tertiary`-Text | **1,86:1** | 2,19:1 |
-
-Die Kopf*fläche* ist also drei- bis viermal so deutlich abgesetzt wie das Zebra – sie war nie
-das Problem und wurde deshalb **nicht angefasst**. Der „graue Schleier" hatte drei ganz andere
-Ursachen:
-
-1. **Ein Punkt Rangunterschied.** Der Abschnittskopf stand in `.headline` (13 pt fett), die
-   Zeilen darunter in `.callout` (12 pt). Das ist keine Gliederung, das ist ein Rundungsfehler.
-   Dazu verdünnte die Zählerei die Beschriftung: „Vor 7 Monaten · 12 Ordner / 40 Dateien" –
-   gleiche Größe, gleiche Farbe, gleiches Gewicht für die Überschrift und für ihre Fußnote.
-2. **Die kleinste Schrift trug die wichtigste Warnung.** Beide Statuszeilen standen in
-   `.caption` (10 pt) und `.secondary` (3,82:1) – darunter der einzige sichtbare Hinweis auf
-   einen gesetzten Filter (UX-06: kein stiller Zustand) und die Warnung „Daten veraltet". Die
-   Versionsnummer, die man am Telefon vorlesen soll, stand in `.tertiary` bei **1,86:1**.
-3. **Der Leiste fehlte Kontrast nicht – ihr fehlte eine Kante.** Zwölf Bedienelemente in einem
-   ununterbrochenen Zug lesen sich als graue Wand, auch wenn jedes einzelne Symbol scharf ist
-   (`idleTint` ist seit PR-30 `Color.primary`). Das Auge findet keinen Halt.
-
-**Umgesetzt:**
-- **Abschnittskopf typografisch statt farblich:** Beschriftung 15 pt halbfett, Zähler 12 pt
-  zurückgenommen. Drei Punkte und eine Gewichtsstufe Abstand zur Zeile – genug zum Überfliegen,
-  ohne zu brüllen. Dazu eine **Oberlinie**: die stärkste Zäsur je aufgewendeter Tinte, und sie
-  bringt keine weitere Graustufe in die Liste. Sie sitzt oben, weil der Kopf zu dem gehört, was
-  *unter* ihm folgt – eine Linie darunter trennte ihn von seinem eigenen Inhalt.
-- **`tertiary` entfernt** (1,86:1); beide Statuszeilen von `.caption` auf `.subheadline`
-  (10 → 11 pt). An der Systemfarbe `secondary` lässt sich nichts drehen, ohne die Zeilen laut
-  zu machen; an der Größe schon.
-- **Zwei Trennstriche in der Leiste:** einer zwischen Arbeitsablauf (Ort → Suche → Zeitraum) und
-  Anpassungen, einer zwischen Aktionen und Zuständen. Letzterer heilt nebenbei den Missgriff aus
-  v1.19.5, bei dem ein Anwender den Auto-Refresh-Schalter für „neu einlesen" hielt.
-
-**⚠️ Bewusst *nicht* getan: Beschriftungen an die Toolbar-Knöpfe.** Das wäre die andere
-gültige Antwort auf dieselbe Frage gewesen – sie hätte aber den in PR-30 in drei Anläufen
-erkämpften Platz sofort wieder aufgezehrt und die hinteren Elemente ins Überlaufmenü gedrängt.
-Zwei Striche kosten ~2 pt und leisten dasselbe.
-
-**⚠️ Stolperstein für den nächsten:** `ToolbarContentBuilder` nimmt höchstens **zehn** Elemente
-je Bauplan. Ein elftes bricht mit „extra argument in call" – einer Meldung, die den wahren Grund
-nicht nennt. Der erste Trennstrich hängt deshalb im selben `ToolbarItem` wie der Zeitraum.
-
-**PR-28 bleibt gültig:** Der angeheftete Abschnitt trägt weiterhin Symbol, getönten Grund und
-Unterlinie – der Unterschied ruht nicht auf Farbe allein.
-
-*Lehre: „Wirkt grau" heißt nicht „ist zu wenig Farbe". Zwei der drei Ursachen waren
-Schriftgrößen, die dritte war fehlende Gruppierung. Wer hier ohne Messung angefangen hätte,
-hätte die einzige Fläche kräftiger gefärbt, die bereits deutlich war.*
-
----
-
-### PR-34 · Stille Update-Suche in sinnvollem Takt *(erledigt, v1.19.28)*
-**Aufwand:** ~~S~~ **M** *(korrigiert nach der Code-Durchsicht)* · **Nutzen:** mittel
-
-**Gemeldet:** „Ich möchte, dass das Tool still – also ohne Fehlermeldung, wenn kein Internet da
-ist oder GitHub down ist – in einem sinnvollen Intervall nach Updates sucht und dann den
-Update-Knopf einblendet."
-
-**⚠️ Der Mangel ist größer, als die Formulierung „kleine Erweiterung" vermuten lässt.**
-`UpdateChecker.check()` läuft an genau einer Stelle: `.task` auf der `RootView`
-(`RootView.swift:57`), also **einmal beim Erscheinen des Fensters**. Für ein Programm, das man
-öffnet und schließt, wäre das genug. Diese App ist aber seit PR-07/PR-08/PR-10 ausdrücklich als
-**Dauerläufer** gebaut – Menüleisten-Symbol, Start bei der Anmeldung, Zustand über Neustarts.
-Wer sie so benutzt, wie sie gedacht ist, prüft also **nie wieder**. Der Update-Knopf existiert,
-aber die Bedingung, unter der er erscheint, tritt praktisch nicht mehr ein.
-
-**Lösung:** Ein wiederkehrender Takt (Vorschlag: alle 24 h, plus einmal beim Aufwachen aus dem
-Ruhezustand – ein Mac, der nachts schläft, verpasst sonst jeden Termin). Zeitpunkt der letzten
-Prüfung wird gespeichert, damit ein Neustart den Takt nicht zurücksetzt und drei Starts
-hintereinander nicht drei Anfragen auslösen.
-
-**Still bleibt still.** `check(manual:)` unterscheidet bereits sauber: Nur die manuelle Suche
-meldet einen Fehlschlag (`UpdateChecker.swift:137-140`). Die getaktete Prüfung ist eine
-Hintergrundprüfung und läuft über denselben stillen Zweig – **kein neuer Fehlerweg.**
-
-**⚠️ Zu prüfen: GitHub-API ohne Token ist auf 60 Anfragen je Stunde und IP gedeckelt.** Bei 24 h
-Takt ist das kein Thema; es ist der Grund, warum der Takt **nicht** auf Minuten gestellt werden
-darf, auch wenn es technisch ginge.
-
-**⚠️ „Wenige Zeilen" war falsch geschätzt – der App fehlt der Ort für prozessweiten Zustand.**
-Die Code-Durchsicht für Sprint 10 fand drei Lücken, jede einzeln klein, zusammen ein M:
-
-1. **Kein Takt-Mechanismus existiert.** Null Treffer für `Timer`, `Timer.publish`,
-   `DispatchSourceTimer`. Das einzige periodische Element ist ein `TimelineView`
-   (`RootView.swift:251`) – und das lebt und stirbt mit der View, hat also genau den Mangel,
-   den PR-34 beheben soll. Die drei `Task.sleep`-Stellen sind Entprellungen, keine Takte.
-2. **Kein Registrierungsort, der das Fenster überlebt.** Die App hat **keinen AppDelegate und
-   keinen einzigen Notification-Observer**. Die beiden prozessweiten Haken (`GlobalHotKey`,
-   `AppPresence`) hängen in `MainWindowHost.onAppear` (`ActivitiesApp.swift:262-265`) – also
-   ausgerechnet am Fenster. `NSWorkspace.didWakeNotification` braucht etwas anderes.
-   Verschärfend: `ActivitiesApp.swift:91` nutzt `Window`, nicht `WindowGroup` – das `.task`
-   auf der `RootView` läuft genau einmal je Fensterleben.
-3. **Keine Persistenz für den Prüfzeitpunkt.** `UpdateChecker` fasst `UserDefaults` nicht an,
-   `SettingsStore` kennt keinen Update-Schlüssel. „Der Takt überlebt einen Neustart" verlangt
-   einen neuen Schlüssel.
-
-**Was dagegen trägt:** Der stille Fehlerzweig (`UpdateChecker.swift:137-140`) und der
-Reentranz-Schutz (`:124`) bleiben unverändert – die Aussage „kein neuer Fehlerweg" stimmt. Und
-`FolderWatcher` (`Services/FolderWatcher.swift`) ist ein sauberes Vorbild für einen **Dienst mit
-Lebenszyklus außerhalb jeder View**; ein `UpdateScheduler` nach diesem Muster wäre hausüblich.
-
-**⚠️ Beim Prüfen der Akzeptanz beachten:** `showsUpdateBadge` unterdrückt den Hinweis bei
-Entwicklungs-Builds (`UpdateChecker.swift:110-115`, Version „0.0.0"). Per `swift run` ist vom
-Takt nichts zu sehen – geprüft wird am installierten Bündel.
-
-**Akzeptanz:** Ein tagelang laufendes Fenster erkennt eine neue Version ohne Neustart; ohne Netz
-oder bei einem Fehler der GitHub-API passiert sichtbar nichts; der Takt überlebt einen Neustart
-(kein Anfragen-Stakkato bei mehrfachem Start); die manuelle Suche verhält sich unverändert.
-
-**Umgesetzt:**
-- **`UpdateSchedule` in `ActivitiesCore`** entscheidet, *ob* eine Prüfung fällig ist – die
-  einzige Stelle, an der man sich vertun kann. Ein Takt-Dienst besteht aus Warten und Aufrufen;
-  daran ist nichts zu prüfen.
-- **Der Takt startet im `init` des `App`-Typs**, nicht in einer Ansicht. Naheliegend wäre
-  `MainWindowHost.onAppear` gewesen – dort hängen `GlobalHotKey` und `AppPresence`. Genau das
-  ist aber die Lücke: Wer die App bei der Anmeldung startet und nur über die Menüleiste bedient,
-  öffnet unter Umständen **nie** ein Hauptfenster.
-- **Erster Notification-Observer der App** (`NSWorkspace.didWakeNotification`). Ohne ihn
-  verpasst ein Mac, der nachts schläft, jeden Termin: `Task.sleep` schläft mit dem Rechner, der
-  Termin wäre nicht überfällig, sondern verschoben – bei jedem Zuklappen des Deckels erneut.
-- **`.task { await updates.check() }` in `RootView` ist entfallen.** Es war die einzige
-  Update-Suche der App und fragte bei jedem Fensteröffnen erneut an.
-
-**⚠️ Der Takt ist nicht die Bremse – der gespeicherte Zeitpunkt ist es.** Die Schleife fragt
-stündlich nach; ob wirklich geprüft wird, entscheidet `UpdateSchedule.isDue` anhand des
-persistierten Werts. Deshalb lösen drei Programmstarts hintereinander keine drei Anfragen aus,
-und selbst ein versehentlich doppelt gestarteter Takt richtet keinen Schaden an. *Ein Zustand,
-der die Regel trägt, ist verlässlicher als ein Ablauf, der sie einhält.*
-
-**⚠️ Der Zeitpunkt wird vor der Anfrage gesetzt, nicht danach.** Sonst versuchte es ein Rechner
-ohne Netz bei jedem Takt erneut – und der stille Fehlerzweig machte daraus ein stilles
-Dauerfeuer.
-
-**⚠️ Geprüfter Sonderfall: ein Zeitpunkt in der Zukunft gilt als fällig.** Das passiert, wenn
-jemand die Systemuhr zurückstellt. Stur weitergerechnet wäre die nächste Prüfung erst fällig,
-wenn die Zukunft eingeholt ist – bei einem Fehlgriff um ein Jahr also nie.
-
-**Beim Prüfen beachten:** `showsUpdateBadge` unterdrückt den Hinweis bei Entwicklungs-Builds
-(Version „0.0.0"). Per `swift run` ist vom Takt nichts zu sehen – geprüft wird am installierten
-Bündel.
-
----
-
-## Sprint 10 – „Die richtigen Dateien, sicher geöffnet" *(erledigt, v1.19.26)*
-
-| AP | Eintrag | Aufwand | |
-|---|---|---|---|
-| **AP1** | PR-26 · Massenöffnen begrenzen | M | ✅ zwingend vor AP2 |
-| **AP2** | PR-11 · „Arbeit fortsetzen" | M | ✅ der Zweck der App, zu Ende gedacht |
-
-**Der erste Zuschnitt hatte vier Punkte. Die Durchsicht hat drei Annahmen widerlegt** – und
-damit den Sprint auf zwei gekürzt. Das ist kein Rückzug, sondern die Korrektur einer
-Schätzung, die am Code nicht haltbar war:
-
-1. **PR-26 ist kein S.** Der Beschluss lautet „die Grenze gehört an genau eine Stelle" –
-   **diese Stelle gibt es nicht.** `FinderService.open` nimmt ein einzelnes `URL`, die
-   Vielfachheit entsteht in den Schleifen der Aufrufer. Es braucht eine neue Mengen-Ebene, die
-   Umstellung von mindestens vier Aufrufstellen, eine Rückfrage-Infrastruktur, die im gesamten
-   Quellbaum kein einziges Mal vorkommt (null `confirmationDialog`, null `NSAlert`), und eine
-   Entwurfsentscheidung zum Zustandsmodell. **M.**
-2. **PR-14 ist kein M, sondern L** – und seine beiden Teile lassen sich nicht trennen. (a) ist
-   klein, aber nach dem eigenen Befund des Eintrags **wertlos** ohne (b); (b) greift in die
-   asynchrone Kern-Ladekette ein und bringt einen Schemawechsel mit Migrationsfrage mit.
-3. **PR-34 ist kein S.** Der App fehlen Takt, Registrierungsort und Persistenz – drei kleine
-   Lücken, zusammen ein M. Die Beifahrer-Begründung trägt damit nicht mehr.
-
-**Warum AP1 und AP2 zusammen und allein:** Sie sind gekoppelt (PR-11 würde einen bestehenden
-Mangel zu einem prominenten Menüpunkt befördern) und beantworten dieselbe Frage von zwei
-Seiten: *welche Dateien gehören zusammen* (PR-11) und *wie viele darf man auf einmal loslassen*
-(PR-26). Zwei M-Punkte tragen den Release ohne Beifahrer. Ein dritter M-Punkt daneben wäre
-kein voller Sprint mehr, sondern ein voller Monat.
-
-**Gemeinsamer Boden – beides gehört in `ActivitiesCore`:** die Tagesgruppierung für PR-11 und
-die Schwellenlogik für PR-26 sind reine Funktionen und damit in `CoreChecks` prüfbar. Nur der
-Dialog und das Menü bleiben in der Oberfläche.
-
-**Reihenfolge:** AP1 vollständig vor AP2. Die Rückfrage muss stehen, **bevor** ein Menüpunkt
-entsteht, der sie auslösen kann.
-
-**Sprint-Akzeptanz:** ⌘A + Enter über einen großen Baum fragt zurück und nennt die Anzahl,
-Abbrechen ist die Vorgabe; die Rückfrage gilt für **jeden** Weg, der mehrere Dateien öffnet;
-„Arbeit fortsetzen" nennt je Tag Beschriftung und Anzahl und öffnet genau die Dateien dieses
-Kalendertags; Tagesgruppierung und Schwellenlogik sind in `CoreChecks` geprüft.
-
-### PR-35 · „Arbeit fortsetzen" führte Skripte aus *(Hotfix, erledigt v1.19.27)*
-**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt im Feld
-
-**Gemeldet:** „„Arbeit fortsetzen" sorgt bei `.py`-Dateien dafür, dass sie einzeln **ausgeführt**
-werden – das ist schlecht. Und auch bei allen anderen Dateiendungen, die einem Softwareprojekt
-zuzuordnen sind. Besser wäre, die Funktion auf Office-Dokumente, `.xmind` oder andere
-Mindmapping-Dokumente zu beschränken – egal, was sonst noch im Ordner liegt."
-
-**⚠️ Das war kein Schönheitsfehler, sondern ein Sicherheitsmangel.** `NSWorkspace.open`
-übergibt eine Datei an das registrierte Programm; bei einem Skript ist das der Interpreter.
-PR-11 hatte damit einen Menüpunkt geschaffen, der auf **einen Klick** fremden Code ausführt –
-über eine Dateimenge, die der Anwender vorher nie gesehen hat. Genau das unterscheidet den Fall
-von ⌘A + Enter: Dort hat man die Dateien selbst markiert, und ein Doppelklick auf eine `.py`
-verhält sich im Finder genauso. Hier nicht.
-
-*Das ist die Kehrseite von PR-11. Die Prüfungen deckten Gruppierung, Sortierung, Beschriftung
-und Obergrenze ab – aber keine einzige stellte die Frage, **was** da eigentlich geöffnet wird.
-Getestet war das Zählen, nicht die Folge.*
-
-**Umgesetzt – eine Erlaubnisliste, keine Verbotsliste.** `WorkDays.resumableCategories` lässt
-nur `documents`, `pdf`, `spreadsheets` und `presentations` durch.
-
-**⚠️ Warum die Richtung entscheidend ist:** Eine Verbotsliste („alles außer `.py`, `.sh`, …")
-war die naheliegende Antwort und die falsche – sie muss jede gefährliche Endung **kennen**. Die
-nächste (`.command`, `.scpt`, `.jar`, `.applescript`, `.pkg`) fehlt garantiert, und der Fehler
-fällt erst auf, wenn er passiert ist. Eine Erlaubnisliste irrt in die andere Richtung: Im
-schlimmsten Fall wird etwas **nicht** angeboten. Das ist ein Ärgernis; das andere ist ein
-Schaden.
-
-**Der eigentliche Riegel ist der Ausschluss von „Sonstige".** Dort liegt alles Unbekannte –
-und damit `.app`, `.command`, `.scpt`, `.pkg`, `.dmg`. Deshalb mussten die gewünschten
-Mindmap-Formate aus diesem Eimer **heraus**: `.xmind`, `.mmap`, `.mm` und `.opml` zählen jetzt
-als Dokumente. Das ist keine Umgehung der Regel, sondern ihre Voraussetzung.
-
-**Weitere Ausschlüsse, jeweils mit eigenem Grund:**
-- `code` – doppelt: Skripte werden ausgeführt, und für ein Softwareprojekt ist der richtige
-  Handgriff ohnehin „Ordner im Editor öffnen" (⇧⌘E), nicht vierzig Einzeldateien.
-- `archives` – ein Archiv zu öffnen **entpackt** es. Eine Nebenwirkung, die niemand bestellt hat.
-- `media` – zehn startende Abspielprogramme sind keine fortgesetzte Arbeit.
-- `images` – harmlos, aber in einem Arbeitsordner meist Beiwerk (Bildschirmfotos, Anhänge)
-  statt Werkstück. **Das ist die strittigste Entscheidung dieses Hotfix** und der erste
-  Kandidat, falls die Auswahl je einstellbar wird (PR-36).
-
-**⚠️ Gefiltert wird vor dem Gruppieren.** Sonst verspräche das Menü „Heute (12)" und öffnete
-vier Dateien – derselbe Grundsatz wie bei der Rückfrage aus PR-26: Eine Zahl, die nicht hält,
-ist schlimmer als keine. Tage ohne Dokumente verschwinden dadurch ganz; in einem reinen
-Quelltext-Ordner entfällt der Menüpunkt.
-
-**Kein stiller Zustand im Sinne von UX-06:** Es fehlt keine *Information*, sondern eine
-Handlung, die dort keinen Sinn ergibt. Der passende Handgriff steht direkt darunter im selben
-Menü.
-
-**Bewusst nicht mitgeändert:** ⌘A + Enter und „Öffnen (n)" öffnen weiterhin, was markiert ist –
-auch Skripte. Dort hat der Anwender die Dateien **gesehen und ausgewählt**, und das Verhalten
-entspricht dem des Finders. Eine Erlaubnisliste an dieser Stelle wäre Bevormundung. Sollte sich
-das anders anfühlen, gehört es als eigener Eintrag aufgenommen – nicht in einen Hotfix.
+**Auslöser für eine Wiedervorlage:** Ein realer Bestand, in dem mehr als ~5 % der Zeilen
+bei üblicher Fensterbreite abgeschnitten werden. Dann **neu messen, nicht schätzen**.
 
 ### PR-36 · Dateitypen für „Arbeit fortsetzen" einstellbar machen
-**Aufwand:** S · **Nutzen:** offen · **Stand:** aufgenommen, **nicht** umgesetzt
-
-Aus der Meldung zu PR-35: „vielleicht kann man die Dateitypen auch konfigurieren, sollte noch
-ein Wunsch dazukommen."
-
-**Bewusst noch nicht gebaut** – der Konjunktiv im Wunsch ist der Grund. Eine Einstellung, die
-niemand vermisst hat, ist ein Bedienelement mehr und eine Entscheidung, die der Anwender
-treffen *muss*, statt sie geschenkt zu bekommen. Der Eintrag wartet auf den ersten konkreten
-Fall: *welcher* Typ fehlt, in *welchem* Ordner.
-
-**Der wahrscheinlichste Fall ist `images`** – siehe PR-35. Kommt er, ist die kleinste Lösung
-womöglich gar keine Einstellung, sondern eine bessere Vorgabe.
-
-**Falls es doch eine Einstellung wird:** Sie gehört zu den Typ-Filtern (UX-06) und nicht in ein
-neues Fenster – und sie darf die Erlaubnisliste **erweitern**, nicht ersetzen. Ein Anwender,
-der versehentlich „Sonstige" freischaltet, hätte sonst den Sicherheitsmangel aus PR-35 zurück.
-
-### PR-37 · Dateigröße als eigene Spalte, Sortierung nach Größe *(erledigt, v1.19.29)*
-**Aufwand:** M · **Nutzen:** mittel
-
-**Gewünscht:** „In einer eigenen Spalte links vom Datum – aber rechtsbündig – soll die Größe der
-Datei stehen (Tabelle wie Baum). Auch soll nach Größe sortiert werden können."
-
-**Gemessen vor der Bewertung** (die beiden naheliegenden Einwände sind damit erledigt):
-
-| Messung | Ergebnis |
-|---|---|
-| `.fileSizeKey` zusätzlich im Scan (5.266 Dateien, 3 Läufe gemittelt) | **−2,3 %** – im Rauschen, also gratis |
-| Breiteste realistische Angabe („999,9 MB"), monospaced Callout | **59,3 pt** → Spalte ~62 pt + 8 pt Abstand |
-
-`FileScanner` holt bereits ein Key-Set (`:72`, `:174`); ein Key mehr im selben Aufruf kostet
-nichts. `RelevantFile` bekommt ein Feld dazu.
-
-**⚠️ Widerspruch zur Begründung, nicht zum Wunsch.** Vorgeschlagen wurde die Größe als dritte
-Achse: „dann hätten wir Wann, Wo und Wie groß". Das überzeichnet sie. Größe misst **Bytes,
-nicht Arbeit** – ein 4-GB-Videoexport ist ein Klick, eine 12-KB-Quelldatei kann ein Nachmittag
-sein. Für die These der App („wo habe ich gearbeitet") ist Größe eher ein *negativer* Hinweis:
-Große Dateien sind oft Downloads, Exporte, Renderergebnisse.
-
-Sie beantwortet eine andere, ebenfalls legitime Frage: **„Was frisst meinen Platz?"** Das ist
-Hauswirtschaft, nicht Wiedereinstieg. Als das gebaut ist es gut; als dritte Achse verkauft
-verspricht es etwas, das es nicht hält.
-
-**Entschieden:**
-1. **Nur Dateizeilen.** Ordnerzeilen bleiben leer.
-2. **Kurze Form, rechtsbündig**, unmittelbar links vom Datum – Zahlen stehen untereinander.
-3. **Die Spalte entfällt im Kompakt-Layout** (< 940 pt). Keine neue Regel, sondern die
-   bestehende: Dort entfällt schon heute der Pfad und die Datumsspalte schrumpft.
-4. **Sortierung nach Größe ordnet nur Dateien** – innerhalb ihres Ordners. Ordner behalten ihre
-   Reihenfolge.
-
-**⚠️ Warum keine Ordnersumme.** Die Summe der *sichtbaren* Dateien neben `Projekte` liest jeder
-als „dieser Ordner ist 1,2 GB groß". Tatsächlich wäre es die Summe im **Zeitfenster und nach
-Filtern** – bei „Letzte 7 Tage" ein Bruchteil. Das ist derselbe Fehlertyp wie die falsche Zahl
-in der Rückfrage aus PR-26: Eine Angabe, die etwas anderes verspricht, als sie hält, verliert
-beim zweiten Mal ihren Kredit. Die echte Ordnergröße zu ermitteln widerspricht dagegen dem
-Grundsatz „sparsam scannen" (v1.10.0).
-
-**⚠️ Der Preis dieser Entscheidung ist benannt:** Man bekommt **nicht** „zeig mir die dicksten
-Ordner zuerst" – und das ist erfahrungsgemäß das, was man von einer Größensortierung erwartet.
-Bewusst hingenommen; die Alternative wäre eine Sortierung nach einer Größe, die man nicht sieht,
-und dann wäre „warum steht der Ordner oben?" unbeantwortbar.
-
-**Beim Bauen zu entscheiden (nicht zu raten):**
-- **Dezimal wie der Finder** (1 MB = 1.000.000 Bytes, `ByteCountFormatter` mit `.file`), nicht
-  binär. Die App steht neben dem Finder; zwei Zahlen für dieselbe Datei wären unerklärlich.
-- **Eine Form, keine zwei** – die Lehre aus PR-32. `ByteCountFormatter` wechselt die
-  Nachkommastellen („1,2 MB" / „12 MB" / „999 Bytes"); rechtsbündig fängt das die linke Kante
-  auf, die **Einheiten** stehen dadurch aber nicht untereinander. Vor dem Bauen am Bildschirm
-  ansehen und entscheiden, nicht vorher festlegen.
-- Verhalten bei `0` Bytes und bei nicht lesbarer Größe.
-
-**Akzeptanz:** Dateizeilen zeigen die Größe rechtsbündig links vom Datum, in Liste und Baum
-gleich; die Spalte entfällt unter 940 pt Fensterbreite; ⌥⌘4 sortiert Dateien nach Größe;
-Formatierung und Sortierregel sind in `CoreChecks` geprüft; der Scan wird messbar nicht
-langsamer.
-
-**Verhältnis zu PR-13:** Beide wollen denselben Platz in der Zeile. Größe geht zuerst; PR-13
-ist danach neu zu bewerten – womöglich gehört die Typverteilung dann in den Tooltip statt in
-die Zeile.
-
-**Umgesetzt wie entschieden.** `SizeFormatting` und die Sortierregel liegen in
-`ActivitiesCore` und sind geprüft; die Spalte steckt in `SizeStampView`, damit sie – wie die
-Datumsspalte seit PR-32 – gar nicht erst driften kann.
-
-**⚠️ Die Sprache ist fest auf `de_DE` gestellt, wie bei `DateFormatting`.** Ohne das richtete
-sich die Ausgabe nach der Systemsprache: neben einem deutschen „Mi., 05.08.2025" stünde ein
-englisches „1.2 MB", mit Punkt statt Komma. Und die Prüfungen hätten je nach Rechner ein
-anderes Ergebnis – wären also keine Zusicherung, sondern eine Aussage über die Maschine, auf
-der sie zufällig liefen.
-
-**⚠️ Fund beim Bauen: `ByteCountFormatStyle` ist in sich uneinheitlich.** Zwischen Zahl und
-Einheit steht **mal** ein geschütztes Leerzeichen (U+00A0), **mal** ein gewöhnliches (U+0020) –
-gemessen in derselben Sprache mit demselben Stil:
-
-| Wert | Ausgabe | Trennzeichen |
-|---|---|---|
-| `1` | „1 Byte" | U+00A0 |
-| `1_000_000` | „1 MB" | U+0020 |
-| `12_300_000` | „12,3 MB" | U+0020 |
-| `1_230_000_000` | „1,23 GB" | U+00A0 |
-
-Auf dem Bildschirm sieht man keinen Unterschied – beide sind in dieser Schrift gleich breit.
-Aufgefallen ist es nur, weil eine Prüfung „erwartet 1,23 GB, erhalten 1,23 GB" meldete. Es sind
-zwei Formen für dieselbe Sache; jetzt wird vereinheitlicht. *Dieselbe Lehre wie in PR-32, nur
-diesmal an einer Stelle, die man nicht sehen kann.*
-
-**⚠️ Die breiteste Angabe war nicht die, die man erwartet.** Vermutet: „999,9 MB" (54,4 pt).
-Tatsächlich lag „999 Bytes" mit 61,2 pt vorn – bis die Umstellung auf Finder-Zählweise daraus
-„1 kB" machte. Wer die Formatierung ändert, muss die Spaltenbreite neu messen; das steht als
-Warnung an `RowMetrics.sizeColumnWidth`.
-
-**Weitere Entscheidungen am Bildschirm getroffen, nicht vorher:**
-- **0 Bytes:** Die Systemformatierung liefert „0 kB". Eine leere Datei ist keine Angelegenheit
-  von Kilobytes – jetzt „0 Bytes", wie im Finder.
-- **Unbekannte Größe bleibt leer**, nicht „–" oder „0". Eine Angabe über etwas, worüber wir
-  nichts wissen, wäre schlimmer als keine. `RelevantFile.size` ist deshalb optional: Als `0`
-  geführt landete eine nicht lesbare Datei in der Sortierung bei den echten leeren.
-- **Die Einheiten stehen nicht untereinander** („1 MB" gegen „999,9 MB"). Angesehen und so
-  belassen: Der Finder macht es genauso, und eine Ausrichtung der Einheit hätte die Zahl aus
-  der rechten Kante gelöst, die man beim Überfliegen tatsächlich benutzt.
-
-**Die Einschränkung steht im Menüpunkt, nicht in einem Hilfetext:** „Nach Größe sortieren (nur
-Dateien)". Wer erst nach dem Klick merkt, dass sich die Ordner nicht bewegt haben, hält es für
-einen Fehler.
-
-### PR-38 · Nebenangaben einheitlich auf 11 pt *(erledigt, v1.19.29)*
-**Aufwand:** S · **Nutzen:** mittel · **Beifahrer in Sprint 12**
-
-**Gewünscht:** „Auch machen wir die Schrift für Datum und Größe in der Darstellung ein wenig
-kleiner."
-
-**Aus einem Wunsch eine Regel gemacht:** **Inhalt 12 pt, Nebenangabe 11 pt.** Betroffen sind
-Datum, Größe und die Zählangabe im Baum; Statuszeile und Filterhinweis stehen seit PR-33 schon
-auf 11 pt. Damit ist es keine punktuelle Verkleinerung, sondern eine Rangordnung, die man beim
-nächsten Element wieder anwenden kann.
-
-**⚠️ 11 pt ist der Boden, nicht eine Zwischenstufe.** In PR-33 wurde die Statuszeile von 10 auf
-11 pt *angehoben*, weil `secondary` nur 3,82:1 erreicht (hell gemessen) und dann nicht auch noch
-die kleinste Schrift tragen darf. Hier geht es in die Gegenrichtung – das ist knapp, und es
-trägt nur, weil bei 11 pt Schluss ist. Wirkt es zu blass, ist der Hebel die **Farbe**, nicht
-noch einmal die Größe. Das steht als Warnung an `RowMetrics.metaFontSize`.
-
-**Die Verkleinerung zahlt einen Teil der neuen Spalte** (gemessen, monospaced):
-
-| | 12,0 pt | 11,0 pt | |
-|---|---|---|---|
-| „Mi., 05.08.2025 14:32" | 155,8 | 142,8 | −13,0 pt |
-| „Mi. 05.08.25 14:32" (kompakt) | 133,5 | 122,4 | −11,1 pt |
-
-Datumsspalte **158 → 146**, kompakt **136 → 126**. Netto kostet Sprint 12 im breiten Fenster
-**+54 pt** statt +70; im Kompakt-Layout, wo die Größenspalte entfällt, bleiben **−10 pt** –
-dort hat der Dateiname jetzt *mehr* Platz als vorher.
-
-*Die Datumsspalte ist damit zum dritten Mal gewandert (150 → 158 → 146), und jedes Mal aus
-demselben Grund: eine Maßangabe, die zu ihrer Zeit stimmte, und eine Änderung, die ihr die
-Grundlage entzog. Deshalb steht die Messung jetzt im Doc-Kommentar daneben.*
-
-### PR-39 · Größe ganz nach rechts, festes Sechs-Zeichen-Raster *(erledigt, v1.19.30)*
-**Aufwand:** S · **Nutzen:** mittel · **Nachtrag zu PR-37**
-
-**Gewünscht:** „Größen- und Datumsspalte vertauschen (Größe ganz nach rechts), feste Breite
-z. B. 6 Zeichen – es darf gerundet werden, wenn es sonst nicht passt. Es müssen immer 6 Zeichen
-sein, sonst springt der Datumsstempel."
-
-**⚠️ Der Begründung widersprochen, dem Wunsch nicht.** Von der Zeichenzahl kann der
-Datumsstempel nicht springen: Die Größenspalte hat einen festen Rahmen, ihr Inhalt ändert die
-Breite nicht. Die Sorge zeigte auf die falsche Ursache – traf aber einen echten Fehler, der
-**erst durch das Tauschen entsteht**:
-
-**Ordner haben keine Größe.** Wandert die Größe nach rechts, säße das Datum in Dateizeilen 52 pt
-weiter links als in Ordnerzeilen – ein zeilenweiser Versatz mitten in der Liste, und genau die
-senkrechte Kante, die eine Liste überfliegbar macht, wäre zerbrochen. `SizeStampPlaceholder`
-hält den Platz in Ordner- und Baumzeilen leer. **Er ist nicht Kosmetik, sondern die Bedingung
-dafür, dass die Größe überhaupt nach rechts durfte.**
-
-**Was die sechs Zeichen wirklich leisten:** Rechtsbündigkeit richtet nur die *rechte Kante* aus.
-„999 B" und „1,2 MB" haben verschieden lange Einheiten – dadurch sitzen die **Ziffern** von
-Zeile zu Zeile versetzt, was in einer langen Liste flimmert. Erst ein festes Raster (Zahl rechts
-in drei Zellen, Einheit links in zwei) stellt die Zahlen untereinander.
-
-**⚠️ Hier bestimmt die Spalte die Formatierung, nicht umgekehrt.** `ByteCountFormatStyle` wurde
-dafür aufgegeben – es kennt keine Längenbegrenzung. Die eigene Regel ist eine einzige: *eine
-Nachkommastelle nur unterhalb von 10*. Damit ist „999 kB" bzw. „1,2 MB" die längste mögliche
-Ausgabe. Spaltenbreite 58 → **44 pt** (sechs Zeichen messen 40,8 pt bei 11 pt monospaced).
-
-**⚠️ Zwei frühere Entscheidungen umgestoßen – beide bewusst:**
-- „0 Bytes" (PR-37, mit Verweis auf den Finder) heißt jetzt „0 B". Für die Finder-Schreibweise
-  ist im Raster kein Platz; Einheitlichkeit *innerhalb* der Spalte wiegt hier schwerer als die
-  Anlehnung nach außen.
-- Das geschützte Leerzeichen, das PR-37 gerade **entfernt** hatte, ist als **Füllung** wieder
-  da. Damals war es ein unbeabsichtigter Zufall der Systemformatierung und machte Vergleiche
-  zum Glücksspiel; jetzt ist es eine bewusste, ausnahmslose Regel. Gewöhnliche Leerzeichen am
-  Rand sind das Erste, was Textdarstellung und Zwischenablage wegwerfen – mit ihnen ginge genau
-  das Raster verloren, um dessentwillen sie da sind.
-
-**⚠️ Der Prüflauf hat einen Fehler gefunden, den kein Beispiel gezeigt hätte.** 9 999 999 999
-Bytes sind roh 9,99 GB – kleiner als 10, also eine Nachkommastelle. Gerundet steht dort aber
-„10,0 GB": sieben Zeichen, die feste Spalte hätte abgeschnitten. Die Entscheidung über die
-Nachkommastelle muss gegen den **gerundeten** Wert fallen, nicht gegen den rohen. Gefunden hat
-das ein Lauf über den ganzen Wertebereich (Zehnerpotenzen × Faktoren × Randversätze), nicht das
-Auge und keine Beispieltabelle.
-
-*Lehre: Wer eine feste Breite zusichert, muss sie über den Wertebereich prüfen, nicht an
-Beispielen. Ein Raster, das nur meistens hält, ist keines.*
-
-### PR-40 · Senkrechter Trenner zwischen Datum und Größe *(erledigt, v1.19.31)*
-**Aufwand:** S · **Nutzen:** klein · **Nachtrag zu PR-39**
-
-**Gewünscht:** „Jetzt noch einen Trenner zwischen Datum und Größe."
-
-**⚠️ Zuerst geprüft, ob das einer alten Entscheidung widerspricht.** UX-09 („Nur ein
-Trennsystem in der Tabelle", v1.11.0) hat waagerechte Trennlinien zugunsten des Zebras
-**abgeschafft**, weil Zebra + Linien + Baumlinien zusammen Unruhe erzeugen. Ein Widerspruch ist
-das hier nicht: Diese Linie steht **senkrecht** und beantwortet eine andere Frage – nicht „wo
-endet die Zeile", sondern „wo endet die Spalte". Aus demselben Grund durften damals die
-Baumlinien bleiben (Hierarchie). Das Prinzip von UX-09 lautet nicht „nur eine Linie", sondern
-**ein Trennsystem je Frage**.
-
-**Gemessen statt gewählt** – ΔE an den gezeichneten Pixeln:
-
-| | Trenner | Zebra | Abschnittskopf |
-|---|---|---|---|
-| hell | **7,1** | 2,5 | 11,6 |
-| dunkel | **8,6** | 4,7 | 15,1 |
-
-`Color.primary.opacity(0.08)` liegt bewusst dazwischen: **über** dem Zebra, sonst wäre es keine
-Linie, sondern eine Ahnung – und klar **unter** dem Abschnittskopf, sonst konkurrierte ein
-Spaltendetail mit der Gliederung der Liste. Das ist die Regel aus UX-11 in einem anderen
-Gewand: *Kontext darf nie lauter sein als Inhalt.*
-
-**⚠️ Die Linie liegt auf der Zeile, nicht in der Spalte.** Als Element im `HStack` hätte sie
-zusätzlich zweimal `itemSpacing` an Breite gekostet – und wäre nur so hoch gewesen wie ihr
-Nachbartext, also ein Strichlein statt einer Kante. Als Überlagerung der fertigen Zeile kostet
-sie **null Breite** und reicht über die volle Zeilenhöhe. Erst dadurch entsteht aus den
-Einzelstücken eine durchgehende senkrechte Linie durch die Liste.
-
-**Sie gilt für alle Zeilentypen** – Datei, Ordner, Baum. Nur in Dateizeilen steht rechts davon
-etwas; in Ordnerzeilen ist die Spalte leer (siehe PR-39). Die Linie trotzdem zu zeichnen ist
-kein Versehen: Eine Kante, die zeilenweise aussetzt, ist schlechter als keine. An
-Abschnittsköpfen setzt sie dagegen aus, und das ist richtig – dort endet der Block.
-
-Im Kompakt-Layout entfällt mit der Größenspalte auch der Trenner.
-
-### PR-41 · Doppelklick auf den Dateinamen öffnete nicht *(Hotfix, erledigt v1.19.32)*
-**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt im Feld
-
-**Gemeldet:** „Ich möchte gerne zusätzlich zum Klick auf das Icon auch per Doppelklick auf den
-Dateinamen die Datei öffnen können." – Nachgeprüft: „Doppelklick auf den Namen öffnet weder
-Ordner noch die Datei."
-
-**⚠️ Als Wunsch gemeldet, am Code als Defekt entlarvt.** Die Geste war seit jeher vorhanden
-(`FileRowView`, `.onTapGesture(count: 2)`), hing an der **ganzen Zeile** und war sogar im
-Tooltip dokumentiert: „Klick: markieren · Doppelklick: öffnen". Sie feuerte nur nie. *Hätte ich
-den Wunsch ungeprüft ins Backlog geschrieben, wäre dort ein Feature gelandet, das es längst gab
-– und der Fehler dahinter wäre unentdeckt geblieben.*
-
-**Ursache:** In dieser Zeile liegen zwei Erkenner, die beim **Mausdruck** anspringen – `.onDrag`
-(Ziehen in andere Programme) und eine `DragGesture(minimumDistance: 0)` für die
-Sofort-Markierung. Ein gewöhnliches `onTapGesture` ordnet sich beiden unter und wurde
-verschluckt. Jetzt `simultaneousGesture(TapGesture(count: 2))` – ausdrücklich **neben** dem,
-was ohnehin läuft.
-
-*Der Kommentar direkt darüber warnte bereits, dass die Reihenfolge der Erkenner in dieser Zeile
-heikel ist. Nur wurde daraus nicht gefolgert, dass es dem Doppelklick genauso ergeht. Eine
-Warnung, die nur den Fall beschreibt, in dem sie entstand, schützt den nächsten nicht.*
-
-**Zwei Dinge kamen beim Beheben mit in Ordnung:**
-1. **Finder-Regel.** Der Doppelklick schrumpfte die Auswahl per `select` auf **eine** Datei.
-   Markiert man dreißig und drückt Enter, öffnen dreißig – doppelklickt man eine davon, öffnete
-   genau eine. Jetzt über `actionTargets(for:)` wie Kontextmenü und Enter.
-2. **Die Rückfrage aus PR-26 gilt jetzt auch hier.** Der direkte Weg über `FinderService` ging
-   an ihr vorbei – genau die Lücke, vor der PR-26 gewarnt hatte („sonst driften die Wege
-   auseinander"). Sie ist erst durch diesen Fund aufgefallen.
-
-**⚠️ Nicht selbst verifizierbar.** Ob die Geste jetzt feuert, lässt sich nur am laufenden
-Programm feststellen, nicht am Code und nicht in `CoreChecks`. Die Änderung beruht auf einer
-begründeten Annahme über die Gestenauflösung – bestätigt ist sie erst durch den Anwender.
-
-**Ordnerzeilen sind ausdrücklich nicht betroffen** – siehe PR-42.
-
-### PR-42 · Doppelklick auf Ordner: Erwartung gegen Reaktionszeit
-**Aufwand:** S · **Nutzen:** offen · **Stand:** zur Entscheidung, **nicht** umgesetzt
-
-**Beobachtet bei PR-41:** „Doppelklick auf den Namen öffnet weder Ordner noch die Datei."
-
-Für Ordner ist das **kein Defekt**, sondern die sichtbare Folge einer bewussten Entscheidung:
-Ein *Einfachklick* klappt auf und zu (`FolderRowView:116`, `TreeRowView:135`). Ein Doppelklick
-ist damit zweimal umschalten – auf und sofort wieder zu, also sichtbar nichts. Der Finder wird
-über das Ordner-Symbol oder das Kontextmenü geöffnet.
-
-**⚠️ Der Preis eines Doppelklicks auf Ordnerzeilen wäre Reaktionszeit für alle.** Der Kommentar
-an `FolderRowView:113` hält fest, warum es dort *keinen* konkurrierenden Doppelklick gibt:
-Sobald einer existiert, muss jeder Einfachklick erst das Doppelklick-Intervall abwarten (~300 ms),
-bevor er wirkt. Auf- und Zuklappen ist der häufigste Handgriff in dieser App – ihn für einen
-selteneren zu verlangsamen wäre ein schlechter Tausch.
-
-**Denkbare Auswege, falls der Punkt aufgegriffen wird:**
-- Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile – dann bleibt der Klick auf die
-  Zeilenfläche unverzögert.
-- Gar nichts ändern und stattdessen die vorhandenen Wege sichtbarer machen; der Tooltip nennt
-  sie bereits („Finder: Ordner-Symbol oder Kontextmenü").
-
-## Sprint 13 – „Die App sagt, was sie weiß" *(erledigt, v1.19.33)*
-
-| AP | Eintrag | Aufwand | Nutzen | |
-|---|---|---|---|---|
-| **AP1** | PR-16 · Zusammenfassung in die Zwischenablage | S | hoch | ✅ |
-| **AP2** | PR-17 · Berichte, die man zeigen kann | M | mittel | ✅ |
-| **AP3** | PR-24 · Erklären, was gelesen wird | S | hoch | ✅ |
-
-**Die Klammer ist technisch, nicht nur thematisch.** AP1 und AP2 arbeiten beide auf
-`ReportExport` (heute 88 Zeilen, nur `csv` und `html`) und brauchen dieselbe Sache: eine
-**verdichtete Darstellung des aktuellen Ergebnisses samt Zeitraum**. Wer eine baut, hat die
-andere fast. *Das ist die Lehre aus Sprint 11, wo ich eine Klammer zurücknehmen musste, weil
-sie keinen gemeinsamen Code erzeugte.*
-
-**AP3 ist Beifahrer aus Release-Ökonomie** – S allein trägt keinen Bau- und
-Veröffentlichungslauf. Der thematische Bezug ist echt (die App spricht: zu dir, zu anderen,
-über sich selbst), aber der schwächste der drei; das soll man wissen.
-
-**Warum PR-15 (Wochenrückblick, L) nicht dabei ist:** Es ist der große Bruder von PR-16 –
-dieselbe Frage, nur als eigene Ansicht. Erst das S bauen und sehen, ob das L danach überhaupt
-noch fehlt. Ein L zu bauen, das ein S überflüssig gemacht hätte, wäre die teuerste Art, das
-herauszufinden.
-
-### Befunde der Durchsicht
-
-1. **Die Datenlage für AP1 ist vollständig.** `ReportExport` bekommt `[BucketedEntries]` mit
-   Ordner, neuestem Datum und Dateizahl; `ClipboardService.copy(_:)` gibt es. Die Zusammenfassung
-   ist eine **reine Funktion** – sie gehört zu `csv` und `html` in den Kern und ist in
-   `CoreChecks` prüfbar.
-
-2. **⚠️ „KW 32" aus dem Beispiel wäre in den meisten Fällen eine Lüge.** Der eingestellte
-   Zeitraum ist selten eine Kalenderwoche – Vorgabe sind 30 Tage, dazu kommen Spanne und der
-   Modus „Alle" (UX-28). Die Zusammenfassung muss den **tatsächlichen** Zeitraum benennen, sonst
-   trägt jemand eine falsche Woche in seine Zeiterfassung. Derselbe Fehlertyp wie die falsche
-   Zahl in der Rückfrage aus PR-26.
-
-3. **⚠️ Das Diagramm im HTML-Bericht ist der riskante Teil von AP2.** Das Diagramm der App ist
-   SwiftUI (`HistoryChartView`); im Bericht bräuchte es eine zweite Darstellung, etwa als
-   eingebettetes SVG. Vertretbar ist das **nur, solange beide dieselbe Aggregation benutzen**
-   (`FolderAggregator`) und sich lediglich im Zeichnen unterscheiden. Entstünde daneben eine
-   zweite Rechnung, wäre es exakt der Zerfall, der die Zeitstempel-Formatierung vor PR-32
-   auseinandergebracht hat.
-
-4. **PDF gehört nach heutigem Stand nicht in diesen Sprint.** Der Eintrag nennt es beiläufig
-   („PDF-Ausgabe ergänzen"), es ist aber ein eigener Ausgabeweg mit eigener Seitenaufteilung –
-   und damit ein zweites Ziel, das dieselbe Darstellung noch einmal erzeugen muss. Ein
-   vorzeigbarer HTML-Bericht lässt sich über den Systemdruck als PDF sichern; solange niemand
-   das vermisst, ist das die kleinere Antwort. **Zur Entscheidung.**
-
-5. **AP3 hat bereits zwei Plätze** – den Erstkontakt-Streifen (`RootView.showsIntro`) und die
-   Hilfe (207 Zeilen). Es ist also kein neues Fenster nötig, nur eine klare Aussage an den
-   Stellen, an denen ohnehin erklärt wird. **⚠️ Kein Wall aus Text:** Ein Satz im Erstkontakt,
-   ein Abschnitt in der Hilfe. Vertrauen entsteht durch eine Auskunft, die man liest – nicht
-   durch eine, die man wegklickt.
-
-**Reihenfolge:** AP1 vor AP2 – die Zusammenfassung legt fest, wie Zeitraum und Verdichtung
-formuliert werden; der Bericht setzt darauf auf. AP3 ist unabhängig.
-
-**Sprint-Akzeptanz:** Ein Knopf legt eine lesbare Zusammenfassung mit **korrekt benanntem
-Zeitraum** in die Zwischenablage; der HTML-Bericht trägt Kopfzeile, Zeitraum und Diagramm und
-ist ohne Nachbearbeitung vorzeigbar; Zusammenfassung und Berichtsaufbau sind in `CoreChecks`
-geprüft; im Erstkontakt und in der Hilfe steht in klaren Worten, was gelesen wird und dass
-nichts das Gerät verlässt.
-
-### Zwei Korrekturen am Backlog, bei der Durchsicht gefunden
-
-- **PR-27 AP3 ist faktisch erledigt.** Diagramm-Sprung mit Vorfahren, Anheften im Baum und die
-  VoiceOver-Ebenenansage sind im Code vorhanden. Der Eintrag steht seit v1.19.11 als offen –
-  dieselbe Art veralteter Aufzeichnung wie die Zeilennummern vor Sprint 10. Braucht eine
-  Durchsicht, kein Bauvorhaben.
-- **PR-20 („Filter: Größe und Alter") ist zur Hälfte überholt.** Die Alters-Hälfte leistet der
-  Zeitraum längst; die Größen-Hälfte ist seit PR-37 fast geschenkt, weil `RelevantFile.size`
-  vorliegt. Der Eintrag ist neu zu formulieren, bevor ihn jemand schätzt.
+**Aufwand:** S · **Nutzen:** offen · **P3**
+
+**⚠️ Bewusst noch nicht gebaut** – der Wunsch stand im Konjunktiv („vielleicht kann man …,
+sollte noch ein Wunsch dazukommen"). Eine Einstellung, die niemand vermisst hat, ist ein
+Bedienelement mehr und eine Entscheidung, die der Anwender treffen *muss*, statt sie
+geschenkt zu bekommen. Wartet auf den ersten konkreten Fall: *welcher* Typ fehlt, in
+*welchem* Ordner.
+
+**Der wahrscheinlichste Fall ist `images`.** Kommt er, ist die kleinste Lösung womöglich
+gar keine Einstellung, sondern eine bessere Vorgabe.
+
+**⚠️ Falls es doch eine Einstellung wird:** Sie gehört zu den Typ-Filtern (UX-06), nicht in
+ein neues Fenster – und sie darf die Erlaubnisliste **erweitern**, nicht ersetzen. Sonst
+hätte man den Sicherheitsmangel aus PR-35 zurück.
+
+### PR-42 · Doppelklick auf Ordner *(zur Entscheidung)*
+**Aufwand:** S · **Nutzen:** offen · **P3**
+
+Gemeldet: „Doppelklick auf den Namen öffnet weder Ordner noch die Datei." Für Ordner ist
+das **kein Defekt** – siehe Entscheidung 2. Denkbarer Ausweg, falls der Punkt aufgegriffen
+wird: Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile, dann bleibt der Klick
+auf die Zeilenfläche unverzögert.
 
 ---
 
-## Sprint 12 – „Wie groß" *(erledigt, v1.19.29)*
+# Entscheidungen, die nicht neu aufgerollt werden
 
-| AP | Eintrag | Aufwand | |
-|---|---|---|---|
-| **AP1** | PR-37 · Größenspalte + Sortierung nach Größe | M | ✅ trägt den Release |
-| **AP2** | PR-38 · Nebenangaben einheitlich auf 11 pt | S | ✅ Beifahrer, finanziert AP1 mit |
+Jede dieser Festlegungen sieht falsch aus, bis man den Grund kennt. Wer sie ändern will,
+greift **den Grund** an – nicht die Entscheidung.
 
-**⚠️ Widerspruch zur Begründung, nicht zum Wunsch – festgehalten, weil er die Erwartung ordnet.**
-Vorgeschlagen war die Größe als dritte Achse („Wann, Wo, Wie groß"). Größe misst aber **Bytes,
-nicht Arbeit**: Ein 4-GB-Videoexport ist ein Klick, eine 12-KB-Quelldatei kann ein Nachmittag
-sein. Sie beantwortet „Was frisst meinen Platz?" – Hauswirtschaft, nicht Wiedereinstieg. Als das
-gebaut ist sie gut; als dritte Achse verkauft verspräche sie etwas, das sie nicht hält.
-
----
-
-## Sprint 11 – „Zustand, der das Fenster überlebt" *(erledigt, v1.19.28)*
-
-| AP | Eintrag | Aufwand | |
-|---|---|---|---|
-| **AP1** | PR-14 · Zurück zum vorherigen Ordner – mit seinem Zustand | L | ✅ (a) Verlaufsstapel, (b) Aufklappzustand je Wurzel |
-| **AP2** | PR-34 · Stille Update-Suche in sinnvollem Takt | M | ✅ |
-
-**⚠️ Zurückgenommene Behauptung aus der ersten Fassung.** Dort stand, die beiden gehörten
-zusammen, weil „beide einen Ort für Zustand brauchen, der das Fenster überlebt". Beim genauen
-Hinsehen ist das zu großzügig: PR-14 braucht ein **geschlüsseltes Persistenz-Schema**
-(`expandedFolders` je Wurzel), PR-34 einen **Lebenszyklus-Wirt** (etwas, das tickt und auf
-`didWakeNotification` hört). Beides ist „Zustand jenseits des Fensters" – aber sie würden
-**keine Zeile Code teilen**. Die Klammer ist thematisch, nicht technisch.
-
-Damit trägt sie auch nicht die Begründung, sie gemeinsam auszuliefern; übrig bliebe
-Release-Ökonomie, und dafür sind beide zu groß. **Sie werden trotzdem zusammen geschnitten –
-das ist eine Entscheidung des Auftraggebers, keine technische Notwendigkeit.** Wer den Sprint
-später aufteilen muss, kann das ohne Reibung tun.
-
-*Lehre: Eine Klammer, die zwei Punkte verbindet, muss man daran prüfen, ob sie gemeinsamen
-Code erzeugt. „Gehört thematisch zusammen" fühlt sich wie ein Grund an und ist keiner.*
-
-### Festlegungen vor der Umsetzung
-
-1. **Migration des Aufklappzustands: dem aktuellen Wurzelordner zuschlagen.** Der gespeicherte
-   Wert gehört tatsächlich dem zuletzt geöffneten Ordner – ihn dort einzuhängen ist die
-   *wahre* Zuordnung, nicht nur die bequeme. Kein sichtbarer Bruch beim Update; verwerfen wäre
-   ein spürbarer Rücksetzer ohne Gegenwert.
-2. **⌘[ / ⌘] für vor und zurück.** Browser-Konvention, im Quellbaum frei. **⚠️ Vor der
-   Auslieferung am laufenden System zu prüfen:** macOS belegt beide in Textkontexten mit
-   „Einzug verringern/vergrößern"; ob das im Suchfeld (⌘F) kollidiert, ließ sich am Code
-   **nicht** belegen. Kollidiert es, weicht der Verlauf aus – nicht das Suchfeld.
-3. **Update-Takt: 24 h, plus Nachholen beim Aufwachen.** Ein Mac, der nachts schläft, verpasst
-   sonst jeden Termin. Kein einstellbares Intervall: ein Regler für etwas, dessen Wirkung
-   niemand beobachten kann, ist Beschäftigung, keine Einstellung.
-4. **Reihenfolge innerhalb AP1: erst Kern, dann Ladekette.** `FolderHistory` und das
-   Schlüssel-Schema entstehen in `ActivitiesCore` samt `CoreChecks`; der Eingriff in
-   `finishDetailLoad` folgt danach als **eigener, kleiner Schritt**. Grund: Das ist der
-   riskanteste Eingriff, den dieses Projekt bisher gemacht hat – `ReportViewModel` hat 1795
-   Zeilen, die Kette ist asynchron, und `CoreChecks` erreicht sie nicht. Was prüfbar sein
-   kann, muss vorher prüfbar sein.
-
-**Sprint-Akzeptanz:** ⌘[ / ⌘] bewegen sich durch die besuchten Wurzelordner und sind am Rand
-des Stapels deaktiviert; ein neues Ziel von einer zurückliegenden Position verwirft den
-Vorwärtszweig; Zurückkehren stellt den Aufklappzustand *dieses* Ordners wieder her; ein
-bestehender gespeicherter Zustand geht beim Umstieg nicht verloren; „alles zuklappen" überlebt
-einen Neustart; `FolderHistory` und Schlüssel-Schema sind in `CoreChecks` geprüft; ein tagelang
-laufendes Fenster findet eine neue Version ohne Neustart und schweigt, wenn kein Netz da ist.
-
-**Bewusst nicht vorgeschlagen:**
-- **Verlauf über einzelne Ordner statt Wurzelordner.** Der Baum hat bereits Navigation (←/→,
-  Diagramm-Sprung); ein zweiter Verlaufsbegriff daneben verwirrt mehr, als er hilft.
-- **Einstellbares Update-Intervall** – siehe Festlegung 3.
-
-**Nicht eingeplant – und warum:**
-- **PR-13 · Typverteilung in der Ordnerzeile:** gehört gestalterisch zu PR-31/PR-33 (Dichte und
-  Lesbarkeit der Zeile), nicht zum Wiedereinstieg. Ein Farbstreifen in eine Zeile zu legen, die
-  gerade erst auf 22 pt verdichtet und typografisch neu geordnet wurde, verlangt eigene
-  Messungen – die will man nicht zwischen zwei Funktionsthemen erledigen.
-- **PR-27 AP3 (Anschlüsse im Baum):** offen, aber ohne Druck; AP1+AP2 sind seit v1.19.11 im
-  Gebrauch, ohne dass die Lücken gemeldet wurden.
-- **PR-25 · Leistung bei sehr großen Bäumen:** eine Messaufgabe, kein Bauvorhaben. Sie gehört
-  vor die breitere Verbreitung (PR-22 Notarisierung), nicht hierher.
-
-### Nebenbefunde der Durchsicht *(festgehalten, nicht eingeplant)*
-
-- **Zeilenangaben im Backlog waren veraltet.** Die Abschnitte PR-26/PR-11/PR-14 verwiesen auf
-  Stände von v1.19.3 (`selectAllVisibleFiles` bei `:804`, tatsächlich `:1042`;
-  `finishDetailLoad` bei `:1408`, tatsächlich `:1722`). Die **inhaltlichen** Aussagen stimmten
-  durchweg – nur die Wegweiser zeigten ins Leere. Hier korrigiert. *Lehre: Zeilennummern in
-  Prosa altern schneller als die Aussage, die sie belegen; wo möglich Symbolnamen nennen.*
-- **`FolderAggregator.countFilesPerDay` und `countFilesPerDayByExtension` sind toter Code** –
-  nur von den Tests gehalten, im App-Code nirgends aufgerufen. Nicht gelöscht: `countFilesPerDay`
-  ist genau die Tagesgruppierung, auf der PR-11 aufsetzen könnte. Vor PR-11 entscheiden:
-  aufgreifen oder entfernen.
-- **`setAllExpanded` und `reveal` persistieren nicht** (`ReportViewModel.swift:1259`, `:1283`) –
-  „alles zuklappen" überlebt keinen Neustart. Wird in PR-14b mitgenommen; allein zu klein für
-  einen eigenen Punkt (siehe Sprint-Regel in `AGENTS.md`).
+1. **Nur ein Trennsystem in der Tabelle** (UX-09). Waagerechte Linien wurden abgeschafft:
+   Zebra + Linien + Baumlinien zusammen erzeugen Unruhe. Zebra gemessen ΔE 2,5 hell /
+   5,3 dunkel, selbst gemischt statt Systemfarbe (`RowMetrics.swift:195-238`).
+2. **Kein Doppelklick auf Ordnerzeilen** (`FolderRowView.swift:113`). Sobald einer
+   existiert, muss **jeder** Einfachklick erst ~300 ms warten. Auf- und Zuklappen ist der
+   häufigste Handgriff der App – ihn für einen selteneren zu verlangsamen wäre ein
+   schlechter Tausch.
+3. **Ordnerzeilen tragen keine Größe.** Die Summe der sichtbaren Dateien läse sich als
+   Ordnergröße und wäre es nicht.
+4. **Größe ist keine dritte Achse** neben „Wann" und „Wo". Sie misst Bytes, nicht Arbeit:
+   Ein 4-GB-Videoexport ist ein Klick, eine 12-KB-Quelldatei kann ein Nachmittag sein. Als
+   Hauswirtschaft gut, als Wiedereinstiegshilfe falsch verkauft.
+5. **11 Dateityp-Farben mit zugesichertem ΔE ≥ 25**, in `CoreChecks` automatisiert geprüft
+   (UX-27, `TypePalette.swift`). Vorher/nachher: kleinster Abstand 0,0 → 26,8.
+6. **Der Zeitraum steht am Diagramm, nicht in der Titelleiste.** In Sprint 2 in die
+   Titelleiste verschoben, in v1.9.0 zurückgeholt: Er **beschriftet das Diagramm** – ohne
+   ihn sind die Balken nicht deutbar. Gültig: Fenstertitel „activities — <Ordner>",
+   Zeitraum als linksbündige Überschrift über dem Diagramm, auch eingeklappt sichtbar.
+7. **Eigenes `NSSearchField` statt `.searchable`** (v1.9.0). SwiftUI platziert
+   `.searchable` zwingend ganz rechts; die Ablauffolge *Ort → Suche → Zeitraum →
+   Anpassungen* verlangt die zweite Stelle. **Bewusste Abweichung von der macOS-Konvention
+   (Suchfeld rechts)** – Suchen ist hier Hauptarbeit, nicht Nebensache.
+8. **Wochenendbänder bleiben dicht am Hintergrund** (gemessen ΔE 2,5 hell / 3,1 dunkel).
+   Ein Band darf nie als Datenfläche gelesen werden.
+9. **Die Fläche der Abschnittsköpfe wurde bei PR-33 nicht angefasst.** Gemessen gegen die
+   beiden Zeilentöne: 11,6 / 9,1 hell und 15,1 / 10,4 dunkel – deutlich abgesetzt. Der
+   gemeldete „graue Schleier" lag an der Schriftgröße, nicht an dieser Farbe.
+10. **Nebenangaben stehen auf 11 pt, nicht 10 pt.** `.secondary` erreicht systemseitig nur
+    3,82:1. An der Systemfarbe lässt sich nichts drehen, ohne die Zeile laut zu machen; an
+    der Größe schon.
+11. **„Arbeit fortsetzen" öffnet nur Dokumente, über eine Erlaubnisliste** (PR-35).
+    `NSWorkspace.open` reicht eine `.py` an den Interpreter weiter – ein Menüpunkt führte
+    ungesehenen Code aus. Eine Verbotsliste müsste jede gefährliche Endung kennen, und die
+    nächste fehlt immer.
+12. **Massenhandgriffe fragen ab 10 Objekten zurück, und die Rückfrage nennt die Zahl**
+    (PR-26). Ohne Zahl ist eine Rückfrage nur eine Verzögerung.
+13. **⌥⌘E für den HTML-Export**, weil ⇧⌘E dem häufigeren „In <Editor> öffnen" gehört. Das
+    leichter erreichbare Kürzel gehört dem häufigeren Befehl.
+14. **⌥⌘C, nicht ⌘C, für die Zusammenfassung.** ⌘C gehört dem Kopieren der Auswahl und muss
+    auch im Suchfeld wirken.
+15. **Kein zweiter Kreispfeil in der Werkzeugleiste** (v1.19.5). Der Auto-Refresh-Schalter
+    trug `arrow.triangle.2.circlepath` neben dem Knopf „neu einlesen" und wurde dafür
+    gehalten. Die Antenne zeigt, was wirklich passiert: Der Ordner wird **beobachtet**,
+    nicht auf Zuruf gelesen. *⚠️ Siehe UX-35 – dieselbe Verwechselbarkeit ist ein zweites
+    Mal aufgetreten; die Ursache ist die Menge symbolonly-Bedienelemente, nicht das
+    einzelne Symbol.*
+16. **Kein einstellbares Update-Intervall.** Ein Regler für etwas, dessen Wirkung niemand
+    beobachten kann, ist Beschäftigung, keine Einstellung. Takt: 24 h, plus Nachholen beim
+    Aufwachen – ein Mac, der nachts schläft, verpasst sonst jeden Termin.
+17. **Verlauf nur über Wurzelordner, nicht über einzelne Ordner.** Der Baum hat bereits
+    Navigation (←/→, Diagramm-Sprung); ein zweiter Verlaufsbegriff daneben verwirrt mehr,
+    als er hilft.
+18. **Kein PDF-Ausgabeweg.** Ein vorzeigbarer HTML-Bericht lässt sich über den Systemdruck
+    als PDF sichern; ein eigener Weg müsste dieselbe Darstellung ein zweites Mal erzeugen.
+19. **Der Erstkontakt ist ein Streifen, kein Dialog – und ein Satz, kein Absatz.** Er
+    blockiert nicht und lässt die Auswertung sofort sehen; gerade sie ist die beste
+    Erklärung. Ein Erstkontakt, der zur Datenschutzerklärung wird, wird weggeklickt.
+20. **`.help` ist kein Ersatz für `accessibilityLabel`.** Ein Tooltip existiert für
+    Vorleseprogramme nicht. *(Siehe UX-37 – die Regel steht, eingehalten wird sie nicht
+    überall.)*
+21. **Gescannt wird sparsam** (v1.10.0): nur bei Start, Ordnerwechsel, ⌘R und
+    Auto-Refresh. Zeitraum und Filter arbeiten im Speicher.
 
 ---
 
-## Was ich bewusst **nicht** vorschlage
+# Lehren
 
-- **Zeiterfassung im engeren Sinn** (Stoppuhr, Projektbuchung): Das wäre ein anderes
-  Produkt mit anderen Wettbewerbern. PR-15/PR-16 liefern den Nutzen ohne den Anspruch.
-- **Cloud-Abgleich zwischen Geräten:** Widerspricht der Stärke „liest nur lokal, sendet
+1. **Messen, nicht schätzen** – und zwar am Bildschirm, nicht am Farbwert. Dreimal gelernt
+   (UX-12, PR-31, PR-33), und in UX-34 ein viertes Mal fällig geworden.
+2. **Was nur am laufenden Programm sichtbar ist, muss am laufenden Programm geprüft
+   werden – und zwar an einem Prozess, von dem belegt ist, dass er der aktuelle ist.**
+   Drei der neun Befunde der Durchsicht v1.19.33 (UX-33, UX-35, UX-38) sind am Quelltext
+   nicht zu sehen; Sprint 11 hatte diese Prüfung für ⌘[ / ⌘] ausdrücklich verlangt, sie
+   unterblieb, und der Eintrag lag fünf Versionen lang falsch in der Akte. **Die zweite
+   Hälfte des Satzes hat die Durchsicht sich selbst beigebracht:** Ein seit dem Vormittag
+   laufender Prozess führte zu UX-32, einem Fehlbefund über ein angeblich fehlendes
+   Merkmal. *Die Version aus dem Bündel zu lesen und das Verhalten aus dem Prozess ist
+   zweierlei – `ps -o lstart` gegen `stat` auf die Binärdatei entscheidet es in einer
+   Zeile.*
+3. **Eine Klammer, die zwei Punkte verbindet, muss gemeinsamen Code erzeugen.** „Gehört
+   thematisch zusammen" fühlt sich wie ein Grund an und ist keiner (Sprint 11 gegen
+   Sprint 13).
+4. **Was `CoreChecks` nicht erreicht, driftet unbemerkt.** So ist die
+   Zeitstempel-Formatierung vor PR-32 auseinandergelaufen – und so läuft heute die
+   Kürzeltabelle der Hilfe auseinander (UX-39).
+5. **Zeilennummern in Prosa altern schneller als die Aussage, die sie belegen.** Wo möglich
+   Symbolnamen nennen.
+6. **Annahmen aus der Oberfläche am Code prüfen, bevor sie als Fehler ins Backlog wandern**
+   (UX-01: der vermutete Funktionsfehler existierte nicht). *Und umgekehrt – siehe Lehre 2.*
+7. **Vor jeder Umsetzung an einer heiklen Stelle: erst den Kern, dann die Ladekette.** Was
+   prüfbar sein kann, muss vorher prüfbar sein (Sprint 11, AP1).
+
+---
+
+# Was bewusst nicht gebaut wird
+
+- **Zeiterfassung im engeren Sinn** (Stoppuhr, Projektbuchung): ein anderes Produkt mit
+  anderen Wettbewerbern. PR-15/PR-16 liefern den Nutzen ohne den Anspruch.
+- **Cloud-Abgleich zwischen Geräten:** widerspricht der Stärke „liest nur lokal, sendet
   nichts" (PR-24).
-- **Dateiverwaltung** (umbenennen, verschieben, löschen): Dafür gibt es den Finder. Die App
+- **Dateiverwaltung** (umbenennen, verschieben, löschen): dafür gibt es den Finder. Die App
   soll *finden*, nicht *verwalten*.
+
+---
+
+# Historie
+
+Teil 1 waren 31 UX-Befunde aus dem Design-Review zur v1.6.0 (30 umgesetzt, 1 begründet
+verworfen). Teil 2 war die Produkt-Roadmap ab v1.17.0, aus der die Themen A–D abgearbeitet
+sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
+
+| Version | Sprint / Anlass | Inhalt |
+|---|---|---|
+| v1.6.0 | Sprint 1 · „Der Nutzer sieht, was gerade wirkt" | UX-01, UX-06, UX-07, UX-16 |
+| v1.6.1 | Hotfix | UX-26 (Liste sprang beim Mausklick weg) |
+| v1.7.0 | Sprint 2a · „Farbsystem" | UX-27, UX-11 |
+| v1.8.0 | Sprint 2 · „Kopfzone und Toolbar" | UX-03, UX-04, UX-05, UX-15 |
+| v1.9.0 | Nachjustierung | Toolbar nach Arbeitsablauf; UX-05 teilrevidiert; eigenes `NSSearchField` |
+| v1.10.0 | Grundsatz | „sparsam scannen" – Vorbedingung von UX-02 |
+| v1.11.0 | Sprint 3 · „Lesen und Finden" | UX-29, UX-02, UX-08, UX-09, UX-10, UX-12, UX-17 |
+| v1.12.0 | Sprint 4 · „Zeitachse beherrschen" | UX-20, UX-30, UX-28, UX-21 |
+| v1.13.1 | Sprint 5 · „Mit Treffern arbeiten" | UX-19, UX-22 |
+| v1.15.0 | Sprint 6 · „Weitergabereif" | UX-25, UX-18, UX-14 |
+| v1.16.0 | Sprint 7 · „Auswahl und Zugänglichkeit" | UX-13, UX-23 |
+| v1.17.0 | Sprint 8 · „Abschluss" | UX-31; UX-24 ohne Umsetzung geschlossen; Portabilität |
+| v1.18.0 | Thema A · „Signal statt Rauschen" | PR-01 … PR-06 |
+| v1.19.0 | Thema B · „Täglicher Begleiter" | PR-07 … PR-10 |
+| v1.19.7 | Sprint 9 | PR-12 · Ordner in eigenem Programm öffnen |
+| v1.19.11 | Sprint 9 | PR-27 AP1+AP2 · Baumdarstellung |
+| v1.19.16 | — | PR-28 · Abschnitt „Angeheftet" abgesetzt |
+| v1.19.19 | — | PR-30 · Aktive Zustände sofort erkennbar |
+| v1.19.21 | — | PR-31 · Zeilendichte |
+| v1.19.24 | — | PR-32 · Zeitstempel einheitlich formatieren |
+| v1.19.25 | — | PR-33 · Funktionsleiste und Zeitabschnitte lesbar |
+| v1.19.26 | Sprint 10 · „Die richtigen Dateien, sicher geöffnet" | PR-26, PR-11 |
+| v1.19.27 | Hotfix | PR-35 · „Arbeit fortsetzen" führte Skripte aus |
+| v1.19.28 | Sprint 11 · „Zustand, der das Fenster überlebt" | PR-14, PR-34 |
+| v1.19.29 | Sprint 12 · „Wie groß" | PR-37, PR-38 |
+| v1.19.30 | — | PR-39 · Größe ganz rechts, festes Sechs-Zeichen-Raster |
+| v1.19.31 | — | PR-40 · Senkrechter Trenner zwischen Datum und Größe |
+| v1.19.32 | Hotfix | PR-41 · Doppelklick auf den Dateinamen öffnete nicht |
+| v1.19.33 | Sprint 13 · „Die App sagt, was sie weiß" | PR-16, PR-17, PR-24 |

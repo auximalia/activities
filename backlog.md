@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.35 · 2026-08-10*
+*Stand: v1.19.37 · 2026-08-10*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -694,6 +694,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.34 | Sprint 14 · „Befehle, die man findet" | UX-33, UX-34, UX-35, UX-36, UX-37, UX-38, UX-39, UX-41 |
 | v1.19.35 | Sprint 15 · „Wissen, was es aushält" | PR-25, PR-27 AP3, Totholz |
 | v1.19.36 | Sprint 16 · „Mehrere Quellen, gezielter Blick" | PR-19, PR-44, PR-45 |
+| v1.19.37 | Hotfix | PR-44 · „Nur Arbeitsdateien" stand außerhalb der Filter, auf die es wirkt |
 
 ## Sprint 16 – „Mehrere Quellen, gezielter Blick" *(v1.19.36)*
 
@@ -782,6 +783,28 @@ eine Ansage darüber, was überhaupt zählt – sonst blieben `swift`- und `py`-
 nichts mehr bewirken.
 
 **Nicht gespeichert**, wie festgelegt: Jede Sitzung beginnt mit vollständiger Anzeige.
+
+**⚠️ Nachgebessert in v1.19.37 – der Schalter stand am falschen Ort, und das war mehr als
+Kosmetik.** Ausgeliefert wurde er als eigenes Ankreuzfeld in einer Zeile **unter** der
+Legende. Aus der Praxis gemeldet (mit Spott, zu Recht): Er wirkt auf Diagramm *und* Legende,
+**also ist er ein Typ-Filter** – und gehört damit in die Legendenzeile zu den anderen, ganz
+links. Ein Bedienelement, das außerhalb des Bereichs steht, auf den es wirkt, gibt sich als
+etwas anderes aus, als es ist.
+
+Daraus folgte mehr als ein Ortswechsel; wer ihn als Typ-Filter anerkennt, muss ihn überall so
+behandeln:
+- **⌥⌘R „Typ-Filter zurücksetzen" schaltet ihn mit ab.** Sonst hieße „alle Dateitypen wieder
+  einblenden", dass danach immer noch keine `.swift` erscheint – und man sucht den Fehler im
+  Programm.
+- **Er zählt in ``hasTypeFilter``.** Sonst meldete die Statuszeile „kein Filter aktiv",
+  während die Hälfte des Bestandes fehlt: der stille Zustand, den UX-06 abgeschafft hat. Die
+  Formulierung liegt jetzt in *einer* Eigenschaft (``typeFilterSummary``), weil Schalter und
+  Plättchen sonst zwei Gelegenheiten hätten, auseinanderzulaufen.
+
+**⚠️ Der eingeschaltete Zustand wird gefüllt gezeichnet, nicht durchgestrichen.** Bei den
+Typ-Plättchen heißt „blass und durchgestrichen" *ausgeblendet*; beim Schalter hieße dieselbe
+Darstellung das Gegenteil, denn er ist an, **wenn** gefiltert wird. Zwei entgegengesetzte
+Bedeutungen derselben Darstellung in einer Reihe wären die schlechteste aller Lösungen.
 
 **⚠️ Nebenbefund beim Prüfen: eine abgelehnte Quelle ist kein Fehler.** Die erste Fassung
 meldete sie über ``errorMessage`` – und die blendet die **ganze Liste** aus und titelt „Es ist

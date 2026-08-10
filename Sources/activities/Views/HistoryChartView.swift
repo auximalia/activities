@@ -15,6 +15,10 @@ struct HistoryChartView: View {
     let hiddenExtensions: Set<String>
     let otherCount: Int
     let otherKey: String
+    /// Ob der Schalter „Nur Arbeitsdateien“ an ist (PR-44).
+    let worksFilesOnly: Bool
+    /// Schaltet ihn um.
+    var onToggleWorkFiles: () -> Void
     /// Meldet Tag und (falls im Stapel getroffen) die Endung des Segments zurueck.
     var onSelect: (Date, String?) -> Void
     var onToggleExtension: (String) -> Void
@@ -380,6 +384,13 @@ struct HistoryChartView: View {
 
     private var legend: some View {
         FlowLayout(horizontalSpacing: 6, verticalSpacing: 6) {
+            // **⚠️ Ganz links, vor den Typ-Plaettchen – und das ist keine
+            // Geschmacksfrage.** Der Schalter blendet Dateitypen aus und
+            // veraendert damit Diagramm *und* Legende: Er ist ein Typ-Filter.
+            // In v1.19.36 stand er in einer eigenen Zeile darunter und gab sich
+            // damit als etwas anderes aus – gemeldet aus der Praxis. Ein
+            // Bedienelement gehoert dorthin, wo seine Wirkung sichtbar wird.
+            WorkFilesChip(isOn: worksFilesOnly, onToggle: onToggleWorkFiles)
             ForEach(topExtensions) { item in
                 LegendChip(
                     color: FileTypeColor.color(forExtension: item.ext, assignment: colorAssignment),
@@ -445,6 +456,61 @@ private struct ChartPoint: Identifiable {
 /// Ein klickbarer Legendeneintrag im Button-Look: Farbfeld, optionales Icon,
 /// Name und Anzahl in einer umrandeten „Pille" mit Hover-Highlight und
 /// Zeigehand-Cursor. Einfachklick = Toggle, Doppelklick = „Solo".
+/// Das Plaettchen „Nur Arbeitsdateien" links in der Legende.
+///
+/// Geometrie bewusst identisch zu ``LegendChip`` (gleiche Polsterung, gleicher
+/// Eckenradius, gleiche Mindesthoehe), damit es in einer Reihe mit den
+/// Typ-Plaettchen liegt und nicht wie ein Fremdkoerper wirkt.
+///
+/// **⚠️ Der eingeschaltete Zustand wird gefuellt dargestellt, nicht
+/// durchgestrichen.** Bei den Typ-Plaettchen heisst „durchgestrichen und blass"
+/// *ausgeblendet*; hier hiesse dieselbe Darstellung das Gegenteil, denn der
+/// Schalter ist an, wenn gefiltert wird. Zwei entgegengesetzte Bedeutungen
+/// derselben Darstellung in einer Reihe waeren die schlimmste Loesung.
+private struct WorkFilesChip: View {
+    let isOn: Bool
+    let onToggle: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: isOn ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            Text("Nur Arbeitsdateien")
+                .font(.caption)
+        }
+        .frame(minHeight: 16)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(isOn ? AnyShapeStyle(Color.accentColor.opacity(hovering ? 0.30 : 0.18))
+                           : AnyShapeStyle(Color.secondary.opacity(hovering ? 0.20 : 0.08)))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(isOn ? Color.accentColor.opacity(0.65) : Color.secondary.opacity(0.45), lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .onTapGesture { onToggle() }
+        .onHover { inside in
+            hovering = inside
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+        .help(isOn
+              ? "Wieder alle Dateien zeigen"
+              : "Nur Dokumente, PDF, Tabellen, Präsentationen und Diagramme (bpmn, graph) zeigen")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Nur Arbeitsdateien")
+        .accessibilityValue(isOn ? "an" : "aus")
+        .accessibilityHint("Blendet Quelltext, Archive, Medien, Bilder und Dateien ohne Endung aus")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+        .accessibilityAction { onToggle() }
+    }
+}
+
 private struct LegendChip: View {
     let color: Color
     let icon: NSImage?

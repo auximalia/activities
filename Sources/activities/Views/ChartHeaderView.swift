@@ -30,6 +30,8 @@ struct ChartHeaderView: View {
                     hiddenExtensions: model.hiddenExtensions,
                     otherCount: model.otherCount,
                     otherKey: ReportViewModel.otherKey,
+                    worksFilesOnly: model.showsOnlyWorkFiles,
+                    onToggleWorkFiles: { model.toggleWorkFilesOnly() },
                     onSelect: { day, ext in model.focus(day: day, ext: ext) },
                     onToggleExtension: { model.toggleExtension($0) },
                     onSoloExtension: { model.soloExtension($0) },
@@ -41,8 +43,6 @@ struct ChartHeaderView: View {
                 .padding(.horizontal, 4)
                 .padding(.top, 6)
                 .padding(.bottom, 8)
-
-                workFilesRow
             }
 
             statusRow
@@ -190,46 +190,6 @@ struct ChartHeaderView: View {
         }
     }
 
-    /// Der Schalter „Nur Arbeitsdateien" (PR-44).
-    ///
-    /// **Warum unter dem Diagramm und nicht in den Einstellungen.** Er wird
-    /// mehrmals am Tag umgelegt und wirkt sofort sichtbar auf Diagramm und
-    /// Legende, die direkt darueber stehen. Ein Schalter, der etwas ausblendet,
-    /// gehoert neben das, was er ausblendet – sonst sucht man die Ursache an
-    /// der falschen Stelle.
-    ///
-    /// **⚠️ Immer sichtbar, nicht nur wenn er an ist.** Die uebrigen Hinweise in
-    /// ``statusRow`` erscheinen erst, wenn gefiltert wird; dieser hier ist der
-    /// Schalter selbst. Waere er nur im eingeschalteten Zustand da, gaebe es
-    /// keinen Weg, ihn einzuschalten.
-    private var workFilesRow: some View {
-        HStack(spacing: 6) {
-            Toggle(isOn: Binding(
-                get: { model.showsOnlyWorkFiles },
-                set: { _ in model.toggleWorkFilesOnly() }
-            )) {
-                Text("Nur Arbeitsdateien")
-            }
-            .toggleStyle(.checkbox)
-            .help("Zeigt nur Dokumente, PDF, Tabellen, Präsentationen und "
-                  + "Diagramme (bpmn, graph). Blendet Quelltext, Archive, "
-                  + "Medien, Bilder und Dateien ohne Endung aus.")
-            .accessibilityHint("Blendet alles aus, was keine Arbeitsdatei ist")
-
-            if model.showsOnlyWorkFiles {
-                Text("Quelltext, Archive, Medien, Bilder und Dateien ohne Endung sind ausgeblendet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            Spacer(minLength: 4)
-        }
-        .font(.subheadline)
-        .padding(.horizontal, Self.yAxisGutter)
-        .padding(.bottom, 6)
-    }
-
     /// Der gesetzte **Namensfilter**.
     ///
     /// **Offene Randnotiz aus UX-29, endlich eingeloest.** Dort stand: „Analog
@@ -261,17 +221,16 @@ struct ChartHeaderView: View {
     /// Der Akzentton bleibt, weil dieser Zustand vom Anwender selbst gesetzt
     /// wurde – anders als der dauerhaft laufende Rauschfilter.
     private var typeSegment: some View {
-        let count = model.hiddenTypeCount
-        return HStack(spacing: 5) {
+        HStack(spacing: 5) {
             Image(systemName: "line.3.horizontal.decrease.circle.fill")
                 .foregroundStyle(.tint)
-            Text("\(count) \(count == 1 ? "Typ" : "Typen") ausgeblendet")
+            Text(model.typeFilterSummary)
             Button("Zurücksetzen") { model.resetTypeFilters() }
                 .buttonStyle(.link)
                 .help("Alle Dateitypen wieder einblenden (⌥⌘R)")
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(count) Dateitypen ausgeblendet")
+        .accessibilityLabel(model.typeFilterSummary)
         .accessibilityHint("Zum Zurücksetzen aktivieren")
     }
 

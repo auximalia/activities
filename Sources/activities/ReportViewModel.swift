@@ -894,7 +894,27 @@ final class ReportViewModel {
     var hiddenTypeCount: Int { hiddenExtensions.count }
 
     /// Ob ueberhaupt Typen ausgeblendet sind.
-    var hasTypeFilter: Bool { !hiddenExtensions.isEmpty }
+    ///
+    /// **⚠️ Der Schalter „Nur Arbeitsdateien" zaehlt dazu.** Er blendet Typen
+    /// aus, veraendert Diagramm und Legende und ist damit ein Typ-Filter – auch
+    /// wenn er anders bedient wird. Ihn hier auszunehmen hiesse, die
+    /// Statuszeile „kein Filter aktiv" sagen zu lassen, waehrend die Haelfte
+    /// des Bestandes fehlt: genau der stille Zustand, den UX-06 abgeschafft hat.
+    var hasTypeFilter: Bool { !hiddenExtensions.isEmpty || showsOnlyWorkFiles }
+
+    /// Was die Statuszeile ueber den Typ-Filter sagt.
+    ///
+    /// Liegt hier und nicht in der Ansicht, damit die beiden Haelften – Schalter
+    /// und Plaettchen – in **einer** Formulierung zusammenkommen. Zwei Stellen
+    /// waeren zwei Gelegenheiten, sie auseinanderlaufen zu lassen.
+    var typeFilterSummary: String {
+        let plaettchen = hiddenTypeCount
+        switch (showsOnlyWorkFiles, plaettchen) {
+        case (true, 0): return "Nur Arbeitsdateien"
+        case (true, let n): return "Nur Arbeitsdateien · \(n) \(n == 1 ? "Typ" : "Typen") zusätzlich ausgeblendet"
+        case (false, let n): return "\(n) \(n == 1 ? "Typ" : "Typen") ausgeblendet"
+        }
+    }
 
     /// Setzt den Typ-Filter zurueck: alle Endungen wieder einblenden.
     ///
@@ -903,7 +923,12 @@ final class ReportViewModel {
     /// weiterarbeitet.
     func resetTypeFilters() {
         guard hasTypeFilter else { return }
+        // ⚠️ Der Schalter faellt mit zurueck. „Alle Dateitypen wieder
+        // einblenden" darf nicht die Haelfte stehen lassen – wer ⌥⌘R drueckt und
+        // danach immer noch keine `.swift` sieht, sucht den Fehler im Programm.
+        showsOnlyWorkFiles = false
         hiddenExtensions.removeAll()
+        recomputeLegend()
         recomputeChart()
         recomputeDisplayBuckets()
     }

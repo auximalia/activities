@@ -24,6 +24,15 @@ struct FileRowView: View {
     var paintsBackground: Bool = true
     /// Schmales Fenster: Datumsspalte kuerzer.
     var isCompact: Bool = false
+    /// Einrueckungsstufe im Baum, ``nil`` in der Zeitansicht.
+    ///
+    /// **⚠️ Traegt nichts zum Bild bei – die Einrueckung malt der Baum selbst
+    /// (``ReportView``).** Diese Angabe existiert allein fuer VoiceOver: Die
+    /// Ordnerzeile sagt seit jeher „Ebene 3" (``TreeRowView``), die Dateizeile
+    /// sagte gar nichts. Wer nur hoert, verlor damit an genau der Stelle die
+    /// Orientierung, an der die Schachtelung anfaengt, etwas zu bedeuten – und
+    /// der einzige Hinweis, die Einrueckung, ist der, den er nicht sieht.
+    var treeLevel: Int? = nil
 
     /// Ausgewaehlt (Aktionen wirken darauf) – nicht zu verwechseln mit dem Cursor.
     private var isSelected: Bool { model.isSelected(file.url) }
@@ -31,6 +40,19 @@ struct FileRowView: View {
     private var isCursor: Bool { model.cursor == .file(file.url) }
     /// Ob die Datei im gewaehlten Zeitfenster liegt (sonst: Hinweis-Symbol).
     private var isInWindow: Bool { model.isInWindow(file) }
+
+    /// Was VoiceOver nach der Beschriftung vorliest: Ebene (nur im Baum),
+    /// Zeitstempel und der Hinweis „ausserhalb des Zeitraums".
+    ///
+    /// ⚠️ Ausgelagert, weil derselbe Ausdruck direkt am `.accessibilityValue`
+    /// den Typpruefer zum Aufgeben brachte („unable to type-check this
+    /// expression in reasonable time") – die Zeile bricht `body` als Ganzes.
+    private var accessibilityValue: String {
+        let ebene = treeLevel.map { "Ebene \($0 + 1), " } ?? ""
+        let zeit = DateFormatting.dateTime(file.timestamp)
+        let ausserhalb = isInWindow ? "" : ", außerhalb des Zeitraums"
+        return ebene + zeit + ausserhalb
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -203,10 +225,7 @@ struct FileRowView: View {
         // zusammengefasste Beschriftung – die Kindelemente (Uhr-Symbol fuer
         // „ausserhalb des Zeitraums") fielen damit stumm heraus. Sichtbar war
         // der Zustand, hoerbar nicht (UX-37).
-        .accessibilityValue(
-            DateFormatting.dateTime(file.timestamp)
-            + (isInWindow ? "" : ", außerhalb des Zeitraums")
-        )
+        .accessibilityValue(accessibilityValue)
         .accessibilityHint("Zum Öffnen aktivieren")
         .accessibilityAddTraits(.isButton)
         // Ohne diese Eigenschaft sagt VoiceOver nicht, was markiert ist – die

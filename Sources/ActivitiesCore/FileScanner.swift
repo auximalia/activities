@@ -90,6 +90,24 @@ public struct FileScanner: Sendable {
             return ScanOutcome(files: [])
         }
 
+        // **Ein einziges Array, ohne Obergrenze – und das ist gemessen, nicht
+        // geraten.**
+        //
+        // Der Verdacht aus PR-25 lautete: Bei einem sehr grossen Wurzelordner
+        // waechst diese Liste ungebremst, bis das Fenster steht. `swift run -c
+        // release Bench --disk 500000` sagt dazu (M-Chip, APFS, warmer Cache):
+        //
+        //     500.000 Dateien   Suchlauf 10,0 s   Spitze +550 MB
+        //     Abbruch nach 1000 Eintraegen: 23 ms
+        //
+        // Damit ist eine Obergrenze **nicht** gerechtfertigt. Der Suchlauf
+        // laeuft neben der Oberflaeche, und ``shouldCancel`` greift in 23 ms –
+        // der Knopf „Abbrechen" ist also keine Behauptung, sondern haelt auch
+        // beim Zwanzigfachen des bisher gemessenen Bestandes. Ein Deckel
+        // wuerde hier Arbeit verweigern, die das Programm nachweislich leistet.
+        //
+        // ⚠️ Wer spaeter doch einen Deckel einzieht, muss eine Zahl mitbringen,
+        // die diese widerlegt – nicht ein Gefuehl von Vorsicht.
         var results: [RelevantFile] = []
         var examined = 0
         // Zaehlt uebersprungene Ordner, damit die App offenlegen kann, wie viel

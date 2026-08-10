@@ -1,5 +1,7 @@
 # AGENTS.md
 
+*Stand: v1.19.35 · 2026-08-10*
+
 ## What this repo is
 
 The macOS app **activities** — a SwiftUI/AppKit tool that shows which folders were
@@ -75,7 +77,8 @@ Therefore:
 - The exception is a fix for a defect in the field. Correctness never waits for a
   travel companion.
 
-The current cut is at the end of `backlog.md` under `## Sprint 10`.
+The current cut is at the end of `backlog.md` under the highest-numbered `## Sprint N`
+heading. Do not hard-code the number here — it went stale five sprints in a row.
 
 ## The guideline documents
 

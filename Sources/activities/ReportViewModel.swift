@@ -132,7 +132,7 @@ final class ReportViewModel {
     // Einstellungen (an die Oberflaeche gebunden).
     var rootURL: URL
     var days: Int
-    var namePattern: String
+    var namePattern: String { didSet { invalidateRows() } }
     /// Zeitmodus: false = rollierend (Tage), true = feste Zeitspanne (von–bis).
     var useDateRange: Bool
     /// Kein Zeitfenster – die App arbeitet als reines Suchwerkzeug ueber den
@@ -151,7 +151,7 @@ final class ReportViewModel {
     /// bei ~50 Knoten nichts, und so bleiben Export, Menueleisten-Kurzansicht
     /// und Statuszeile von der Ansichtswahl unabhaengig – sie greifen weiter auf
     /// ``displayBuckets`` zu.
-    private(set) var displayTree: [FolderNode] = []
+    private(set) var displayTree: [FolderNode] = [] { didSet { invalidateRows() } }
     /// Gliederung der Liste: Baum oder Zeitabschnitte.
     private(set) var viewMode: ViewMode
     /// Ob im **Baum** die Dateizeilen erscheinen.
@@ -162,7 +162,7 @@ final class ReportViewModel {
     /// **Dateien** unter den Ordnern ein- und auszublenden; das Geruest bleibt
     /// stehen. In der Zeitansicht faellt beides zusammen (ein Ordner enthaelt
     /// dort nur Dateien), im Baum nicht.
-    private(set) var treeShowsFiles: Bool
+    private(set) var treeShowsFiles: Bool { didSet { invalidateRows() } }
     /// Buendelung der Diagramm-Achse (automatisch nach Laenge des Zeitraums).
     private(set) var chartGranularity: ChartGranularity = .day
     /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
@@ -197,7 +197,7 @@ final class ReportViewModel {
     /// genug, um bei normaler Arbeit nicht dauernd zu mahnen.
     static let stalenessLimit: TimeInterval = 3600
     /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
-    var hiddenExtensions: Set<String> = []
+    var hiddenExtensions: Set<String> = [] { didSet { invalidateRows() } }
     /// Die haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm), max. ``legendTopCount``.
     var topExtensions: [ExtensionCount] = []
     /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-Endungen (Sammel-Eintrag "Sonstige").
@@ -213,7 +213,7 @@ final class ReportViewModel {
     /// Neuaufbau gesetzt, passt daher immer zum sichtbaren Diagramm/der Liste).
     private(set) var displayRangeStart: Date = Calendar.current.startOfDay(for: Date())
     private(set) var displayRangeEnd: Date = Calendar.current.startOfDay(for: Date())
-    private var topExtensionSet: Set<String> = []
+    private var topExtensionSet: Set<String> = [] { didSet { invalidateRows() } }
     /// Automatische Aktualisierung bei Ordneraenderungen (FSEvents).
     var autoRefresh: Bool
     /// Ob der Erstkontakt-Hinweis noch angezeigt wird.
@@ -222,13 +222,13 @@ final class ReportViewModel {
     /// einen leeren Bildschirm.
     var showsIntro = false
     /// Reihenfolge innerhalb der Zeitabschnitte (Ordner **und** Dateien).
-    private(set) var sort: FolderSort = .byNewest
+    private(set) var sort: FolderSort = .byNewest { didSet { invalidateRows() } }
     /// Ob die Kopfzone (Diagramm + Legende) aufgeklappt ist. Eingeklappt bleibt
     /// deutlich mehr Platz fuer die Tabelle – wichtig bei kleinen Fenstern.
     var headerExpanded: Bool
     /// Ob Dateien **ausserhalb** des Zeitraums in der Detailliste erscheinen.
     /// Standard: aus – so bleiben nur die gesuchten Treffer stehen.
-    var showOutOfWindowFiles: Bool
+    var showOutOfWindowFiles: Bool { didSet { invalidateRows() } }
     /// Zuletzt genutzte Wurzelordner.
     var recentFolders: [URL] = []
     /// Zaehler, um die Fokussierung des Filterfeldes anzustossen (Menue ⌘F).
@@ -288,9 +288,9 @@ final class ReportViewModel {
     /// Ankerpunkt fuer Bereichsauswahl mit ⇧-Klick bzw. ⇧↑/⇧↓.
     private var selectionAnchor: URL?
     /// Aufgeklappte Ordner.
-    var expandedFolders: Set<URL> = []
+    var expandedFolders: Set<URL> = [] { didSet { invalidateRows() } }
     /// Detaildateien je Ordner (ALLE Dateien, nur namensgefiltert; nil = laedt noch).
-    var filesByFolder: [URL: [RelevantFile]] = [:]
+    var filesByFolder: [URL: [RelevantFile]] = [:] { didSet { invalidateRows() } }
 
     /// Aktive Ordner-Ausschlussregeln – **eine** Liste, keine zwei Sorten.
     private(set) var activeFolderRules: Set<String>
@@ -517,8 +517,8 @@ final class ReportViewModel {
 
     /// Gepufferte Fenstergrenzen fuer ``isInWindow``. ``window`` rechnet mit
     /// ``Calendar``; pro Dateizeile neu aufgerufen waere das unnoetig teuer.
-    private var cachedWindowStart: Date = .distantPast
-    private var cachedWindowEnd: Date = .distantFuture
+    private var cachedWindowStart: Date = .distantPast { didSet { invalidateRows() } }
+    private var cachedWindowEnd: Date = .distantFuture { didSet { invalidateRows() } }
 
     /// Uebernimmt die aktuellen Fenstergrenzen in den Puffer.
     private func refreshWindowCache() {
@@ -992,6 +992,34 @@ final class ReportViewModel {
         pruneSelection()
     }
 
+    // MARK: - Fassung der Zeilenliste
+
+    /// Fassung der Eingaenge von ``visibleSortedFilesByFolder`` und
+    /// ``treeRows`` – zaehlt jede Aenderung, die eine Zeile verschieben kann.
+    ///
+    /// **⚠️ Diese Eigenschaft hat zwei Aufgaben, und die zweite ist die
+    /// unsichtbare.** Sie ist der Schluessel der Zwischenspeicher – und sie ist
+    /// zugleich das Einzige, was `@Observable` beim Lesen von ``treeRows``
+    /// noch zu sehen bekommt. Trifft der Speicher, wird keine der eigentlichen
+    /// Eingangsgroessen mehr angefasst; SwiftUI merkte sich dann **keine**
+    /// Abhaengigkeit und die Liste bliebe beim naechsten Wechsel stehen. Genau
+    /// deshalb steht hier kein `@ObservationIgnored`: Der Zaehler ist der
+    /// stellvertretende Eingang fuer alle anderen.
+    ///
+    /// Fortgeschrieben wird er ausschliesslich per `didSet` an den Eingaengen
+    /// selbst. Ein Aufruf, den man an einer Schreibstelle vergessen koennte,
+    /// gibt es nicht – und ein veraltetes Ergebnis waere hier schlimmer als ein
+    /// langsames, weil es richtig aussieht.
+    private(set) var rowsGeneration = 0
+
+    /// ⚠️ `@ObservationIgnored`, sonst meldete das Fuellen des Speichers selbst
+    /// eine Aenderung und der Rumpf riefe sich in Endlosschleife auf.
+    @ObservationIgnored private var sortedFilesMemo = Memo<[URL: [RelevantFile]]>()
+    @ObservationIgnored private var treeRowsMemo = Memo<[TreeRow]>()
+    @ObservationIgnored private var nameFilterMemo = Memo<NameFilter>()
+
+    private func invalidateRows() { rowsGeneration &+= 1 }
+
     /// Sichtbare, **sortierte** Detaildateien je Ordner.
     ///
     /// Grundlage der Baumzeilen und der Tastaturnavigation. Bewusst dieselbe
@@ -999,22 +1027,38 @@ final class ReportViewModel {
     /// flache Liste ueber ``visibleFilesByFolder``, das **nicht** sortiert. Bei
     /// Sortierung nach Name oder Typ lief der Cursor dadurch in einer anderen
     /// Reihenfolge als das Auge.
+    ///
+    /// Gemessen bei 500.000 Dateien (`swift run -c release Bench`): sichtbare
+    /// Dateien bestimmen 1,26 s, je Ordner sortieren 1,07 s. Deshalb der
+    /// Zwischenspeicher – siehe ``rowsGeneration``.
     var visibleSortedFilesByFolder: [URL: [RelevantFile]] {
-        var result: [URL: [RelevantFile]] = [:]
-        for folder in filesByFolder.keys {
-            result[folder] = visibleFiles(in: folder) ?? []
+        sortedFilesMemo.value(at: rowsGeneration) {
+            var result: [URL: [RelevantFile]] = [:]
+            result.reserveCapacity(filesByFolder.count)
+            for folder in filesByFolder.keys {
+                result[folder] = visibleFiles(in: folder) ?? []
+            }
+            return result
         }
-        return result
     }
 
     /// Die sichtbaren Zeilen der Baumansicht, samt Ebene und Linienfuehrung.
+    ///
+    /// Gemessen bei 500.000 Dateien: 191 ms fuer das Abflachen allein, mit den
+    /// Vorstufen aus ``visibleSortedFilesByFolder`` zusammen **2,52 s**. Diese
+    /// Eigenschaft steht im Datenargument eines `ForEach`
+    /// (``ReportView.treeRows(isCompact:)``) und lief damit bei **jeder**
+    /// Auswertung des Rumpfes erneut – also bei jedem Cursorschritt und jedem
+    /// Tastendruck im Filterfeld, nicht nur nach einem Suchlauf.
     var treeRows: [TreeRow] {
-        FolderTree.rows(
-            displayTree,
-            expanded: expandedFolders,
-            filesByFolder: visibleSortedFilesByFolder,
-            includeFiles: treeShowsFiles
-        )
+        treeRowsMemo.value(at: rowsGeneration) {
+            FolderTree.rows(
+                displayTree,
+                expanded: expandedFolders,
+                filesByFolder: visibleSortedFilesByFolder,
+                includeFiles: treeShowsFiles
+            )
+        }
     }
 
     /// Verwirft die Auswahl, wenn ihr Ordner/ihre Datei nicht mehr sichtbar ist.
@@ -1325,8 +1369,18 @@ final class ReportViewModel {
         return true
     }
 
-    /// Aktueller Namensfilter (gepuffert, damit er nicht je Datei neu entsteht).
-    private var nameFilter: NameFilter { NameFilter(namePattern) }
+    /// Aktueller Namensfilter.
+    ///
+    /// **⚠️ Der Doc-Kommentar behauptete „gepuffert, damit er nicht je Datei neu
+    /// entsteht" – und das war schlicht falsch.** Als berechnete Eigenschaft
+    /// entstand hier bei **jedem** Zugriff ein neuer ``NameFilter``, und
+    /// ``isVisibleDetail(_:)`` ruft ihn je Datei auf. Gemessen bei 500.000
+    /// Dateien (`swift run -c release Bench`, „Sichtbarkeit"): 1,26 s neu
+    /// gebaut gegen 0,97 s einmal gebaut – **23 %**, die eine Zusicherung im
+    /// Fliesstext gekostet hat, die niemand nachgerechnet hatte.
+    private var nameFilter: NameFilter {
+        nameFilterMemo.value(at: rowsGeneration) { NameFilter(namePattern) }
+    }
 
     /// Ob ein Namensfilter gesetzt ist.
     ///

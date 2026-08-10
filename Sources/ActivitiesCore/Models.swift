@@ -41,33 +41,24 @@ public struct RelevantFile: Identifiable, Sendable, Hashable {
     }
 }
 
-/// Ein Ordner mit neuestem Datum, Anzahl relevanter Dateien und (lazy) Detailliste.
+/// Ein Ordner mit neuestem Datum und Anzahl relevanter Dateien.
+///
+/// **⚠️ Hier stand einmal `files: [RelevantFile]`, „lazy Detailliste".** Es
+/// wurde in der gesamten Geschichte des Programms **nie befuellt und nie
+/// gelesen** – alle Aufrufstellen liessen den Vorgabewert `[]` stehen, und die
+/// Detaildateien laufen ueber den getrennten Weg
+/// `filesByFolder: [URL: [RelevantFile]]`. Ein Feld, das nichts traegt, ist
+/// keine Vorbereitung, sondern eine Zusage, die niemand einloest: Wer es sieht,
+/// haelt es fuer die Detailliste und liest die leere Menge als „keine Dateien".
 public struct FolderEntry: Identifiable, Sendable, Hashable {
     public var id: URL { folder }
     public let folder: URL
     public let newestDate: Date
     public let fileCount: Int
-    public var files: [RelevantFile]
 
-    public init(folder: URL, newestDate: Date, fileCount: Int, files: [RelevantFile] = []) {
+    public init(folder: URL, newestDate: Date, fileCount: Int) {
         self.folder = folder
         self.newestDate = newestDate
         self.fileCount = fileCount
-        self.files = files
     }
-}
-
-/// Anzahl bearbeiteter Dateien an einem Kalendertag, aufgeschluesselt nach Typ.
-public struct DayCount: Identifiable, Sendable {
-    public var id: Date { day }
-    public let day: Date
-    public let countsByCategory: [FileCategory: Int]
-
-    public init(day: Date, countsByCategory: [FileCategory: Int]) {
-        self.day = day
-        self.countsByCategory = countsByCategory
-    }
-
-    /// Gesamtzahl der Dateien des Tages ueber alle Kategorien.
-    public var total: Int { countsByCategory.values.reduce(0, +) }
 }

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.34 · 2026-08-10*
+*Stand: v1.19.35 · 2026-08-10*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -130,8 +130,10 @@ vor Sprint 15):
    **und sortiert bei jedem Aufruf neu** (`ReportViewModel.swift:1343-1350`). Ein Streifen
    je Zeile hieße diese Rechnung einmal pro Zeile pro Neuzeichnung.
 
-**Deshalb nach PR-25, nicht davor.** Einer Liste, deren Rechnung pro Zeile niemand gemessen
-hat, eine weitere Rechnung pro Zeile hinzuzufügen, ist die falsche Reihenfolge.
+**⚠️ Punkt 2 ist mit v1.19.35 überholt – aber nicht erledigt.** `visibleFiles(in:)` läuft jetzt
+über den Zwischenspeicher (PR-25), die Rechnung fällt also nicht mehr je Neuzeichnung an. Der
+Streifen selbst wäre trotzdem eine **neue** Rechnung je Zeile, und die liegt außerhalb dieses
+Speichers. Gemessen werden muss sie weiterhin – nur ist der Messstand jetzt da (`Bench`).
 
 **Platz ist ebenfalls knapp:** Der Ordnername trägt `.fixedSize(horizontal: true)`
 (`FolderRowView.swift:61`) und kann nicht schrumpfen; feste Kosten der Zeile sind 284 pt
@@ -195,9 +197,9 @@ Der Eintrag bleibt stehen, wird aber **nicht eingeplant**, und der Zweig „Verb
 treibt die Reihenfolge der nächsten Sprints nicht mehr. Die Weitergabe läuft weiter über
 `web-install.sh` mit Gatekeeper-Umweg.
 
-*Damit verliert PR-25 seine Rolle als Wegbereiter – aber nicht seinen Zweck: Die Frage,
-was die App bei fremden Beständen aushält, stellt sich beim ersten großen Ordner des
-eigenen Anwenders genauso.*
+*Damit verlor PR-25 seine Rolle als Wegbereiter – aber nicht seinen Zweck: Die Frage, was die
+App bei fremden Beständen aushält, stellt sich beim ersten großen Ordner des eigenen Anwenders
+genauso. Beantwortet in Sprint 15 (v1.19.35).*
 
 ### PR-23 · Englische Sprachfassung
 **Aufwand:** L · **Nutzen:** mittel · **P3**
@@ -208,14 +210,12 @@ heute deutsche Wochentagskürzel.
 
 **⚠️ UX-33 ist die Vorarbeit** – ohne deklarierte Basissprache gibt es keine zweite.
 
-### PR-25 · Leistung bei sehr großen Bäumen absichern
-**Aufwand:** M · **Nutzen:** mittel · **P2**
+### ✅ PR-25 · Leistung bei sehr großen Bäumen absichern *(v1.19.35)*
+**Erledigt in Sprint 15.** Messstand `Sources/Bench/`, gemessen bei 100k/250k/500k, Engstelle
+war das Neubauen der Zeilenliste je Neuzeichnung. Zahlen und Entscheidungen dort.
 
-Gemessen wurden ~83.000 Dateien (~20 MB, 1,3 s). Bei 500.000 Dateien ist das Verhalten
-**unbekannt**. Eine Messaufgabe, kein Bauvorhaben – gehört vor PR-22.
-
-### PR-27 AP3 · Anschlüsse im Baum *(geprüft – eine Restlücke)*
-**Aufwand:** S · **P3** · *eingeplant in Sprint 15*
+### ✅ PR-27 AP3 · Anschlüsse im Baum *(v1.19.35 – geschlossen)*
+**Aufwand:** S · **P3**
 
 Durchsicht vor Sprint 15, Ergebnis je Zusage:
 
@@ -223,15 +223,21 @@ Durchsicht vor Sprint 15, Ergebnis je Zusage:
 |---|---|---|
 | Diagramm-Sprung klappt **alle Vorfahren** auf | ✅ vorhanden | `ReportViewModel.swift:1449-1458` über `FolderTree.ancestors` (`FolderTree.swift:330`) |
 | Anheften wirkt im Baum | ✅ vorhanden | Markierung `TreeRowView.swift:202-207`, Kontextmenü `:140`, Ansage `:164` |
-| VoiceOver nennt die Ebene | ⚠️ **nur Ordnerzeilen** | `TreeRowView.swift:161-170`; **Dateizeilen fehlen** |
+| VoiceOver nennt die Ebene | ✅ **jetzt auch Dateizeilen** | `FileRowView.treeLevel`, gesetzt in `ReportView.swift` |
 
-**Die Restlücke:** Dateizeilen im Baum werden mit 28 pt je Ebene eingerückt
-(`ReportView.swift:251-252`), sagen ihre Ebene aber nicht – ihr Wert ist Zeitstempel plus
-Zeitfenster-Hinweis (`FileRowView.swift:206-209`). Wer die Liste hört statt sieht, erfährt
-die Schachtelung für Ordner und verliert sie bei den Dateien darin.
+**Die Restlücke, jetzt geschlossen:** Dateizeilen im Baum wurden mit 28 pt je Ebene eingerückt,
+sagten ihre Ebene aber nicht – wer die Liste hört statt sieht, erfuhr die Schachtelung für
+Ordner und verlor sie bei den Dateien darin. `FileRowView` bekommt ein optionales `treeLevel`;
+in der Zeitansicht bleibt es `nil`, dort gibt es keine Schachtelung anzusagen.
+
+**⚠️ Der Ausdruck musste aus `.accessibilityValue` heraus** in eine eigene Eigenschaft: Drei
+verkettete Teilstücke direkt am Modifikator brachten den Typprüfer zum Aufgeben („unable to
+type-check this expression in reasonable time") – und das bricht `body` als Ganzes, nicht nur
+die Zeile.
 
 **⚠️ Anheften bleibt im Baum eine Markierung, kein eigener Abschnitt** – das ist Absicht und
 dokumentiert (`ReportViewModel.swift:982-985`). Nicht als Lücke melden.
+
 
 **Akzeptanz:** Eine Dateizeile im Baum nennt ihre Ebene wie eine Ordnerzeile; danach wird
 der Eintrag geschlossen.
@@ -460,8 +466,9 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.32 | Hotfix | PR-41 · Doppelklick auf den Dateinamen öffnete nicht |
 | v1.19.33 | Sprint 13 · „Die App sagt, was sie weiß" | PR-16, PR-17, PR-24 |
 | v1.19.34 | Sprint 14 · „Befehle, die man findet" | UX-33, UX-34, UX-35, UX-36, UX-37, UX-38, UX-39, UX-41 |
+| v1.19.35 | Sprint 15 · „Wissen, was es aushält" | PR-25, PR-27 AP3, Totholz |
 
-## Sprint 15 – „Wissen, was es aushält" *(geplant, Stand v1.19.34)*
+## Sprint 15 – „Wissen, was es aushält" *(v1.19.35)*
 
 | AP | Eintrag | Aufwand | |
 |---|---|---|---|
@@ -469,32 +476,139 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | **AP2** | PR-27 AP3 · Ebenenansage für Dateizeilen im Baum, dann schließen | S | Beifahrer |
 | **AP3** | Totholz entscheiden (siehe Festlegung 4) | S | Beifahrer |
 
+### Was gemessen wurde
+
+`Sources/Bench/` ist ein eigenes ausführbares Ziel neben `CoreChecks` (Festlegung 1),
+aufgerufen mit `swift run -c release Bench [--disk N]`. Synthetischer Bestand, deterministisch,
+Spitzenspeicher über **Abtastung** statt Vorher/Nachher – ein Zwischenergebnis, das entsteht
+und sofort zerfällt, taucht in einer Differenz zweier Messpunkte nicht auf.
+
+**Im Speicher** (M-Chip, Release-Bau, Zeitfenster offen = schlimmster Fall):
+
+| | 100k | 250k | 500k |
+|---|---|---|---|
+| `FolderAggregator.folderEntries` | 43 ms | 119 ms | 274 ms |
+| `FolderTree.build` | 118 ms | 302 ms | 642 ms |
+| `FolderTree.rows`, alles aufgeklappt | 39 ms | 93 ms | 191 ms |
+| `RowSorting.files` je Ordner | 204 ms | 508 ms | **1,07 s** |
+| Sichtbarkeit, Filter je Datei neu | 248 ms | 629 ms | **1,26 s** |
+| Sichtbarkeit, Filter einmal gebaut | 181 ms | 478 ms | 968 ms |
+
+**Auf der Platte:** 100k → Suchlauf 1,85 s, Spitze +113 MB. 500k → **10,0 s**, Spitze +550 MB.
+Der Abbruch greift bei beiden Größen nach ~20 ms.
+
+### Die Engstelle war nicht die, die im Sprintplan stand
+
+Die Summe der drei fetten Zeilen ist der Pfad von `treeRows`: **2,52 s bei 500.000 Dateien**.
+Entscheidend ist aber nicht die Dauer, sondern **wie oft**. Gemessen am laufenden Programm mit
+einer vorübergehenden Zählung: **zehn Pfeiltasten lösten 55 Zugriffe auf `treeRows` aus.**
+Vorher war das eine berechnete Eigenschaft – also 55 vollständige Neuaufbauten, für eine
+Cursorbewegung, die an der Liste nichts ändert.
+
+**⚠️ Eine Korrektur am eigenen Befund.** Der Sprintplan schrieb, `treeRows` werde „innerhalb
+des `ForEach`" aufgerufen. Das ist zu scharf: Der Aufruf steht im *Datenargument* von `ForEach`
+(`ReportView.swift:223`) und läuft einmal je Auswertung des Rumpfes, nicht je Zeile. Der Befund
+bleibt bestehen, seine Begründung war falsch – und eine falsche Begründung hätte die nächste
+Optimierung an die falsche Stelle geführt.
+
+### Was gebaut wurde
+
+**`ActivitiesCore/Memo.swift`** – ein Zwischenspeicher, der seinen Wert hält, solange der
+Aufrufer dieselbe *Fassung* nennt. Er liegt im Kern, weil `CoreChecks` ihn dort erreicht: Ein
+veraltetes Ergebnis ist schlimmer als ein langsames, weil es richtig aussieht. Geprüft werden
+auch die beiden Fälle, die man beim Selberbauen übersieht – eine **rückwärts** laufende Fassung
+(Zurücksetzen) und ein `nil`, das ein gültiges Ergebnis ist und nicht „noch nichts da" heißt.
+
+**`ReportViewModel.rowsGeneration`** trägt die Fassung und wird ausschließlich per `didSet` an
+den elf Eingängen fortgeschrieben – es gibt keinen Aufruf, den man an einer Schreibstelle
+vergessen könnte.
+
+**⚠️ Der Zähler hat eine zweite, unsichtbare Aufgabe.** Trifft der Speicher, wird keine der
+eigentlichen Eingangsgrößen mehr angefasst. `@Observable` hätte dann **keine** Abhängigkeit
+registriert und die Liste wäre beim nächsten Wechsel stehen geblieben – der klassische Preis
+des Zwischenspeicherns unter Beobachtung. Der Zähler ist deshalb bewusst *nicht*
+`@ObservationIgnored`: Er ist der stellvertretende Eingang für alle anderen. Die Speicher
+selbst sind es, sonst meldete ihr Füllen eine Änderung und der Rumpf riefe sich endlos auf.
+
+**Zwei Annahmen wurden vor dem Bau gemessen statt geglaubt:**
+1. Verträgt `@Observable` ein `didSet` – und bleibt die Eigenschaft beobachtet? **Ja, beides**
+   (Probe mit Kontrollversuch an einer Eigenschaft ohne `didSet`).
+2. Kopiert `didSet` das ganze Wörterbuch bei `filesByFolder[x] = y`? **Nein** – 2000
+   Einzelzuweisungen in ein Wörterbuch mit 200.000 Einträgen: 1,7 ms mit, 1,4 ms ohne `didSet`
+   (SE-0268 greift durch das Makro hindurch). Ein Ja hätte den Entwurf verworfen.
+
+**Nebenbefund, der eine Zusicherung im Fließtext widerlegt:** `nameFilter` trug den Kommentar
+„gepuffert, damit er nicht je Datei neu entsteht" – und war eine berechnete Eigenschaft, die je
+Datei einen neuen `NameFilter` baute. Gemessen: **23 %** der Sichtbarkeitsprüfung. Jetzt
+tatsächlich gepuffert.
+
+### Die Obergrenze: keine – und das ist der Messwert
+
+Festlegung 3 verlangte einen Deckel *nur*, wenn die Messung ihn fordert. Sie fordert ihn nicht:
+Der Suchlauf läuft neben der Oberfläche und `shouldCancel` greift auch bei 500.000 Dateien in
+23 ms. Ein Deckel würde Arbeit verweigern, die das Programm nachweislich leistet. Die Zahlen
+stehen im Doc-Kommentar an der Stelle, die sie betreffen (`FileScanner.swift`, vor `results`),
+nicht nur hier. **⚠️ Wer später doch deckelt, muss eine Zahl mitbringen, die diese widerlegt.**
+
+### AP3 · Totholz: gelöscht statt weiter aufgehoben
+
+Entfernt: `FolderAggregator.groupByFolder`, `countFilesPerDay`, `countFilesPerDayByExtension`,
+`FolderEntry.files` – und `DayCount`, das damit unerreichbar wurde. Alle waren nur noch von
+Prüfungen gehalten; `FolderEntry.files` nicht einmal davon: In der gesamten Geschichte des
+Programms wurde es **nie befüllt und nie gelesen**, alle 30 Aufrufstellen ließen den
+Vorgabewert `[]` stehen. Ein Feld, das nichts trägt, liest sich als „keine Dateien".
+
+*Sie wurden „für PR-11" aufgehoben; PR-11 ist seit v1.19.26 ausgeliefert und benutzt sie nicht.*
+**Die Begründung fürs Löschen ist nicht „unbenutzt", sondern „unerprobt":** Wer PR-13 oder PR-15
+baut, schreibt, was er dann wirklich braucht, statt eine Vorwegnahme zu erben, die nie an echtem
+Code geprüft wurde. Die Historie hält den Wortlaut vor. `countFilesPerDayByType` bleibt – die
+ist live (`ReportViewModel.swift:931`).
+
+### Am laufenden Programm gegengeprüft
+
+Die Gefahr des Zwischenspeicherns ist die stehengebliebene Liste, und die sieht man dem
+Quelltext nicht an. Über die Bedienhilfen-Schnittstelle gemessen, je Eingang:
+
+- ⌘L (`treeShowsFiles`): 49 → **19** → 49 Zeilen.
+- ⌘4 / ⌘2 (Zeitfenster): 49 → **66** Zeilen.
+- Sortierung Datum → Name → Größe → Datum: Reihenfolge ändert sich je Schritt und kehrt
+  **identisch** zurück.
+- Namensfilter: 66 → **4** → Leerzustand → 66 Zeilen.
+
+**⚠️ Zum dritten Mal dieselbe Lehre, und sie hätte zum dritten Mal einen Fehlbefund erzeugt.**
+Der erste ⌘L-Versuch zeigte 49 → 49 → 49 und sah nach genau dem gefürchteten Fehler aus. Die
+Kontrolle – der Haken am Menüeintrag – bewies, dass der Tastendruck die App nie erreicht hatte,
+weil sie nicht im Vordergrund war. Später meldete die Schnittstelle „kein Fenster"; auch das
+war kein Befund, sondern ein **gesperrter Bildschirm**, nachgewiesen durch dieselbe Messung an
+der ausgelieferten v1.19.34. *Ein fehlgeschlagener Versuch ist erst dann ein Befund, wenn eine
+bekannte Gegenprobe im selben Aufbau gelingt.*
+
+### Was offen blieb
+
+Von den vier Verdächtigen der Vorab-Durchsicht sind zwei erledigt (`treeRows`,
+`visibleSortedFilesByFolder`) und einer entschieden (kein Deckel im Scan). **Offen bleibt
+einer:** Der zweite Plattendurchgang für die Detaillisten ist **seriell**, ein
+`listDirectoryFiles` je Ordner (`ReportViewModel.swift:1906-1922`). Er wurde nicht angefasst,
+weil der Messstand ihn nicht erreicht – er liegt im App-Ziel. Nach derselben Logik wie
+Festlegung 1 gilt: Wer ihn beschleunigen will, muss ihn zuerst in den Kern holen.
+
+**⚠️ Nicht behoben, weil es eine andere Frage ist:** Der Zwischenspeicher nimmt die
+*wiederholten* Kosten, nicht die einmaligen. Ein Tastendruck im Filterfeld ändert die Fassung
+und kostet den vollen Aufbau – bei 500.000 Dateien weiterhin 2,5 s, bei den gemessenen 83.000
+etwa 0,4 s. Das wäre ein Verzögerungsglied am Filterfeld, kein Zwischenspeicher, und gehört
+gemessen, bevor es gebaut wird.
+
+### Die Klammer des Sprints *(vor der Umsetzung festgehalten)*
+
 **⚠️ Die Klammer ist technisch, nicht nur thematisch** – die Prüfung aus Sprint 11 bestanden:
 AP1 verlangt eine **messbare** Fassung der Listenaufbereitung, und genau die fehlt heute in
 `ActivitiesCore`. AP3 räumt dieselbe Schicht auf (`FolderAggregator`, `FolderEntry`). AP2 ist
 ehrlicherweise nur Release-Ökonomie; das soll man wissen.
 
-### Warum dieser Sprint und nicht PR-13
-
-**Eine Unstimmigkeit, die das Projekt bei sich selbst nicht bemerkt hat.** Farbe und
-Spaltenbreiten werden hier auf zwei Nachkommastellen gemessen – zur **Leistung** gibt es
-genau eine Zahl (83.000 Dateien, 1,3 s), eine einzige Stichprobe, und **keinen Messstand**:
-kein Benchmark, kein Timing in `CoreChecks`, keine `measure`-Tests, kein `scripts/`. „Messen,
-nicht schätzen" gilt bisher für alles, was man sieht, und für nichts, was man wartet.
-
-Dazu die konkreten Verdächtigen aus der Durchsicht:
-
-- `treeRows` baut den **gesamten Baum bei jedem Zugriff** neu (`ReportViewModel.swift:1011-1018`)
-  und wird **innerhalb des `ForEach`** aufgerufen (`ReportView.swift:223`).
-- `visibleSortedFilesByFolder` baut das ganze Wörterbuch je Zugriff (`:1002-1008`);
-  `visibleFiles(in:)` sortiert dabei jedes Mal neu (`:1348-1349`).
-- Der zweite Plattendurchgang für die Detaillisten ist **seriell**, ein
-  `listDirectoryFiles` je Ordner (`ReportViewModel.swift:1906-1922`).
-- Der Scan sammelt **ein einziges Array** ohne Deckel und ohne Stückelung
-  (`FileScanner.swift:93`, `:173`); abbrechbar ist er (`:99`).
-
-PR-13 (Typverteilung) würde dieser Liste **eine weitere Rechnung pro Zeile** hinzufügen –
-siehe dort. Erst messen, dann verdichten.
+**Der Anlass:** Farbe und Spaltenbreiten werden hier auf zwei Nachkommastellen gemessen – zur
+**Leistung** gab es genau eine Zahl (83.000 Dateien, 1,3 s), eine einzige Stichprobe, und
+**keinen Messstand**. „Messen, nicht schätzen" galt bis hierher für alles, was man sieht, und
+für nichts, was man wartet.
 
 ### Festlegungen vor der Umsetzung
 
@@ -519,12 +633,12 @@ siehe dort. Erst messen, dann verdichten.
    Tagesgruppierung, auf der PR-15 aufsetzen könnte; `FolderEntry.files` ist das Feld, das
    PR-13 bräuchte. Wer löscht, muss beides wissen.*
 
-**Sprint-Akzeptanz:** Ein Aufruf liefert reproduzierbare Zahlen für 100k/250k/500k (Zeit und
-Spitzenspeicher); die Zahlen stehen im Doc-Kommentar **neben der Konstante, auf die sie sich
-beziehen**, nicht nur im Backlog; `treeRows` wird nicht mehr je Neuzeichnung neu gebaut; der
-Abbruch greift auch bei 500k; eine Obergrenze existiert **entweder** mit Messwert **oder**
-gar nicht, mit Beleg; eine Dateizeile im Baum nennt ihre Ebene; über jedes Stück Totholz ist
-entschieden.
+**Sprint-Akzeptanz – erfüllt:** reproduzierbare Zahlen für 100k/250k/500k (Zeit **und**
+Spitzenspeicher) ✅ · Zahlen im Doc-Kommentar neben der Sache, die sie betreffen
+(`Memo.swift`, `FileScanner.swift`, `ReportViewModel.swift`) ✅ · `treeRows` wird nicht mehr je
+Neuzeichnung gebaut (55 Zugriffe, 0 Neuaufbauten) ✅ · Abbruch greift bei 500k (23 ms) ✅ ·
+Obergrenze mit Beleg **nicht** eingeführt ✅ · Dateizeile im Baum nennt ihre Ebene ✅ · über
+jedes Stück Totholz ist entschieden (alle gelöscht) ✅
 
 **Bewusst nicht in diesem Sprint:**
 - **PR-13** – nach AP1, nicht davor; Begründung dort.

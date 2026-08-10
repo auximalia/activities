@@ -244,7 +244,11 @@ struct ReportView: View {
                     // Fehler.
                     isAlternate: false,
                     paintsBackground: false,
-                    isCompact: isCompact
+                    isCompact: isCompact,
+                    // Nur im Baum: Die Ordnerzeile sagt ihre Ebene an, die
+                    // Dateizeile schwieg. In der Zeitansicht bleibt es bei
+                    // ``nil`` – dort gibt es keine Schachtelung anzusagen.
+                    treeLevel: row.level
                 )
                 // Dateien tragen keinen Aufklapppfeil – ohne Ausgleich staende
                 // ihr Symbol links von dem gleichrangiger Unterordner.

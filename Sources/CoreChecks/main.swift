@@ -75,27 +75,6 @@ do {
     expectEqual(label(14), "Vor 2 Wochen", "14 Tage")
 }
 
-// MARK: - FolderAggregator
-do {
-    let a = URL(fileURLWithPath: "/docs/a", isDirectory: true)
-    let b = URL(fileURLWithPath: "/docs/b", isDirectory: true)
-    let files = [
-        RelevantFile(url: a.appendingPathComponent("1.txt"), folder: a, timestamp: date(2026, 8, 1)),
-        RelevantFile(url: a.appendingPathComponent("2.txt"), folder: a, timestamp: date(2026, 8, 3)),
-        RelevantFile(url: b.appendingPathComponent("3.txt"), folder: b, timestamp: date(2026, 8, 2)),
-    ]
-    let entries = FolderAggregator.groupByFolder(files)
-    expectEqual(entries.count, 2, "zwei Ordner")
-    expectEqual(entries[0].folder, a, "neuester Ordner zuerst")
-    expectEqual(entries[0].fileCount, 2, "Zaehlung Ordner a")
-    expectEqual(entries[0].newestDate, date(2026, 8, 3), "neuestes Datum")
-
-    let counts = FolderAggregator.countFilesPerDay(files, days: 3, reference: date(2026, 8, 3), calendar: calendar)
-    expectEqual(counts.count, 3, "drei Tage")
-    expectEqual(counts[0].total, 1, "1.8. hat eine Datei")
-    expectEqual(counts[2].total, 1, "3.8. hat eine Datei")
-}
-
 // MARK: - FileScanner (temporaeres Verzeichnis)
 do {
     let scanner = FileScanner()
@@ -166,24 +145,6 @@ do {
     expectEqual(RowNavigation.move(cursor: .folder(a), in: expanded, by: 1), .file(fa1.url), "move into file")
     expectEqual(RowNavigation.move(cursor: .folder(a), in: expanded, by: -1), .folder(a), "clamp top")
     expectEqual(RowNavigation.move(cursor: .folder(b), in: expanded, by: 1), .folder(b), "clamp bottom")
-}
-
-// MARK: - countFilesPerDayByExtension
-do {
-    let folder = URL(fileURLWithPath: "/docs", isDirectory: true)
-    let ref = date(2026, 8, 3)
-    let files = [
-        RelevantFile(url: folder.appendingPathComponent("a.md"), folder: folder, timestamp: date(2026, 8, 3)),
-        RelevantFile(url: folder.appendingPathComponent("b.md"), folder: folder, timestamp: date(2026, 8, 3)),
-        RelevantFile(url: folder.appendingPathComponent("c.pdf"), folder: folder, timestamp: date(2026, 8, 2)),
-        RelevantFile(url: folder.appendingPathComponent("d.png"), folder: folder, timestamp: date(2026, 8, 2)),
-    ]
-    let days = FolderAggregator.countFilesPerDayByExtension(files, days: 3, extensions: ["md", "pdf"], reference: ref, calendar: calendar)
-    expectEqual(days.count, 3, "ext: drei Tage")
-    expectEqual(days[2].counts["md"] ?? 0, 2, "ext: md am 3.8.")
-    expectEqual(days[1].counts["pdf"] ?? 0, 1, "ext: pdf am 2.8.")
-    expect(days[1].counts["png"] == nil, "ext: png nicht in Auswahl")
-    expectEqual(days[2].total, 2, "ext: Tagestotal")
 }
 
 // MARK: - countFilesPerDayByType (Sonstige)
@@ -1539,6 +1500,51 @@ do {
         expect(Shortcuts.catalogue.contains { $0.id == id },
                "Kuerzel: \(id) steht im Katalog und damit in der Hilfe")
     }
+}
+
+// MARK: - Memo
+do {
+    var memo = Memo<Int>()
+    var gebaut = 0
+    func hole(_ fassung: Int) -> Int {
+        memo.value(at: fassung) { gebaut += 1; return fassung * 10 }
+    }
+
+    expectEqual(hole(1), 10, "Memo: baut beim ersten Zugriff")
+    expectEqual(gebaut, 1, "Memo: genau einmal gebaut")
+
+    // Der eigentliche Zweck: derselbe Stand kostet nichts mehr.
+    expectEqual(hole(1), 10, "Memo: liefert denselben Wert erneut")
+    expectEqual(hole(1), 10, "Memo: und noch einmal")
+    expectEqual(gebaut, 1, "Memo: kein zweiter Bau bei gleicher Fassung")
+    expectEqual(memo.builds, 1, "Memo: zaehlt die Baeue mit")
+
+    // ⚠️ Die gefaehrliche Haelfte: Ein veraltetes Ergebnis sieht richtig aus.
+    expectEqual(hole(2), 20, "Memo: baut neu bei neuer Fassung")
+    expectEqual(gebaut, 2, "Memo: zweiter Bau")
+    expectEqual(hole(2), 20, "Memo: haelt die neue Fassung")
+    expectEqual(gebaut, 2, "Memo: kein dritter Bau")
+
+    // Rueckwaerts ist auch eine Aenderung – ein Zaehler kann zuruecklaufen,
+    // etwa nach einem Zuruecksetzen.
+    expectEqual(hole(1), 10, "Memo: baut auch bei kleinerer Fassung neu")
+    expectEqual(gebaut, 3, "Memo: dritter Bau")
+
+    // Ausdrueckliches Verwerfen.
+    memo.invalidate()
+    expectEqual(hole(1), 10, "Memo: nach invalidate wieder gebaut")
+    expectEqual(gebaut, 4, "Memo: vierter Bau")
+
+    // Ein Wert, der selbst optional ist, darf nicht mit „noch nichts da"
+    // verwechselt werden.
+    var optional = Memo<Int?>()
+    var optionalGebaut = 0
+    func holeOptional(_ fassung: Int) -> Int? {
+        optional.value(at: fassung) { optionalGebaut += 1; return nil }
+    }
+    expect(holeOptional(1) == nil, "Memo: nil ist ein gueltiges Ergebnis")
+    expect(holeOptional(1) == nil, "Memo: nil wird gehalten")
+    expectEqual(optionalGebaut, 1, "Memo: nil wird nicht als „leer“ neu gebaut")
 }
 
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")

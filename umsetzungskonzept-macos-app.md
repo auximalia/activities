@@ -1,6 +1,6 @@
 # activities – Spezifikation & Umsetzungskonzept
 
-*Stand: v1.19.4 · 2026-08-06*
+*Stand: v1.19.35 · 2026-08-10*
 
 Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
 beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
@@ -44,7 +44,7 @@ Datei öffnet sie mit der Standard-App.
 
 ```
 RelevantFile { url; folder (= direktes Elternverzeichnis); timestamp }
-FolderEntry  { folder; newestDate; fileCount; files=[] }
+FolderEntry  { folder; newestDate; fileCount }
 BucketedEntries { label; entries: [FolderEntry] }      // Zeitabschnitt
 DayTypeCount { day; counts: [extension: Int] }         // ein Tag im Diagramm
 ExtensionCount { ext; count }                          // Legenden-Eintrag
@@ -736,8 +736,7 @@ Sources/
     ExclusionRules.swift     Ausschlusslisten (3.4)
     NameFilter.swift         Glob/CASEFOLD/Auto-Teilstring (3.5)
     FolderAggregator.swift   folderEntries(from:start:end:isVisible:) (3.7),
-                             countFilesPerDayByType(_:startDay:endDay:individual:otherKey:ignored:) (3.9),
-                             groupByFolder(...), countFilesPerDay(...) [legacy]
+                             countFilesPerDayByType(_:startDay:endDay:individual:otherKey:ignored:) (3.9)
     TimeBucket.swift         label(...)/group(...) (3.8)
     RowNavigation.swift      RowID, flatten(...), move(...) (3.11)
     ReportExport.swift       csv(...)/html(...)

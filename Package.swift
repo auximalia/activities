@@ -27,6 +27,15 @@ let package = Package(
             name: "CoreChecks",
             dependencies: ["ActivitiesCore"]
         ),
+        // Misst die Fachlogik bei grossen Bestaenden (`swift run -c release Bench`).
+        //
+        // ⚠️ Getrennt von `CoreChecks`, weil eine Messung nie „durchfaellt".
+        // Zeitschwellen als Zusicherung waeren auf fremder Hardware unzuverlaessig
+        // und haetten die uebrigen Pruefungen mit entwertet.
+        .executableTarget(
+            name: "Bench",
+            dependencies: ["ActivitiesCore"]
+        ),
         .testTarget(
             name: "ActivitiesCoreTests",
             dependencies: ["ActivitiesCore"]

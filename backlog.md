@@ -342,7 +342,8 @@ greift **den Grund** an – nicht die Entscheidung.
    laufender Prozess führte zu UX-32, einem Fehlbefund über ein angeblich fehlendes
    Merkmal. *Die Version aus dem Bündel zu lesen und das Verhalten aus dem Prozess ist
    zweierlei – `ps -o lstart` gegen `stat` auf die Binärdatei entscheidet es in einer
-   Zeile.*
+   Zeile.* **Und ein fehlgeschlagener Test ist erst dann ein Befund, wenn eine bekannte
+   Gegenprobe im selben Aufbau gelingt** – siehe die Kürzelprüfung in Sprint 14.
 3. **Eine Klammer, die zwei Punkte verbindet, muss gemeinsamen Code erzeugen.** „Gehört
    thematisch zusammen" fühlt sich wie ein Grund an und ist keiner (Sprint 11 gegen
    Sprint 13).
@@ -426,10 +427,22 @@ die übrigen sind Beifahrer, die den Bau- und Veröffentlichungslauf mitfinanzie
 „Pfad kopieren" (⇧⌘C) waren bis dahin nur im Kontextmenü. Sie standen nicht unter den
 Befunden – dieselbe Regel deckt sie ab, und sie kosteten je eine Zeile.
 
-**⚠️ Was dabei nicht gemessen werden konnte.** Die Kürzel wurden am laufenden Programm nur
-teilweise gegengeprüft: Menü-Einträge, Beschriftungen, Haken und die Auslösung **durch
-Anklicken** sind belegt. Das Auslösen **über die Tastenkombination** ließ sich am
-Probebündel nicht zeigen, weil es sich nicht in den Vordergrund holen ließ (Betriebsart ohne
-Dock-Symbol). Der Nachweis, dass ein Kürzel überhaupt greift, liegt für ⌥⌘C aus der
-Durchsicht vor; für die neuen Kombinationen steht er aus. *Das ist eine Prüfschuld – und
-Sprint 11 zeigt, was aus unbezahlten Prüfschulden wird (siehe UX-38).*
+**Am laufenden Programm gegengeprüft** – am installierten Bündel v1.19.34, mit Nachweis,
+dass der Prozess (14:15:11) jünger ist als die Binärdatei (12:29:25):
+
+- Menüleiste durchgehend deutsch, einschließlich der Systemeinträge („Einstellungen …",
+  „Dienste", „„activities" beenden", „Beenden und Fenster beibehalten").
+- „Ordner · Zeitraum · Auswahl" stehen zwischen „Darstellung" und „Fenster".
+- Beschriftungen, Kürzel und Haken je Eintrag über `AXMenuItemCmdChar`,
+  `AXMenuItemCmdModifiers` und `AXMenuItemMarkChar` ausgelesen.
+- **Wirkung der Kürzel belegt:** ⌘2 verschiebt den Haken von „Letzte 7 Tage" auf „Letzte 3
+  Tage"; ⌘L schaltet „Dateien in allen Ordnern anzeigen" um; ⌥⌘C legt die Zusammenfassung
+  in die Zwischenablage.
+
+**⚠️ Eine Lehre über das Prüfen selbst, kein Befund über die App.** Drei Kürzeltests
+schlugen zunächst fehl und sahen wie ein Fehler in den neuen Menüs aus. Erst ein
+**Kontrollversuch** mit einem Kürzel, das nachweislich schon vorher funktionierte (⌥⌘C),
+zeigte: Der Tastendruck erreichte die App zeitweise gar nicht, weil sie sich nicht
+zuverlässig in den Vordergrund holen ließ. *Ein fehlgeschlagener Test ist erst dann ein
+Befund, wenn eine bekannte Gegenprobe im selben Aufbau gelingt.* Ohne diesen Kontrollversuch
+wäre – zum zweiten Mal an einem Tag – ein Fehlbefund entstanden (siehe UX-32).

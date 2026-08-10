@@ -15,7 +15,7 @@ struct HistoryChartView: View {
     let hiddenExtensions: Set<String>
     let otherCount: Int
     let otherKey: String
-    /// Ob der Schalter „Nur Arbeitsdateien“ an ist (PR-44).
+    /// Ob der Office-Filter an ist (PR-44).
     let worksFilesOnly: Bool
     /// Schaltet ihn um.
     var onToggleWorkFiles: () -> Void
@@ -456,7 +456,7 @@ private struct ChartPoint: Identifiable {
 /// Ein klickbarer Legendeneintrag im Button-Look: Farbfeld, optionales Icon,
 /// Name und Anzahl in einer umrandeten „Pille" mit Hover-Highlight und
 /// Zeigehand-Cursor. Einfachklick = Toggle, Doppelklick = „Solo".
-/// Das Plaettchen „Nur Arbeitsdateien" links in der Legende.
+/// Das Plaettchen „Office" links in der Legende.
 ///
 /// Geometrie bewusst identisch zu ``LegendChip`` (gleiche Polsterung, gleicher
 /// Eckenradius, gleiche Mindesthoehe), damit es in einer Reihe mit den
@@ -477,7 +477,7 @@ private struct WorkFilesChip: View {
         HStack(spacing: 5) {
             Image(systemName: isOn ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                 .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-            Text("Nur Arbeitsdateien")
+            Text("Office")
                 .font(.caption)
         }
         .frame(minHeight: 16)
@@ -502,7 +502,7 @@ private struct WorkFilesChip: View {
               ? "Wieder alle Dateien zeigen"
               : "Nur Dokumente, PDF, Tabellen, Präsentationen und Diagramme (bpmn, graph) zeigen")
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Nur Arbeitsdateien")
+        .accessibilityLabel("Office")
         .accessibilityValue(isOn ? "an" : "aus")
         .accessibilityHint("Blendet Quelltext, Archive, Medien, Bilder und Dateien ohne Endung aus")
         .accessibilityAddTraits(.isButton)

@@ -2,7 +2,8 @@ import Foundation
 
 /// Welche Dateien als **Arbeitsdateien** gelten.
 ///
-/// Grundlage des Schalters „Nur Arbeitsdateien" unter dem Diagramm: an heisst,
+/// Grundlage des Filters, der in der Oberflaeche **„Office"** heisst (Plaettchen
+/// links in der Legende): an heisst,
 /// es erscheint nur, was hier erlaubt ist; aus heisst, es aendert sich nichts.
 ///
 /// **⚠️ Diese Liste ist absichtlich eine zweite, obwohl sie

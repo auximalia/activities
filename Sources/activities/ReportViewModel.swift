@@ -203,7 +203,11 @@ final class ReportViewModel {
     static let stalenessLimit: TimeInterval = 3600
     /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
     var hiddenExtensions: Set<String> = [] { didSet { invalidateRows() } }
-    /// Schalter „Nur Arbeitsdateien" unter dem Diagramm (PR-44).
+    /// Der Filter, der in der Oberflaeche **„Office"** heisst (PR-44).
+    ///
+    /// ⚠️ Der Bezeichner sagt „work files", die Beschriftung sagt „Office" –
+    /// gewuenscht aus der Praxis. Wer nach dem einen sucht, findet ueber diesen
+    /// Hinweis das andere.
     ///
     /// **⚠️ Bewusst NICHT gespeichert** – aus demselben Grund wie der
     /// Typ-Filter (siehe ``resetTypeFilters()``): Jede Sitzung beginnt mit
@@ -895,7 +899,7 @@ final class ReportViewModel {
 
     /// Ob ueberhaupt Typen ausgeblendet sind.
     ///
-    /// **⚠️ Der Schalter „Nur Arbeitsdateien" zaehlt dazu.** Er blendet Typen
+    /// **⚠️ Der Office-Filter zaehlt dazu.** Er blendet Typen
     /// aus, veraendert Diagramm und Legende und ist damit ein Typ-Filter – auch
     /// wenn er anders bedient wird. Ihn hier auszunehmen hiesse, die
     /// Statuszeile „kein Filter aktiv" sagen zu lassen, waehrend die Haelfte
@@ -910,8 +914,8 @@ final class ReportViewModel {
     var typeFilterSummary: String {
         let plaettchen = hiddenTypeCount
         switch (showsOnlyWorkFiles, plaettchen) {
-        case (true, 0): return "Nur Arbeitsdateien"
-        case (true, let n): return "Nur Arbeitsdateien · \(n) \(n == 1 ? "Typ" : "Typen") zusätzlich ausgeblendet"
+        case (true, 0): return "Office"
+        case (true, let n): return "Office · \(n) \(n == 1 ? "Typ" : "Typen") zusätzlich ausgeblendet"
         case (false, let n): return "\(n) \(n == 1 ? "Typ" : "Typen") ausgeblendet"
         }
     }
@@ -945,7 +949,7 @@ final class ReportViewModel {
         recomputeDisplayBuckets()
     }
 
-    /// Schaltet „Nur Arbeitsdateien" um.
+    /// Schaltet den Office-Filter um.
     func toggleWorkFilesOnly() { showsOnlyWorkFiles.toggle() }
 
     /// Legende, Diagramm und Ordnerliste nach einer Filteraenderung neu bilden.

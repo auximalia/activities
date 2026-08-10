@@ -195,7 +195,7 @@ struct ActivitiesApp: App {
                 Button(Shortcuts.clearNameFilter.label) { model.clearNameFilter() }
                     .keyboardShortcut(Shortcuts.clearNameFilter)
                     .disabled(!model.hasNameFilter)
-                Toggle("Nur Arbeitsdateien", isOn: Binding(
+                Toggle("Office", isOn: Binding(
                     get: { model.showsOnlyWorkFiles },
                     set: { _ in model.toggleWorkFilesOnly() }
                 ))

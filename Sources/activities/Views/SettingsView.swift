@@ -17,11 +17,15 @@ struct SettingsView: View {
     @State private var showAppPicker = false
     /// Welcher Platz die Wahl aus dem Programme-Dialog entgegennimmt.
     @State private var pickerApply: ((ExternalApp?) -> Void)?
+    /// Ordner-Dialog des Quellen-Reiters.
+    @State private var showSourceImporter = false
 
     var body: some View {
         TabView {
             generalTab
                 .tabItem { Label("Allgemein", systemImage: "gearshape") }
+            sourcesTab
+                .tabItem { Label("Quellen", systemImage: "folder") }
             noiseTab
                 .tabItem { Label("Rauschfilter", systemImage: "eye.slash") }
         }
@@ -138,6 +142,65 @@ struct SettingsView: View {
             Text(title)
             Text(hint)
                 .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Verwaltung des Quellen-Bestands (PR-19).
+    ///
+    /// **⚠️ Auswaehlen steht im Menue, Loeschen hier – und das ist dieselbe
+    /// Regel, nach der die Menueleiste geordnet ist:** Was man mehrmals am Tag
+    /// tut, gehoert an den kurzen Weg; was selten und unwiderruflich ist, hinter
+    /// eine Tuer. Ein Loeschknopf neben jedem Haken waere ein Fehlklick mit
+    /// Datenverlust.
+    private var sourcesTab: some View {
+        Form {
+            Section {
+                if model.sources.known.isEmpty {
+                    Text("Keine Quelle eingetragen.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.sources.known, id: \.self) { url in
+                        HStack {
+                            Toggle(isOn: Binding(
+                                get: { model.sources.isActive(url) },
+                                set: { model.setSourceActive(url, $0) }
+                            )) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(model.sourceLabel(for: url))
+                                    Text(url.path)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                            }
+                            Spacer()
+                            Button("Entfernen") { model.removeSource(url) }
+                                .buttonStyle(.link)
+                                .font(.caption)
+                        }
+                    }
+                }
+                Button("Quelle hinzufügen …") { showSourceImporter = true }
+            } header: {
+                Text("Durchsuchte Ordner")
+            } footer: {
+                Text("Abgewählte Quellen bleiben in der Liste – nur ihre Dateien zählen nicht. "
+                     + "Ein Ordner, der bereits in einer Quelle liegt, wird abgelehnt: Er würde "
+                     + "jede Datei doppelt zählen.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
+        .fileImporter(
+            isPresented: $showSourceImporter,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: true
+        ) { result in
+            if case .success(let urls) = result { model.addSources(urls) }
         }
     }
 

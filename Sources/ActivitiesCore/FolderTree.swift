@@ -64,6 +64,18 @@ public struct FolderNode: Identifiable, Sendable, Hashable {
 
     /// Ob die Beschriftung mehrere Pfadstufen zusammenfasst.
     public var isCompressed: Bool { label.contains("/") }
+
+    /// Derselbe Knoten mit anderer Beschriftung.
+    ///
+    /// Fuer die Unterscheidung gleichnamiger Quellen – der Knoten steht schon,
+    /// nur sein Name reicht nicht.
+    func relabelled(_ newLabel: String) -> FolderNode {
+        FolderNode(
+            folder: folder, label: newLabel, entry: entry,
+            subtreeNewestDate: subtreeNewestDate,
+            subtreeFileCount: subtreeFileCount, children: children
+        )
+    }
 }
 
 /// Eine sichtbare Zeile der Baumdarstellung.
@@ -135,26 +147,132 @@ public struct TreeRow: Identifiable, Sendable {
 public enum FolderTree {
     /// Baut den Baum unterhalb von ``root``.
     ///
-    /// - Parameters:
-    ///   - entries: die flachen Ordner-Eintraege (aus ``FolderAggregator/folderEntries(from:start:end:countOnlyInWindow:isVisible:)``).
-    ///   - root: der Wurzelordner des Suchlaufs.
-    ///   - sort: Reihenfolge **unter Geschwistern**; ueber Ebenen hinweg wird nie sortiert.
-    ///   - dominantType: vorherrschende Endung eines Ordners (nur fuer ``SortField/type``).
-    /// - Returns: die Knoten der obersten Ebene.
-    ///
-    /// Der Wurzelordner selbst bekommt **nur dann** eine Zeile, wenn er eigene
-    /// Treffer beitraegt. Sonst beginnt der Baum bei seinen Kindern – eine Zeile
-    /// „Documents", die nichts aussagt, kostete nur eine Einrueckungsstufe.
-    ///
-    /// Eintraege ausserhalb von ``root`` werden uebergangen; sie haetten im Baum
-    /// keinen Platz und duerfen ihn nicht stillschweigend verbiegen.
+    /// Kurzform von ``build(from:roots:sort:dominantType:)`` fuer **eine**
+    /// Quelle; das Verhalten ist unveraendert.
     public static func build(
         from entries: [FolderEntry],
         root: URL,
         sort: FolderSort = .byNewest,
         dominantType: (URL) -> String? = { _ in nil }
     ) -> [FolderNode] {
-        let rootPath = normalize(root)
+        build(from: entries, roots: [root], sort: sort, dominantType: dominantType)
+    }
+
+    /// Baut den Baum unterhalb **mehrerer** Quellen.
+    ///
+    /// - Parameters:
+    ///   - entries: die flachen Ordner-Eintraege (aus ``FolderAggregator/folderEntries(from:start:end:countOnlyInWindow:isVisible:)``).
+    ///   - roots: die Quellordner des Suchlaufs, ueberschneidungsfrei.
+    ///   - sort: Reihenfolge **unter Geschwistern**; ueber Ebenen hinweg wird nie sortiert.
+    ///   - dominantType: vorherrschende Endung eines Ordners (nur fuer ``SortField/type``).
+    /// - Returns: die Knoten der obersten Ebene, je Quelle hoechstens einer.
+    ///
+    /// **⚠️ Ob die Quellzeile selbst erscheint, haengt an der Zahl der Quellen –
+    /// und das ist keine Inkonsequenz, sondern der Unterschied zwischen
+    /// „ueberfluessig" und „tragend".**
+    /// Bei **einer** Quelle bekommt sie nur dann eine Zeile, wenn sie eigene
+    /// Treffer beitraegt; sonst beginnt der Baum bei ihren Kindern. Eine Zeile
+    /// „Documents", die nichts aussagt, kostete nur eine Einrueckungsstufe.
+    /// Bei **mehreren** Quellen erscheint sie **immer**: Sie ist dann das
+    /// einzige, was sagt, aus welcher Quelle ein Teilbaum stammt. Ohne sie
+    /// staenden die Kinder zweier Quellen ununterscheidbar nebeneinander.
+    ///
+    /// Eintraege ausserhalb aller Quellen werden uebergangen; sie haetten im
+    /// Baum keinen Platz und duerfen ihn nicht stillschweigend verbiegen.
+    ///
+    /// **Die obersten Knoten werden wie jede andere Ebene sortiert.** Eine feste
+    /// Reihenfolge waere eine Ausnahme, die begruendet werden muesste – und „in
+    /// welcher Quelle habe ich zuletzt gearbeitet" ist genau die Frage, die
+    /// dieses Programm stellt.
+    public static func build(
+        from entries: [FolderEntry],
+        roots: [URL],
+        sort: FolderSort = .byNewest,
+        dominantType: (URL) -> String? = { _ in nil }
+    ) -> [FolderNode] {
+        let rootPaths = roots.map(normalize(_:))
+        // Doppelte Quellen wuerden denselben Teilbaum zweimal liefern. Der
+        // Aufrufer verhindert das (``SourceList``); hier steht der Riegel, damit
+        // der Baum auch bei einem Fehler des Aufrufers nichts doppelt zeigt.
+        var seen: Set<String> = []
+        let uniquePaths = rootPaths.filter { seen.insert($0).inserted }
+        guard !uniquePaths.isEmpty else { return [] }
+
+        let showRootRow = uniquePaths.count > 1
+        let labels = distinctLabels(for: uniquePaths)
+
+        var top: [FolderNode] = []
+        for (index, rootPath) in uniquePaths.enumerated() {
+            let rootURL = roots[rootPaths.firstIndex(of: rootPath) ?? index]
+            let built = buildOne(
+                from: entries, rootPath: rootPath, rootURL: rootURL,
+                sort: sort, dominantType: dominantType, keepRootRow: showRootRow
+            )
+            if showRootRow, let node = built.first, built.count == 1,
+               let label = labels[rootPath], label != node.label {
+                top.append(node.relabelled(label))
+            } else {
+                top.append(contentsOf: built)
+            }
+        }
+        return RowSorting.nodes(top, by: sort, dominantType: dominantType)
+    }
+
+    /// Beschriftungen fuer eine Menge von Quellpfaden, die sich **unterscheiden**.
+    ///
+    /// Normalerweise genuegt der Ordnername. Zwei Quellen namens `src` waeren im
+    /// Baum aber nicht auseinanderzuhalten – dann waechst die Beschriftung um so
+    /// viele Elternstufen, wie zur Eindeutigkeit noetig sind, und **nur bei den
+    /// betroffenen**. Alle Beschriftungen pauschal zu verlaengern waere die
+    /// bequemere Loesung und die schlechtere: Sie bestraft den haeufigen Fall
+    /// fuer den seltenen.
+    ///
+    /// Oeffentlich aus demselben Grund wie ``isRootOrBelow(_:root:)``: Ein
+    /// falscher Name faellt in der Anzeige kaum auf und macht doch genau das
+    /// unmoeglich, wofuer er da ist.
+    public static func distinctLabels(for paths: [String]) -> [String: String] {
+        func components(_ path: String) -> [String] {
+            path.split(separator: "/").map(String.init)
+        }
+        func label(_ path: String, depth: Int) -> String {
+            let comps = components(path)
+            guard !comps.isEmpty else { return path }
+            return comps.suffix(max(1, min(depth, comps.count))).joined(separator: "/")
+        }
+
+        var depth: [String: Int] = [:]
+        for path in paths { depth[path] = 1 }
+
+        // Hoechstens so viele Runden, wie der laengste Pfad Stufen hat – damit
+        // die Schleife auch dann endet, wenn zwei Pfade nicht mehr trennbar
+        // sind (etwa `/src` gegen `/a/src`, wo der erste keine Stufe mehr hat).
+        let maxRounds = paths.map { components($0).count }.max() ?? 1
+        for _ in 0..<maxRounds {
+            var byLabel: [String: [String]] = [:]
+            for path in paths { byLabel[label(path, depth: depth[path] ?? 1), default: []].append(path) }
+            var changed = false
+            for (_, group) in byLabel where group.count > 1 {
+                for path in group where (depth[path] ?? 1) < components(path).count {
+                    depth[path] = (depth[path] ?? 1) + 1
+                    changed = true
+                }
+            }
+            if !changed { break }
+        }
+
+        var result: [String: String] = [:]
+        for path in paths { result[path] = label(path, depth: depth[path] ?? 1) }
+        return result
+    }
+
+    private static func buildOne(
+        from entries: [FolderEntry],
+        rootPath: String,
+        rootURL: URL,
+        sort: FolderSort,
+        dominantType: (URL) -> String?,
+        keepRootRow: Bool
+    ) -> [FolderNode] {
 
         // Eigene Treffer je Pfad.
         var entryByPath: [String: FolderEntry] = [:]
@@ -236,6 +354,9 @@ public enum FolderTree {
         }
 
         guard let rootNode = node(at: rootPath, isRoot: true) else { return [] }
+        // Siehe ``build(from:roots:sort:dominantType:)``: Bei mehreren Quellen
+        // traegt die Quellzeile die Zugehoerigkeit und bleibt deshalb stehen.
+        if keepRootRow { return [rootNode] }
         // Ohne eigene Treffer traegt die Wurzelzeile nichts bei.
         return rootNode.hasOwnFiles ? [rootNode] : rootNode.children
     }
@@ -350,6 +471,12 @@ public enum FolderTree {
 
 
     /// Vereinheitlicht einen Ordnerpfad (ohne Schraegstrich am Ende).
+    ///
+    /// Oeffentlich unter eigenem Namen, weil ausserhalb des Kerns dieselbe
+    /// Vergleichsform gebraucht wird – zwei verschiedene Massstaebe fuer „liegt
+    /// dieser Ordner unter jener Quelle" waeren zwei verschiedene Antworten.
+    public static func normalizedPath(_ url: URL) -> String { normalize(url) }
+
     static func normalize(_ url: URL) -> String {
         var path = url.standardizedFileURL.path
         while path.count > 1, path.hasSuffix("/") { path.removeLast() }

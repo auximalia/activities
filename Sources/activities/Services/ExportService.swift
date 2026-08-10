@@ -11,11 +11,11 @@ enum ExportService {
     static func exportHTML(
         _ buckets: [BucketedEntries],
         range: String,
-        root: URL,
+        roots: [URL],
         chartDays: [DayExtensionCount]
     ) {
         save(
-            content: ReportExport.html(buckets, range: range, root: root, chartDays: chartDays),
+            content: ReportExport.html(buckets, range: range, roots: roots, chartDays: chartDays),
             suggestedName: "activities-bericht.html",
             type: .html
         )

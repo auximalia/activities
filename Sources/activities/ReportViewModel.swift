@@ -130,7 +130,12 @@ private struct TimeWindow {
 @Observable
 final class ReportViewModel {
     // Einstellungen (an die Oberflaeche gebunden).
-    var rootURL: URL
+    /// Bekannte Quellordner und die Auswahl daraus (PR-19).
+    ///
+    /// **⚠️ Loest den einen ``rootURL`` ab.** Wo frueher ein Ordner stand, steht
+    /// jetzt ein Bestand mit Auswahl; ``activeSources`` ist die Menge, auf die
+    /// sich Suchlauf, Baum und Statuszeile beziehen.
+    private(set) var sources: SourceList { didSet { invalidateRows() } }
     var days: Int
     var namePattern: String { didSet { invalidateRows() } }
     /// Zeitmodus: false = rollierend (Tage), true = feste Zeitspanne (von–bis).
@@ -198,6 +203,15 @@ final class ReportViewModel {
     static let stalenessLimit: TimeInterval = 3600
     /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
     var hiddenExtensions: Set<String> = [] { didSet { invalidateRows() } }
+    /// Schalter „Nur Arbeitsdateien" unter dem Diagramm (PR-44).
+    ///
+    /// **⚠️ Bewusst NICHT gespeichert** – aus demselben Grund wie der
+    /// Typ-Filter (siehe ``resetTypeFilters()``): Jede Sitzung beginnt mit
+    /// vollstaendiger Anzeige, damit niemand mit einem vergessenen Filter
+    /// weiterarbeitet. Der Hinweis darauf steht in der Kopfzone, und die laesst
+    /// sich einklappen; ein gemerkter Schalter verschwiege dann eines Morgens
+    /// Dateien, ohne dass es irgendwo staende.
+    var showsOnlyWorkFiles = false { didSet { invalidateRows(); recomputeAfterFilterChange() } }
     /// Die haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm), max. ``legendTopCount``.
     var topExtensions: [ExtensionCount] = []
     /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-Endungen (Sammel-Eintrag "Sonstige").
@@ -229,8 +243,6 @@ final class ReportViewModel {
     /// Ob Dateien **ausserhalb** des Zeitraums in der Detailliste erscheinen.
     /// Standard: aus – so bleiben nur die gesuchten Treffer stehen.
     var showOutOfWindowFiles: Bool { didSet { invalidateRows() } }
-    /// Zuletzt genutzte Wurzelordner.
-    var recentFolders: [URL] = []
     /// Zaehler, um die Fokussierung des Filterfeldes anzustossen (Menue ⌘F).
     var filterFocusToken = 0
     /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
@@ -298,11 +310,6 @@ final class ReportViewModel {
     private(set) var excludedPaths: Set<String>
     /// Ob das Dock-Symbol gezeigt wird (aus = nur Menueleiste).
     private(set) var showsDockIcon: Bool
-    /// Verlauf der besuchten Wurzelordner (⌘[ / ⌘]).
-    ///
-    /// Die Logik liegt in ``FolderHistory`` (ActivitiesCore) und ist dort
-    /// geprueft; hier steht nur die Anbindung.
-    private var history = FolderHistory()
     /// Angeheftete Ordner – erscheinen in einem eigenen Abschnitt, unabhaengig
     /// vom Zeitraum („was ist mir wichtig" statt „was war zuletzt").
     private(set) var pinnedFolders: [URL] = []
@@ -312,9 +319,22 @@ final class ReportViewModel {
     private(set) var skippedFolderCount = 0
     /// Rohergebnis des letzten Suchlaufs – **das gesamte gescannte Fenster**.
     /// Grundlage dafuer, eine Verkleinerung des Zeitraums ohne neuen Scan zu bedienen.
+    /// Rohbestand des Suchlaufs, **je Quelle getrennt gehalten**.
+    ///
+    /// **⚠️ Getrennt, damit das Hinzuhaken einer Quelle nicht alles neu liest.**
+    /// Gemessen in Sprint 15: ein Durchgang ueber 500.000 Dateien kostet 10 s.
+    /// Wer eine zweite Quelle anhakt, will sie hinzufuegen – nicht die erste
+    /// erneut lesen. Beim Abwaehlen faellt der Eimer weg, ganz ohne Platte.
+    private var scannedFilesBySource: [URL: [RelevantFile]] = [:]
+    /// Alle Rohdateien am Stueck – abgeleitet, damit die Auswertung eine flache
+    /// Liste sieht und nicht jede Stelle ueber Quellen schleifen muss.
     private var scannedFiles: [RelevantFile] = []
     /// Womit der letzte Suchlauf durchgefuehrt wurde (Wurzel, Muster, Fenster).
-    private var lastScanRoot: URL?
+    /// Die Quellen, deren Rohbestand tatsaechlich im Speicher liegt.
+    ///
+    /// Grundlage der Entscheidung „aus dem Speicher rechnen oder von der Platte
+    /// lesen" – frueher ein einzelner Ordnervergleich (``lastScanRoot``).
+    private var scannedSources: Set<URL> { Set(scannedFilesBySource.keys) }
     private var lastScanPattern: String = ""
     private var lastScanStart: Date = .distantFuture
     private var lastScanEnd: Date = .distantPast
@@ -339,7 +359,7 @@ final class ReportViewModel {
 
     init() {
         let saved = store.load()
-        self.rootURL = saved.rootURL
+        self.sources = saved.sources
         self.days = saved.days
         self.namePattern = saved.namePattern
         self.autoRefresh = saved.autoRefresh
@@ -352,8 +372,6 @@ final class ReportViewModel {
         self.excludedPaths = saved.excludedPaths
         self.pinnedFolders = saved.pinnedFolders
         self.showsDockIcon = saved.showsDockIcon
-        self.history = FolderHistory(visiting: saved.rootURL)
-        self.recentFolders = store.loadRecentFolders()
         self.useDateRange = saved.useDateRange
         self.rangeStart = saved.rangeStart
         self.rangeEnd = saved.rangeEnd
@@ -889,8 +907,23 @@ final class ReportViewModel {
         recomputeDisplayBuckets()
     }
 
+    /// Schaltet „Nur Arbeitsdateien" um.
+    func toggleWorkFilesOnly() { showsOnlyWorkFiles.toggle() }
+
+    /// Legende, Diagramm und Ordnerliste nach einer Filteraenderung neu bilden.
+    private func recomputeAfterFilterChange() {
+        guard !relevantFiles.isEmpty else { return }
+        recomputeLegend()
+        recomputeChart()
+        recomputeDisplayBuckets()
+    }
+
     /// True, wenn eine Datei ueber ihre Endung (oder als "Sonstige") ausgeblendet ist.
     func isHidden(_ url: URL) -> Bool {
+        // Der Schalter wirkt **vor** dem Typ-Filter und laesst sich nicht durch
+        // einen Klick auf die Legende aushebeln: Er sagt, was ueberhaupt
+        // Material ist, nicht welcher Chip gerade aus ist.
+        if showsOnlyWorkFiles, !WorkFileFilter.isWorkFile(url) { return true }
         let ext = url.pathExtension.lowercased()
         if hiddenExtensions.contains(ext) { return true }
         if hiddenExtensions.contains(Self.otherKey) && !topExtensionSet.contains(ext) { return true }
@@ -900,7 +933,16 @@ final class ReportViewModel {
     /// Legende (Top-Endungen + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
     private func recomputeLegend() {
         var extensionCounts: [String: Int] = [:]
-        for file in relevantFiles {
+        // **⚠️ Ausnahme von der eigenen Regel „stabil ueber Filterwechsel".**
+        // Sonst blieben bei aktivem Schalter Chips fuer `swift` oder `py`
+        // stehen, die nichts mehr bewirken. Bei einem Chip-Klick ist die
+        // Stabilitaet richtig (die Chips sollen nicht unter dem Mauszeiger
+        // wegspringen); der Schalter ist kein Chip, sondern eine Ansage
+        // darueber, was ueberhaupt zaehlt.
+        let quelle = showsOnlyWorkFiles
+            ? relevantFiles.filter { WorkFileFilter.isWorkFile($0.url) }
+            : relevantFiles
+        for file in quelle {
             let ext = file.url.pathExtension.lowercased()
             if !ext.isEmpty { extensionCounts[ext, default: 0] += 1 }
         }
@@ -912,7 +954,7 @@ final class ReportViewModel {
         // Farbzuordnung folgt der Legende: eindeutig, stabil und unabhaengig
         // von der Haeufigkeit (siehe TypePalette.assignment).
         typeColorAssignment = TypePalette.assignment(for: topExtensions.map(\.ext))
-        otherCount = relevantFiles.reduce(0) {
+        otherCount = quelle.reduce(0) {
             topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
         }
     }
@@ -985,7 +1027,7 @@ final class ReportViewModel {
         // eine Markierung am Knoten, kein eigener Abschnitt (Backlog PR-27).
         displayTree = FolderTree.build(
             from: entries,
-            root: rootURL,
+            roots: activeSources,
             sort: sort,
             dominantType: { [weak self] in self?.dominantExtension(of: $0) }
         )
@@ -1625,7 +1667,7 @@ final class ReportViewModel {
     /// naechsten Speichern weg. Ohne das wuechse der Eintrag mit jedem je
     /// geoeffneten Ordner und niemand raeumte je auf.
     func persistExpansion() {
-        store.saveExpandedFolders(expandedFolders, for: rootURL, knownRoots: recentFolders)
+        store.saveExpandedFolders(expandedFolders, forRoots: activeSources, knownRoots: sources.known)
     }
 
     func setHeaderExpanded(_ expanded: Bool) {
@@ -1641,7 +1683,7 @@ final class ReportViewModel {
 
     func updateWatcher() {
         if autoRefresh {
-            watcher.start(url: rootURL) { [weak self] in
+            watcher.start(urls: activeSources) { [weak self] in
                 Task { @MainActor in self?.scheduleLiveRefresh() }
             }
         } else {
@@ -1667,43 +1709,146 @@ final class ReportViewModel {
         rescan()
     }
 
-    /// Neuen Wurzelordner ansteuern – **mit** Eintrag in den Verlauf.
-    func setRoot(_ url: URL) {
-        history.visit(url)
-        applyRoot(url)
+    // MARK: - Quellen (PR-19)
+
+    /// Die ausgewaehlten Quellen, in der Reihenfolge des Bestands.
+    var activeSources: [URL] { sources.activeInOrder }
+
+    /// Beschriftung einer Quelle – unterscheidbar, wenn noetig.
+    ///
+    /// Zwei Quellen namens `src` waeren sonst weder im Menue noch im Baum
+    /// auseinanderzuhalten. Es waechst nur, was wachsen muss – siehe
+    /// ``FolderTree/distinctLabels(for:)``.
+    func sourceLabel(for url: URL) -> String {
+        let pfade = sources.known.map(FolderTree.normalizedPath)
+        return FolderTree.distinctLabels(for: pfade)[FolderTree.normalizedPath(url)]
+            ?? url.lastPathComponent
     }
 
-    /// Wurzelordner wechseln, **ohne** den Verlauf zu veraendern.
+    /// Kurzform der Auswahl fuer Werkzeugleiste und Menue.
     ///
-    /// ⚠️ Getrennt von ``setRoot(_:)``, weil ein Verlaufssprung sonst als
-    /// neuer Besuch zaehlte: Ein „Zurueck" wuerde den Vorwaertszweig
-    /// abschneiden, den es gerade erst betreten hat, und man saesse fest.
-    private func applyRoot(_ url: URL) {
-        rootURL = url
-        store.saveRoot(url)
-        recentFolders = store.addRecentFolder(url)
+    /// **⚠️ Bei mehreren Quellen die Zahl statt der Namen.** Drei Ordnernamen
+    /// nebeneinander sprengen die Leiste, und abgeschnitten sagen sie weniger
+    /// als „3 Quellen". Die Namen stehen im Menue und im Tooltip.
+    var sourcesLabel: String {
+        let aktiv = activeSources
+        switch aktiv.count {
+        case 0: return "Keine Quelle"
+        case 1: return sourceLabel(for: aktiv[0])
+        default: return "\(aktiv.count) Quellen"
+        }
+    }
+
+    /// Text der Statuszeile: ein Pfad, sonst die Zahl mit den Namen.
+    var statusSourceText: String {
+        let aktiv = activeSources
+        switch aktiv.count {
+        case 0: return "Keine Quelle ausgewählt"
+        case 1: return aktiv[0].path
+        default: return "\(aktiv.count) Quellen: " + aktiv.map { sourceLabel(for: $0) }.joined(separator: " · ")
+        }
+    }
+
+    /// Alle ausgewaehlten Pfade, einer je Zeile – fuer Tooltip und Statuszeile.
+    var sourcesTooltip: String {
+        activeSources.isEmpty ? "keine" : activeSources.map(\.path).joined(separator: "\n")
+    }
+
+    /// Nimmt mehrere Quellen auf und meldet, was abgelehnt wurde.
+    ///
+    /// **⚠️ Teilerfolg ist der Normalfall und kein Fehler.** Wer drei Ordner
+    /// waehlt, von denen einer in einem anderen liegt, soll die zwei bekommen –
+    /// und erfahren, warum der dritte fehlt.
+    func addSources(_ urls: [URL]) {
+        var abgelehnt: [String] = []
+        for url in urls where url.hasDirectoryPath {
+            guard let grund = sources.rejectionReason(forAdding: url) else {
+                sources.add(url)
+                continue
+            }
+            abgelehnt.append(Self.rejectionText(url, grund))
+        }
+        applySourceChange()
+        errorMessage = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: "\n")
+    }
+
+    /// Der Grund einer Ablehnung im Klartext.
+    ///
+    /// ⚠️ Nennt **beide** beteiligten Ordner. „Geht nicht" liesse den Anwender
+    /// raten, ob er sich vertan hat oder das Programm kaputt ist.
+    private static func rejectionText(_ url: URL, _ grund: SourceList.RejectionReason) -> String {
+        let name = url.lastPathComponent
+        switch grund {
+        case .alreadyKnown:
+            return "\u{201E}\(name)\u{201C} ist bereits als Quelle eingetragen."
+        case .containedIn(let aeusserer):
+            return "\u{201E}\(name)\u{201C} liegt in \u{201E}\(aeusserer.lastPathComponent)\u{201C} und wuerde doppelt gezaehlt."
+        case .contains(let innerer):
+            return "\u{201E}\(name)\u{201C} enthaelt die Quelle \u{201E}\(innerer.lastPathComponent)\u{201C} und wuerde doppelt gezaehlt."
+        }
+    }
+
+    /// Nimmt eine Quelle auf und waehlt sie aus.
+    ///
+    /// - Returns: der Grund, falls sie abgelehnt wurde (Ueberlappung, schon
+    ///   bekannt); sonst ``nil``.
+    @discardableResult
+    func addSource(_ url: URL) -> SourceList.RejectionReason? {
+        if let grund = sources.add(url) { return grund }
+        applySourceChange()
+        return nil
+    }
+
+    /// Entfernt eine Quelle aus dem Bestand.
+    func removeSource(_ url: URL) {
+        sources.remove(url)
+        store.forgetExpansion(of: url)
+        applySourceChange()
+    }
+
+    /// Waehlt eine bekannte Quelle aus oder ab.
+    func setSourceActive(_ url: URL, _ on: Bool) {
+        guard sources.isActive(url) != on else { return }
+        sources.setActive(url, on)
+        applySourceChange()
+    }
+
+    /// Uebernimmt eine geaenderte Auswahl – und liest **nur das Neue**.
+    ///
+    /// **⚠️ Der ganze Zweck der quellenweisen Ablage.** Ein voller Durchgang
+    /// kostet bei 500.000 Dateien 10 s (Sprint 15). Wer eine Quelle anhakt,
+    /// bekommt einen Suchlauf ueber **diese**; wer eine abhakt, bekommt gar
+    /// keinen – ihr Eimer faellt einfach weg.
+    private func applySourceChange() {
+        store.saveSources(sources)
         updateWatcher()
-        rescan()
+
+        let aktiv = Set(activeSources)
+        for entfallen in scannedSources.subtracting(aktiv) {
+            scannedFilesBySource[entfallen] = nil
+        }
+        let neu = aktiv.subtracting(scannedSources)
+        guard neu.isEmpty else {
+            scanSources(Array(neu), replacingAll: false, preservingState: true)
+            return
+        }
+        guard !aktiv.isEmpty else {
+            resetResults()
+            return
+        }
+        // Nichts Neues von der Platte noetig – aus dem Speicher rechnen.
+        rebuildScannedFiles()
+        relevantFiles = filteredFromScan()
+        scannedFileCount = relevantFiles.count
+        reconcileState(preservingState: true, reusingDetails: true)
     }
 
-    // MARK: - Ordner-Verlauf (PR-14)
-
-    var canGoBackFolder: Bool { history.canGoBack }
-    var canGoForwardFolder: Bool { history.canGoForward }
-
-    /// Zum vorher besuchten Wurzelordner.
+    /// Fasst die Eimer je Quelle zu einer flachen Liste zusammen.
     ///
-    /// Der Aufklappzustand kommt von selbst mit: ``finishDetailLoad`` fragt am
-    /// Ende jedes Ladelaufs den Stand **dieses** Ordners ab.
-    func goBackFolder() {
-        guard let url = history.goBack() else { return }
-        applyRoot(url)
-    }
-
-    /// Zum naechsten Ordner im Verlauf (nach einem Zurueck).
-    func goForwardFolder() {
-        guard let url = history.goForward() else { return }
-        applyRoot(url)
+    /// Reihenfolge folgt dem Bestand, damit zwei gleiche Auswahlen dieselbe
+    /// Liste ergeben – eine `Dictionary`-Iteration ist je Programmlauf zufaellig.
+    private func rebuildScannedFiles() {
+        scannedFiles = activeSources.flatMap { scannedFilesBySource[$0] ?? [] }
     }
 
     /// Anzahl Kalendertage des aktuellen Zeitfensters.
@@ -1724,7 +1869,7 @@ final class ReportViewModel {
     /// Alles andere (Tage, Zeitspanne, Namensfilter, Typ-Filter) arbeitet auf den
     /// bereits eingelesenen Daten.
     func applyWindowChange() {
-        guard lastScanRoot == rootURL, !scannedFiles.isEmpty else {
+        guard scannedSources == Set(activeSources), !scannedFiles.isEmpty else {
             rescan()
             return
         }
@@ -1757,11 +1902,15 @@ final class ReportViewModel {
     /// der Statuszeile steht – das ist Rauschen. Der vollstaendige Pfad bleibt im
     /// Tooltip und in der Zwischenablage erhalten.
     func relativePath(of folder: URL) -> String {
-        let root = rootURL.standardizedFileURL.path
         let path = folder.standardizedFileURL.path
-        guard path != root else { return "." }
-        guard path.hasPrefix(root + "/") else { return path }
-        return String(path.dropFirst(root.count + 1))
+        // Die **passende** Quelle, nicht die erste: Bei mehreren Quellen ist der
+        // gemeinsame Praefix nur fuer eine von ihnen der richtige.
+        for quelle in activeSources {
+            let root = quelle.standardizedFileURL.path
+            if path == root { return "." }
+            if path.hasPrefix(root + "/") { return String(path.dropFirst(root.count + 1)) }
+        }
+        return path
     }
 
     /// Warum die Ergebnisliste leer ist. Grundlage fuer eine Meldung, die die
@@ -1773,6 +1922,14 @@ final class ReportViewModel {
         case timeWindow(total: Int)
         /// Der Ordner enthaelt ueberhaupt keine auswertbaren Dateien.
         case emptyFolder
+        /// **Keine Quelle ausgewaehlt.**
+        ///
+        /// ⚠️ Eigener Fall, obwohl das Ergebnis dasselbe leere Fenster ist:
+        /// Ohne ihn behauptete die App „In diesem Ordner liegen keine
+        /// auswertbaren Dateien" – eine Aussage ueber einen Ordner, den es
+        /// gerade nicht gibt. Die Meldung soll die **tatsaechliche** Ursache
+        /// nennen, und hier ist sie mit einem Haken zu beheben.
+        case noSource(known: Int)
     }
 
     /// Ermittelt die Ursache einer leeren Liste.
@@ -1781,6 +1938,7 @@ final class ReportViewModel {
     /// waeren es **ohne** Filter?" kostet nur einen Durchlauf und muss nicht
     /// mehr durch einen zweiten Suchlauf erkauft werden.
     var emptyReason: EmptyReason {
+        guard !activeSources.isEmpty else { return .noSource(known: sources.known.count) }
         guard !scannedFiles.isEmpty else { return .emptyFolder }
         let trimmed = namePattern.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
@@ -1844,7 +2002,7 @@ final class ReportViewModel {
     ///
     /// Das Ergebnis ersetzt Rohbestand **und** Detaildateien vollstaendig; die
     /// Tabelle wird also aus frisch gelesenen Zeitstempeln neu aufgebaut.
-    func rescan(preservingState: Bool = false, confirmedLarge: Bool = false) {
+    func rescan(preservingState: Bool = false) {
         scanTask?.cancel()
         detailLoadTask?.cancel()
         // **Haengende Filtereingabe verwerfen.** Eine noch laufende Entprellung
@@ -1871,33 +2029,61 @@ final class ReportViewModel {
         }
 
 
-        // Der Suchlauf erfasst den Ordner **vollstaendig** – ohne Zeitfenster und
-        // ohne Namensmuster. Beides wird anschliessend im Speicher angewandt.
-        // Der Baumdurchlauf kostet dadurch nicht mehr Zeit (er lief schon immer
-        // durch alles; das Fenster entschied nur, was behalten wird) – es waechst
-        // nur der Speicherbedarf (~20 MB bei ~83.000 Dateien).
-        let settings = ScanSettings(
-            rootURL: rootURL,
-            start: .distantPast,
-            end: .distantFuture,
-            namePattern: ""
-        )
         store.save(days: days, namePattern: namePattern)
+        scanSources(activeSources, replacingAll: true, preservingState: preservingState)
+    }
+
+    /// Liest die genannten Quellen von der Platte.
+    ///
+    /// - Parameters:
+    ///   - list: die zu lesenden Quellen.
+    ///   - replacingAll: ``true`` verwirft den bisherigen Rohbestand (volles
+    ///     Neueinlesen), ``false`` ergaenzt ihn nur um ``list``.
+    ///
+    /// **Der Suchlauf erfasst jede Quelle vollstaendig** – ohne Zeitfenster und
+    /// ohne Namensmuster. Beides wird anschliessend im Speicher angewandt. Der
+    /// Baumdurchlauf kostet dadurch nicht mehr Zeit (er lief schon immer durch
+    /// alles; das Fenster entschied nur, was behalten wird) – es waechst nur der
+    /// Speicherbedarf (~20 MB bei ~83.000 Dateien).
+    ///
+    /// **⚠️ Die Quellen werden nacheinander gelesen, nicht nebenlaeufig.** Der
+    /// Engpass ist die Platte, nicht der Prozessor; parallele Durchlaeufe ueber
+    /// dasselbe Dateisystem verteilen dieselbe Wartezeit nur anders. Ausserdem
+    /// bliebe der Fortschrittszaehler ohne Bedeutung.
+    private func scanSources(_ list: [URL], replacingAll: Bool, preservingState: Bool) {
+        guard !list.isEmpty else {
+            if replacingAll { resetResults() }
+            return
+        }
         errorMessage = nil
         isScanning = true
         scanProgress = 0
         let started = Date()
-
         let scanner = self.scanner
+        let bereitsGelesen = replacingAll ? 0 : scannedFiles.count
+
         scanTask = Task { [weak self] in
-            let result = await Self.runScan(scanner: scanner, settings: settings) { count in
-                Task { @MainActor in self?.scanProgress = count }
+            var ergebnis: [URL: [RelevantFile]] = [:]
+            var uebersprungen = 0
+            var bisher = 0
+            for quelle in list {
+                let settings = ScanSettings(
+                    rootURL: quelle, start: .distantPast, end: .distantFuture, namePattern: ""
+                )
+                let vorher = bisher
+                let result = await Self.runScan(scanner: scanner, settings: settings) { count in
+                    Task { @MainActor in self?.scanProgress = bereitsGelesen + vorher + count }
+                }
+                if Task.isCancelled { return }
+                ergebnis[quelle] = result.files
+                uebersprungen += result.skippedFolders
+                bisher += result.files.count
             }
-            if Task.isCancelled { return }
             guard let self else { return }
-            self.scannedFiles = result.files
-            self.skippedFolderCount = result.skippedFolders
-            self.lastScanRoot = settings.rootURL
+            if replacingAll { self.scannedFilesBySource = [:] }
+            for (quelle, dateien) in ergebnis { self.scannedFilesBySource[quelle] = dateien }
+            self.rebuildScannedFiles()
+            self.skippedFolderCount = replacingAll ? uebersprungen : self.skippedFolderCount + uebersprungen
             self.relevantFiles = self.filteredFromScan()
             self.scannedFileCount = self.relevantFiles.count
             let finished = Date()
@@ -1906,13 +2092,13 @@ final class ReportViewModel {
             // keinen frischen Stand behaupten.
             self.lastScanAt = finished
             self.isScanning = false
-            self.reconcileState(preservingState: preservingState)
+            self.reconcileState(preservingState: preservingState, reusingDetails: !replacingAll)
         }
     }
 
     /// Legende/Diagramm (sync) aus ``relevantFiles`` ableiten; die Ordnerliste
     /// folgt nach dem Laden der Detaildateien (dort steckt die Ordner-Datumslogik).
-    private func reconcileState(preservingState: Bool) {
+    private func reconcileState(preservingState: Bool, reusingDetails: Bool = false) {
         recomputeLegend()
         recomputeChart()
         preserveOnNextLoad = preservingState
@@ -1920,19 +2106,42 @@ final class ReportViewModel {
             cursor = nil
             chartFocus = nil
         }
-        loadDetails(for: Set(relevantFiles.map(\.folder)))
+        loadDetails(for: Set(relevantFiles.map(\.folder)), reusingCache: reusingDetails)
     }
 
     /// Laedt die Detaildateien aller relevanten Ordner im Hintergrund und tauscht
     /// sie in einem Schwung aus; danach wird die Ordnerliste daraus berechnet.
-    private func loadDetails(for folders: Set<URL>) {
+    /// - Parameter reusingCache: Ordner, deren Detailliste schon im Speicher
+    ///   liegt, nicht erneut von der Platte lesen.
+    ///
+    ///   **⚠️ Nur beim Wechsel der Quellen-Auswahl erlaubt, nie beim
+    ///   Neueinlesen.** „Ordner neu einlesen" und die automatische
+    ///   Aktualisierung haben genau den Zweck, veraltete Staende zu ersetzen –
+    ///   ein Zwischenspeicher waere dort die Verweigerung der Aufgabe. Beim
+    ///   Anhaken einer Quelle hat sich an den uebrigen Ordnern dagegen nichts
+    ///   geaendert.
+    ///
+    ///   Ohne das waere die quellenweise Ablage die halbe Miete: Der
+    ///   Hauptsuchlauf laese nur die neue Quelle, dieser **zweite** Durchgang
+    ///   aber weiterhin jeden Ordner aller Quellen.
+    private func loadDetails(for folders: Set<URL>, reusingCache: Bool = false) {
         detailLoadTask?.cancel()
         isLoadingDetails = true
-        detailTotal = folders.count
-        detailDone = 0
 
         if folders.isEmpty {
             filesByFolder = [:]
+            detailTotal = 0
+            detailDone = 0
+            finishDetailLoad()
+            return
+        }
+
+        let bekannt = reusingCache ? filesByFolder.filter { folders.contains($0.key) } : [:]
+        let offen = folders.subtracting(bekannt.keys)
+        detailTotal = offen.count
+        detailDone = 0
+        if offen.isEmpty {
+            filesByFolder = bekannt
             finishDetailLoad()
             return
         }
@@ -1942,14 +2151,14 @@ final class ReportViewModel {
         // angewandt (``isVisibleDetail``). Sonst muessten die Ordner bei jeder
         // Filteraenderung erneut von der Platte gelesen werden.
         let filter = NameFilter("")
-        let list = Array(folders)
+        let list = Array(offen)
         detailLoadTask = Task { [weak self] in
             let loaded = await Self.listAll(scanner: scanner, filter: filter, folders: list) { done in
                 Task { @MainActor in self?.detailDone = done }
             }
             if Task.isCancelled { return }
             guard let self else { return }
-            self.filesByFolder = loaded
+            self.filesByFolder = bekannt.merging(loaded) { _, neu in neu }
             self.finishDetailLoad()
         }
     }
@@ -1985,24 +2194,35 @@ final class ReportViewModel {
             if case .folder(let url) = cursor, !displayed.contains(url) {
                 cursor = nil
             }
-        } else if let saved = store.expandedFolders(for: rootURL) {
-            // Zustand **dieser Wurzel** wiederherstellen – aber nur fuer Ordner,
-            // die es noch gibt.
+        } else {
+            // Zustand **je Quelle** wiederherstellen – aber nur fuer Ordner, die
+            // es noch gibt.
             //
             // ⚠️ Hier stand bis v1.19.27 ein Einweg-Mechanismus: Ein Feld
             // `restoredExpansion` wurde im `init` **einmal** befuellt und nach
             // dem ersten Laden geleert. Ab dem zweiten Wurzelwechsel griff
-            // damit zwingend der `else`-Zweig – „alles aufklappen". Ein
-            // „Zurueck", das den Zustand nicht mitbringt, ist kein Zurueck.
+            // damit zwingend „alles aufklappen". Jetzt wird bei **jedem** Laden
+            // gefragt; erster Start und Quellenwechsel sind derselbe Fall, und
+            // keiner davon kann vergessen werden.
             //
-            // Jetzt wird bei **jedem** Laden gefragt, und zwar nach dem
-            // aktuellen Wurzelordner. Erster Start, Ordnerwechsel und
-            // Verlaufssprung sind damit derselbe Fall – und keiner davon kann
-            // vergessen werden.
-            expandedFolders = withAncestors(Set(saved).intersection(displayed))
-        } else {
-            // Von diesem Ordner ist nichts bekannt: wie gewohnt alles auf.
-            expandedFolders = displayed
+            // **⚠️ `nil` und `[]` gelten je Quelle getrennt.** Wer eine Quelle
+            // neu anhakt, soll sie aufgeklappt sehen (unbekannt = `nil`), ohne
+            // dass die daneben stehende, ausdruecklich zugeklappte Quelle (`[]`)
+            // mit aufgeht. Eine gemeinsame Behandlung waere genau der Verlust,
+            // den PR-14 fuer den Einzelfall behoben hat.
+            var wiederhergestellt: Set<URL> = []
+            for quelle in activeSources {
+                let quellPfad = FolderTree.normalizedPath(quelle)
+                let darunter = displayed.filter {
+                    FolderTree.isRootOrBelow(FolderTree.normalizedPath($0), root: quellPfad)
+                }
+                if let saved = store.expandedFolders(for: quelle) {
+                    wiederhergestellt.formUnion(Set(saved).intersection(darunter))
+                } else {
+                    wiederhergestellt.formUnion(darunter)
+                }
+            }
+            expandedFolders = withAncestors(wiederhergestellt)
         }
         if let focus = chartFocus { applyChartFocus(for: focus.folder) }
     }
@@ -2033,7 +2253,7 @@ final class ReportViewModel {
         chartDays = []
         relevantFiles = []
         scannedFiles = []
-        lastScanRoot = nil
+        scannedFilesBySource = [:]
         lastScanAt = nil
         topExtensions = []
         topExtensionSet = []

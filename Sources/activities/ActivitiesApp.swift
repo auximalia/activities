@@ -195,6 +195,10 @@ struct ActivitiesApp: App {
                 Button(Shortcuts.clearNameFilter.label) { model.clearNameFilter() }
                     .keyboardShortcut(Shortcuts.clearNameFilter)
                     .disabled(!model.hasNameFilter)
+                Toggle("Nur Arbeitsdateien", isOn: Binding(
+                    get: { model.showsOnlyWorkFiles },
+                    set: { _ in model.toggleWorkFilesOnly() }
+                ))
                 Button(Shortcuts.resetTypeFilter.label) { model.resetTypeFilters() }
                     .keyboardShortcut(Shortcuts.resetTypeFilter)
                     .disabled(!model.hasTypeFilter)
@@ -215,7 +219,7 @@ struct ActivitiesApp: App {
                     ExportService.exportHTML(
                         model.displayBuckets,
                         range: model.rangeLabel,
-                        root: model.rootURL,
+                        roots: model.activeSources,
                         chartDays: model.chartDays
                     )
                 }
@@ -277,19 +281,15 @@ struct ActivitiesApp: App {
             CommandMenu("Ordner") {
                 Button(Shortcuts.chooseFolder.label + " …") { model.folderPickerToken += 1 }
                     .keyboardShortcut(Shortcuts.chooseFolder)
-                Menu("Zuletzt geöffnet") {
-                    ForEach(model.recentFolders, id: \.self) { url in
-                        Button(url.lastPathComponent) { model.setRoot(url) }
+                Menu("Quellen") {
+                    ForEach(model.sources.known, id: \.self) { url in
+                        Toggle(model.sourceLabel(for: url), isOn: Binding(
+                            get: { model.sources.isActive(url) },
+                            set: { model.setSourceActive(url, $0) }
+                        ))
                     }
                 }
-                .disabled(model.recentFolders.isEmpty)
-                Divider()
-                Button(Shortcuts.back.label) { model.goBackFolder() }
-                    .keyboardShortcut(Shortcuts.back)
-                    .disabled(!model.canGoBackFolder)
-                Button(Shortcuts.forward.label) { model.goForwardFolder() }
-                    .keyboardShortcut(Shortcuts.forward)
-                    .disabled(!model.canGoForwardFolder)
+                .disabled(model.sources.known.isEmpty)
                 Divider()
                 Button(Shortcuts.rescan.label) { model.rescan() }
                     .keyboardShortcut(Shortcuts.rescan)

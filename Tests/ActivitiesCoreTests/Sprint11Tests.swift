@@ -1,60 +1,6 @@
 import XCTest
 @testable import ActivitiesCore
 
-/// Der Verlauf besuchter Wurzelordner (PR-14a).
-final class FolderHistoryTests: XCTestCase {
-    private func url(_ p: String) -> URL { URL(fileURLWithPath: p, isDirectory: true) }
-
-    func test_leerer_verlauf_geht_nirgendwohin() {
-        var h = FolderHistory()
-        XCTAssertNil(h.current)
-        XCTAssertFalse(h.canGoBack)
-        XCTAssertFalse(h.canGoForward)
-        XCTAssertNil(h.goBack())
-        XCTAssertNil(h.goForward())
-    }
-
-    func test_vor_und_zurueck() {
-        var h = FolderHistory()
-        h.visit(url("/r/a")); h.visit(url("/r/b")); h.visit(url("/r/c"))
-        XCTAssertEqual(h.current, url("/r/c"))
-        XCTAssertEqual(h.goBack(), url("/r/b"))
-        XCTAssertEqual(h.goBack(), url("/r/a"))
-        XCTAssertFalse(h.canGoBack)
-        XCTAssertEqual(h.goForward(), url("/r/b"))
-    }
-
-    /// ⚠️ Der Punkt, an dem Verlaufsstapel üblicherweise falsch sind: Von einer
-    /// zurückliegenden Position aus ein neues Ziel ansteuern muss den
-    /// Vorwärtszweig verwerfen.
-    func test_neues_ziel_schneidet_den_vorwaertszweig_ab() {
-        var h = FolderHistory()
-        h.visit(url("/r/a")); h.visit(url("/r/b")); h.visit(url("/r/c"))
-        _ = h.goBack()
-        _ = h.goBack()
-        h.visit(url("/r/d"))
-        XCTAssertEqual(h.entries, [url("/r/a"), url("/r/d")])
-        XCTAssertFalse(h.canGoForward)
-    }
-
-    /// Sonst füllte ein wiederholtes ⌘R den Stapel mit Dubletten.
-    func test_wiederholter_besuch_erzeugt_keine_dublette() {
-        var h = FolderHistory()
-        h.visit(url("/r/a")); h.visit(url("/r/a"))
-        XCTAssertEqual(h.entries.count, 1)
-    }
-
-    /// Gekappt wird am **alten** Ende – der jüngste Besuch ist der, zu dem man
-    /// zurückkehrt.
-    func test_obergrenze_kappt_die_aeltesten() {
-        var h = FolderHistory()
-        for i in 1...(FolderHistory.maxEntries + 3) { h.visit(url("/r/\(i)")) }
-        XCTAssertEqual(h.entries.count, FolderHistory.maxEntries)
-        XCTAssertEqual(h.current, url("/r/\(FolderHistory.maxEntries + 3)"))
-        XCTAssertFalse(h.canGoForward)
-    }
-}
-
 /// Aufklappzustand je Wurzelordner (PR-14b).
 final class ExpansionStateTests: XCTestCase {
     private let projekte = "/r/Projekte"

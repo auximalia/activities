@@ -26,11 +26,15 @@ struct RootView: View {
             Divider()
             StatusBarView(model: model)
         }
-        // Ordner aufs Fenster ziehen = neuer Wurzelordner. Ziel ist bewusst das
+        // Ordner aufs Fenster ziehen = Quelle hinzufuegen. Ziel ist bewusst das
         // GANZE Fenster, nicht nur die Liste – beim Ziehen zielt man nicht genau.
+        //
+        // ⚠️ Seit PR-19 **hinzufuegen statt ersetzen**: Quellen loesen einander
+        // nicht mehr ab. Wer ersetzen will, hakt die alte ab.
         .dropDestination(for: URL.self) { urls, _ in
-            guard let folder = urls.first(where: \.hasDirectoryPath) else { return false }
-            model.setRoot(folder)
+            let ordner = urls.filter(\.hasDirectoryPath)
+            guard !ordner.isEmpty else { return false }
+            model.addSources(ordner)
             return true
         } isTargeted: { targeted in
             isDropTargeted = targeted
@@ -141,6 +145,17 @@ struct RootView: View {
                 title: "Keine Dateien gefunden",
                 message: "In diesem Ordner liegen keine auswertbaren Dateien. Wähle über das Ordner-Menü einen anderen Ordner."
             )
+        case let .noSource(known):
+            EmptyStateView(
+                systemImage: "folder.badge.questionmark",
+                title: "Keine Quelle ausgewählt",
+                message: known == 0
+                    ? "Es ist noch kein Ordner eingetragen. Füge über das Ordner-Menü eine Quelle hinzu."
+                    : "Es sind \(known) Ordner bekannt, aber keiner ist angehakt. "
+                      + "Wähle im Ordner-Menü mindestens eine Quelle aus.",
+                actionTitle: "Quelle hinzufügen …",
+                action: { model.folderPickerToken += 1 }
+            )
         }
     }
 
@@ -151,7 +166,7 @@ struct RootView: View {
         } else if model.isScanning && !model.hasScanResults {
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Durchsuche \(model.rootURL.lastPathComponent) … \(model.scanProgress) Dateien")
+                Text("Durchsuche \(model.sourcesLabel) … \(model.scanProgress) Dateien")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Button("Abbrechen") { model.cancelScan() }
@@ -296,10 +311,13 @@ struct StatusBarView: View {
                 Label("Auto", systemImage: "antenna.radiowaves.left.and.right")
                     .foregroundStyle(.secondary)
             }
-            Text(model.rootURL.path)
+            // Bei mehreren Quellen der gemeinsame Kurztext; die vollen Pfade
+            // stehen im Tooltip, sonst waere die Statuszeile drei Zeilen hoch.
+            Text(model.statusSourceText)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .help(model.sourcesTooltip)
 
             // Versionsnummer gehoert als **Statusinformation** hierher (nicht in
             // die Arbeitsflaeche): Sie wird bei Rueckfragen und Fehlermeldungen

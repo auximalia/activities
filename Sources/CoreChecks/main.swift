@@ -711,6 +711,138 @@ do {
     }
 }
 
+// MARK: - FolderTree mit mehreren Quellen (Sprint 16)
+do {
+    let a = URL(fileURLWithPath: "/w/alpha", isDirectory: true)
+    let b = URL(fileURLWithPath: "/w/beta", isDirectory: true)
+    func eintrag(_ url: URL, _ tag: Int, _ anzahl: Int = 1) -> FolderEntry {
+        FolderEntry(folder: url, newestDate: date(2026, 8, tag), fileCount: anzahl)
+    }
+    let eintraege = [
+        eintrag(a.appendingPathComponent("x"), 1),
+        eintrag(b.appendingPathComponent("y"), 3),
+    ]
+
+    // Eine Quelle ohne eigene Treffer verschwindet - wie bisher.
+    let einzeln = FolderTree.build(from: eintraege, root: a)
+    expectEqual(einzeln.count, 1, "eine Quelle: Wurzelzeile faellt weg")
+    expectEqual(einzeln.first?.label, "x", "eine Quelle: Kind steht oben")
+
+    // ⚠️ Bei mehreren Quellen bleibt sie stehen - sonst waere nicht erkennbar,
+    // aus welcher Quelle ein Teilbaum stammt.
+    let mehrere = FolderTree.build(from: eintraege, roots: [a, b])
+    expectEqual(mehrere.count, 2, "zwei Quellen: zwei oberste Knoten")
+    expect(mehrere.allSatisfy { $0.entry == nil }, "zwei Quellen: Quellzeilen sind Durchgangsknoten")
+    expectEqual(Set(mehrere.map(\.label)), ["alpha", "beta"], "zwei Quellen: nach Quelle beschriftet")
+    // Sortierung wie jede andere Ebene: juengste Quelle zuerst.
+    expectEqual(mehrere.first?.label, "beta", "zwei Quellen: neueste zuerst")
+    expectEqual(mehrere.map(\.subtreeFileCount).reduce(0, +), 2, "zwei Quellen: jede Datei einmal")
+
+    // Eintraege ausserhalb aller Quellen bleiben draussen.
+    let fremd = eintraege + [eintrag(URL(fileURLWithPath: "/anderswo/z", isDirectory: true), 5)]
+    expectEqual(FolderTree.build(from: fremd, roots: [a, b]).count, 2, "fremder Eintrag bleibt draussen")
+
+    // Doppelt genannte Quelle liefert den Teilbaum trotzdem nur einmal.
+    expectEqual(FolderTree.build(from: eintraege, roots: [a, a, b]).count, 2, "doppelte Quelle zaehlt einmal")
+
+    // Zeilenfolge: beide Quellen samt Kindern, keine Zeile doppelt.
+    let alle = Set(FolderTree.allFolders(mehrere))
+    let zeilen = FolderTree.rows(mehrere, expanded: alle, filesByFolder: [:])
+    expectEqual(zeilen.count, 4, "zwei Quellen: vier Ordnerzeilen")
+    expectEqual(Set(zeilen.map(\.row)).count, 4, "zwei Quellen: keine Zeile doppelt")
+    expectEqual(zeilen.filter { $0.level == 0 }.count, 2, "zwei Quellen: zwei Zeilen auf Ebene 0")
+}
+
+// MARK: - FolderTree.distinctLabels (gleichnamige Quellen)
+do {
+    let eindeutig = FolderTree.distinctLabels(for: ["/a/projekte", "/b/notizen"])
+    expectEqual(eindeutig["/a/projekte"], "projekte", "eindeutig: nur der Ordnername")
+    expectEqual(eindeutig["/b/notizen"], "notizen", "eindeutig: kein Elternteil noetig")
+
+    // ⚠️ Nur die betroffenen wachsen, nicht alle.
+    let doppelt = FolderTree.distinctLabels(for: ["/kunde-a/src", "/kunde-b/src", "/notizen"])
+    expectEqual(doppelt["/kunde-a/src"], "kunde-a/src", "gleichnamig: eine Stufe mehr")
+    expectEqual(doppelt["/kunde-b/src"], "kunde-b/src", "gleichnamig: eine Stufe mehr")
+    expectEqual(doppelt["/notizen"], "notizen", "unbeteiligte bleiben kurz")
+
+    // Zwei Stufen noetig.
+    let tief = FolderTree.distinctLabels(for: ["/x/k/src", "/y/k/src"])
+    expectEqual(tief["/x/k/src"], "x/k/src", "zwei Stufen noetig")
+    expectEqual(tief["/y/k/src"], "y/k/src", "zwei Stufen noetig")
+
+    // Ein Pfad hat keine Stufe mehr - die Schleife muss trotzdem enden.
+    let ungleich = FolderTree.distinctLabels(for: ["/src", "/a/src"])
+    expectEqual(ungleich["/src"], "src", "kein Elternteil vorhanden")
+    expectEqual(ungleich["/a/src"], "a/src", "der andere waechst")
+
+    let einzelner = FolderTree.distinctLabels(for: ["/nur/eine"])
+    expectEqual(einzelner["/nur/eine"], "eine", "eine Quelle: nur der Name")
+}
+
+// MARK: - SourceList (Bestand und Auswahl)
+do {
+    let docs = URL(fileURLWithPath: "/u/Documents", isDirectory: true)
+    let proj = URL(fileURLWithPath: "/u/Documents/Projekte", isDirectory: true)
+    let bilder = URL(fileURLWithPath: "/u/Bilder", isDirectory: true)
+
+    var liste = SourceList()
+    expect(liste.add(docs) == nil, "erste Quelle wird aufgenommen")
+    expect(liste.isActive(docs), "neue Quelle ist gleich ausgewaehlt")
+
+    // ⚠️ Festlegung 1: Ueberlappung wird beim Hinzufuegen abgelehnt.
+    expectEqual(liste.rejectionReason(forAdding: proj), .containedIn(docs), "Unterordner wird abgelehnt")
+    expectEqual(liste.add(proj), .containedIn(docs), "und nicht aufgenommen")
+    expectEqual(liste.known.count, 1, "abgelehnte Quelle steht nicht im Bestand")
+
+    expectEqual(liste.add(docs), .alreadyKnown, "dieselbe Quelle zweimal")
+    expectEqual(liste.known.count, 1, "und weiterhin nur einmal im Bestand")
+
+    // Auch andersherum: die neue Quelle enthaelt eine bekannte.
+    var umgekehrt = SourceList()
+    umgekehrt.add(proj)
+    expectEqual(umgekehrt.rejectionReason(forAdding: docs), .contains(proj), "Oberordner wird abgelehnt")
+
+    // Nachbarn ohne Ueberlappung gehen.
+    expect(liste.add(bilder) == nil, "zweite, ueberschneidungsfreie Quelle")
+    expectEqual(liste.known.count, 2, "beide im Bestand")
+    expectEqual(liste.activeInOrder, [docs, bilder], "Reihenfolge folgt dem Bestand")
+
+    // Abwaehlen loescht nicht.
+    liste.setActive(docs, false)
+    expect(!liste.isActive(docs), "abgewaehlt")
+    expectEqual(liste.known.count, 2, "abwaehlen loescht nicht")
+    expectEqual(liste.activeInOrder, [bilder], "nur die ausgewaehlte")
+
+    // Loeschen entfernt aus Bestand UND Auswahl.
+    liste.remove(bilder)
+    expectEqual(liste.known.count, 1, "geloescht")
+    expect(liste.activeInOrder.isEmpty, "geloeschte Quelle ist auch abgewaehlt")
+
+    // Der Weg, den es vor Sprint 16 nicht gab: wieder aufnehmen.
+    expect(liste.add(bilder) == nil, "wieder aufnehmbar")
+
+    // ⚠️ `/a/bc` faengt mit `/a/b` an, liegt aber nicht darunter.
+    var praefix = SourceList()
+    praefix.add(URL(fileURLWithPath: "/a/b", isDirectory: true))
+    expect(praefix.rejectionReason(forAdding: URL(fileURLWithPath: "/a/bc", isDirectory: true)) == nil,
+           "Namenspraefix ist keine Ueberlappung")
+
+    // Eine unbekannte Quelle laesst sich nicht auswaehlen.
+    var leer = SourceList()
+    leer.setActive(docs, true)
+    expect(leer.activeInOrder.isEmpty, "unbekannte Quelle bleibt draussen")
+
+    // Auswahl kann nie ueber den Bestand hinausgehen.
+    let gefiltert = SourceList(known: [docs], active: [docs, bilder])
+    expectEqual(gefiltert.activeInOrder, [docs], "Auswahl wird auf den Bestand beschnitten")
+
+    // Nicht mehr vorhandene Ordner fallen beim Laden heraus.
+    let bereinigt = SourceList(known: [docs, bilder], active: [docs, bilder])
+        .existingOnly { $0 == docs }
+    expectEqual(bereinigt.known, [docs], "verschwundener Ordner faellt heraus")
+    expectEqual(bereinigt.activeInOrder, [docs], "und aus der Auswahl mit")
+}
+
 // MARK: - FolderTree.rows (sichtbare Zeilenfolge)
 do {
     let root = URL(fileURLWithPath: "/r", isDirectory: true)
@@ -1099,55 +1231,6 @@ do {
            "Erlaubnisliste: reiner Quelltext-Ordner bietet nichts an")
 }
 
-// MARK: - Ordner-Verlauf: vor und zurueck (PR-14a)
-do {
-    func url(_ p: String) -> URL { URL(fileURLWithPath: p, isDirectory: true) }
-    let a = url("/r/a"), b = url("/r/b"), c = url("/r/c"), d = url("/r/d")
-
-    var h = FolderHistory()
-    expect(h.current == nil, "Verlauf: leer hat kein Aktuelles")
-    expect(!h.canGoBack && !h.canGoForward, "Verlauf: leer geht nirgendwohin")
-    expect(h.goBack() == nil && h.goForward() == nil, "Verlauf: leer liefert nichts")
-
-    h.visit(a)
-    expectEqual(h.current, a, "Verlauf: erster Besuch ist aktuell")
-    expect(!h.canGoBack, "Verlauf: ein Eintrag, kein Zurueck")
-
-    h.visit(b); h.visit(c)
-    expectEqual(h.current, c, "Verlauf: drei Besuche, letzter aktuell")
-    expect(h.canGoBack && !h.canGoForward, "Verlauf: am juengsten Ende")
-
-    expectEqual(h.goBack(), b, "Verlauf: zurueck zu b")
-    expectEqual(h.goBack(), a, "Verlauf: zurueck zu a")
-    expect(!h.canGoBack, "Verlauf: am aeltesten Ende")
-    expectEqual(h.goForward(), b, "Verlauf: vorwaerts zu b")
-
-    // ⚠️ DER Punkt, an dem Verlaufsstapel ueblicherweise falsch sind: Von einer
-    // zurueckliegenden Position aus ein neues Ziel ansteuern muss den
-    // Vorwaertszweig verwerfen – sonst fuehrt „Vorwaerts" in eine
-    // Vergangenheit, die es nicht mehr gibt.
-    h.visit(d)
-    expectEqual(h.current, d, "Verlauf: neues Ziel ist aktuell")
-    expect(!h.canGoForward, "Verlauf: neues Ziel schneidet den Vorwaertszweig ab")
-    expectEqual(h.entries, [a, b, d], "Verlauf: c ist verschwunden, nicht ueberschrieben")
-    expectEqual(h.goBack(), b, "Verlauf: zurueck fuehrt in den verbliebenen Zweig")
-
-    // Derselbe Ordner erneut aendert nichts – sonst fuellte ⌘R den Stapel.
-    var g = FolderHistory()
-    g.visit(a); g.visit(a); g.visit(a)
-    expectEqual(g.entries.count, 1, "Verlauf: Wiederholung erzeugt keine Dublette")
-    g.visit(b); g.visit(a)
-    expectEqual(g.entries, [a, b, a], "Verlauf: Rueckkehr ueber ein anderes Ziel zaehlt")
-
-    // Obergrenze: gekappt wird am ALTEN Ende.
-    var k = FolderHistory()
-    for i in 1...(FolderHistory.maxEntries + 3) { k.visit(url("/r/\(i)")) }
-    expectEqual(k.entries.count, FolderHistory.maxEntries, "Verlauf: auf maxEntries gedeckelt")
-    expectEqual(k.current, url("/r/\(FolderHistory.maxEntries + 3)"), "Verlauf: der juengste bleibt")
-    expectEqual(k.entries.first, url("/r/4"), "Verlauf: die aeltesten fallen weg")
-    expect(!k.canGoForward, "Verlauf: nach dem Kappen steht die Position am Ende")
-}
-
 // MARK: - Aufklappzustand je Wurzelordner (PR-14b)
 do {
     let projekte = "/r/Projekte", doks = "/r/Dokumente"
@@ -1392,10 +1475,22 @@ do {
 
     // --- HTML-Bericht ---
     let bericht = ReportExport.html(abschnitte, range: zeitraum,
-                                    root: URL(fileURLWithPath: "/r"), chartDays: tage,
+                                    roots: [URL(fileURLWithPath: "/r")], chartDays: tage,
                                     generatedAt: date(2026, 8, 3))
     expect(bericht.contains(zeitraum), "Bericht: Zeitraum steht im Kopf")
     expect(bericht.contains("Ordner: /r"), "Bericht: Wurzelordner steht im Kopf")
+
+    // ⚠️ Zwei Quellen muessen BEIDE im Kopf stehen - ein Bericht, der zwei
+    // Ordner mischt und einen nennt, behauptet einen falschen Geltungsbereich.
+    let zweiQuellen = ReportExport.html(abschnitte, range: zeitraum,
+                                        roots: [URL(fileURLWithPath: "/r"), URL(fileURLWithPath: "/s")],
+                                        chartDays: tage, generatedAt: date(2026, 8, 3))
+    expect(zweiQuellen.contains("Quellen:"), "Bericht: Mehrzahl bei zwei Quellen")
+    expect(zweiQuellen.contains("/r"), "Bericht: erste Quelle genannt")
+    expect(zweiQuellen.contains("/s"), "Bericht: zweite Quelle genannt")
+    expect(!ReportExport.html(abschnitte, range: zeitraum, roots: [], chartDays: tage,
+                              generatedAt: date(2026, 8, 3)).contains("Quellen:"),
+           "Bericht: ohne Quelle keine Zeile")
     expect(bericht.contains("<svg"), "Bericht: Diagramm eingebettet")
     expect(bericht.contains("<rect"), "Bericht: Diagramm hat Balken")
     expect(bericht.contains("PM2025 (14)"), "Bericht: Zusammenfassung im Kopf")
@@ -1489,17 +1584,142 @@ do {
                 "Kuerzel: vollstaendige Reihenfolge")
     expectEqual(Shortcuts.exportHTML.display, "⌥⌘E", "Kuerzel: HTML-Export schreibt sich ⌥⌘E")
 
-    // ⚠️ Die abweichende Schreibweise ist Absicht, nicht Schlamperei: macOS
-    // beschriftet ⌘[ auf deutscher Tastatur als ⌘Ö (UX-38).
-    expectEqual(Shortcuts.back.display, "⌘Ö", "Kuerzel: Zurueck erscheint als ⌘Ö")
-    expectEqual(Shortcuts.forward.display, "⌘Ä", "Kuerzel: Vorwaerts erscheint als ⌘Ä")
-
-    // Die fuenf Kuerzel, die bis v1.19.33 in der Hilfe fehlten, sind da.
-    let vermisst = ["back", "forward", "sortByDate", "copySummary", "clearSelection", "help"]
+    // Die Kuerzel, die bis v1.19.33 in der Hilfe fehlten, sind da.
+    //
+    // ⚠️ `back` und `forward` sind seit Sprint 16 **nicht** mehr dabei: Der
+    // Ordner-Verlauf ist mit den Quellen entfallen (PR-19, Festlegung 6). Ein
+    // Kuerzel im Katalog, das keinen Befehl mehr hat, waere ein Eintrag in der
+    // Hilfe fuer etwas, das es nicht gibt.
+    let vermisst = ["sortByDate", "copySummary", "clearSelection", "help"]
     for id in vermisst {
         expect(Shortcuts.catalogue.contains { $0.id == id },
                "Kuerzel: \(id) steht im Katalog und damit in der Hilfe")
     }
+}
+
+// MARK: - NameFilter: mehrere Begriffe und ODER (Sprint 16, PR-45)
+do {
+    func trifft(_ muster: String, _ name: String) -> Bool { NameFilter(muster).matches(name) }
+
+    // Unveraendert: ein Wort ist ein Teilstring.
+    expect(trifft("Studium", "Studium 2026.xlsx"), "ein Wort: Teilstring")
+    expect(!trifft("Studium", "Urlaub.txt"), "ein Wort: kein Treffer")
+    expectEqual(NameFilter("Studium").pattern, "*Studium*", "ein Wort: aufbereitetes Muster")
+
+    // Leeres Muster filtert nicht.
+    expect(NameFilter("").matchesEverything, "leer: filtert nicht")
+    expect(NameFilter("   ").matchesEverything, "nur Leerzeichen: filtert nicht")
+    expect(trifft("", "irgendwas.txt"), "leer: passt auf alles")
+
+    // Leerzeichen ist UND - Reihenfolge egal.
+    expect(trifft("Angebot Muster", "Angebot Muster.pdf"), "UND: beide, in der Reihenfolge")
+    expect(trifft("Angebot Muster", "Muster fuer Angebot.pdf"), "UND: beide, umgekehrt")
+    expect(!trifft("Angebot Muster", "Angebot.pdf"), "UND: einer genuegt nicht")
+    expect(!trifft("Angebot Muster", "Muster.pdf"), "UND: der andere auch nicht")
+
+    // ⚠️ Die Obermengen-Zusage: Was frueher traf, trifft weiterhin.
+    //
+    // Frueher wurde `a b` zu `*a b*` - der woertliche Text samt Leerzeichen.
+    // Jeder Name, der ihn enthaelt, enthaelt auch beide Woerter einzeln.
+    let bestand = [
+        "Angebot Muster.pdf", "Muster fuer Angebot.pdf", "angebot muster 2026.docx",
+        "Angebot.pdf", "Muster.pdf", "Urlaub.txt", "AngebotMuster.pdf",
+    ]
+    for name in bestand where GlobMatcher.matches(name, pattern: "*Angebot Muster*", caseSensitive: false) {
+        expect(trifft("Angebot Muster", name), "Obermenge: \(name) bleibt Treffer")
+    }
+    // Und sie ist echt: mindestens einer kommt hinzu.
+    expect(!GlobMatcher.matches("Muster fuer Angebot.pdf", pattern: "*Angebot Muster*", caseSensitive: false)
+           && trifft("Angebot Muster", "Muster fuer Angebot.pdf"),
+           "Obermenge: echt gewachsen")
+
+    // ODER trennt Alternativen, deutsch wie englisch.
+    expect(trifft("Angebot ODER Rechnung", "Rechnung 12.pdf"), "ODER: zweite Alternative")
+    expect(trifft("Angebot OR Rechnung", "Angebot.pdf"), "OR: englisch geht auch")
+    expect(!trifft("Angebot ODER Rechnung", "Urlaub.txt"), "ODER: keine passt")
+
+    // UND bindet enger als ODER: `a b ODER c` = (a UND b) ODER c.
+    expect(trifft("Angebot Muster ODER Rechnung", "Rechnung.pdf"), "Vorrang: c allein reicht")
+    expect(trifft("Angebot Muster ODER Rechnung", "Muster Angebot.pdf"), "Vorrang: a UND b reicht")
+    expect(!trifft("Angebot Muster ODER Rechnung", "Angebot.pdf"), "Vorrang: a allein reicht nicht")
+
+    // ⚠️ Nur freistehend und nur gross - sonst waere ein Dateiname ein Operator.
+    expect(trifft("oder", "Entweder oder.txt"), "klein geschriebenes oder ist Text")
+    expect(!trifft("ODER", "Entweder oder.txt") == false, "ODER allein bleibt ein Begriff")
+    expect(trifft("Ordner", "Ordnerliste.txt"), "ORdner wird nicht getrennt")
+    expect(trifft("ODERBRUCH", "Bericht ODERBRUCH.pdf"), "ODERBRUCH ist ein Wort")
+
+    // Haengendes ODER liefert ein Ergebnis, keinen Fehler.
+    expect(trifft("Angebot ODER", "Angebot.pdf"), "haengendes ODER: der Rest gilt")
+    expect(trifft("ODER Angebot", "Angebot.pdf"), "fuehrendes ODER: der Rest gilt")
+    // ⚠️ Nur Trennwoerter = kein Ausdruck: Wer "ODER" allein sucht, meint die Oder.
+    expect(!NameFilter("ODER").matchesEverything, "ODER allein ist ein Begriff, kein Leerfilter")
+    expect(trifft("ODER", "Bericht Oder 2026.pdf"), "ODER allein sucht das Wort")
+    expect(!trifft("ODER", "Angebot.pdf"), "ODER allein filtert wirklich")
+    expect(!NameFilter("ODER OR").matchesEverything, "nur Trennwoerter: trotzdem ein Begriff")
+
+    // ⚠️ Mit Platzhalter wird NICHT zerlegt - sonst gingen Treffer verloren.
+    expect(trifft("*Studium*.xls*", "Studium 2026.xlsx"), "Glob: unveraendert")
+    expect(trifft("datei?.txt", "datei1.txt"), "Glob: Fragezeichen")
+    expect(!trifft("datei?.txt", "datei12.txt"), "Glob: genau ein Zeichen")
+    expect(trifft("*Angebot Muster*.pdf", "Mein Angebot Muster 2024.pdf"),
+           "Glob mit Leerzeichen: bleibt woertlich")
+    expect(!trifft("*Angebot Muster*.pdf", "Muster fuer Angebot.pdf"),
+           "Glob mit Leerzeichen: wird NICHT zu UND")
+
+    // Glob und ODER lassen sich verbinden.
+    expect(trifft("*.pdf ODER *.md", "handbuch.md"), "Glob je Alternative")
+    expect(trifft("*.pdf ODER *.md", "vertrag.pdf"), "Glob je Alternative, zweite")
+    expect(!trifft("*.pdf ODER *.md", "tabelle.xlsx"), "Glob je Alternative, keine")
+
+    // Gross-/Kleinschreibung egal, in allen Zweigen.
+    expect(trifft("bericht", "BERICHT.PDF"), "UND-Zweig: Schreibung egal")
+    expect(trifft("*BERICHT*", "jahresbericht.pdf"), "Glob-Zweig: Schreibung egal")
+}
+
+// MARK: - WorkFileFilter (Sprint 16, PR-44)
+do {
+    func datei(_ name: String) -> URL { URL(fileURLWithPath: "/w/\(name)") }
+    func arbeit(_ name: String) -> Bool { WorkFileFilter.isWorkFile(datei(name)) }
+
+    // Die Wunschliste "anzeigen" - vollstaendig.
+    for name in ["Angebot.docx", "Notizen.md", "Liste.txt", "Zahlen.xlsx", "Tabelle.csv",
+                 "Folien.pptx", "Vertrag.pdf", "Plan.xmind", "Gliederung.opml",
+                 "Prozess.bpmn", "Modell.graph"] {
+        expect(arbeit(name), "Arbeitsdatei: \(name)")
+    }
+
+    // Die Wunschliste "ausblenden" - ebenso vollstaendig.
+    for name in ["skript.py", "daten.json", "konfig.yaml", "Programm.swift", "Cargo.toml",
+                 "mail.eml", "archiv.zip", "lied.mp3", "bild.png", "Programm.app"] {
+        expect(!arbeit(name), "keine Arbeitsdatei: \(name)")
+    }
+
+    // ⚠️ Dateien ohne Endung: ueber die Legende nicht ausblendbar, hier schon.
+    expect(!arbeit("Makefile"), "ohne Endung ist keine Arbeitsdatei")
+    expect(!arbeit("LICENSE"), "ohne Endung, zweiter Fall")
+
+    // Gross-/Kleinschreibung der Endung darf nicht entscheiden.
+    expect(arbeit("Bericht.PDF"), "Endung gross geschrieben")
+    expect(arbeit("Modell.GRAPH"), "Zusatzendung gross geschrieben")
+
+    // ⚠️ Die beiden Listen sind getrennt - und muessen es bleiben.
+    //
+    // `bpmn` und `graph` gelten als Arbeitsdatei, duerfen aber NICHT von
+    // "Arbeit fortsetzen" geoeffnet werden: Sie liegen weiterhin in `other`,
+    // und die Ausfuehrungsliste kennt `other` nicht. Faellt diese Pruefung,
+    // hat jemand `extensionMap` erweitert - und damit ungewollt entschieden,
+    // was ein Klick ausfuehrt (PR-35).
+    expect(WorkFileFilter.isWorkFile(datei("Prozess.bpmn")), "bpmn: sichtbar")
+    expect(!WorkDays.isResumable(datei("Prozess.bpmn")), "bpmn: NICHT ausfuehrbar")
+    expect(WorkFileFilter.isWorkFile(datei("Modell.graph")), "graph: sichtbar")
+    expect(!WorkDays.isResumable(datei("Modell.graph")), "graph: NICHT ausfuehrbar")
+    expectEqual(FileCategory.category(for: datei("Prozess.bpmn")), .other,
+                "bpmn liegt weiterhin in Sonstige")
+
+    // Was ausfuehrbar ist, ist auch sichtbar - die engere Liste ist Teilmenge.
+    expect(WorkFileFilter.categories.isSuperset(of: WorkDays.resumableCategories),
+           "Sichtbarkeitsliste umfasst die Ausfuehrungsliste")
 }
 
 // MARK: - Memo

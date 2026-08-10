@@ -3,7 +3,8 @@ import ActivitiesCore
 
 /// Zuletzt genutzte Einstellungen (Ordner, Tage, Filter, Auto-Refresh, Zeitspanne).
 struct StoredSettings {
-    var rootURL: URL
+    /// Bekannte Quellordner und die Auswahl daraus (Sprint 16, PR-19).
+    var sources: SourceList
     var days: Int
     var namePattern: String
     var autoRefresh: Bool
@@ -46,10 +47,16 @@ struct StoredSettings {
 /// zugreifbar (kein Security-Scoped Bookmark noetig).
 final class SettingsStore {
     private let defaults: UserDefaults
+    /// **⚠️ Nur noch zum Uebernehmen.** Bis v1.19.35 der eine Wurzelordner;
+    /// seit Sprint 16 abgeloest durch ``knownSourcesKey``/``activeSourcesKey``.
     private let rootPathKey = "rootPath"
+    private let knownSourcesKey = "knownSources"
+    private let activeSourcesKey = "activeSources"
     private let daysKey = "days"
     private let patternKey = "namePattern"
     private let autoRefreshKey = "autoRefresh"
+    /// **⚠️ Nur noch zum Uebernehmen.** „Zuletzt geoeffnet" ist in den
+    /// Quellen-Bestand aufgegangen; siehe ``loadSources()``.
     private let recentKey = "recentFolders"
     private let useRangeKey = "useDateRange"
     private let rangeStartKey = "rangeStart"
@@ -73,7 +80,6 @@ final class SettingsStore {
     private let terminalKey = "terminalBundleID"
     /// Zeitpunkt der letzten **stillen** Update-Suche (PR-34).
     private let lastUpdateCheckKey = "lastUpdateCheck"
-    private let maxRecent = 8
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -111,16 +117,10 @@ final class SettingsStore {
         let rangeStart = (defaults.object(forKey: rangeStartKey) as? Double).map { Date(timeIntervalSince1970: $0) } ?? defaultStart
         let rangeEnd = (defaults.object(forKey: rangeEndKey) as? Double).map { Date(timeIntervalSince1970: $0) } ?? today
 
-        let root: URL
-        if let path = defaults.string(forKey: rootPathKey),
-           FileManager.default.fileExists(atPath: path) {
-            root = URL(fileURLWithPath: path, isDirectory: true)
-        } else {
-            root = Self.defaultDocumentsDirectory()
-        }
+        let sources = loadSources()
 
         return StoredSettings(
-            rootURL: root, days: days, namePattern: pattern, autoRefresh: autoRefresh,
+            sources: sources, days: days, namePattern: pattern, autoRefresh: autoRefresh,
             useDateRange: useDateRange,
             rangeStart: calendar.startOfDay(for: rangeStart),
             rangeEnd: calendar.startOfDay(for: rangeEnd),
@@ -174,8 +174,57 @@ final class SettingsStore {
         defaults.set(end.timeIntervalSince1970, forKey: rangeEndKey)
     }
 
-    func saveRoot(_ url: URL) {
-        defaults.set(url.path, forKey: rootPathKey)
+    // MARK: - Quellen
+
+    /// Bekannte Quellen und Auswahl – mit Uebernahme der alten Einstellungen.
+    ///
+    /// **⚠️ Beim ersten Start nach Sprint 16 gibt es beide Schluessel noch
+    /// nicht, und ein leerer Bestand waere ein Ruecksetzer.** Uebernommen wird
+    /// deshalb: der bisherige Wurzelordner als **ausgewaehlte** Quelle, „Zuletzt
+    /// geoeffnet" als **bekannte, aber abgewaehlte** Quellen. Damit ist die
+    /// Liste vom ersten Moment an gefuellt und die Ansicht unveraendert.
+    ///
+    /// *Nebenwirkung mit Absicht:* „Zuletzt geoeffnet" verschwindet als eigener
+    /// Begriff. Es war der Bestand ohne Auswahl – genau die Haelfte, die
+    /// ``SourceList`` mitbringt.
+    func loadSources() -> SourceList {
+        let existiert: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
+
+        if let bekannt = defaults.stringArray(forKey: knownSourcesKey) {
+            let aktiv = Set(defaults.stringArray(forKey: activeSourcesKey) ?? [])
+            var liste = SourceList()
+            for pfad in bekannt {
+                let url = URL(fileURLWithPath: pfad, isDirectory: true)
+                liste.add(url)
+                liste.setActive(url, aktiv.contains(pfad))
+            }
+            let bereinigt = liste.existingOnly(existiert)
+            return bereinigt.known.isEmpty ? Self.defaultList() : bereinigt
+        }
+
+        var liste = SourceList()
+        if let pfad = defaults.string(forKey: rootPathKey) {
+            liste.add(URL(fileURLWithPath: pfad, isDirectory: true))
+        }
+        for pfad in defaults.stringArray(forKey: recentKey) ?? [] {
+            let url = URL(fileURLWithPath: pfad, isDirectory: true)
+            // Ueberlappende Alteintraege lehnt ``add`` von selbst ab.
+            if liste.add(url) == nil { liste.setActive(url, false) }
+        }
+        let bereinigt = liste.existingOnly(existiert)
+        return bereinigt.known.isEmpty ? Self.defaultList() : bereinigt
+    }
+
+    /// Der Ausgangszustand ohne jede gespeicherte Einstellung.
+    private static func defaultList() -> SourceList {
+        var liste = SourceList()
+        liste.add(defaultDocumentsDirectory())
+        return liste
+    }
+
+    func saveSources(_ list: SourceList) {
+        defaults.set(list.known.map(\.path), forKey: knownSourcesKey)
+        defaults.set(list.activeInOrder.map(\.path), forKey: activeSourcesKey)
     }
 
     func saveAutoRefresh(_ enabled: Bool) {
@@ -211,12 +260,12 @@ final class SettingsStore {
     /// anderen gegen dessen Baum geschnitten, also stillschweigend vernichtet.
     ///
     /// - Parameter knownRoots: Wurzeln, deren Zustand erhalten bleiben soll
-    ///   (ueblich: „Zuletzt benutzt" plus die aktuelle). Alles andere wird
+    ///   (seit Sprint 16: der ganze Quellen-Bestand). Alles andere wird
     ///   weggeworfen – siehe ``ExpansionState/pruned(_:keeping:)``.
-    func saveExpandedFolders(_ folders: Set<URL>, for root: URL, knownRoots: [URL]) {
+    func saveExpandedFolders(_ folders: Set<URL>, forRoots roots: [URL], knownRoots: [URL]) {
         var map = expansionMap
-        map = ExpansionState.updating(map, folders: folders.map(\.path), for: root.path)
-        map = ExpansionState.pruned(map, keeping: Set(knownRoots.map(\.path) + [root.path]))
+        map = ExpansionState.updating(map, folders: folders.map(\.path), forRoots: roots.map(\.path))
+        map = ExpansionState.pruned(map, keeping: Set(knownRoots.map(\.path) + roots.map(\.path)))
         defaults.set(map, forKey: expandedByRootKey)
     }
 
@@ -240,6 +289,17 @@ final class SettingsStore {
             .map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
+    /// Vergisst den Aufklappzustand einer geloeschten Quelle.
+    ///
+    /// ``ExpansionState/pruned(_:keeping:)`` erledigt das beim naechsten
+    /// Speichern ohnehin – aber „geloescht" soll sofort geloescht heissen und
+    /// nicht „beim naechsten Mal".
+    func forgetExpansion(of root: URL) {
+        var map = expansionMap
+        map[root.path] = nil
+        defaults.set(map, forKey: expandedByRootKey)
+    }
+
     private var expansionMap: ExpansionState.Map {
         defaults.dictionary(forKey: expandedByRootKey) as? ExpansionState.Map ?? [:]
     }
@@ -255,28 +315,6 @@ final class SettingsStore {
     func saveSort(_ sort: FolderSort) {
         defaults.set(sort.field.rawValue, forKey: sortFieldKey)
         defaults.set(sort.ascending, forKey: sortAscendingKey)
-    }
-
-    // MARK: - Zuletzt genutzte Ordner
-
-    func loadRecentFolders() -> [URL] {
-        let paths = defaults.stringArray(forKey: recentKey) ?? []
-        return paths
-            .filter { FileManager.default.fileExists(atPath: $0) }
-            .map { URL(fileURLWithPath: $0, isDirectory: true) }
-    }
-
-    /// Fuegt einen Ordner vorne ein (dedupliziert, begrenzt) und speichert. Gibt die neue Liste zurueck.
-    @discardableResult
-    func addRecentFolder(_ url: URL) -> [URL] {
-        var paths = defaults.stringArray(forKey: recentKey) ?? []
-        paths.removeAll { $0 == url.path }
-        paths.insert(url.path, at: 0)
-        if paths.count > maxRecent { paths = Array(paths.prefix(maxRecent)) }
-        defaults.set(paths, forKey: recentKey)
-        return paths
-            .filter { FileManager.default.fileExists(atPath: $0) }
-            .map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
     // MARK: - Update-Suche

@@ -118,7 +118,7 @@ public enum ReportExport {
     public static func html(
         _ buckets: [BucketedEntries],
         range: String = "",
-        root: URL? = nil,
+        roots: [URL] = [],
         chartDays: [DayExtensionCount] = [],
         generatedAt: Date = Date()
     ) -> String {
@@ -136,7 +136,12 @@ public enum ReportExport {
         }
 
         let subtitle = range.isEmpty ? "" : "<p class=\"range\">\(escapeHTML(range))</p>\n"
-        let source = root.map { "<p class=\"meta\">Ordner: \(escapeHTML($0.path))</p>\n" } ?? ""
+        // Alle Quellen, nicht nur eine: Ein Bericht, der zwei Ordner mischt und
+        // einen davon nennt, behauptet einen falschen Geltungsbereich.
+        let source = roots.isEmpty ? "" :
+            "<p class=\"meta\">\(roots.count == 1 ? "Ordner" : "Quellen"): "
+            + roots.map { escapeHTML($0.path) }.joined(separator: " · ")
+            + "</p>\n"
         let summaryLine = buckets.isEmpty ? "" :
             "<p class=\"meta\">\(escapeHTML(summary(buckets, range: range).replacingOccurrences(of: "\n", with: " — ")))</p>\n"
 

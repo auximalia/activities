@@ -269,36 +269,42 @@ struct MainToolbar: ToolbarContent {
 
     private var folderMenu: some View {
         Menu {
-            Button("Ordner wählen …") { showImporter = true }
-            if !model.recentFolders.isEmpty {
+            Button("Quelle hinzufügen …") { showImporter = true }
+            if !model.sources.known.isEmpty {
                 Divider()
-                Section("Zuletzt genutzt") {
-                    ForEach(model.recentFolders, id: \.self) { url in
-                        Button(url.lastPathComponent) { model.setRoot(url) }
-                            .help(url.path)
+                Section("Quellen") {
+                    // Haken statt Auswahl: Quellen loesen einander nicht ab,
+                    // sie addieren sich. Ein Menue mit Haken sagt das; eine
+                    // Liste, aus der man eine Zeile anklickt, sagt das Gegenteil.
+                    ForEach(model.sources.known, id: \.self) { url in
+                        Toggle(model.sourceLabel(for: url), isOn: Binding(
+                            get: { model.sources.isActive(url) },
+                            set: { model.setSourceActive(url, $0) }
+                        ))
+                        .help(url.path)
                     }
                 }
             }
         } label: {
-            Label(model.rootURL.lastPathComponent, systemImage: "folder")
+            Label(model.sourcesLabel, systemImage: "folder")
         }
-        // Ordnername ausdruecklich MIT Beschriftung: Der aktuelle Ordner ist die
+        // Ausdruecklich MIT Beschriftung: Welche Quellen zaehlen, ist die
         // wichtigste Zustandsinformation der App – ein blosses Ordnersymbol
         // verschweigt sie.
         .labelStyle(.titleAndIcon)
-        .help("Wurzelordner wählen · aktuell: \(model.rootURL.path)")
-        .accessibilityLabel("Ordner wählen")
-        .accessibilityValue(model.rootURL.lastPathComponent)
+        .help("Quellen wählen · aktuell: \(model.sourcesTooltip)")
+        .accessibilityLabel("Quellen wählen")
+        .accessibilityValue(model.sourcesLabel)
         // Menuebefehl ⇧⌘O: Der Dialog haengt hier, nicht im Menue.
         .onChange(of: model.folderPickerToken) { _, _ in showImporter = true }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
+            // Mehrfachauswahl: Wer drei Ordner gleichzeitig meint, soll sie
+            // gleichzeitig waehlen duerfen. Ueberlappende lehnt das Modell ab.
+            allowsMultipleSelection: true
         ) { result in
-            if case .success(let urls) = result, let url = urls.first {
-                model.setRoot(url)
-            }
+            if case .success(let urls) = result { model.addSources(urls) }
         }
     }
 

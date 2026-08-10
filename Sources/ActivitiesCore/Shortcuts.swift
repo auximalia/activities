@@ -120,14 +120,6 @@ public enum Shortcuts {
     /// Quelltext. Gemessen am laufenden Programm (`AXMenuItemCmdChar` = „Ö").
     /// Eine Kollision gibt es nicht; die Schreibweise muss aber überall
     /// dieselbe sein, sonst sucht man zwei Kürzel (UX-38).
-    public static let back = ShortcutEntry(
-        id: "back", key: .character("["), modifiers: .command,
-        displayOverride: "⌘Ö", label: "Zurück zum vorherigen Ordner"
-    )
-    public static let forward = ShortcutEntry(
-        id: "forward", key: .character("]"), modifiers: .command,
-        displayOverride: "⌘Ä", label: "Vorwärts"
-    )
     public static let openInEditor = ShortcutEntry(
         id: "openInEditor", key: .character("e"), modifiers: [.command, .shift],
         label: "Auswahl im Editor öffnen"
@@ -289,7 +281,7 @@ public enum Shortcuts {
 
     /// Der vollständige Katalog, in der Reihenfolge der Hilfetabelle.
     public static let catalogue: [ShortcutEntry] = [
-        chooseFolder, back, forward, rescan, cancelScan,
+        chooseFolder, rescan, cancelScan,
         openInEditor, openInTerminal, revealInFinder, copyPath, quickLook,
         periodToday, period3, period7, period30, period90, periodAll,
         focusFilter, clearNameFilter, resetTypeFilter, scrollToTop,

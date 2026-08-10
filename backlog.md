@@ -157,7 +157,12 @@ das herauszufinden. *Zur Wiedervorlage, sobald PR-16 eine Weile im Gebrauch war.
 **Aufwand:** M · **Nutzen:** mittel · **P3**
 „Diese Woche gegen letzte" – zeigt Verlagerung statt nur Bestand.
 
-### PR-19 · Mehrere Quellordner, verwaltet als Liste
+### ✅ PR-19 · Mehrere Quellordner, verwaltet als Liste *(v1.19.36)*
+**Erledigt in Sprint 16.** Bestand mit Auswahl, Überlappung beim Hinzufügen abgelehnt,
+Aufklappzustand je Quelle, nur die neue Quelle wird gelesen. Der Ordner-Verlauf ist dabei
+entfallen. Einzelheiten im Sprint.
+
+*Ursprünglicher Eintrag:*
 **Aufwand:** L · **Nutzen:** hoch · **P2** · *ausdrücklich gewünscht am 2026-08-10*
 
 Heute genau ein Ordner (`ReportViewModel.rootURL:133`, ein `String` im Store,
@@ -337,7 +342,12 @@ das **kein Defekt** – siehe Entscheidung 2. Denkbarer Ausweg, falls der Punkt 
 wird: Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile, dann bleibt der Klick
 auf die Zeilenfläche unverzögert.
 
-### PR-44 · „Nur Arbeitsdateien" – ein Schalter unter dem Diagramm
+### ✅ PR-44 · „Nur Arbeitsdateien" – ein Schalter unter dem Diagramm *(v1.19.36)*
+**Erledigt in Sprint 16.** Eigene Sichtbarkeitsliste (`WorkFileFilter`), Kategorie-Tabelle
+unangetastet. Der zurückgestellte Teil – benannte, selbst zusammengestellte Voreinstellungen –
+bleibt zurückgestellt; siehe unten.
+
+*Ursprünglicher Eintrag:*
 **Aufwand:** S · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
 
 Ein Schalter in der Kopfzone, unter dem Diagramm: **an** – es erscheinen nur Dateien der
@@ -407,7 +417,11 @@ Entwurf sah einen Editor in den Einstellungen und mehrere umschaltbare Presets v
 Argument wie in PR-36. Wartet auf das zweite Preset, das jemand wirklich vermisst; dann weiß man
 auch, wonach es sich unterscheiden soll.
 
-### PR-45 · Suchfeld: mehrere Begriffe, und ODER
+### ✅ PR-45 · Suchfeld: mehrere Begriffe, und ODER *(v1.19.36)*
+**Erledigt in Sprint 16.** Leerzeichen = UND, `ODER`/`OR` trennt, Glob-Zweig unverändert, die
+Obermengen-Zusage ist geprüft statt behauptet.
+
+*Ursprünglicher Eintrag:*
 **Aufwand:** S · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
 
 Heute kennt `NameFilter` (`NameFilter.swift:10-36`) genau **ein** Muster und zwei Zweige:
@@ -679,8 +693,137 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.33 | Sprint 13 · „Die App sagt, was sie weiß" | PR-16, PR-17, PR-24 |
 | v1.19.34 | Sprint 14 · „Befehle, die man findet" | UX-33, UX-34, UX-35, UX-36, UX-37, UX-38, UX-39, UX-41 |
 | v1.19.35 | Sprint 15 · „Wissen, was es aushält" | PR-25, PR-27 AP3, Totholz |
+| v1.19.36 | Sprint 16 · „Mehrere Quellen, gezielter Blick" | PR-19, PR-44, PR-45 |
 
-## Sprint 16 – „Mehrere Quellen, gezielter Blick" *(geplant, Stand v1.19.35)*
+## Sprint 16 – „Mehrere Quellen, gezielter Blick" *(v1.19.36)*
+
+| AP | Eintrag | Aufwand | |
+|---|---|---|---|
+| **AP1** | PR-19 · Quellen als verwaltete Liste | **L** | trägt den Release |
+| **AP2** | PR-44 · Schalter „Nur Arbeitsdateien" unter dem Diagramm | S | Beifahrer |
+| **AP3** | PR-45 · Leerzeichen als UND, `ODER` als Operator | S | Beifahrer |
+
+### AP1 · Aus einem Ordner wird ein Bestand mit Auswahl
+
+`SourceList` (Kern) hält **bekannt** und **aktiv** getrennt: an- und abwählen, hinzufügen,
+löschen. Auswählen steht im Menü und in der Werkzeugleiste, **löschen** in einem neuen
+Einstellungs-Reiter – was man mehrmals täglich tut, gehört an den kurzen Weg; was selten und
+unwiderruflich ist, hinter eine Tür.
+
+**Zwei Begriffe sind dabei verschwunden, einer ist dazugekommen.** „Zuletzt geöffnet" war der
+Bestand ohne Auswahl und ist in `SourceList` aufgegangen; der Ordner-Verlauf (⌘Ö/⌘Ä, PR-14a)
+ist entfallen. Netto hat die App **einen Begriff weniger**, nicht einen mehr.
+
+**⚠️ Warum der Verlauf weg musste und nicht bloß angepasst wurde.** `FolderHistory` setzt
+voraus, dass Quellen einander **ablösen**. Sobald sie sich **addieren**, hat „zurück" keinen
+Gegenstand mehr – ein Verlauf von *Mengen* wäre ein neues Bedienkonzept für ein Problem, das
+die sichtbare, dauerhafte Liste bereits löst. `FolderHistory.swift` ist gelöscht, mit ihm 53
+Zeilen XCTest, ein `CoreChecks`-Block und zwei Kürzel. *Die Kürzelprüfung hat den Rest selbst
+gefunden:* `back` und `forward` standen noch im Hilfe-Katalog – ein Eintrag in der Hilfe für
+einen Befehl, den es nicht mehr gibt.
+
+**Die sechs Entwurfsentscheidungen, wie sie ausgefallen sind:**
+
+1. **Überlappung wird beim Hinzufügen abgelehnt** (`SourceList.rejectionReason`). Die Meldung
+   nennt **beide** Ordner: „`Projekte` liegt in `Documents` und würde doppelt gezählt."
+   Mehrfachauswahl im Dialog nimmt an, was geht, und meldet nur die Ablehnungen – Teilerfolg
+   ist der Normalfall, kein Fehler.
+2. **⚠️ Die Quellzeile bleibt bei mehreren Quellen stehen**, auch ohne eigene Dateien
+   (`FolderTree.swift`). Bei *einer* Quelle wird sie weiterhin unterdrückt. Ohne diese
+   Fallunterscheidung ständen die Teilbäume zweier Quellen ununterscheidbar nebeneinander –
+   die Quellzeile ist dann das Einzige, was die Zugehörigkeit trägt.
+3. **Gleichnamige Quellen wachsen nur so weit, wie sie müssen** (`FolderTree.distinctLabels`):
+   zwei Ordner `src` werden zu `kunde-a/src` und `kunde-b/src`, ein danebenliegendes `notizen`
+   bleibt kurz. Alle pauschal zu verlängern wäre bequemer und schlechter – es bestraft den
+   häufigen Fall für den seltenen.
+4. **Aufklappzustand je Quelle**, und `nil` ≠ `[]` gilt **je Quelle getrennt**: Eine neu
+   angehakte Quelle geht auf (unbekannt), die danebenstehende, ausdrücklich zugeklappte bleibt
+   zu. Eine gemeinsame Behandlung wäre genau der Verlust, den PR-14 für den Einzelfall behoben
+   hat.
+5. **Nur die neue Quelle wird gelesen** – der Rohbestand liegt je Quelle in einem eigenen
+   Eimer. Abwählen kostet **keinen** Plattenzugriff, der Eimer fällt weg.
+6. **Vor/Zurück abgeschafft** – siehe oben.
+
+**⚠️ Beim Nachprüfen von Festlegung 5 fiel auf, dass sie zur Hälfte nicht gegolten hätte.**
+Der Hauptsuchlauf war inkrementell – aber der **zweite** Plattendurchgang für die Detaillisten
+(`loadDetails`) las weiterhin **jeden** Ordner **aller** Quellen neu. Die Ersparnis wäre
+größtenteils verpufft, ohne dass es aufgefallen wäre: Das Ergebnis ist ja richtig, nur langsam.
+`loadDetails` bekommt deshalb ein `reusingCache` – **ausdrücklich nur** beim Wechsel der
+Auswahl, **nie** beim Neueinlesen. „Ordner neu einlesen" und die automatische Aktualisierung
+haben genau den Zweck, veraltete Stände zu ersetzen; ein Zwischenspeicher wäre dort die
+Verweigerung der Aufgabe.
+
+### AP2 · „Nur Arbeitsdateien" – eine zweite Liste, mit Absicht
+
+Ein Schalter unter dem Diagramm. An: nur Dokumente, PDF, Tabellen, Präsentationen sowie `bpmn`
+und `graph`. Aus: unverändert.
+
+**Die Erlaubnisliste gab es schon – und sie trifft die Erwartung fast vollständig.** Gegen die
+gewünschte Aufteilung geprüft: alle sieben Ausblend-Wünsche treffen, sieben von neun
+Anzeige-Wünschen ebenfalls. **Dateien ohne Endung sind über die Legende bis heute gar nicht
+ausblendbar** (`recomputeLegend` überspringt leere Endungen) – der Schalter erledigt das
+nebenbei, weil er von der anderen Seite denkt.
+
+**⚠️ `WorkFileFilter` ist bewusst eine zweite Liste neben `WorkDays.resumableCategories`,
+obwohl beide heute fast gleich aussehen.** Die eine entscheidet, was ein Klick **ausführt**,
+die andere, was man **sieht**. Die Folgen sind ungleich: Die Ausführungsliste muss eng bleiben,
+ihr schlimmster Fall ist „es ist etwas gestartet" (PR-35). Die Sichtbarkeitsliste darf wachsen,
+ihr schlimmster Fall ist „ich sehe zu viel". Deshalb wurde `FileCategory.extensionMap` **nicht**
+angefasst: `bpmn` und `graph` nach `documents` zu schieben hätte sie zugleich für „Arbeit
+fortsetzen" öffenbar gemacht. Stattdessen ein **erweiterter Schlüsselraum** – erlaubte
+Kategorien *plus* zusätzlich erlaubte Endungen. `CoreChecks` bewacht genau das: `bpmn` ist
+sichtbar **und nicht** ausführbar. *Fällt diese Prüfung, hat jemand die Tabelle erweitert und
+damit ungewollt entschieden, was ein Klick startet.*
+
+**⚠️ Die Legende bekommt eine Ausnahme von ihrer eigenen Regel.** Sie wird sonst aus den
+*ungefilterten* Dateien gebaut, „stabil über Filterwechsel", damit Chips beim Klicken nicht
+unter dem Mauszeiger wegspringen. Für diesen Schalter gilt das nicht: Er ist kein Chip, sondern
+eine Ansage darüber, was überhaupt zählt – sonst blieben `swift`- und `py`-Chips stehen, die
+nichts mehr bewirken.
+
+**Nicht gespeichert**, wie festgelegt: Jede Sitzung beginnt mit vollständiger Anzeige.
+
+### AP3 · Das Leerzeichen bedeutet UND
+
+`Angebot Muster` findet jetzt auch `Muster für Angebot.pdf`; `ODER` (und `OR`) trennt
+Alternativen; `a b ODER c` heißt `(a UND b) ODER c`.
+
+**⚠️ Die Bedeutungsänderung ist echt, aber sie geht nur in eine Richtung.** Vorher wurde
+`Angebot Muster` zum wörtlichen Text **samt Leerzeichen**. Jeder Name, der ihn enthält, enthält
+auch beide Wörter einzeln – die neue Auslegung ist eine **echte Obermenge**. Es verliert
+niemand einen Treffer. Ein Schlüsselwort `UND` hätte dieselbe Eingabe etwas *anderes* finden
+lassen; der billigere Weg ist hier zugleich der sicherere. **`CoreChecks` prüft die Zusage
+selbst**, nicht nur ihre Formulierung: Ein Bestand von Namen wird gegen das alte Muster
+gehalten, und jeder Treffer von damals muss Treffer bleiben – dazu der Nachweis, dass die Menge
+**echt** gewachsen ist.
+
+**⚠️ Eine Eingabe mit Platzhalter wird nicht zerlegt**, und das ist keine Nachlässigkeit: Bei
+`*Angebot Muster*.pdf` wäre das Aufteilen ein **Verlust**. `*Angebot` hieße „endet auf
+Angebot", und `Mein Angebot Muster 2024.pdf` fiele heraus. Der Glob-Zweig bleibt wörtlich.
+
+**Zwei Grenzfälle, die erst die Prüfungen sichtbar gemacht haben:**
+
+- **Getrennt wird auf Wortebene, nicht am Text `" ODER "`.** Ein hängendes `ODER` hat kein
+  Leerzeichen hinter sich; ein Textvergleich hätte `Angebot ODER` als Suche nach Dateien mit
+  „ODER" im Namen gelesen – und genau das ist beim Tippen der häufigste Zwischenzustand.
+- **⚠️ Ein Ausdruck, der nur aus Trennwörtern besteht, war keiner.** Wer `ODER` allein eingibt,
+  sucht die Oder oder den Oderbruch. Ohne Rückfall auf „normaler Begriff" hätte die Suche auf
+  eine sehr konkrete Frage mit *allem* geantwortet. Ein stilles falsches Ergebnis ist schlimmer
+  als ein enges.
+
+Ein **Fehlerzustand im Suchfeld war nicht nötig**: Es gibt keine ungültige Eingabe mehr, nur
+unvollständige, und die werden übergangen. Die Änderung liegt vollständig in `ActivitiesCore`
+und ist damit von `CoreChecks` erreichbar – `SearchField` und die Werkzeugleiste blieben
+unberührt.
+
+### Prüfungen
+
+`CoreChecks` von 1026 auf **1096** Zusicherungen. Neu bewacht: mehrere Wurzeln im Baum, die
+Fallunterscheidung der Quellzeile, gleichnamige Quellen, `SourceList` samt Überlappung in
+beiden Richtungen (`/a/bc` ist **kein** Kind von `/a/b`), die Obermengen-Zusage des
+Namensfilters, und die Trennung von Sichtbarkeits- und Ausführungsliste.
+
+### Der Plan, wie er vor der Umsetzung stand
 
 | AP | Eintrag | Aufwand | |
 |---|---|---|---|

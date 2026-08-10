@@ -41,6 +41,8 @@ struct ChartHeaderView: View {
                 .padding(.horizontal, 4)
                 .padding(.top, 6)
                 .padding(.bottom, 8)
+
+                workFilesRow
             }
 
             statusRow
@@ -171,6 +173,46 @@ struct ChartHeaderView: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 5)
         }
+    }
+
+    /// Der Schalter „Nur Arbeitsdateien" (PR-44).
+    ///
+    /// **Warum unter dem Diagramm und nicht in den Einstellungen.** Er wird
+    /// mehrmals am Tag umgelegt und wirkt sofort sichtbar auf Diagramm und
+    /// Legende, die direkt darueber stehen. Ein Schalter, der etwas ausblendet,
+    /// gehoert neben das, was er ausblendet – sonst sucht man die Ursache an
+    /// der falschen Stelle.
+    ///
+    /// **⚠️ Immer sichtbar, nicht nur wenn er an ist.** Die uebrigen Hinweise in
+    /// ``statusRow`` erscheinen erst, wenn gefiltert wird; dieser hier ist der
+    /// Schalter selbst. Waere er nur im eingeschalteten Zustand da, gaebe es
+    /// keinen Weg, ihn einzuschalten.
+    private var workFilesRow: some View {
+        HStack(spacing: 6) {
+            Toggle(isOn: Binding(
+                get: { model.showsOnlyWorkFiles },
+                set: { _ in model.toggleWorkFilesOnly() }
+            )) {
+                Text("Nur Arbeitsdateien")
+            }
+            .toggleStyle(.checkbox)
+            .help("Zeigt nur Dokumente, PDF, Tabellen, Präsentationen und "
+                  + "Diagramme (bpmn, graph). Blendet Quelltext, Archive, "
+                  + "Medien, Bilder und Dateien ohne Endung aus.")
+            .accessibilityHint("Blendet alles aus, was keine Arbeitsdatei ist")
+
+            if model.showsOnlyWorkFiles {
+                Text("Quelltext, Archive, Medien, Bilder und Dateien ohne Endung sind ausgeblendet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            Spacer(minLength: 4)
+        }
+        .font(.subheadline)
+        .padding(.horizontal, Self.yAxisGutter)
+        .padding(.bottom, 6)
     }
 
     /// Der gesetzte **Namensfilter**.

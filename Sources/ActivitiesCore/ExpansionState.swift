@@ -28,11 +28,35 @@ public enum ExpansionState {
         return result
     }
 
+    /// Setzt den Zustand **mehrerer** Quellen auf einmal.
+    ///
+    /// Die aufgeklappten Ordner liegen im Modell als *eine* flache Menge ueber
+    /// alle Quellen; gespeichert wird je Quelle. Diese Funktion teilt sie auf.
+    ///
+    /// **⚠️ Eine ausgewaehlte Quelle ohne aufgeklappte Ordner bekommt `[]`, nicht
+    /// gar keinen Eintrag.** Der Unterschied ist derselbe wie bei
+    /// ``folders(in:for:)``: Kein Eintrag heisst „unbekannt, klapp alles auf",
+    /// und wer gerade *alles zugeklappt* hat, bekaeme beim naechsten Start das
+    /// Gegenteil dessen, was er wollte.
+    ///
+    /// Quellen, die nicht in ``roots`` stehen, bleiben unberuehrt – sie sind
+    /// nicht ausgewaehlt und ueber sie ist nichts Neues bekannt.
+    public static func updating(_ map: Map, folders: [String], forRoots roots: [String]) -> Map {
+        var result = map
+        for root in roots {
+            result[root] = folders.filter { FolderTree.isRootOrBelow($0, root: root) }.sorted()
+        }
+        return result
+    }
+
     /// Wirft Wurzeln weg, die nicht mehr bekannt sind.
     ///
-    /// „Bekannt" heisst: steht in „Zuletzt benutzt" oder ist der aktuelle
-    /// Ordner. Damit ist die Obergrenze dieselbe wie dort – acht – und es gibt
-    /// keine zweite Zahl, die jemand pflegen muesste.
+    /// „Bekannt" heisst seit Sprint 16: **steht im Quellen-Bestand**
+    /// (``SourceList/known``). Vorher war es „steht in ‚Zuletzt benutzt' oder ist
+    /// der aktuelle Ordner", was dieselbe Aufgabe erfuellte, solange es genau
+    /// eine Quelle gab. Die Obergrenze ist damit die des Bestands – wer eine
+    /// Quelle loescht, loescht auch ihren Aufklappzustand, und das ist die
+    /// erwartete Wirkung von „loeschen".
     public static func pruned(_ map: Map, keeping roots: Set<String>) -> Map {
         map.filter { roots.contains($0.key) }
     }

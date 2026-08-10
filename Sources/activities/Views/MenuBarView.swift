@@ -73,7 +73,7 @@ struct MenuBarView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(model.rootURL.lastPathComponent)
+            Text(model.sourcesLabel)
                 .font(.headline)
                 .lineLimit(1)
             Text("Zuletzt bearbeitet")

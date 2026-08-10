@@ -117,8 +117,25 @@ ist für VoiceOver unsichtbar. **⚠️ Der Streifen gehört zur Datenschicht** 
 dieselben Farben wie die Legende, kein eigenes Grau neben „Sonstige", und er darf die Zeile
 nicht dominieren.
 
-**Nicht eingeplant, weil** es gestalterisch zu PR-31/PR-33 gehört: Ein Farbstreifen in eine
-Zeile zu legen, die gerade auf 22 pt verdichtet wurde, verlangt eigene Messungen.
+**⚠️ Zwei Voraussetzungen, die vor jeder Schätzung geklärt sein müssen** (Code-Durchsicht
+vor Sprint 15):
+
+1. **Es gibt keine Datenquelle.** Nichts in `ActivitiesCore` liefert je Ordner eine
+   Verteilung nach Endungen. `FolderEntry.files` (`Models.swift:50`) wird von **beiden**
+   Erzeugern nie befüllt (`FolderAggregator.swift:24`, `:61`) – die Ordnerzeile hat zur
+   Zeichenzeit nur Zahl und Datum. Die einzige Stelle, die je ein Histogramm baut, ist
+   `dominantExtension(of:)` (`ReportViewModel.swift:789-793`) – und sie wirft alles bis auf
+   den häufigsten Schlüssel weg.
+2. **Der einzige Weg an die Dateien ist ein heißer Pfad.** `visibleFiles(in:)` filtert
+   **und sortiert bei jedem Aufruf neu** (`ReportViewModel.swift:1343-1350`). Ein Streifen
+   je Zeile hieße diese Rechnung einmal pro Zeile pro Neuzeichnung.
+
+**Deshalb nach PR-25, nicht davor.** Einer Liste, deren Rechnung pro Zeile niemand gemessen
+hat, eine weitere Rechnung pro Zeile hinzuzufügen, ist die falsche Reihenfolge.
+
+**Platz ist ebenfalls knapp:** Der Ordnername trägt `.fixedSize(horizontal: true)`
+(`FolderRowView.swift:61`) und kann nicht schrumpfen; feste Kosten der Zeile sind 284 pt
+(breit) bzw. 212 pt (kompakt) bei 22 pt Höhe. Ein Streifen konkurriert mit dem Pfad.
 
 **Akzeptanz:** Jede Ordnerzeile zeigt die Verteilung ihrer sichtbaren Dateien in
 Legendenfarben; VoiceOver liest sie als Text („3 .swift, 2 .md"); ausgeblendete Typen
@@ -142,25 +159,45 @@ das herauszufinden. *Zur Wiedervorlage, sobald PR-16 eine Weile im Gebrauch war.
 **Aufwand:** L · **Nutzen:** hoch · **P3**
 Heute genau ein Ordner. Wer in `Documents` **und** `Projekte` arbeitet, muss wechseln.
 
-### PR-20 · Filter nach Größe *(neu zu fassen)*
-**Aufwand:** S–M · **Nutzen:** gering–mittel · **P3**
+### PR-20 · Filter nach Größe
+**Aufwand:** M · **Nutzen:** gering–mittel · **P3**
 
-**⚠️ Der Eintrag ist zur Hälfte überholt und darf nicht in alter Form geschätzt werden.**
-Ursprünglich „Filter: Größe **und Alter**". Die Alters-Hälfte leistet der Zeitraum längst;
-die Größen-Hälfte ist seit PR-37 fast geschenkt, weil `RelevantFile.size` vorliegt.
+Ursprünglich „Filter: Größe **und Alter**". Die Alters-Hälfte leistet der Zeitraum längst.
+
+**⚠️ „Seit PR-37 fast geschenkt" ist widerlegt** (Code-Durchsicht vor Sprint 15).
+`RelevantFile.size` liegt zwar vor (`Models.swift:34`), aber die Entscheidung *ist diese
+Datei sichtbar* fällt an **sechs** Stellen, und die für Ordnerliste und Baum zuständige
+arbeitet auf `URL`, nicht auf `RelevantFile`:
+
+- `ReportViewModel.recomputeDisplayBuckets()` übergibt `{ url in … }`
+  (`ReportViewModel.swift:954-956`) an `FolderAggregator.folderEntries(…, isVisible: (URL) -> Bool)`
+  (`FolderAggregator.swift:53`) – **dort ist die Größe nicht erreichbar**. Ein Größenfilter
+  verlangt also eine Änderung der Kern-Signatur und aller Aufrufer.
+- `visibleFiles(in:)` hat einen Schnellpfad, der `isVisibleDetail` **überspringt**
+  (`ReportViewModel.swift:1345-1347`). Ein Prädikat, das nur dort einzöge, fiele
+  stillschweigend aus – genau die Art Lücke, die man erst im Gebrauch bemerkt.
+
+*Aus S–M wird damit M. Lehre: „fast geschenkt, weil das Feld schon da ist" verwechselt die
+Daten mit den Stellen, die sie lesen.*
 
 ### PR-21 · Suchbegriffe merken
 **Aufwand:** S · **Nutzen:** gering–mittel · **P3**
 Zuletzt verwendete Filter im Suchfeld anbieten.
 
-### PR-22 · Notarisierung
+### PR-22 · Notarisierung *(zurückgestellt – keine Mitgliedschaft)*
 **Aufwand:** M (plus Apple-Mitgliedschaft) · **Nutzen:** hoch · **P2**
 
 `Packaging/notarize.sh` ist vorbereitet. Ohne sie muss jeder Empfänger den
 Gatekeeper-Dialog umgehen – die größte Hürde bei der Weitergabe.
 
-**⚠️ PR-25 gehört davor**, nicht danach: erst messen, wie sich die App bei sehr großen
-Beständen verhält, dann breiter verteilen.
+**⚠️ Entscheidung vom 2026-08-10: vorerst keine kostenpflichtige Apple-Mitgliedschaft.**
+Der Eintrag bleibt stehen, wird aber **nicht eingeplant**, und der Zweig „Verbreitung"
+treibt die Reihenfolge der nächsten Sprints nicht mehr. Die Weitergabe läuft weiter über
+`web-install.sh` mit Gatekeeper-Umweg.
+
+*Damit verliert PR-25 seine Rolle als Wegbereiter – aber nicht seinen Zweck: Die Frage,
+was die App bei fremden Beständen aushält, stellt sich beim ersten großen Ordner des
+eigenen Anwenders genauso.*
 
 ### PR-23 · Englische Sprachfassung
 **Aufwand:** L · **Nutzen:** mittel · **P3**
@@ -177,12 +214,27 @@ heute deutsche Wochentagskürzel.
 Gemessen wurden ~83.000 Dateien (~20 MB, 1,3 s). Bei 500.000 Dateien ist das Verhalten
 **unbekannt**. Eine Messaufgabe, kein Bauvorhaben – gehört vor PR-22.
 
-### PR-27 AP3 · Anschlüsse im Baum *(zu prüfen, vermutlich erledigt)*
-**Aufwand:** S (Durchsicht) · **P3**
+### PR-27 AP3 · Anschlüsse im Baum *(geprüft – eine Restlücke)*
+**Aufwand:** S · **P3** · *eingeplant in Sprint 15*
 
-Diagramm-Sprung mit Vorfahren, Anheften im Baum und die VoiceOver-Ebenenansage sind im Code
-vorhanden (`TreeRowView.swift:156-163` u. a.). Der Eintrag steht seit v1.19.11 als offen.
-**Braucht eine Durchsicht, kein Bauvorhaben** – dann schließen.
+Durchsicht vor Sprint 15, Ergebnis je Zusage:
+
+| Zusage | Stand | Beleg |
+|---|---|---|
+| Diagramm-Sprung klappt **alle Vorfahren** auf | ✅ vorhanden | `ReportViewModel.swift:1449-1458` über `FolderTree.ancestors` (`FolderTree.swift:330`) |
+| Anheften wirkt im Baum | ✅ vorhanden | Markierung `TreeRowView.swift:202-207`, Kontextmenü `:140`, Ansage `:164` |
+| VoiceOver nennt die Ebene | ⚠️ **nur Ordnerzeilen** | `TreeRowView.swift:161-170`; **Dateizeilen fehlen** |
+
+**Die Restlücke:** Dateizeilen im Baum werden mit 28 pt je Ebene eingerückt
+(`ReportView.swift:251-252`), sagen ihre Ebene aber nicht – ihr Wert ist Zeitstempel plus
+Zeitfenster-Hinweis (`FileRowView.swift:206-209`). Wer die Liste hört statt sieht, erfährt
+die Schachtelung für Ordner und verliert sie bei den Dateien darin.
+
+**⚠️ Anheften bleibt im Baum eine Markierung, kein eigener Abschnitt** – das ist Absicht und
+dokumentiert (`ReportViewModel.swift:982-985`). Nicht als Lücke melden.
+
+**Akzeptanz:** Eine Dateizeile im Baum nennt ihre Ebene wie eine Ordnerzeile; danach wird
+der Eintrag geschlossen.
 
 ### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
 **Aufwand:** L · **Nutzen:** gering, solange die Messung gilt · **P3**
@@ -409,6 +461,81 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.33 | Sprint 13 · „Die App sagt, was sie weiß" | PR-16, PR-17, PR-24 |
 | v1.19.34 | Sprint 14 · „Befehle, die man findet" | UX-33, UX-34, UX-35, UX-36, UX-37, UX-38, UX-39, UX-41 |
 
+## Sprint 15 – „Wissen, was es aushält" *(geplant, Stand v1.19.34)*
+
+| AP | Eintrag | Aufwand | |
+|---|---|---|---|
+| **AP1** | PR-25 · Messstand, Messung, Engstellen | **M–L** | trägt den Release |
+| **AP2** | PR-27 AP3 · Ebenenansage für Dateizeilen im Baum, dann schließen | S | Beifahrer |
+| **AP3** | Totholz entscheiden (siehe Festlegung 4) | S | Beifahrer |
+
+**⚠️ Die Klammer ist technisch, nicht nur thematisch** – die Prüfung aus Sprint 11 bestanden:
+AP1 verlangt eine **messbare** Fassung der Listenaufbereitung, und genau die fehlt heute in
+`ActivitiesCore`. AP3 räumt dieselbe Schicht auf (`FolderAggregator`, `FolderEntry`). AP2 ist
+ehrlicherweise nur Release-Ökonomie; das soll man wissen.
+
+### Warum dieser Sprint und nicht PR-13
+
+**Eine Unstimmigkeit, die das Projekt bei sich selbst nicht bemerkt hat.** Farbe und
+Spaltenbreiten werden hier auf zwei Nachkommastellen gemessen – zur **Leistung** gibt es
+genau eine Zahl (83.000 Dateien, 1,3 s), eine einzige Stichprobe, und **keinen Messstand**:
+kein Benchmark, kein Timing in `CoreChecks`, keine `measure`-Tests, kein `scripts/`. „Messen,
+nicht schätzen" gilt bisher für alles, was man sieht, und für nichts, was man wartet.
+
+Dazu die konkreten Verdächtigen aus der Durchsicht:
+
+- `treeRows` baut den **gesamten Baum bei jedem Zugriff** neu (`ReportViewModel.swift:1011-1018`)
+  und wird **innerhalb des `ForEach`** aufgerufen (`ReportView.swift:223`).
+- `visibleSortedFilesByFolder` baut das ganze Wörterbuch je Zugriff (`:1002-1008`);
+  `visibleFiles(in:)` sortiert dabei jedes Mal neu (`:1348-1349`).
+- Der zweite Plattendurchgang für die Detaillisten ist **seriell**, ein
+  `listDirectoryFiles` je Ordner (`ReportViewModel.swift:1906-1922`).
+- Der Scan sammelt **ein einziges Array** ohne Deckel und ohne Stückelung
+  (`FileScanner.swift:93`, `:173`); abbrechbar ist er (`:99`).
+
+PR-13 (Typverteilung) würde dieser Liste **eine weitere Rechnung pro Zeile** hinzufügen –
+siehe dort. Erst messen, dann verdichten.
+
+### Festlegungen vor der Umsetzung
+
+1. **Der Messstand ist ein eigenes ausführbares Ziel neben `CoreChecks` und lebt auf
+   `ActivitiesCore`.** Dieselbe Begründung wie bei der Farbpalette: Was der Kern nicht
+   erreicht, driftet unbemerkt. **⚠️ Er misst damit *nicht* alles** – `treeRows` und
+   `visibleFiles(in:)` liegen im App-Ziel und sind von dort unerreichbar. Das ist kein
+   Mangel des Messstands, sondern der Befund: Was gemessen werden soll, muss in den Kern.
+2. **Gemessen wird bei 100k / 250k / 500k Dateien**, je Größe Zeit **und** Spitzenspeicher,
+   dazu die Frage, ob der Abbruch noch greift. Ein synthetischer Baum, damit die Zahl
+   reproduzierbar ist – ein fremder Ordner ist keine Messung, sondern eine Anekdote.
+3. **Eine Obergrenze wird nur eingeführt, wenn die Messung sie verlangt.** Ein Deckel „für
+   alle Fälle" ist eine Einschränkung ohne Befund. Ergibt die Messung nichts, ist *das* das
+   Ergebnis – und es steht als Zahl im Doc-Kommentar, nicht als Beruhigung im Backlog.
+4. **Totholz: entscheiden statt weiter aufheben.** `FolderAggregator.groupByFolder`,
+   `countFilesPerDay` und `countFilesPerDayByExtension` werden **nur von Prüfungen** gehalten
+   (`CoreChecks/main.swift:87`, `:93`, `:181`; `FolderAggregatorTests.swift:54`, `:73`, `:89`)
+   und von keinem App-Code. Sie wurden „für PR-11" aufgehoben – PR-11 ist seit v1.19.26
+   ausgeliefert und benutzt sie nicht. Ebenso `FolderEntry.files`, das **nie** befüllt wird
+   (`Models.swift:50`). **⚠️ `countFilesPerDayByType` bleibt** – die ist live
+   (`ReportViewModel.swift:931`). *Zur Entscheidung: `countFilesPerDay` ist die
+   Tagesgruppierung, auf der PR-15 aufsetzen könnte; `FolderEntry.files` ist das Feld, das
+   PR-13 bräuchte. Wer löscht, muss beides wissen.*
+
+**Sprint-Akzeptanz:** Ein Aufruf liefert reproduzierbare Zahlen für 100k/250k/500k (Zeit und
+Spitzenspeicher); die Zahlen stehen im Doc-Kommentar **neben der Konstante, auf die sie sich
+beziehen**, nicht nur im Backlog; `treeRows` wird nicht mehr je Neuzeichnung neu gebaut; der
+Abbruch greift auch bei 500k; eine Obergrenze existiert **entweder** mit Messwert **oder**
+gar nicht, mit Beleg; eine Dateizeile im Baum nennt ihre Ebene; über jedes Stück Totholz ist
+entschieden.
+
+**Bewusst nicht in diesem Sprint:**
+- **PR-13** – nach AP1, nicht davor; Begründung dort.
+- **PR-20** – erst neu gefasst (die Schätzung „fast geschenkt" ist widerlegt), dann schätzen.
+- **PR-15** (L) – PR-16 ist seit vier Tagen ausgeliefert; das ist zu kurz, um zu wissen, ob
+  das L noch fehlt. Genau dafür wurde erst das S gebaut.
+- **PR-19** (L) – der größte funktionale Sprung, aber nicht als zweiter tiefer Eingriff
+  unmittelbar nach dem Menü-Umbau.
+- **PR-22** – zurückgestellt, keine Mitgliedschaft (Entscheidung vom 2026-08-10).
+
+---
 ## Sprint 14 – „Befehle, die man findet" *(v1.19.34)*
 
 Aus der Durchsicht v1.19.33. **Der tragende Teil war die Menü-Neuordnung** (UX-35/36/41);

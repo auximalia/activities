@@ -225,8 +225,22 @@ struct ActivitiesApp: App {
                 // ein HTML-Bericht eine Ausnahme – das leichter erreichbare
                 // Kuerzel gehoert dem haeufigeren Befehl. ⌘E/⌥⌘E bleiben als
                 // Paar beieinander.
-                Button("Als HTML exportieren …") { ExportService.exportHTML(model.displayBuckets) }
+                Button("Als HTML exportieren …") {
+                    ExportService.exportHTML(
+                        model.displayBuckets,
+                        range: model.rangeLabel,
+                        root: model.rootURL,
+                        chartDays: model.chartDays
+                    )
+                }
                     .keyboardShortcut("e", modifiers: [.command, .option])
+                Divider()
+                // **⌥⌘C, nicht ⌘C.** ⌘C gehoert dem Kopieren der Auswahl und
+                // muss auch im Suchfeld funktionieren; ein zweiter Befehl darauf
+                // waere ein Griff in eine fremde Tasche.
+                Button("Zusammenfassung kopieren") { model.copySummary() }
+                    .keyboardShortcut("c", modifiers: [.command, .option])
+                    .disabled(!model.hasScanResults)
             }
             // Die Zwischenablage-Gruppe wird **ersetzt**, nicht ergaenzt:
             // macOS' eigenes „Select All" verarbeitet ⌘A im Menue, bevor die

@@ -1357,6 +1357,104 @@ do {
     expectEqual(SortField.date.menuLabel, "Datum", "Groessensortierung: sonst kein Zusatz")
 }
 
+// MARK: - Weitergeben: Zusammenfassung und Bericht (PR-16/PR-17)
+do {
+    func ordner(_ name: String, _ anzahl: Int, _ tag: Int) -> FolderEntry {
+        FolderEntry(folder: URL(fileURLWithPath: "/r/\(name)"),
+                    newestDate: date(2026, 8, tag), fileCount: anzahl)
+    }
+
+    // Zeitraum-Beschriftung: eine Formulierung fuer Ueberschrift UND Export.
+    expectEqual(DateFormatting.range(from: date(2026, 8, 1), to: date(2026, 8, 3), days: 3),
+                "Sa., 01.08.2026 – Mo., 03.08.2026 · 3 Tage", "Zeitraum: Beschriftung")
+    expectEqual(DateFormatting.range(from: date(2026, 8, 3), to: date(2026, 8, 3), days: 1),
+                "Mo., 03.08.2026 – Mo., 03.08.2026 · 1 Tag", "Zeitraum: Einzahl")
+
+    let zeitraum = "Sa., 01.08.2026 – Mo., 03.08.2026 · 3 Tage"
+    let abschnitte = [
+        BucketedEntries(label: "Angeheftet", entries: [ordner("PM2025", 14, 3)], isPinned: true),
+        BucketedEntries(label: "Heute", entries: [ordner("Lerngruppe", 7, 3), ordner("doc", 5, 3)]),
+        BucketedEntries(label: "Gestern", entries: [ordner("Bilder", 3, 2), ordner("Notizen", 2, 2),
+                                                    ordner("Archiv", 1, 2)])
+    ]
+    let zusammenfassung = ReportExport.summary(abschnitte, range: zeitraum)
+    let zeilen = zusammenfassung.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    expectEqual(zeilen.count, 2, "Zusammenfassung: zwei Zeilen, damit sie einzeilig eingefuegt werden kann")
+
+    // ⚠️ Der Zeitraum wird UEBERGEBEN, nicht erfunden. Das Backlog-Beispiel
+    // lautete „KW 32: …" – das waere in den meisten Faellen falsch, weil der
+    // eingestellte Zeitraum selten eine Kalenderwoche ist. Diese Zeile landet
+    // in einer Zeiterfassung.
+    expect(zeilen[0].hasPrefix(zeitraum), "Zusammenfassung: nennt den tatsaechlichen Zeitraum")
+    expect(!zusammenfassung.contains("KW"), "Zusammenfassung: behauptet keine Kalenderwoche")
+
+    // Summen ueber ALLE Abschnitte – angeheftete Ordner werden aus den
+    // Zeitabschnitten herausgezogen, kommen also genau einmal vor.
+    expect(zeilen[0].contains("6 Ordner"), "Zusammenfassung: Ordner ueber alle Abschnitte")
+    expect(zeilen[0].contains("32 Dateien"), "Zusammenfassung: Dateien ueber alle Abschnitte")
+
+    // Nach ANZAHL sortiert, nicht nach Datum: Die Frage ist „woran habe ich
+    // gearbeitet", nicht „was war zuletzt dran".
+    expect(zeilen[1].hasPrefix("PM2025 (14), Lerngruppe (7), doc (5)"),
+           "Zusammenfassung: nach Anzahl absteigend")
+
+    // ⚠️ Gekuerzt wird, aber nicht verschwiegen. Eine Liste, die ihre Kuerzung
+    // nicht zugibt, ist eine falsche Auskunft.
+    expect(zeilen[1].hasSuffix("… und 1 weitere"), "Zusammenfassung: Rest wird gezaehlt")
+    expect(!zeilen[1].contains("Archiv"), "Zusammenfassung: auf das Limit gekuerzt")
+
+    // Ordnernamen, keine Pfade – ein Standup-Satz mit /Users/... ist unlesbar.
+    expect(!zusammenfassung.contains("/r/"), "Zusammenfassung: Namen statt Pfade")
+
+    // Randfall: nichts gefunden. Eine leere zweite Zeile waere ein Raetsel.
+    let leer = ReportExport.summary([], range: zeitraum)
+    expect(leer.contains("keine Treffer"), "Zusammenfassung: leeres Ergebnis sagt das auch")
+    expect(!leer.contains("\n"), "Zusammenfassung: leeres Ergebnis bleibt einzeilig")
+
+    // --- Diagramm im Bericht ---
+    let tage = [
+        DayExtensionCount(day: date(2026, 8, 1), counts: ["swift": 2]),
+        DayExtensionCount(day: date(2026, 8, 2), counts: ["md": 8]),
+        DayExtensionCount(day: date(2026, 8, 3), counts: ["swift": 4, "md": 1])
+    ]
+    let svg = ReportExport.chartSVG(tage)
+    expectEqual(svg.components(separatedBy: "<rect").count - 1, 3, "Diagramm: ein Balken je Tag")
+    expect(svg.contains("Höchstwert 8"), "Diagramm: nennt den Hoechstwert")
+    expect(svg.contains("role=\"img\""), "Diagramm: fuer Vorleseprogramme gekennzeichnet")
+
+    // ⚠️ Ohne Balken kein Diagramm: Eine leere Flaeche ist keine Auskunft,
+    // sondern eine leere Behauptung – und ein Hoechstwert von 0 waere zudem
+    // eine Division durch null.
+    expect(ReportExport.chartSVG([]).isEmpty, "Diagramm: ohne Tage nichts")
+    expect(ReportExport.chartSVG([DayExtensionCount(day: date(2026, 8, 1), counts: [:])]).isEmpty,
+           "Diagramm: ohne Treffer nichts")
+
+    // --- HTML-Bericht ---
+    let bericht = ReportExport.html(abschnitte, range: zeitraum,
+                                    root: URL(fileURLWithPath: "/r"), chartDays: tage,
+                                    generatedAt: date(2026, 8, 3))
+    expect(bericht.contains(zeitraum), "Bericht: Zeitraum steht im Kopf")
+    expect(bericht.contains("Ordner: /r"), "Bericht: Wurzelordner steht im Kopf")
+    expect(bericht.contains("<svg"), "Bericht: Diagramm eingebettet")
+    expect(bericht.contains("<rect"), "Bericht: Diagramm hat Balken")
+    expect(bericht.contains("PM2025 (14)"), "Bericht: Zusammenfassung im Kopf")
+
+    // Der Bericht bleibt EINE Datei, die man verschicken kann.
+    expect(!bericht.contains("<img"), "Bericht: kein externes Bild")
+    expect(!bericht.contains("<script"), "Bericht: kein Skript")
+
+    // Maskierung: ein Ordnername mit spitzer Klammer darf das Dokument nicht
+    // zerlegen.
+    let boese = [BucketedEntries(label: "Heute", entries: [
+        FolderEntry(folder: URL(fileURLWithPath: "/r/<script>"), newestDate: date(2026, 8, 3), fileCount: 1)
+    ])]
+    expect(!ReportExport.html(boese).contains("<script>"), "Bericht: Ordnernamen werden maskiert")
+
+    // Rueckwaertsvertraeglich: ohne die neuen Angaben entsteht weiterhin ein
+    // gueltiger Bericht (die alten Aufrufer im Test bleiben gueltig).
+    expect(ReportExport.html(abschnitte).contains("<!DOCTYPE html>"), "Bericht: auch ohne Kopfangaben gueltig")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

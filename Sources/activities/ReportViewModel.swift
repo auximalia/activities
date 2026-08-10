@@ -1224,6 +1224,18 @@ final class ReportViewModel {
         }
     }
 
+    /// Der angezeigte Zeitraum in Worten – **dieselbe** Beschriftung wie die
+    /// Ueberschrift ueber dem Diagramm (PR-16).
+    var rangeLabel: String {
+        DateFormatting.range(from: displayRangeStart, to: displayRangeEnd, days: displayRangeDayCount)
+    }
+
+    /// Legt eine lesbare Zusammenfassung des aktuellen Ergebnisses in die
+    /// Zwischenablage – der kuerzeste Weg von Daten zu Nutzen (PR-16).
+    func copySummary() {
+        ClipboardService.copy(ReportExport.summary(displayBuckets, range: rangeLabel))
+    }
+
     /// Die Arbeitstage eines Ordners – Grundlage von „Arbeit fortsetzen" (PR-11).
     ///
     /// **⚠️ Speist sich aus ``visibleFiles(in:)``, nicht aus ``filesByFolder``.**

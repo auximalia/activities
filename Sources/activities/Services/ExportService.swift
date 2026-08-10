@@ -8,8 +8,17 @@ enum ExportService {
         save(content: ReportExport.csv(buckets), suggestedName: "activities-bericht.csv", type: .commaSeparatedText)
     }
 
-    static func exportHTML(_ buckets: [BucketedEntries]) {
-        save(content: ReportExport.html(buckets), suggestedName: "activities-bericht.html", type: .html)
+    static func exportHTML(
+        _ buckets: [BucketedEntries],
+        range: String,
+        root: URL,
+        chartDays: [DayExtensionCount]
+    ) {
+        save(
+            content: ReportExport.html(buckets, range: range, root: root, chartDays: chartDays),
+            suggestedName: "activities-bericht.html",
+            type: .html
+        )
     }
 
     private static func save(content: String, suggestedName: String, type: UTType) {

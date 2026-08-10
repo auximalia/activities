@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.32 · 2026-08-10*
+*Stand: v1.19.33 · 2026-08-10*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -1534,15 +1534,63 @@ Zebra, Baumlinien, Auswahlhintergrund und das Kompakt-Layout gleichzeitig.
 Eigene Ansicht: „Deine Woche" – wichtigste Ordner, Verteilung nach Tagen und Typen,
 Vergleich zur Vorwoche. Macht aus Daten eine Aussage.
 
-### PR-16 · Zusammenfassung in die Zwischenablage
+### PR-16 · Zusammenfassung in die Zwischenablage *(erledigt, v1.19.33)*
 **Aufwand:** S · **Nutzen:** hoch
-Ein Knopf erzeugt Text für Standup, Zeiterfassung oder Rechnung:
-„KW 32: PM2025 (14 Dateien), Lerngruppe (7) …" – der schnellste Weg von Daten zu Nutzen.
+Ein Knopf erzeugt Text für Standup, Zeiterfassung oder Rechnung – der schnellste Weg von Daten
+zu Nutzen.
 
-### PR-17 · Berichte, die man zeigen kann
+**⚠️ Das Beispiel im ursprünglichen Eintrag war falsch.** Dort stand „KW 32: PM2025
+(14 Dateien) …". Der eingestellte Zeitraum ist aber selten eine Kalenderwoche – Vorgabe sind
+30 Tage, dazu freie Spanne und der Modus „Alle". Eine Zeile, die in eine **Zeiterfassung oder
+Rechnung** wandert, darf den Zeitraum nicht falsch benennen; das ist derselbe Fehlertyp wie die
+falsche Zahl in der Rückfrage aus PR-26, nur mit teureren Folgen.
+
+**Umgesetzt** – ⌥⌘C legt zwei Zeilen in die Zwischenablage:
+
+```
+Sa., 01.08.2026 – Mo., 03.08.2026 · 3 Tage · 6 Ordner · 32 Dateien
+PM2025 (14), Lerngruppe (7), doc (5), Bilder (3), Notizen (2) … und 1 weitere
+```
+
+**⚠️ Der Fund, der den ganzen Sprint geprägt hat: Die Zeitraum-Formulierung lag privat in einer
+View** (`ChartHeaderView.rangeHeadline`). Solange sie nur die Überschrift beschriftete, fiel das
+nicht auf. Eine zweite Stelle, die den Zeitraum nennt, hätte eine zweite Formulierung erzeugt –
+der Anfang genau des Zerfalls, der die Zeitstempel vor PR-32 auseinandergebracht hat. Sie steht
+jetzt als `DateFormatting.range(from:to:days:)` im Kern, wird von Überschrift **und** Export
+benutzt und ist geprüft.
+
+**Weitere Festlegungen:**
+- **Nach Anzahl sortiert**, nicht nach Datum: Die Frage hinter der Zeile ist „woran habe ich
+  gearbeitet", nicht „was war zuletzt dran" – dafür gibt es die Liste.
+- **Fünf Ordner namentlich**, der Rest gezählt („… und 7 weitere"). Eine gekürzte Liste, die
+  ihre Kürzung nicht zugibt, wäre eine falsche Auskunft. Fünf sind die Menge, die man noch
+  vorlesen kann.
+- **Ordnernamen, keine Pfade.** Ein Standup-Satz mit `/Users/x/Documents/…` ist unlesbar. Preis:
+  zwei gleichnamige Ordner sind in der Zeile nicht zu unterscheiden – wer den Pfad braucht, hat
+  CSV und HTML.
+- **⌥⌘C, nicht ⌘C.** ⌘C gehört dem Kopieren der Auswahl und muss auch im Suchfeld
+  funktionieren.
+
+### PR-17 · Berichte, die man zeigen kann *(erledigt, v1.19.33)*
 **Aufwand:** M · **Nutzen:** mittel
-Der HTML-Export ist heute eine rohe Tabelle. Mit Diagramm, Kopfzeile und Zeitraum wird er
-vorzeigbar; PDF-Ausgabe ergänzen.
+Der HTML-Export war eine rohe Tabelle (88 Zeilen, kein Kopf außer „Erstellt: …").
+
+**Umgesetzt:** Kopfzeile mit **Zeitraum**, Wurzelordner und der Zusammenfassung aus PR-16, dazu
+ein **Balkendiagramm** der Tageswerte.
+
+**⚠️ Das Diagramm zeichnet aus `DayExtensionCount` – derselben Aggregation, die auch die Ansicht
+speist.** Nur das Zeichnen unterscheidet sich (SVG statt SwiftUI). Entstünde hier eine zweite
+Rechnung, zeigten Bericht und Fenster irgendwann verschiedene Zahlen für denselben Tag, und
+niemand wüsste, welcher zu glauben ist.
+
+**⚠️ SVG und kein Bild.** Der Bericht soll eine **einzelne Datei** bleiben, die man verschicken
+kann. Ein PNG wäre ein zweiter Anhang oder ein aufgeblähter Base64-Block. Eigene Prüfungen
+sichern, dass weder `<img>` noch `<script>` im Ergebnis stehen.
+
+**PDF bewusst weggelassen** (mit Zustimmung). Der Eintrag nannte es beiläufig, es ist aber ein
+eigener Ausgabeweg mit eigener Seitenaufteilung – ein zweites Ziel, das dieselbe Darstellung
+noch einmal erzeugen muss. Ein HTML-Bericht lässt sich über den Systemdruck als PDF sichern;
+solange niemand das vermisst, ist das die kleinere Antwort.
 
 ### PR-18 · Zwei Zeiträume vergleichen
 **Aufwand:** M · **Nutzen:** mittel
@@ -1580,11 +1628,26 @@ fest verdrahtet. Ohne Lokalisierung bleibt die App auf den deutschen Sprachraum 
 *Auch für Datums- und Zahlenformate relevant: Ein englischer Nutzer sähe heute deutsche
 Wochentagskürzel.*
 
-### PR-24 · Erklären, was gelesen wird
+### PR-24 · Erklären, was gelesen wird *(erledigt, v1.19.33)*
 **Aufwand:** S · **Nutzen:** hoch
 Die App liest den gesamten Dateibaum. Das ist harmlos (nichts verlässt das Gerät), aber es
 sollte **dastehen** – im Erstkontakt und in der Hilfe. Vertrauen entsteht durch Auskunft,
 nicht durch Schweigen.
+
+**Umgesetzt:** Ein Satz im Erstkontakt-Streifen („liest dafür den gesamten Ordnerbaum – nur
+lesend, nur lokal: Es wird nichts gesendet und nichts verändert") und ein **eigener Abschnitt**
+in der Hilfe: „Was gelesen wird".
+
+**⚠️ Eigener Abschnitt, kein Halbsatz beim Rauschfilter.** Wer wissen will, was ein Programm mit
+seinen Dateien tut, sucht eine Überschrift – nicht eine Zeile zwischen Bedienhinweisen.
+
+**⚠️ Ein Satz, kein Absatz.** Ein Erstkontakt, der zur Datenschutzerklärung wird, wird
+weggeklickt – und dann hat niemand etwas davon.
+
+**Zwei veraltete Hilfetexte nebenbei gefunden und behoben:** Der Abschnitt „Updates" behauptete
+„Beim Start prüft die App still …" – seit PR-34 prüft sie **täglich**, was der eigentliche Punkt
+jener Änderung war. Und der Export nannte ⇧⌘E, obwohl das Kürzel seit PR-12 ⌥⌘E ist. *Eine
+Hilfe, die etwas anderes sagt als das Programm, ist schlechter als keine – ihr glaubt man.*
 
 ### PR-25 · Leistung bei sehr großen Bäumen absichern
 **Aufwand:** M · **Nutzen:** mittel
@@ -2201,13 +2264,13 @@ selteneren zu verlangsamen wäre ein schlechter Tausch.
 - Gar nichts ändern und stattdessen die vorhandenen Wege sichtbarer machen; der Tooltip nennt
   sie bereits („Finder: Ordner-Symbol oder Kontextmenü").
 
-## Sprint 13 – „Die App sagt, was sie weiß" *(Zuschnitt nach Code-Durchsicht, Stand v1.19.32)*
+## Sprint 13 – „Die App sagt, was sie weiß" *(erledigt, v1.19.33)*
 
-| AP | Eintrag | Aufwand | Nutzen |
-|---|---|---|---|
-| **AP1** | PR-16 · Zusammenfassung in die Zwischenablage | S | hoch |
-| **AP2** | PR-17 · Berichte, die man zeigen kann | M | mittel |
-| **AP3** | PR-24 · Erklären, was gelesen wird | S | hoch |
+| AP | Eintrag | Aufwand | Nutzen | |
+|---|---|---|---|---|
+| **AP1** | PR-16 · Zusammenfassung in die Zwischenablage | S | hoch | ✅ |
+| **AP2** | PR-17 · Berichte, die man zeigen kann | M | mittel | ✅ |
+| **AP3** | PR-24 · Erklären, was gelesen wird | S | hoch | ✅ |
 
 **Die Klammer ist technisch, nicht nur thematisch.** AP1 und AP2 arbeiten beide auf
 `ReportExport` (heute 88 Zeilen, nur `csv` und `html`) und brauchen dieselbe Sache: eine

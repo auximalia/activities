@@ -93,9 +93,11 @@ struct HelpView: View {
                     "⌘↑ (oder der Pfeil-hoch-Knopf) springt an den Listenanfang.",
                 ])
 
-                section("Exportieren", icon: "square.and.arrow.up", [
-                    "Menü „Ablage“: als CSV (⌘E) oder als HTML-Bericht (⇧⌘E).",
-                    "Exportiert wird genau das, was gerade angezeigt wird.",
+                section("Weitergeben", icon: "square.and.arrow.up", [
+                    "Menü „Ablage“: als CSV (⌘E) oder als HTML-Bericht (⌥⌘E).",
+                    "⌥⌘C legt eine Zusammenfassung in die Zwischenablage – für Standup oder Zeiterfassung.",
+                    "Der HTML-Bericht enthält Zeitraum, Diagramm und Tabelle und ist eine einzelne Datei.",
+                    "Weitergegeben wird genau das, was gerade angezeigt wird.",
                 ])
 
                 section("Rauschfilter", icon: "eye.slash", [
@@ -111,8 +113,21 @@ struct HelpView: View {
                     "In den Einstellungen: Dock-Symbol ausblenden, beim Anmelden starten.",
                 ])
 
+                // ⚠️ Eigener Abschnitt, nicht als Nebensatz im Rauschfilter
+                // versteckt (PR-24). Wer wissen will, was ein Programm mit
+                // seinen Dateien tut, sucht eine Ueberschrift – keinen
+                // Halbsatz zwischen Bedienhinweisen.
+                section("Was gelesen wird", icon: "lock.shield", [
+                    "activities liest den gesamten Ordnerbaum unter dem gewählten Ordner.",
+                    "Gelesen werden nur Name, Datum und Größe – nie der Inhalt einer Datei.",
+                    "Nichts verlässt das Gerät: keine Server, keine Konten, keine Telemetrie.",
+                    "Nichts wird verändert, verschoben oder gelöscht – die App liest nur.",
+                    "Einstellungen liegen lokal in den macOS-Voreinstellungen.",
+                    "Die einzige Netzverbindung ist die Update-Suche bei GitHub (siehe unten).",
+                ])
+
                 section("Updates", icon: "arrow.down.circle", [
-                    "Beim Start prüft die App still, ob eine neuere Version vorliegt.",
+                    "Die App prüft still einmal täglich, ob eine neuere Version vorliegt.",
                     "Gibt es eine, erscheint oben rechts „aktuell → neu“ – Klick installiert sie.",
                     "Manuell über das Menü: „Nach Updates suchen …“.",
                     "Der Installer läuft sichtbar im Terminal; die App startet danach neu.",

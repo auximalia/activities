@@ -75,9 +75,21 @@ struct RootView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Willkommen bei activities")
                     .font(.callout).fontWeight(.semibold)
+                // ⚠️ Der letzte Satz ist der wichtigste (PR-24). Die App liest
+                // den **gesamten** Dateibaum unter dem gewaehlten Ordner. Das
+                // ist harmlos – nichts verlaesst das Geraet –, aber es muss
+                // **dastehen**. Vertrauen entsteht durch Auskunft, nicht durch
+                // Schweigen; wer es selbst herausfinden muss, fragt sich, was
+                // sonst noch unerwaehnt bleibt.
+                //
+                // **Ein Satz, kein Absatz.** Ein Erstkontakt, der zur
+                // Datenschutzerklaerung wird, wird weggeklickt – und dann hat
+                // niemand etwas davon.
                 Text("Hier siehst du, in welchen Ordnern zuletzt gearbeitet wurde. "
                      + "Den Ordner wechselst du links oben, den Zeitraum daneben. "
-                     + "Ein Klick ins Diagramm springt zur passenden Datei.")
+                     + "Ein Klick ins Diagramm springt zur passenden Datei. "
+                     + "activities liest dafür den gesamten Ordnerbaum – nur lesend, "
+                     + "nur lokal: Es wird nichts gesendet und nichts verändert.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

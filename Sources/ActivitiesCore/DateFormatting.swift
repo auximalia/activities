@@ -142,6 +142,23 @@ public enum DateFormatting {
         "\(weekdayShort(date, calendar: calendar))., \(day(date))"
     }
 
+    /// Der angezeigte **Zeitraum** in Worten, z. B.
+    /// „Sa., 01.08.2026 – Mo., 03.08.2026 · 3 Tage".
+    ///
+    /// **⚠️ Diese Formulierung lag bis v1.19.32 privat in einer View**
+    /// (`ChartHeaderView.rangeHeadline`). Solange sie nur die Ueberschrift
+    /// beschriftete, war das unauffaellig. Sobald eine zweite Stelle den
+    /// Zeitraum nennen soll – Zusammenfassung, Bericht –, ist es der Anfang
+    /// genau des Zerfalls, der die Zeitstempel vor PR-32 auseinandergebracht
+    /// hat: zwei Orte, zwei Formulierungen, und irgendwann widersprechen sie
+    /// sich.
+    ///
+    /// Deshalb steht sie jetzt hier, wird von Ueberschrift **und** Export
+    /// benutzt und ist in `CoreChecks` geprueft.
+    public static func range(from start: Date, to end: Date, days: Int) -> String {
+        "\(weekdayDate(start)) – \(weekdayDate(end)) · \(days) \(days == 1 ? "Tag" : "Tage")"
+    }
+
     private static let monthYearFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "de_DE")

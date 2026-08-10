@@ -87,10 +87,11 @@ struct ChartHeaderView: View {
     /// Zeitraum ausgeschrieben, z. B. „Mi., 08.07.2026 – Do., 06.08.2026 · 30 Tage".
     /// Über dem Diagramm ist Platz für die Langfassung mit Wochentagen.
     private var rangeHeadline: String {
-        let start = DateFormatting.weekdayDate(model.displayRangeStart)
-        let end = DateFormatting.weekdayDate(model.displayRangeEnd)
-        let days = model.displayRangeDayCount
-        return "\(start) – \(end) · \(days) \(days == 1 ? "Tag" : "Tage")"
+        DateFormatting.range(
+            from: model.displayRangeStart,
+            to: model.displayRangeEnd,
+            days: model.displayRangeDayCount
+        )
     }
 
     /// Auf-/Zuklappen – sitzt rechts in der Überschriftzeile.

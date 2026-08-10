@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.33 · 2026-08-10*
+*Stand: v1.19.34 · 2026-08-10*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -22,11 +22,15 @@ bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschn
 
 ## Aus der UX-Durchsicht v1.19.33 *(2026-08-10)*
 
-Durchgeführt mit dem Skill `ux-review`. **Drei der neun Befunde sind am Quelltext nicht zu
-sehen** – der Code deklariert sie korrekt, das laufende Programm zeigt etwas anderes. Sie
-stammen aus einem Auslesen der Menüleiste und der Werkzeugleiste des installierten Bündels
-über die Bedienhilfen-Schnittstelle, **gegengeprüft an einem frisch gestarteten Prozess der
-v1.19.33** – siehe UX-32, wo genau das zunächst versäumt wurde.
+Durchgeführt mit dem Skill `ux-review`. **Drei der neun Befunde waren am Quelltext nicht zu
+sehen** – der Code deklarierte sie korrekt, das laufende Programm zeigte etwas anderes. Sie
+stammen aus einem Auslesen der Menüleiste und der Werkzeugleiste über die
+Bedienhilfen-Schnittstelle, gegengeprüft an einem frisch gestarteten Prozess – siehe UX-32,
+wo genau das zunächst versäumt wurde.
+
+**Acht der neun sind mit v1.19.34 erledigt** (Sprint 14, siehe unten); was sie entschieden
+haben, steht unter „Entscheidungen". Offen bleiben hier nur der verkleinerte Rest von UX-40
+und die nachrangigen Punkte.
 
 ### ⛔️ UX-32 · Widerlegt: „Zusammenfassung kopieren" fehle im Menü
 **Art:** Fehlbefund der Durchsicht · **geschlossen am Tag der Aufnahme**
@@ -65,358 +69,23 @@ wiederholt. Siehe Lehre 2.
 
 ---
 
-### UX-33 · Menütitel englisch, Befehle deutsch
-**Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt · **P1**
-
-**Beobachtet:** Die Menüleiste heißt `File · Edit · View · Window · Help`. Darin stehen
-deutsche Befehle („Schließen", „Alles auswählen", „Aktualisieren"), dazwischen englische
-Systemeinträge: `Settings…`, `Hide activities`, `Show All`, `Quit activities`,
-`Undo`/`Redo`, `Minimize`, `Zoom`, `Enter Full Screen`, `Bring All to Front`,
-`AutoFill`, `Start Dictation`, `Emoji & Symbols`.
-
-**Warum das schadet:** Es ist das Erste, was jeder Anwender sieht, und es sieht nach einer
-unfertigen Übersetzung aus – die App wirkt weniger vertrauenswürdig als sie ist. Für eine
-Anwendung, deren gesamter Text sorgfältig deutsch formuliert ist, ist das ein
-unverhältnismäßiger Ansehensverlust für einen kleinen Eingriff.
-
-**Beleg:**
-- Auslesen der Menüleiste am laufenden Programm (siehe oben).
-- `/Applications/activities.app/Contents/Resources` enthält genau eine Datei:
-  `AppIcon.icns`. **Kein `.lproj`-Verzeichnis.**
-- `Packaging/Info.plist` setzt **kein** `CFBundleDevelopmentRegion`.
-- Ohne deklarierte Lokalisierung liefert AppKit seine Standardmenüs in der Basissprache
-  des Rahmenwerks, also Englisch – unabhängig von der Systemsprache.
-
-**Vorschlag:** `CFBundleDevelopmentRegion = de` setzen und ein `de.lproj` mitliefern
-(mindestens leer bzw. mit `InfoPlist.strings`), damit macOS die Standardmenüs deutsch
-zieht. Verworfen: die Standardeinträge selbst nachbauen – man ersetzte damit vom System
-gepflegte, seit Jahrzehnten eingeübte Befehle durch eigene Kopien, die bei jeder
-Systemänderung nachgezogen werden müssten.
-
-**⚠️ Berührt PR-23 (Englische Sprachfassung).** Das ist kein Widerspruch, sondern die
-Vorarbeit: Erst wenn die App eine *deklarierte* Sprache hat, kann sie eine zweite
-bekommen. Der Aufwand von PR-23 sinkt dadurch nicht – die 180 fest verdrahteten
-Zeichenketten bleiben –, aber der Rahmen steht.
-
-**Akzeptanz:** Auf einem deutschen System heißen die Menüs Ablage, Bearbeiten,
-Darstellung, Fenster, Hilfe, und die Systemeinträge darin sind deutsch; am laufenden
-Programm ausgelesen, nicht am Quelltext geschlossen.
-
----
-
-### UX-34 · Die Warnung „Daten sind veraltet" ist im hellen Modus die unleserlichste Stelle im Fenster
-**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P1**
-
-**Beobachtet:** Ist der Bestand älter als die Frist, färbt sich die Statuszeile
-„Stand: …" orange. Im hellen Erscheinungsbild ist sie damit kaum zu lesen.
-
-**Warum das schadet:** Diese Zeile beantwortet die einzige Frage, auf die es ankommt –
-*darf ich dem Gezeigten glauben?* Der Doc-Kommentar an `RootView.swift:331-335` sagt das
-selbst. Eine Warnung, die schlechter lesbar ist als alles, wovor sie warnt, wird nicht
-gelesen.
-
-**Beleg** (gemessen, beide Erscheinungsbilder):
-
-```
-#FF9500 (systemOrange, hell) auf windowBackground  →  1,86:1   unter AA
-#FF9F0A (systemOrange, dunkel) auf windowBackground →  6,24:1   AA
-```
-
-WCAG AA verlangt 4,5:1 für normalen Text. Die Zeile steht in `.subheadline` (11 pt),
-`RootView.swift:349` und `:324`.
-
-**⚠️ Berührt eine dokumentierte Entscheidung – und bestätigt sie.** Zwölf Zeilen darüber
-steht in derselben Datei (`RootView.swift:308-310`): *„Früher `.tertiary` – gemessen
-**1,86:1** im hellen Modus (WCAG AA verlangt 4,5:1). Eine Angabe, die man am Telefon
-vorlesen soll, darf nicht die unleserlichste im Fenster sein."* Für die Versionsnummer
-wurde daraus eine Korrektur; die Warnung daneben trägt **exakt denselben Messwert** und
-blieb unangetastet. UX-12 und PR-33 haben diese Zeile beide angefasst, ohne die Warnfarbe
-zu messen.
-
-**Zweiter Mangel an derselben Stelle:** Der Text ist in beiden Zuständen wortgleich
-(„Stand: <Zeitpunkt>"); unterschieden wird ausschließlich über Farbe und Symbol
-(`exclamationmark.triangle.fill` gegen `clock.arrow.circlepath`, `:346`). Ein
-`accessibilityLabel` gibt es nicht, nur `.help` (`:350-356`) – VoiceOver sagt in beiden
-Zuständen dasselbe. Die Warnung existiert für Vorleseprogramme nicht.
-
-**Vorschlag:** Den Zustand in den **Text** nehmen („Stand: … · veraltet"). Dann trägt die
-Sprache die Aussage, die Farbe darf dekorativ bleiben, und das Vorleseprogramm bekommt sie
-geschenkt. Verworfen: ein eigenes, dunkleres Orange – der Systemwert ist im dunklen Modus
-richtig (6,24:1), und eine selbst gemischte Farbe für beide Modi erzeugt einen Wert, der
-bei jeder Systemänderung neu gemessen werden muss.
-
-**Akzeptanz:** Der veraltete Zustand ist ohne Farbwahrnehmung erkennbar; das gewählte
-Farb-/Größenpaar erreicht in beiden Erscheinungsbildern mindestens 4,5:1, gemessen und im
-Doc-Kommentar neben dem Wert notiert; VoiceOver liest die Warnung als Warnung.
-
----
-
-### UX-35 · Der Schalter „alle auf- und zuklappen" ist nicht auffindbar
-**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P1**
-
-**Beobachtet:** Feldmeldung des Auftraggebers: *„Ich finde den Knopf zum Alles Auf- und
-Zuklappen (Anzeige der Dateien in den Ordnern) nicht mehr."*
-
-**Warum das schadet:** Wenn der Erbauer der App ihr eigenes Bedienelement nicht wiederfindet,
-findet es niemand. Es ist zudem der einzige Weg zu dieser Funktion – es gibt keinen zweiten,
-über den man sie wiederentdecken könnte.
-
-**Beleg:** Der Schalter ist vorhanden und **nicht** im Überlaufmenü. Auslesen der
-Werkzeugleiste des laufenden Fensters (1920 pt breit): alle zehn Werkzeugleisten-Einträge
-sind sichtbar, kein „»". Vier Ursachen wirken zusammen:
-
-1. **Symbol ohne Text**, als drittes von neun symbolonly-Bedienelementen in einer Reihe
-   (`MainToolbar.swift:167-183`).
-2. **Das Symbol wechselt mit dem Zustand** (`list.bullet.indent` ↔ `list.bullet`,
-   `:172-173`) – man sucht die halbe Zeit nach dem falschen Glyph.
-3. **Der Name wechselt mit der Gliederung**: „Dateien in allen Ordnern anzeigen" im Baum,
-   „Alle Ordner auf- oder zuklappen" in der Zeitansicht (`:178-180`). Selbst der Tooltip
-   ist kein fester Suchbegriff.
-4. **Kein Menüeintrag, kein Kürzel** – siehe UX-36.
-
-**⚠️ Zweites Auftreten desselben Fehlers.** `MainToolbar.swift:197-203` hält fest, dass ein
-Anwender in v1.19.5 den Auto-Refresh-Schalter für den Knopf „neu einlesen" hielt; die
-Antwort war damals ein anderes Symbol. Der Befund war richtig, die Ursache aber nur zum
-Teil: Nicht das einzelne Symbol war das Problem, sondern **neun symbolonly-Bedienelemente
-nebeneinander**. Die Werkzeugleiste ist an ihrer Unterscheidbarkeitsgrenze (ISO 9241-12,
-Merkmal *Unterscheidbarkeit*).
-
-**Vorschlag:** Zwei Eingriffe, die einzeln wirken und zusammen mehr:
-- Menüeintrag mit Kürzel (Teil von UX-36) – ein zweiter Weg, über den man den Befehl
-  namentlich findet, statt ihn als Glyph zu suchen.
-- Einen **stabilen** Namen wählen, der in beiden Gliederungen stimmt (etwa „Dateien in
-  allen Ordnern"), und den Zustand über den Zustandsträger der Werkzeugleiste zeigen statt
-  über zwei verschiedene Symbole.
-
-Verworfen: die Werkzeugleiste beschriften (`.titleAndIcon`) – bei zehn Einträgen sprengte
-das jede übliche Fensterbreite und triebe die hinteren Einträge genau in den Überlauf, den
-`MainToolbar.swift:86-96` bewusst vermeidet.
-
-**Akzeptanz:** Der Befehl ist im Menü unter einem Namen zu finden, der sich nicht mit der
-Gliederung ändert; wer den Schalter in der Werkzeugleiste sucht, findet ihn über den
-Menüeintrag samt dort angezeigtem Kürzel.
-
----
-
-### UX-36 · Zentrale Befehle stehen in keinem Menü
-**Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt · **P1**
-
-**Beobachtet:** Folgende Befehle sind ausschließlich über die Werkzeugleiste, das Diagramm
-oder die Statuszeile erreichbar – in keinem Menü, mit keinem Kürzel:
-
-| Befehl | einziger Weg |
-|---|---|
-| Zeitraum wählen (Heute / −3 / −7 / −30 / −90 / eigene / Spanne / Alle) | `MainToolbar.swift:307-335` |
-| Wurzelordner wählen · zuletzt genutzter Ordner | `MainToolbar.swift:269-277` |
-| Alle Ordner auf-/zuklappen | `MainToolbar.swift:167-183` |
-| Suchlauf abbrechen | `MainToolbar.swift:239-247` |
-| Namensfilter löschen | `ChartHeaderView.swift:191` |
-| Diagramm ein-/ausblenden | `ChartHeaderView.swift:99-115` |
-| Ausgeblendete Ordner zeigen | `ChartHeaderView.swift:229-247` |
-| QuickLook-Vorschau | nur Leertaste, `ReportView.swift:150` |
-
-**Warum das schadet:** Die HIG sagt es wörtlich: *„Even when commands are available
-elsewhere in your app, it's important to list them in the menu bar. Putting commands in the
-menu bar makes them easier for people to find, lets you assign keyboard shortcuts to them,
-and makes them more accessible to people using Full Keyboard Access. Excluding commands
-from the menu bar — even infrequently used or advanced commands — risks making them
-difficult for everyone to find."* (`the-menu-bar`)
-
-Der **Zeitraum** ist die Hauptachse dieser App – die halbe Oberfläche erklärt sich über
-ihn – und hat keinen einzigen Tastenweg. UX-35 ist der Beweis, dass die Folge nicht
-theoretisch ist.
-
-**Beleg:** `ActivitiesApp.swift:121-273` enthält keine Entsprechung zu den obigen Zeilen;
-Auslesen der laufenden Menüleiste bestätigt es.
-
-**Vorschlag:** Ein eigenes App-Menü zwischen Darstellung und Fenster – die HIG sieht genau
-dafür den Platz vor (*„Your app's custom menus appear in the menu bar between the View menu
-and the Window menu"*). Es nimmt auf, was heute in „Darstellung" falsch liegt (UX-41), und
-was heute in gar keinem Menü steht. Der Zeitraum bietet sich als Untermenü an, weil er acht
-Zustände hat.
-
-Verworfen: alles zusätzlich in „Darstellung" hängen – das Menü trägt schon 15 Befehle und
-ist damit die Ursache von UX-41, nicht die Lösung.
-
-**⚠️ Nicht anfassen:** die Reihenfolge und Zusammensetzung der Werkzeugleiste selbst. Sie
-folgt dem Arbeitsablauf *Ort → Suche → Zeitraum → Anpassungen* (Konsistenzentscheidung 9)
-und der Überlaufregel aus `MainToolbar.swift:86-96`. Menüeinträge treten **neben** die
-Werkzeugleiste, nicht an ihre Stelle.
-
-**Akzeptanz:** Jeder Befehl der Tabelle hat einen Menüeintrag; die häufigen haben ein
-Kürzel; die Werkzeugleiste bleibt unverändert; am laufenden Programm ausgelesen.
-
----
-
-### UX-37 · VoiceOver sagt nicht, was ausgewählt, angeheftet oder aufgeklappt ist
-**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P2**
-
-**Beobachtet:** Drei Zustände, die das Auge sofort sieht, erreichen das Vorleseprogramm
-nicht:
-
-- **Ausgewählt.** `.accessibilityAddTraits(.isSelected)` kommt im gesamten Quellbaum nicht
-  vor; Zeilen tragen nur `.isButton` (`FileRowView.swift:203`, `FolderRowView.swift:126`,
-  `TreeRowView.swift:149`). Die Auswahl wird ausschließlich farblich getragen
-  (`SelectionBackground.swift:13`).
-- **Angeheftet.** Das Symbol trägt nur `.help("Angeheftet")`
-  (`FolderRowView.swift:53-57`, `TreeRowView.swift:195-200`) – und `.help` existiert für
-  Vorleseprogramme nicht. Erschwerend: Die Zeile fasst mit
-  `.accessibilityElement(children: .combine)` zusammen, das anschließende ausdrückliche
-  `.accessibilityLabel` (`FolderRowView.swift:123`, `TreeRowView.swift:142`,
-  `FileRowView.swift:200`) **ersetzt** das zusammengefasste Label vollständig. Auch die
-  Kindbeschriftungen, die es gibt, gehen dabei verloren – etwa `clock.badge.xmark` für
-  Dateien außerhalb des Zeitraums (`FileRowView.swift:65-69`).
-- **Auf-/zugeklappt.** Der Wert nennt Ebene, Dateizahl und Datum
-  (`TreeRowView.swift:156-163`), nicht den Aufklappzustand – während die angebotene
-  Bedienhilfe-Aktion genau ihn umschaltet (`:150-153`).
-
-**Warum das schadet:** Die Mehrfachauswahl (UX-23) und die Zugänglichkeit (UX-13, UX-31)
-wurden in Sprint 7 und 8 ausdrücklich gebaut. Wer sie ohne Blick benutzt, kann nicht
-feststellen, was markiert ist – und ⌘A gefolgt von ↩︎ öffnet dann eine unbekannte Menge
-Dateien. Die Bremse aus PR-26 fängt das ab, ihre Rückfrage nennt aber eine Zahl, die der
-Anwender nicht einordnen kann, weil er den Ausgangszustand nie erfahren hat.
-
-**Gegenprobe zur Sichtbarkeit** (die visuelle Seite ist in Ordnung, nur die vorgelesene
-nicht):
-
-```
-Zeilengrund ↔ Auswahl (accent@0.12)   ΔE 11,3 hell · 13,1 dunkel
-Zebra zum Vergleich                    ΔE  2,5 hell ·  4,7 dunkel
-Cursor ohne Auswahl (accent@0.55)      ΔE 50,8 hell · 51,8 dunkel
-```
-
-Die Auswahl liegt sauber über dem Zebra und deutlich unter dem Cursor – hier ist nichts zu
-ändern.
-
-**Kleineres aus derselben Familie:** Das Zeitraum-Segment „eigene Tageszahl" ist ein bloßes
-`Image` ohne Beschriftung (`MainToolbar.swift:324`); der `ProgressView` des laufenden
-Suchlaufs hat weder Label noch `.help` (`MainToolbar.swift:238`).
-
-**Vorschlag:** `.isSelected` an die drei Zeilentypen; Anheftung und Zeitfenster-Zustand in
-den `accessibilityValue` der Zeile aufnehmen statt sie einem `.help` am Symbol zu
-überlassen; den Aufklappzustand ebenso.
-
-**Akzeptanz:** VoiceOver nennt bei jeder Zeile, ob sie ausgewählt ist; angeheftete Ordner
-klingen anders als nicht angeheftete; der Aufklappzustand wird angesagt, bevor die Aktion
-ihn umschaltet.
-
----
-
-### UX-38 · ⌘[ / ⌘] heißen auf deutscher Tastatur ⌘Ö und ⌘Ä
-**Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt · **P2**
-
-**Beobachtet:** Im Menü Darstellung steht bei „Zurück zum vorherigen Ordner" das Kürzel
-**⌘Ö**, bei „Vorwärts" **⌘Ä**.
-
-**Warum das schadet:** Das Kürzel wurde gewählt, weil es „Browser-Konvention" ist. Auf einer
-deutschen Tastatur trägt die Taste an dieser Stelle kein `[`, und die Konvention, die den
-Ausschlag gab, trägt damit nicht. Backlog, Hilfe und Menü behaupten drei verschiedene
-Dinge: das Backlog sagt ⌘[ / ⌘], die Hilfe sagt gar nichts (siehe UX-39), das Menü zeigt
-⌘Ö / ⌘Ä.
-
-**Beleg:** Auslesen der laufenden Menüleiste, Attribut `AXMenuItemCmdChar`: `Ö` bzw. `Ä`.
-Deklariert in `ActivitiesApp.swift:163` und `:166` als `"["` / `"]"`.
-
-**⚠️ Das löst eine offene Prüfschuld ein.** Sprint 11, Festlegung 2, verlangte
-ausdrücklich: *„Vor der Auslieferung am laufenden System zu prüfen … ob das im Suchfeld
-(⌘F) kollidiert, ließ sich am Code **nicht** belegen."* Ausgeliefert wurde in v1.19.28,
-ohne dass die Prüfung stattfand oder ihr Ergebnis vermerkt wurde. Sie ist hiermit
-nachgeholt – mit einem anderen Ergebnis als dem befürchteten: Eine Kollision gibt es nicht,
-wohl aber eine Kürzelbezeichnung, die niemand erwartet.
-
-**Vorschlag:** Zur Entscheidung – kein Defekt, der etwas zerstört. Entweder ⌘Ö / ⌘Ä
-akzeptieren und **so** dokumentieren (Backlog und Hilfe angleichen), oder auf ein Kürzel
-ausweichen, das auf deutscher Tastatur so heißt, wie es gemeint ist. Verworfen: ⌘← / ⌘→ –
-die Pfeiltasten bewegen in dieser App die Auswahl, ein Menükürzel darauf verwirrte mehr,
-als es hilft.
-
-**Akzeptanz:** Menü, Hilfe und Backlog nennen dasselbe Kürzel.
-
----
-
-### UX-39 · Die Hilfe kennt fünf ausgelieferte Kürzel nicht
-**Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt · **P2**
-
-**Beobachtet:** Die Kürzeltabelle der Hilfe (`HelpView.swift:183-210`) führt 20 Einträge.
-Es fehlen:
-
-| Kürzel | Befehl | ausgeliefert |
-|---|---|---|
-| ⌘Ö / ⌘Ä (dekl. ⌘[ / ⌘]) | Zurück / Vorwärts | v1.19.28 |
-| ⌥⌘1–4 | Sortierung nach Datum / Name / Typ / Größe | v1.19.29 |
-| ⌥⌘C | Zusammenfassung kopieren | v1.19.33 |
-| ⇧⌘A | Auswahl aufheben | — |
-| ⌘? | activities Hilfe | — |
-
-**Warum das schadet:** Eine Hilfe, die etwas anderes sagt als das Programm, ist schlechter
-als keine – ihr glaubt man. PR-24 hat genau diesen Fehler schon zweimal behoben (der
-Abschnitt „Updates" und das Export-Kürzel), ohne die Tabelle selbst zu prüfen.
-
-**Vorschlag:** Die Kürzel aus **einer** Quelle beziehen, so wie es PR-32 mit der
-Zeitstempel-Formatierung getan hat: eine Liste in `ActivitiesCore`, aus der sowohl die
-Menübefehle als auch die Hilfetabelle entstehen, und eine Prüfung in `CoreChecks`, dass
-kein Befehl ohne Eintrag bleibt. Verworfen: die Tabelle von Hand nachtragen – das ist der
-Zustand, der schon dreimal auseinandergelaufen ist.
-
-**Akzeptanz:** Jeder Menübefehl mit Kürzel erscheint in der Hilfe; ein neuer Befehl ohne
-Hilfeeintrag lässt `CoreChecks` scheitern.
-
----
-
-### UX-40 · Das Diagramm ist nur mit der Maus bedienbar
-**Aufwand:** M · **Nutzen:** mittel · **Art:** Defekt · **P2**
-
-**Beobachtet:** Drei Handgriffe am Diagramm haben weder Kürzel noch Menübefehl noch
-Bedienhilfe-Aktion:
-
-- Klick springt zur passenden Datei (`HistoryChartView.swift:244-252`)
-- Ziehen setzt den Zeitraum (`:220-243`)
-- Überfahren zeigt die Kurzinfo mit Tagessumme und Typverteilung (`:255-271`)
-
-**Warum das schadet:** Der Erstkontakt-Streifen bewirbt ausgerechnet die erste dieser
-Gesten: *„Ein Klick ins Diagramm springt zur passenden Datei"* (`RootView.swift:90`). Wer
-ohne Maus arbeitet, liest ein Versprechen, das für ihn nicht gilt. UX-31 hat die Balken
-**vorlesbar** gemacht (`:135-139`, `:149-151`) – benutzbar sind sie damit nicht. Die
-Kurzinfo enthält zudem die Tagessumme, die es sonst nirgends gibt (`:293`).
-
-**Vorschlag:** Den Sprung zum Tag als Menübefehl auf der Auswahl anbieten und die
-Zeitraumwahl über das Zeitraum-Untermenü aus UX-36 abdecken – dann braucht das Diagramm
-selbst keine Tastaturbedienung, und die Funktionen sind trotzdem erreichbar. Verworfen: das
-Diagramm fokussierbar machen und mit Pfeiltasten durchfahren – ein zweites
-Navigationsmodell neben der Liste, für einen selten gebrauchten Weg.
-
-**⚠️ Zu prüfen, nicht behauptet:** ob die Kurzinfo einen Ersatz braucht, lässt sich am Code
-nicht entscheiden. Erst klären, welche ihrer Angaben anderswo fehlt.
-
-**Akzeptanz:** Sprung zum Tag und Setzen des Zeitraums sind ohne Maus möglich; der
-Erstkontakt-Satz beschreibt einen Weg, den es für alle gibt.
-
----
-
-### UX-41 · „Darstellung" ist zum Sammelbecken geworden
-**Aufwand:** S · **Nutzen:** mittel · **Art:** Grenzfall Defekt/Geschmack · **P3**
-
-**Beobachtet:** Das Menü Darstellung trägt 15 Befehle und 4 Trenner. Darunter Dinge, die
-keine Darstellung sind: „Zurück zum vorherigen Ordner", „Vorwärts", „In <Editor> öffnen",
-„In <Terminal> öffnen", „Aktualisieren".
-
-**Warum das schadet:** Wer einen Öffnen-Handgriff sucht, sucht ihn nicht unter
-Darstellung. Die HIG umreißt das Menü eng (*„The View menu lets people customize the
-appearance of all an app's windows"*) und warnt vor der Länge (*„Be mindful of menu length …
-If a menu is too long, consider dividing it into separate menus"*).
-
-**Beleg:** `ActivitiesApp.swift:142-218`; Auslesen der laufenden Menüleiste bestätigt die
-Reihenfolge.
-
-**Vorschlag:** Zusammen mit UX-36 lösen – das dort vorgeschlagene App-Menü nimmt Verlauf,
-Ordnerwahl, Zeitraum und die Öffnen-Handgriffe auf. In Darstellung bleiben Gliederung,
-Sortierung, die beiden Anzeigeschalter und „An den Anfang". Getrennt umzusetzen wäre
-zweimal dieselbe Umsortierung.
-
-**Akzeptanz:** Jeder Befehl steht in dem Menü, in dem man ihn zuerst sucht; Darstellung
-enthält nur, was die Darstellung ändert.
-
----
+### UX-40 · Der Sprung aus dem Diagramm ist nur mit der Maus möglich *(verkleinert)*
+**Aufwand:** S · **Nutzen:** gering · **Art:** Defekt · **P3**
+
+**Ursprünglich waren es drei Handgriffe** – Klick zum Springen, Ziehen für den Zeitraum,
+Überfahren für die Kurzinfo. **Zwei davon sind mit v1.19.34 erledigt:** Der Zeitraum ist
+über das Menü *Zeitraum* mit ⌘1–⌘5 und ⌘0 vollständig ohne Maus einstellbar; die Kurzinfo
+war nie die einzige Quelle ihrer Angaben.
+
+**Offen bleibt der Sprung zur Datei** (`HistoryChartView.swift:244-252`) – ein Klick auf
+einen Balken wählt die passende Datei aus. Der Erstkontakt bewirbt genau das
+(`RootView.swift:90`).
+
+**⚠️ Vor der Umsetzung zu klären, nicht zu bauen:** ob dafür überhaupt ein zweiter Weg
+nötig ist. Wer die Liste bedient, hat mit ↑/↓ und dem Namensfilter bereits einen; der
+Diagramm-Sprung ist eine Abkürzung, kein einziger Zugang. Ein Menübefehl „Zum Tag springen"
+bräuchte eine Tagesauswahl, die es ohne Diagramm nicht gibt – das wäre ein neues
+Bedienelement für eine Abkürzung.
 
 ### Nachrangig *(festgehalten, nicht eingeplant)*
 
@@ -433,23 +102,6 @@ enthält nur, was die Darstellung ändert.
 - **Undo/Redo stehen dauerhaft abgeblendet im Menü Bearbeiten.** HIG-konform
   (*„disable the action instead of hiding it"*), kein Handlungsbedarf.
 
-### Rangfolge der Durchsicht
-
-1. **UX-34** – gemessen, klein, und widerspricht einer Entscheidung, die zwölf Zeilen
-   darüber in derselben Datei steht. Die Warnung, der man am wenigsten glauben kann, ist
-   ausgerechnet die über die Glaubwürdigkeit der Daten.
-2. **UX-35 + UX-36 + UX-41** – **eine** Arbeit, nicht drei: eine Menü-Umsortierung, die
-   den verlorenen Schalter nebenbei wiederfindbar macht. Trägt einen Release allein und
-   ist damit das M, das die kleinen Punkte finanziert.
-3. **UX-33** – am sichtbarsten von allen, aber M und braucht eine Entscheidung über die
-   Lokalisierung; zugleich die Vorarbeit für PR-23.
-4. **UX-37, UX-38, UX-39** – klein, als Beifahrer in Punkt 2 oder 3.
-5. **UX-40** – zuletzt; der schwächste Nutzen bei M.
-
-**Kein Punkt dieser Durchsicht ist ein Felddefekt**, der sofort ausgeliefert werden müsste.
-Der einzige Kandidat dafür war UX-32 – und der war keiner.
-
----
 
 ## Aus der Produkt-Roadmap
 
@@ -641,6 +293,39 @@ greift **den Grund** an – nicht die Entscheidung.
     überall.)*
 21. **Gescannt wird sparsam** (v1.10.0): nur bei Start, Ordnerwechsel, ⌘R und
     Auto-Refresh. Zeitraum und Filter arbeiten im Speicher.
+22. **Drei eigene Menüs – „Ordner", „Zeitraum", „Auswahl" – statt eines Sammelbeckens**
+    (v1.19.34). Die HIG sieht für app-eigene Befehle den Platz zwischen Darstellung und
+    Fenster vor und rät, dort die *Gliederung der App* abzubilden. Diese App hat drei
+    Größen: **wo** gesucht wird, **wann**, und **womit man dann arbeitet**. Ein einziges
+    Menü „Befehle" hätte dieselben Einträge getragen und keinen davon erklärt. „Darstellung"
+    trägt seither nur noch, was die Darstellung ändert.
+23. **⚠️ `de.lproj` muss im Bündel liegen, auch wenn es fast leer ist.** Ohne ein
+    tatsächliches Sprachverzeichnis hält macOS das Bündel für unlokalisiert und liefert die
+    Standardmenüs auf **Englisch** – „File", „Edit", „Settings…", „Quit activities" – neben
+    lauter deutschen eigenen Befehlen. `CFBundleDevelopmentRegion` allein genügt **nicht**;
+    beides zusammen ist die Antwort (`Packaging/build_app.sh`). Wer das Verzeichnis für
+    überflüssig hält, weil es keine Übersetzungen enthält, stellt den Fehler wieder her.
+24. **Der Schalter „Dateien in allen Ordnern anzeigen" heißt im Menü immer gleich.** In der
+    Werkzeugleiste wechselt seine Beschriftung mit der Gliederung; genau das machte ihn
+    unauffindbar, weil selbst der Kurzhinweis kein fester Suchbegriff war. Ein Name, der
+    sich mit dem Zustand ändert, ist kein Name.
+25. **Die Warnfarbe „Daten veraltet" ist je Erscheinungsbild verschieden – gemessen.**
+    `Color.orange` erreicht im hellen Modus nur 1,86:1. **Ein einziger Farbwert kann es
+    nicht lösen**: Was hell trägt, ist dunkel zu dunkel. Gültig sind `#A33A00` (hell,
+    5,62:1) und `#FF9F0A` (dunkel, 6,24:1), und das Wort „veraltet" steht zusätzlich im
+    Text – die Farbe darf keine Aussage allein tragen.
+26. **⌘Ö / ⌘Ä für den Ordnerverlauf, so geschrieben wie das Menü es zeigt.** Im Quelltext
+    stehen `[` und `]` (Browser-Konvention); macOS beschriftet Kürzel nach der
+    **Tastenkappe**, und auf deutscher Tastatur ist das Ö und Ä. Eine Kollision gibt es
+    nicht. Backlog, Hilfe und Menü nennen jetzt dieselbe Schreibweise – vorher waren es
+    drei verschiedene. Am laufenden Programm geprüft (`AXMenuItemCmdChar`).
+27. **``Shortcuts`` im Kern ist die einzige Quelle für Tastenkürzel.** Menübefehle binden
+    sich daran, die Hilfetabelle wird daraus erzeugt, ``CoreChecks`` prüft auf doppelt
+    vergebene Kombinationen und darauf, dass kein Eintrag aus der Hilfe fällt. Eine zweite,
+    von Hand gepflegte Liste ist genau das, was fünf Kürzel aus der Hilfe verschwinden ließ.
+28. **``TimePreset`` im Kern statt einer privaten Zuordnung in der Werkzeugleiste.** Die
+    Regel „*Alle* schlägt *Spanne* schlägt Tageszahl, und eine unbekannte Tageszahl ist
+    *eigene*" gilt jetzt für Leiste und Menü gemeinsam und ist geprüft.
 
 ---
 
@@ -721,3 +406,30 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.31 | — | PR-40 · Senkrechter Trenner zwischen Datum und Größe |
 | v1.19.32 | Hotfix | PR-41 · Doppelklick auf den Dateinamen öffnete nicht |
 | v1.19.33 | Sprint 13 · „Die App sagt, was sie weiß" | PR-16, PR-17, PR-24 |
+| v1.19.34 | Sprint 14 · „Befehle, die man findet" | UX-33, UX-34, UX-35, UX-36, UX-37, UX-38, UX-39, UX-41 |
+
+## Sprint 14 – „Befehle, die man findet" *(v1.19.34)*
+
+Aus der Durchsicht v1.19.33. **Der tragende Teil war die Menü-Neuordnung** (UX-35/36/41);
+die übrigen sind Beifahrer, die den Bau- und Veröffentlichungslauf mitfinanzieren.
+
+| Eintrag | Was sich geändert hat |
+|---|---|
+| UX-36, UX-41 | Drei eigene Menüs „Ordner", „Zeitraum", „Auswahl"; Darstellung entrümpelt |
+| UX-35 | Der verlorene Schalter hat einen Menüeintrag, ⌘L und einen festen Namen |
+| UX-33 | `CFBundleDevelopmentRegion` + `de.lproj` – die Menüleiste ist durchgehend deutsch |
+| UX-34 | Warnfarbe je Erscheinungsbild gemessen, „veraltet" steht im Text, VoiceOver-Label |
+| UX-37 | `.isSelected`, Anheftung, Aufklappzustand und „außerhalb des Zeitraums" im Wert |
+| UX-39, UX-38 | Kürzelkatalog in `ActivitiesCore`; Hilfe erzeugt, `CoreChecks` bewacht ihn |
+
+**Nebenbei aufgenommen, weil das Menü ohnehin entstand:** „Im Finder anzeigen" (⇧⌘R) und
+„Pfad kopieren" (⇧⌘C) waren bis dahin nur im Kontextmenü. Sie standen nicht unter den
+Befunden – dieselbe Regel deckt sie ab, und sie kosteten je eine Zeile.
+
+**⚠️ Was dabei nicht gemessen werden konnte.** Die Kürzel wurden am laufenden Programm nur
+teilweise gegengeprüft: Menü-Einträge, Beschriftungen, Haken und die Auslösung **durch
+Anklicken** sind belegt. Das Auslösen **über die Tastenkombination** ließ sich am
+Probebündel nicht zeigen, weil es sich nicht in den Vordergrund holen ließ (Betriebsart ohne
+Dock-Symbol). Der Nachweis, dass ein Kürzel überhaupt greift, liegt für ⌥⌘C aus der
+Durchsicht vor; für die neuen Kombinationen steht er aus. *Das ist eine Prüfschuld – und
+Sprint 11 zeigt, was aus unbezahlten Prüfschulden wird (siehe UX-38).*

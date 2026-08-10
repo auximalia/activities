@@ -1455,6 +1455,92 @@ do {
     expect(ReportExport.html(abschnitte).contains("<!DOCTYPE html>"), "Bericht: auch ohne Kopfangaben gueltig")
 }
 
+// MARK: - TimePreset
+do {
+    // Die Rangfolge der Abfragen ist die eigentliche Regel: „Alle" schlaegt
+    // „Spanne", und beides schlaegt die Tageszahl.
+    expectEqual(TimePreset.resolve(ignoreTimeWindow: true, useDateRange: true, days: 7), .all,
+                "Zeitraum: „Alle“ hat Vorrang vor der Spanne")
+    expectEqual(TimePreset.resolve(ignoreTimeWindow: true, useDateRange: false, days: 30), .all,
+                "Zeitraum: „Alle“ hat Vorrang vor der Tageszahl")
+    expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: true, days: 7), .range,
+                "Zeitraum: Spanne schlaegt Tageszahl")
+
+    expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: false, days: 1), .today,
+                "Zeitraum: 1 Tag ist „Heute“")
+    expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: false, days: 90), .days90,
+                "Zeitraum: 90 Tage ist eine Vorgabe")
+
+    // ⚠️ Der Fall, der eine naive Zuordnung zerlegt: eine Tageszahl, die in
+    // keiner Vorgabe steht, ist NICHT „keine Auswahl", sondern „eigene".
+    expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: false, days: 42), .customDays,
+                "Zeitraum: 42 Tage sind eine eigene Tageszahl")
+    expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: false, days: 3650), .customDays,
+                "Zeitraum: der Hoechstwert ist eine eigene Tageszahl")
+
+    // Jede Vorgabe mit Tageszahl findet sich selbst wieder.
+    for preset in TimePreset.rollingPresets {
+        guard let tage = preset.days else {
+            expect(false, "Zeitraum: Vorgabe \(preset.rawValue) ohne Tageszahl")
+            continue
+        }
+        expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: false, days: tage), preset,
+                    "Zeitraum: \(preset.rawValue) findet sich selbst wieder")
+    }
+
+    // Beschriftungen sind vorhanden – ein leerer Menuepunkt waere unsichtbar.
+    for preset in TimePreset.allCases {
+        expect(!preset.menuLabel.isEmpty, "Zeitraum: \(preset.rawValue) hat eine Menuebeschriftung")
+        expect(!preset.toolbarLabel.isEmpty, "Zeitraum: \(preset.rawValue) hat eine Leistenbeschriftung")
+    }
+    expect(TimePreset.rollingPresets.allSatisfy { $0.days != nil },
+           "Zeitraum: alle rollierenden Vorgaben haben eine Tageszahl")
+}
+
+// MARK: - Shortcuts
+do {
+    // ⚠️ Der Grund, warum es diesen Katalog gibt: Zwei Befehle auf derselben
+    // Tastenkombination sind kein Schoenheitsfehler – macOS fuehrt einen davon
+    // aus, der andere wirkt kaputt.
+    expect(Shortcuts.collisions.isEmpty,
+           "Kuerzel: keine doppelt vergebene Tastenkombination (\(Shortcuts.collisions.joined(separator: "; ")))")
+
+    // Jeder Eintrag muss lesbar sein – sonst steht in der Hilfe eine leere Zelle.
+    for entry in Shortcuts.catalogue {
+        expect(!entry.label.isEmpty, "Kuerzel \(entry.id): hat eine Beschriftung")
+        expect(!entry.display.isEmpty, "Kuerzel \(entry.id): hat eine Schreibweise")
+    }
+
+    // Kennungen sind eindeutig – sonst verdeckt ein Eintrag den anderen.
+    expectEqual(Set(Shortcuts.catalogue.map(\.id)).count, Shortcuts.catalogue.count,
+                "Kuerzel: alle Kennungen sind eindeutig")
+
+    // Jeder Eintrag steht in genau einem Abschnitt der Hilfe – sonst faellt er
+    // aus der Tabelle heraus, und genau das war UX-39.
+    let inSections = ShortcutEntry.Section.allCases.reduce(0) { $0 + Shortcuts.entries(in: $1).count }
+    expectEqual(inSections, Shortcuts.catalogue.count,
+                "Kuerzel: jeder Eintrag erscheint in genau einem Hilfeabschnitt")
+
+    // Schreibweise: Umschalttasten in der Reihenfolge ⌃⌥⇧⌘, wie macOS sie setzt.
+    expectEqual(ShortcutModifiers([.command, .option]).display, "⌥⌘", "Kuerzel: ⌥ steht vor ⌘")
+    expectEqual(ShortcutModifiers([.command, .shift]).display, "⇧⌘", "Kuerzel: ⇧ steht vor ⌘")
+    expectEqual(ShortcutModifiers([.command, .shift, .option, .control]).display, "⌃⌥⇧⌘",
+                "Kuerzel: vollstaendige Reihenfolge")
+    expectEqual(Shortcuts.exportHTML.display, "⌥⌘E", "Kuerzel: HTML-Export schreibt sich ⌥⌘E")
+
+    // ⚠️ Die abweichende Schreibweise ist Absicht, nicht Schlamperei: macOS
+    // beschriftet ⌘[ auf deutscher Tastatur als ⌘Ö (UX-38).
+    expectEqual(Shortcuts.back.display, "⌘Ö", "Kuerzel: Zurueck erscheint als ⌘Ö")
+    expectEqual(Shortcuts.forward.display, "⌘Ä", "Kuerzel: Vorwaerts erscheint als ⌘Ä")
+
+    // Die fuenf Kuerzel, die bis v1.19.33 in der Hilfe fehlten, sind da.
+    let vermisst = ["back", "forward", "sortByDate", "copySummary", "clearSelection", "help"]
+    for id in vermisst {
+        expect(Shortcuts.catalogue.contains { $0.id == id },
+               "Kuerzel: \(id) steht im Katalog und damit in der Hilfe")
+    }
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

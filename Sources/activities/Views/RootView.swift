@@ -344,9 +344,15 @@ struct StatusBarView: View {
                 let isStale = age >= ReportViewModel.stalenessLimit
                 HStack(spacing: 4) {
                     Image(systemName: isStale ? "exclamationmark.triangle.fill" : "clock.arrow.circlepath")
-                    Text("Stand: \(DateFormatting.dateTime(readAt))")
+                    // **⚠️ Das Wort „veraltet" steht im Text, nicht nur in der
+                    // Farbe.** Vorher war der Text in beiden Zustaenden
+                    // wortgleich („Stand: …") und der Unterschied allein
+                    // farblich – fuer Farbfehlsichtige und fuer
+                    // Vorleseprogramme also gar nicht vorhanden (UX-34).
+                    Text(isStale ? "Stand: \(DateFormatting.dateTime(readAt)) · veraltet"
+                                 : "Stand: \(DateFormatting.dateTime(readAt))")
                 }
-                .foregroundStyle(isStale ? Color.orange : Color.secondary)
+                .foregroundStyle(isStale ? Color(nsColor: Self.staleWarning) : Color.secondary)
                 .help(isStale
                       ? "Zuletzt eingelesen \(DateFormatting.relative(readAt)) – seitdem kann sich einiges geändert haben. ⌘R liest den Ordner neu ein."
                       : String(
@@ -354,11 +360,38 @@ struct StatusBarView: View {
                           DateFormatting.dateTime(readAt),
                           model.lastScanDuration
                       ))
+                .accessibilityLabel(isStale
+                    ? "Achtung, die Daten sind veraltet. Zuletzt eingelesen \(DateFormatting.relative(readAt))."
+                    : "Zuletzt eingelesen: \(DateFormatting.dateTime(readAt))")
             }
         } else {
             Text("Noch nicht eingelesen")
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// Farbe der Warnung „Daten veraltet" – je Erscheinungsbild verschieden.
+    ///
+    /// **⚠️ Kein `Color.orange`.** Das Systemorange erreicht auf dem
+    /// Fensterhintergrund gemessen nur **1,86:1 im hellen Modus** (WCAG AA
+    /// verlangt 4,5:1) – exakt das Verhaeltnis, das zwoelf Zeilen weiter oben
+    /// fuer die Versionsnummer schon einmal verworfen wurde. Die wichtigste
+    /// Angabe der Zeile war damit ihre unleserlichste.
+    ///
+    /// **Ein einziger Farbwert kann es nicht loesen**, und das ist der Grund
+    /// fuer die Fallunterscheidung: Ein Orange, das im hellen Modus traegt, ist
+    /// im dunklen zu dunkel, und umgekehrt. Gemessen gegen `windowBackground`:
+    ///
+    /// | | Farbe | Verhaeltnis |
+    /// |---|---|---|
+    /// | hell   | `#A33A00` | 5,62:1 |
+    /// | dunkel | `#FF9F0A` | 6,24:1 |
+    ///
+    /// *Wer hier dreht, misst nach – beide Erscheinungsbilder.*
+    private static let staleWarning = NSColor(name: "activitiesStaleWarning") { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(srgbRed: 1.00, green: 0.624, blue: 0.039, alpha: 1)
+            : NSColor(srgbRed: 0.639, green: 0.227, blue: 0.000, alpha: 1)
     }
 }
 

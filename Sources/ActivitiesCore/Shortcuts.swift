@@ -1,0 +1,330 @@
+import Foundation
+
+/// Umschalttasten eines Tastenkürzels – rahmenwerksfrei, damit der Katalog im
+/// Kern liegen und von ``CoreChecks`` geprüft werden kann.
+public struct ShortcutModifiers: OptionSet, Sendable, Hashable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+
+    public static let control = ShortcutModifiers(rawValue: 1 << 0)
+    public static let option  = ShortcutModifiers(rawValue: 1 << 1)
+    public static let shift   = ShortcutModifiers(rawValue: 1 << 2)
+    public static let command = ShortcutModifiers(rawValue: 1 << 3)
+
+    /// Die Zeichen in der Reihenfolge, in der macOS sie setzt: ⌃ ⌥ ⇧ ⌘.
+    ///
+    /// **Die Reihenfolge ist keine Geschmacksfrage.** Ein Kürzel, das in der
+    /// Hilfe anders geschrieben steht als im Menü, liest sich wie ein zweites
+    /// Kürzel.
+    public var display: String {
+        var out = ""
+        if contains(.control) { out += "⌃" }
+        if contains(.option)  { out += "⌥" }
+        if contains(.shift)   { out += "⇧" }
+        if contains(.command) { out += "⌘" }
+        return out
+    }
+}
+
+/// Die Taste eines Kürzels. Sondertasten getrennt, weil sie im Menü als Zeichen
+/// erscheinen und nicht als Buchstabe.
+public enum ShortcutKey: Hashable, Sendable {
+    case character(Character)
+    case upArrow
+    case space
+    case `return`
+    case escape
+
+    /// Wie die Taste geschrieben wird, wenn nichts anderes festgelegt ist.
+    public var display: String {
+        switch self {
+        case .character(let c): return String(c).uppercased()
+        case .upArrow:          return "↑"
+        case .space:            return "Leertaste"
+        case .return:           return "↩︎"
+        case .escape:           return "Esc"
+        }
+    }
+}
+
+/// Ein Eintrag des Kürzelkatalogs.
+///
+/// **⚠️ Warum das im Kern liegt und nicht in der Hilfe-Ansicht.** Bis v1.19.33
+/// gab es zwei Listen: die `.keyboardShortcut`-Aufrufe in `ActivitiesApp` und
+/// eine von Hand gepflegte Tabelle in `HelpView`. Sie sind auseinandergelaufen –
+/// fünf ausgelieferte Kürzel standen nicht in der Hilfe (UX-39). Das ist
+/// derselbe Zerfall, der die Zeitstempel-Formatierung vor PR-32 zerlegt hat:
+/// Was ``CoreChecks`` nicht erreicht, driftet unbemerkt.
+public struct ShortcutEntry: Sendable, Hashable, Identifiable {
+    /// Abschnitt der Hilfetabelle.
+    public enum Section: String, Sendable, CaseIterable {
+        case commands = "Befehle"
+        case list = "In der Liste"
+        case mouse = "Mit der Maus"
+    }
+
+    public let id: String
+    /// `nil` bei Handgriffen, die kein Menükürzel sind (⌘-Klick, Pfeiltasten
+    /// der Liste). Sie stehen trotzdem im Katalog, damit die Hilfe **eine**
+    /// Quelle hat und nicht zwei.
+    public let key: ShortcutKey?
+    public let modifiers: ShortcutModifiers
+    /// Abweichende Schreibweise, wenn das Menü etwas anderes zeigt als die
+    /// Taste heißt – siehe ``ShortcutEntry/back``.
+    public let displayOverride: String?
+    public let label: String
+    public let section: Section
+
+    public init(
+        id: String,
+        key: ShortcutKey?,
+        modifiers: ShortcutModifiers = [],
+        displayOverride: String? = nil,
+        label: String,
+        section: Section = .commands
+    ) {
+        self.id = id
+        self.key = key
+        self.modifiers = modifiers
+        self.displayOverride = displayOverride
+        self.label = label
+        self.section = section
+    }
+
+    /// Wie das Kürzel in der Hilfe erscheint.
+    public var display: String {
+        if let displayOverride { return displayOverride }
+        guard let key else { return label }
+        return modifiers.display + key.display
+    }
+}
+
+/// Alle Tastenkürzel der App an einer Stelle.
+///
+/// Die Menübefehle in `ActivitiesApp` binden sich an diese Einträge, die
+/// Hilfetabelle wird aus ihnen erzeugt. Ein neuer Befehl ohne Katalogeintrag
+/// bekommt kein Kürzel; ein Katalogeintrag ohne Hilfezeile ist unmöglich.
+public enum Shortcuts {
+
+    // MARK: Ordner
+
+    public static let chooseFolder = ShortcutEntry(
+        id: "chooseFolder", key: .character("o"), modifiers: [.command, .shift],
+        label: "Ordner wählen"
+    )
+    /// **⚠️ Das Menü zeigt ⌘Ö, nicht ⌘[.**
+    ///
+    /// Gewählt wurde `[` als Browser-Konvention (Sprint 11). Auf einer
+    /// deutschen Tastatur trägt die Taste an dieser Stelle aber ein Ö – macOS
+    /// beschriftet Kürzel nach der **Tastenkappe**, nicht nach dem Zeichen im
+    /// Quelltext. Gemessen am laufenden Programm (`AXMenuItemCmdChar` = „Ö").
+    /// Eine Kollision gibt es nicht; die Schreibweise muss aber überall
+    /// dieselbe sein, sonst sucht man zwei Kürzel (UX-38).
+    public static let back = ShortcutEntry(
+        id: "back", key: .character("["), modifiers: .command,
+        displayOverride: "⌘Ö", label: "Zurück zum vorherigen Ordner"
+    )
+    public static let forward = ShortcutEntry(
+        id: "forward", key: .character("]"), modifiers: .command,
+        displayOverride: "⌘Ä", label: "Vorwärts"
+    )
+    public static let openInEditor = ShortcutEntry(
+        id: "openInEditor", key: .character("e"), modifiers: [.command, .shift],
+        label: "Auswahl im Editor öffnen"
+    )
+    public static let openInTerminal = ShortcutEntry(
+        id: "openInTerminal", key: .character("t"), modifiers: [.command, .shift],
+        label: "Ordner im Terminal öffnen"
+    )
+    public static let revealInFinder = ShortcutEntry(
+        id: "revealInFinder", key: .character("r"), modifiers: [.command, .shift],
+        label: "Im Finder anzeigen"
+    )
+    public static let copyPath = ShortcutEntry(
+        id: "copyPath", key: .character("c"), modifiers: [.command, .shift],
+        label: "Pfad kopieren"
+    )
+    /// ⌘Y wie im Finder – dort heißt derselbe Handgriff „Übersicht".
+    public static let quickLook = ShortcutEntry(
+        id: "quickLook", key: .character("y"), modifiers: .command,
+        label: "Vorschau der Auswahl"
+    )
+    public static let rescan = ShortcutEntry(
+        id: "rescan", key: .character("r"), modifiers: .command,
+        label: "Ordner neu einlesen"
+    )
+    /// ⌘. ist auf dem Mac seit jeher „Abbrechen".
+    public static let cancelScan = ShortcutEntry(
+        id: "cancelScan", key: .character("."), modifiers: .command,
+        label: "Suchlauf abbrechen"
+    )
+
+    // MARK: Zeitraum
+
+    public static let periodToday = ShortcutEntry(
+        id: "periodToday", key: .character("1"), modifiers: .command, label: "Zeitraum: heute"
+    )
+    public static let period3 = ShortcutEntry(
+        id: "period3", key: .character("2"), modifiers: .command, label: "Zeitraum: 3 Tage"
+    )
+    public static let period7 = ShortcutEntry(
+        id: "period7", key: .character("3"), modifiers: .command, label: "Zeitraum: 7 Tage"
+    )
+    public static let period30 = ShortcutEntry(
+        id: "period30", key: .character("4"), modifiers: .command, label: "Zeitraum: 30 Tage"
+    )
+    public static let period90 = ShortcutEntry(
+        id: "period90", key: .character("5"), modifiers: .command, label: "Zeitraum: 90 Tage"
+    )
+    public static let periodAll = ShortcutEntry(
+        id: "periodAll", key: .character("0"), modifiers: .command, label: "Zeitraum: alle"
+    )
+
+    // MARK: Darstellung
+
+    public static let focusFilter = ShortcutEntry(
+        id: "focusFilter", key: .character("f"), modifiers: .command, label: "Filter fokussieren"
+    )
+    public static let clearNameFilter = ShortcutEntry(
+        id: "clearNameFilter", key: .character("f"), modifiers: [.command, .shift],
+        label: "Namensfilter löschen"
+    )
+    public static let resetTypeFilter = ShortcutEntry(
+        id: "resetTypeFilter", key: .character("r"), modifiers: [.command, .option],
+        label: "Typ-Filter zurücksetzen"
+    )
+    public static let scrollToTop = ShortcutEntry(
+        id: "scrollToTop", key: .upArrow, modifiers: .command, label: "An den Anfang der Liste"
+    )
+    public static let toggleAllExpanded = ShortcutEntry(
+        id: "toggleAllExpanded", key: .character("l"), modifiers: .command,
+        label: "Dateien in allen Ordnern anzeigen"
+    )
+    public static let toggleChart = ShortcutEntry(
+        id: "toggleChart", key: .character("d"), modifiers: [.command, .shift],
+        label: "Diagramm ein- oder ausblenden"
+    )
+    public static let sortByDate = ShortcutEntry(
+        id: "sortByDate", key: .character("1"), modifiers: [.command, .option], label: "Nach Datum sortieren"
+    )
+    public static let sortByName = ShortcutEntry(
+        id: "sortByName", key: .character("2"), modifiers: [.command, .option], label: "Nach Name sortieren"
+    )
+    public static let sortByType = ShortcutEntry(
+        id: "sortByType", key: .character("3"), modifiers: [.command, .option], label: "Nach Typ sortieren"
+    )
+    public static let sortBySize = ShortcutEntry(
+        id: "sortBySize", key: .character("4"), modifiers: [.command, .option],
+        label: "Nach Größe sortieren (nur Dateien)"
+    )
+
+    // MARK: Ablage, Bearbeiten, Fenster
+
+    public static let exportCSV = ShortcutEntry(
+        id: "exportCSV", key: .character("e"), modifiers: .command, label: "Als CSV exportieren"
+    )
+    public static let exportHTML = ShortcutEntry(
+        id: "exportHTML", key: .character("e"), modifiers: [.command, .option], label: "Als HTML exportieren"
+    )
+    public static let copySummary = ShortcutEntry(
+        id: "copySummary", key: .character("c"), modifiers: [.command, .option],
+        label: "Zusammenfassung kopieren"
+    )
+    public static let selectAll = ShortcutEntry(
+        id: "selectAll", key: .character("a"), modifiers: .command, label: "Alle sichtbaren Dateien auswählen"
+    )
+    public static let clearSelection = ShortcutEntry(
+        id: "clearSelection", key: .character("a"), modifiers: [.command, .shift], label: "Auswahl aufheben"
+    )
+    public static let closeWindow = ShortcutEntry(
+        id: "closeWindow", key: .character("w"), modifiers: .command, label: "Fenster schließen"
+    )
+    public static let help = ShortcutEntry(
+        id: "help", key: .character("?"), modifiers: .command, label: "Hilfe öffnen"
+    )
+    /// Systemweit, über Carbon registriert – kein Menükürzel.
+    public static let bringToFront = ShortcutEntry(
+        id: "bringToFront", key: nil, modifiers: [], displayOverride: "⌥⌘A",
+        label: "Fenster nach vorn holen (überall)"
+    )
+    public static let settings = ShortcutEntry(
+        id: "settings", key: nil, modifiers: [], displayOverride: "⌘,",
+        label: "Einstellungen"
+    )
+
+    // MARK: In der Liste (keine Menükürzel)
+
+    public static let moveSelection = ShortcutEntry(
+        id: "moveSelection", key: nil, displayOverride: "↑ / ↓",
+        label: "Auswahl bewegen", section: .list
+    )
+    public static let extendSelection = ShortcutEntry(
+        id: "extendSelection", key: nil, displayOverride: "⇧↑ / ⇧↓",
+        label: "Auswahl erweitern", section: .list
+    )
+    public static let expandCollapse = ShortcutEntry(
+        id: "expandCollapse", key: nil, displayOverride: "← / →",
+        label: "Ordner zu- oder aufklappen", section: .list
+    )
+    public static let openSelection = ShortcutEntry(
+        id: "openSelection", key: nil, displayOverride: "↩︎",
+        label: "Auswahl öffnen", section: .list
+    )
+    public static let quickLookSpace = ShortcutEntry(
+        id: "quickLookSpace", key: nil, displayOverride: "Leertaste",
+        label: "Vorschau (wie ⌘Y)", section: .list
+    )
+    public static let escapeSelection = ShortcutEntry(
+        id: "escapeSelection", key: nil, displayOverride: "Esc",
+        label: "Auswahl aufheben", section: .list
+    )
+    public static let commandClick = ShortcutEntry(
+        id: "commandClick", key: nil, displayOverride: "⌘-Klick",
+        label: "Datei zur Auswahl hinzufügen oder abwählen", section: .mouse
+    )
+    public static let shiftClick = ShortcutEntry(
+        id: "shiftClick", key: nil, displayOverride: "⇧-Klick",
+        label: "Bereich auswählen", section: .mouse
+    )
+
+    /// Der vollständige Katalog, in der Reihenfolge der Hilfetabelle.
+    public static let catalogue: [ShortcutEntry] = [
+        chooseFolder, back, forward, rescan, cancelScan,
+        openInEditor, openInTerminal, revealInFinder, copyPath, quickLook,
+        periodToday, period3, period7, period30, period90, periodAll,
+        focusFilter, clearNameFilter, resetTypeFilter, scrollToTop,
+        toggleAllExpanded, toggleChart,
+        sortByDate, sortByName, sortByType, sortBySize,
+        exportCSV, exportHTML, copySummary,
+        selectAll, clearSelection, closeWindow, settings, help, bringToFront,
+        moveSelection, extendSelection, expandCollapse, openSelection,
+        quickLookSpace, escapeSelection,
+        commandClick, shiftClick,
+    ]
+
+    /// Alle Einträge eines Abschnitts, in Katalogreihenfolge.
+    public static func entries(in section: ShortcutEntry.Section) -> [ShortcutEntry] {
+        catalogue.filter { $0.section == section }
+    }
+
+    /// Kürzel, die **zweimal** vergeben sind.
+    ///
+    /// Zwei Menübefehle auf derselben Tastenkombination sind kein Schönheits-
+    /// fehler: macOS führt einen davon aus und der andere wirkt kaputt. Diese
+    /// Auskunft ist der Grund, warum der Katalog existiert – sie ist in
+    /// ``CoreChecks`` geprüft.
+    public static var collisions: [String] {
+        var seen: [String: String] = [:]
+        var found: [String] = []
+        for entry in catalogue {
+            guard let key = entry.key else { continue }
+            let signature = "\(entry.modifiers.rawValue)|\(key)"
+            if let previous = seen[signature] {
+                found.append("\(entry.display): \(previous) und \(entry.id)")
+            } else {
+                seen[signature] = entry.id
+            }
+        }
+        return found
+    }
+}

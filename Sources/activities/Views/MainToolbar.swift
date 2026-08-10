@@ -235,7 +235,10 @@ struct MainToolbar: ToolbarContent {
         ToolbarItem(placement: .navigation) {
             HStack(spacing: 6) {
                 if model.isScanning || model.isLoadingDetails {
-                    ProgressView().controlSize(.small)
+                    // Ohne Beschriftung ist der Fortschrittsring fuer
+                // Vorleseprogramme ein namenloses Element (UX-37).
+                ProgressView()
+                    .accessibilityLabel("Suchlauf läuft").controlSize(.small)
                     Button {
                         model.cancelScan()
                     } label: {
@@ -286,6 +289,8 @@ struct MainToolbar: ToolbarContent {
         .help("Wurzelordner wählen · aktuell: \(model.rootURL.path)")
         .accessibilityLabel("Ordner wählen")
         .accessibilityValue(model.rootURL.lastPathComponent)
+        // Menuebefehl ⇧⌘O: Der Dialog haengt hier, nicht im Menue.
+        .onChange(of: model.folderPickerToken) { _, _ in showImporter = true }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.folder],
@@ -305,25 +310,28 @@ struct MainToolbar: ToolbarContent {
     private var timeRangeControls: some View {
         HStack(spacing: 8) {
             Picker("", selection: Binding(
-                get: { timeChoice },
-                set: { applyTimeChoice($0) }
+                get: { model.timePreset },
+                set: { model.setTimePreset($0) }
             )) {
                 // „Heute" statt „1": Der Sonderfall verdient seinen Namen –
                 // ein alleinstehendes „1" wirft die Frage „eins was?" auf.
                 // Seit das Fenster in Kalendertagen rechnet, stimmt es auch:
                 // 1 Tag = ab Tagesbeginn.
-                Text("Heute").tag(TimeChoice.days(1))
-                // Echtes Minuszeichen (U+2212), nicht der Bindestrich: Es steht
-                // auf Zifferhoehe und liest sich als Vorzeichen, nicht als
-                // Trennstrich. Die Zahlen zeigen damit, wohin es geht –
-                // rueckwaerts.
-                Text("\u{2212}3").tag(TimeChoice.days(3))
-                Text("\u{2212}7").tag(TimeChoice.days(7))
-                Text("\u{2212}30").tag(TimeChoice.days(30))
-                Text("\u{2212}90").tag(TimeChoice.days(90))
-                Image(systemName: "slider.horizontal.3").tag(TimeChoice.customDays)
-                Text("Spanne").tag(TimeChoice.range)
-                Text("Alle").tag(TimeChoice.all)
+                //
+                // Echtes Minuszeichen (U+2212) in ``TimePreset/toolbarLabel``,
+                // nicht der Bindestrich: Es steht auf Zifferhoehe und liest
+                // sich als Vorzeichen, nicht als Trennstrich.
+                ForEach(TimePreset.rollingPresets, id: \.self) { preset in
+                    Text(preset.toolbarLabel).tag(preset)
+                }
+                // ⚠️ Als einziges Segment ein Symbol – mit eigener
+                // Beschriftung, weil ein blosses `Image` fuer Vorleseprogramme
+                // namenlos ist (UX-37).
+                Image(systemName: "slider.horizontal.3")
+                    .accessibilityLabel(TimePreset.customDays.menuLabel)
+                    .tag(TimePreset.customDays)
+                Text(TimePreset.range.toolbarLabel).tag(TimePreset.range)
+                Text(TimePreset.all.toolbarLabel).tag(TimePreset.all)
             }
             .pickerStyle(.segmented)
             .fixedSize()
@@ -333,6 +341,10 @@ struct MainToolbar: ToolbarContent {
             .popover(isPresented: $showCustomDays, arrowEdge: .bottom) {
                 customDaysEditor
             }
+            // Der Menuebefehl „Eigene Tageszahl …" kann das Feld nicht selbst
+            // oeffnen – es haengt an dieser Ansicht. Er meldet sich ueber den
+            // Zaehler, wie ⌘F es beim Suchfeld tut.
+            .onChange(of: model.customDaysToken) { _, _ in showCustomDays = true }
 
             if model.useDateRange {
                 DatePicker("", selection: Binding(
@@ -364,45 +376,13 @@ struct MainToolbar: ToolbarContent {
     /// und draengten vier Schalter ins Ueberlaufmenue. Als eine Reihe sind es
     /// ~290 pt, und die Wahl liest sich in einem Zug: fuenf Tageszahlen, eigene
     /// Zahl, feste Spanne, ohne Grenze.
-    enum TimeChoice: Hashable {
-        case days(Int)
-        case customDays
-        case range
-        case all
-    }
-
-    private var timeChoice: TimeChoice {
-        switch model.timeMode {
-        case .all: .all
-        case .range: .range
-        case .rolling: [1, 3, 7, 30, 90].contains(model.days) ? .days(model.days) : .customDays
-        }
-    }
-
     private var timeChoiceLabel: String {
-        switch timeChoice {
-        case .days(1): "Heute"
-        case .days(let n): "letzte \(n) Tage"
+        switch model.timePreset {
+        case .today: "Heute"
         case .customDays: "\(model.days) Tage"
         case .range: "feste Zeitspanne"
         case .all: "ohne Zeitgrenze"
-        }
-    }
-
-    private func applyTimeChoice(_ choice: TimeChoice) {
-        switch choice {
-        case .days(let n):
-            model.setTimeMode(.rolling)
-            model.setDays(n)
-        case .customDays:
-            // Erst in den Tagesmodus, dann die freie Eingabe oeffnen – sonst
-            // stuende das Feld ueber einer Ansicht, die gar nicht in Tagen rechnet.
-            model.setTimeMode(.rolling)
-            showCustomDays = true
-        case .range:
-            model.setTimeMode(.range)
-        case .all:
-            model.setTimeMode(.all)
+        default: "letzte \(model.days) Tage"
         }
     }
 

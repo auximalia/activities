@@ -2,6 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- ⚠️ Ohne diesen Schluessel liefert AppKit seine Standardmenues auf
+         ENGLISCH – „File", „Edit", „Window", „Settings…", „Quit activities" –
+         waehrend jeder eigene Befehl darin deutsch ist. Die Menueleiste war
+         bis v1.19.33 zweisprachig, und am Quelltext war das nicht zu sehen:
+         Der Code deklariert nur die eigenen Eintraege, die uebrigen stellt das
+         Rahmenwerk in der Basissprache des Buendels bereit.
+         Der Schluessel allein genuegt nicht – es braucht zusaetzlich ein
+         tatsaechliches `de.lproj` in Resources, sonst haelt macOS das Buendel
+         fuer unlokalisiert. Siehe `Packaging/build_app.sh`. -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>de</string>
     <key>CFBundleName</key>
     <string>activities</string>
     <key>CFBundleDisplayName</key>

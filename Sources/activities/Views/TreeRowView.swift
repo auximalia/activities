@@ -147,19 +147,26 @@ struct TreeFolderRowView: View {
             .accessibilityValue(accessibilityValue)
             .accessibilityHint("Zum Auf- und Zuklappen aktivieren")
             .accessibilityAddTraits(.isButton)
+            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             .accessibilityAction {
                 model.select(.folder(node.folder))
                 model.toggleExpand(node.folder)
             }
     }
 
+    /// ⚠️ Anheftung und Aufklappzustand stehen im **Wert**, nicht am Symbol.
+    /// Das Anheft-Symbol trug nur ein `.help`, und die Zeile fasst ihre Kinder
+    /// mit `children: .combine` zusammen – das ausdrueckliche Label verdraengt
+    /// deren Beschriftungen. Sichtbar war der Zustand, hoerbar nicht (UX-37).
     private var accessibilityValue: String {
         let ebene = "Ebene \(guides.level + 1)"
         let datum = "zuletzt \(DateFormatting.dateTime(displayDate))"
+        let zusatz = (model.isPinned(node.folder) ? ", angeheftet" : "")
+            + (node.children.isEmpty ? "" : (isExpanded ? ", aufgeklappt" : ", zugeklappt"))
         if node.isPassThrough {
-            return "\(ebene), keine eigenen Dateien, \(node.subtreeFileCount) im Unterbaum, \(datum)"
+            return "\(ebene), keine eigenen Dateien, \(node.subtreeFileCount) im Unterbaum, \(datum)\(zusatz)"
         }
-        return "\(ebene), \(ownCount) Dateien, \(datum)"
+        return "\(ebene), \(ownCount) Dateien, \(datum)\(zusatz)"
     }
 
     private var content: some View {

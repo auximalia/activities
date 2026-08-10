@@ -235,6 +235,20 @@ final class ReportViewModel {
     var filterFocusToken = 0
     /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
     var scrollToTopToken = 0
+    /// Zaehler, um die Ordnerauswahl zu oeffnen (Menue ⇧⌘O).
+    ///
+    /// **Warum ein Zaehler und kein Aufruf.** Der Dateiauswahl-Dialog haengt
+    /// als `.fileImporter` an der Werkzeugleiste; ein Menuebefehl kann ihn
+    /// nicht selbst oeffnen, ohne die Ansicht zu kennen. Dieselbe Bauform wie
+    /// ``filterFocusToken`` – der Befehl sagt „jetzt", die Ansicht weiss, wie.
+    var folderPickerToken = 0
+    /// Zaehler, um die Eingabe einer eigenen Tageszahl zu oeffnen.
+    var customDaysToken = 0
+    /// Zaehler, um die Vorschau der Auswahl zu oeffnen (Menue ⌘Y).
+    ///
+    /// Die Leertaste in ``ReportView`` loest denselben Weg aus; der Befehl im
+    /// Menue ist der zweite Zugang, den es bis v1.19.33 nicht gab (UX-36).
+    var quickLookToken = 0
 
     /// Programm fuer den Platz „Editor"; ``nil`` = keines vorhanden/gewaehlt.
     private(set) var editorApp: ExternalApp?
@@ -588,6 +602,33 @@ final class ReportViewModel {
         case .all:     setIgnoreTimeWindow(true)
         case .range:   setUseDateRange(true)
         case .rolling: setUseDateRange(false)
+        }
+    }
+
+    /// Der aktive Zeitraum als **eine** Aufzaehlung – fuer Werkzeugleiste und Menue.
+    ///
+    /// Die Zuordnungsregel liegt in ``TimePreset/resolve(ignoreTimeWindow:useDateRange:days:)``
+    /// und ist dort geprueft; hier steht nur die Weiterleitung. Vor v1.19.34
+    /// lebte sie privat in `MainToolbar` und haette sich beim zweiten Aufrufer
+    /// verdoppelt (UX-36).
+    var timePreset: TimePreset {
+        TimePreset.resolve(ignoreTimeWindow: ignoreTimeWindow, useDateRange: useDateRange, days: days)
+    }
+
+    /// Waehlt einen Zeitraum. ``TimePreset/customDays`` aendert nichts an der
+    /// Tageszahl – dafuer gibt es die Eingabe, die ``customDaysToken`` oeffnet.
+    func setTimePreset(_ preset: TimePreset) {
+        switch preset {
+        case .all:
+            setTimeMode(.all)
+        case .range:
+            setTimeMode(.range)
+        case .customDays:
+            setTimeMode(.rolling)
+            customDaysToken += 1
+        default:
+            setTimeMode(.rolling)
+            if let value = preset.days { setDays(value) }
         }
     }
 

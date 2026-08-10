@@ -198,9 +198,21 @@ struct FileRowView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Datei \(file.url.lastPathComponent)")
-        .accessibilityValue(DateFormatting.dateTime(file.timestamp))
+        // **⚠️ Der Wert traegt jetzt auch den Zustand.** Das ausdrueckliche
+        // `accessibilityLabel` **ersetzt** die von `children: .combine`
+        // zusammengefasste Beschriftung – die Kindelemente (Uhr-Symbol fuer
+        // „ausserhalb des Zeitraums") fielen damit stumm heraus. Sichtbar war
+        // der Zustand, hoerbar nicht (UX-37).
+        .accessibilityValue(
+            DateFormatting.dateTime(file.timestamp)
+            + (isInWindow ? "" : ", außerhalb des Zeitraums")
+        )
         .accessibilityHint("Zum Öffnen aktivieren")
         .accessibilityAddTraits(.isButton)
+        // Ohne diese Eigenschaft sagt VoiceOver nicht, was markiert ist – die
+        // Auswahl war allein farblich getragen. Wer ⌘A drueckt und Enter,
+        // oeffnet sonst eine Menge, die er nie erfahren hat.
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .accessibilityAction {
             model.select(.file(file.url))
             FinderService.open(file.url)

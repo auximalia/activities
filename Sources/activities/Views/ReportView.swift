@@ -27,6 +27,30 @@ struct ReportView: View {
         }
     }
 
+    /// Öffnet die Vorschau für die aktuelle Auswahl.
+    ///
+    /// **Ausgelagert, weil es zwei Auslöser gibt:** die Leertaste in der Liste
+    /// und der Menübefehl ⌘Y (UX-36). Zwei Kopien desselben Ablaufs wären zwei
+    /// Stellen, an denen die Mehrfachauswahl-Regel unten hängt.
+    private func presentQuickLook() {
+        guard let current = model.selectedFileURL else { return }
+        quickLookActive = true
+        Task {
+            // Bei Mehrfachauswahl nur durch die Auswahl blaettern.
+            let selected = model.orderedSelection
+            let files = selected.count > 1 ? selected : await model.prepareFullFileList()
+            quickLook.present(
+                files: files,
+                current: current,
+                onChange: { previewed in model.quickLookNavigated(to: previewed) },
+                onClose: {
+                    quickLookActive = false
+                    listFocused = true
+                }
+            )
+        }
+    }
+
     /// Stabile ID der ersten Tabellenzeile für „an den Anfang springen".
     /// Lag früher auf der zentrierten Überschrift – die steht seit v1.8.0 als
     /// Untertitel in der Titelleiste.
@@ -147,23 +171,12 @@ struct ReportView: View {
                 model.openSelection()
                 return .handled
             }
+            // Menuebefehl ⌘Y – derselbe Weg wie die Leertaste. Der Zaehler ist
+            // noetig, weil die Vorschau an dieser Ansicht haengt (QuickLookHost).
+            .onChange(of: model.quickLookToken) { _, _ in presentQuickLook() }
             .onKeyPress(.space) {
-                guard let current = model.selectedFileURL else { return .ignored }
-                quickLookActive = true
-                Task {
-                    // Bei Mehrfachauswahl nur durch die Auswahl blaettern.
-                    let selected = model.orderedSelection
-                    let files = selected.count > 1 ? selected : await model.prepareFullFileList()
-                    quickLook.present(
-                        files: files,
-                        current: current,
-                        onChange: { previewed in model.quickLookNavigated(to: previewed) },
-                        onClose: {
-                            quickLookActive = false
-                            listFocused = true
-                        }
-                    )
-                }
+                guard model.selectedFileURL != nil else { return .ignored }
+                presentQuickLook()
                 return .handled
             }
             .onChange(of: model.cursor) { _, cursor in

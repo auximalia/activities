@@ -1,4 +1,5 @@
 import SwiftUI
+import ActivitiesCore
 
 /// Hilfe-Fenster: erklaert Zweck und Bedienung der App in kompakten Stichpunkten.
 /// Wird ueber das Menue „Hilfe → activities Hilfe" geoeffnet.
@@ -180,43 +181,41 @@ struct HelpView: View {
         }
     }
 
+    /// Die Kürzeltabelle – **erzeugt**, nicht gepflegt.
+    ///
+    /// **⚠️ Hier stand bis v1.19.33 eine Liste von Hand.** Sie war seit v1.16
+    /// nicht mitgewachsen: Fünf ausgelieferte Kürzel fehlten (⌘Ö/⌘Ä, ⌥⌘1–4,
+    /// ⌥⌘C, ⇧⌘A, ⌘?). Eine Hilfe, die etwas anderes sagt als das Programm, ist
+    /// schlechter als keine – ihr glaubt man. Die Quelle ist jetzt
+    /// ``Shortcuts/catalogue``, aus der sich auch die Menübefehle bedienen;
+    /// ``CoreChecks`` wacht darüber, dass kein Eintrag herausfällt.
     private var shortcuts: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
             Label("Tastenkürzel", systemImage: "command")
                 .font(.headline)
-            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 4) {
-                shortcutRow("⌘R", "Aktualisieren")
-                shortcutRow("⌘F", "Filter fokussieren")
-                shortcutRow("⌥⌘R", "Typ-Filter zurücksetzen")
-                shortcutRow("⌘↑", "An den Anfang der Liste")
-                shortcutRow("⇧⌘E", "In Editor öffnen (falls eingerichtet)")
-                shortcutRow("⇧⌘T", "In Terminal öffnen (falls eingerichtet)")
-                shortcutRow("⌘E", "Als CSV exportieren")
-                shortcutRow("⌥⌘E", "Als HTML exportieren")
-                shortcutRow("⌘W", "Fenster schließen")
-                shortcutRow("⌥⌘A", "Fenster nach vorn holen (überall)")
-                shortcutRow("⌘,", "Einstellungen")
-                shortcutRow("↑ / ↓", "Auswahl bewegen")
-                shortcutRow("← / →", "Ordner zu-/aufklappen")
-                shortcutRow("↩︎", "Auswahl öffnen")
-                shortcutRow("Leertaste", "QuickLook-Vorschau")
-                shortcutRow("⌘-Klick", "Datei zur Auswahl hinzu/abwählen")
-                shortcutRow("⇧-Klick", "Bereich auswählen")
-                shortcutRow("⇧↑ / ⇧↓", "Auswahl erweitern")
-                shortcutRow("⌘A", "Alle sichtbaren Dateien auswählen")
-                shortcutRow("Esc", "Auswahl aufheben")
+            ForEach(ShortcutEntry.Section.allCases, id: \.self) { section in
+                let entries = Shortcuts.entries(in: section)
+                if !entries.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(section.rawValue)
+                            .font(.subheadline).fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 4) {
+                            ForEach(entries) { entry in
+                                GridRow {
+                                    Text(entry.display)
+                                        .font(.callout.monospaced())
+                                        .foregroundStyle(.secondary)
+                                        .gridColumnAlignment(.leading)
+                                    Text(entry.label)
+                                        .font(.callout)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    private func shortcutRow(_ keys: String, _ desc: String) -> some View {
-        GridRow {
-            Text(keys)
-                .font(.callout.monospaced())
-                .foregroundStyle(.secondary)
-                .gridColumnAlignment(.leading)
-            Text(desc)
-                .font(.callout)
-        }
-    }
 }

@@ -121,9 +121,19 @@ struct FolderRowView: View {
         .contextMenu { FolderContextMenu(folder: entry.folder, model: model) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Ordner \(entry.folder.lastPathComponent)")
-        .accessibilityValue("\(displayCount) Dateien, zuletzt \(DateFormatting.dateTime(displayDate))")
+        // **⚠️ Anheftung und Aufklappzustand gehoeren in den Wert.** Das
+        // Anheft-Symbol trug nur ein `.help`, und `.help` existiert fuer
+        // Vorleseprogramme nicht; das ausdrueckliche Label unmittelbar darueber
+        // haette es ohnehin verdraengt. Ein angehefteter Ordner klang damit wie
+        // jeder andere (UX-37).
+        .accessibilityValue(
+            "\(displayCount) Dateien, zuletzt \(DateFormatting.dateTime(displayDate))"
+            + (model.isPinned(entry.folder) ? ", angeheftet" : "")
+            + (isExpanded ? ", aufgeklappt" : ", zugeklappt")
+        )
         .accessibilityHint("Zum Auf- und Zuklappen aktivieren")
         .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .accessibilityAction {
             model.select(.folder(entry.folder))
             model.toggleExpand(entry.folder)

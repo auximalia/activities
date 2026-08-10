@@ -139,35 +139,14 @@ struct ActivitiesApp: App {
                 Button("Update installieren") { updates.installUpdate() }
                     .disabled(!updates.showsUpdateBadge)
             }
+            // **Darstellung traegt nur noch, was die Darstellung aendert.**
+            // Bis v1.19.33 standen hier 15 Befehle, darunter der Ordnerverlauf
+            // und die Oeffnen-Handgriffe – Dinge, die niemand unter
+            // „Darstellung" sucht (UX-41). Sie sind in die neuen Menues
+            // „Ordner", „Zeitraum" und „Auswahl" gewandert.
             CommandGroup(after: .toolbar) {
-                Button("Aktualisieren") { model.rescan() }
-                    .keyboardShortcut("r", modifiers: .command)
-                Button("Filter fokussieren") { model.filterFocusToken += 1 }
-                    .keyboardShortcut("f", modifiers: .command)
-                Button("Typ-Filter zurücksetzen") { model.resetTypeFilters() }
-                    .keyboardShortcut("r", modifiers: [.command, .option])
-                    .disabled(!model.hasTypeFilter)
-                Button("An den Anfang") { model.scrollToTopToken += 1 }
-                    .keyboardShortcut(.upArrow, modifiers: .command)
-                Divider()
-                // Ordner-Verlauf. ⌘[ / ⌘] ist die Browser-Konvention und im
-                // Quellbaum frei.
-                //
-                // **⚠️ macOS belegt beide in Textkontexten mit „Einzug
-                // verringern/vergroessern".** Im Suchfeld (⌘F) koennte das
-                // kollidieren; am Code liess sich das nicht belegen, es ist am
-                // laufenden System zu pruefen. Kollidiert es, weicht der
-                // **Verlauf** aus – nicht das Suchfeld: Text einzuruecken ist
-                // ein Systemverhalten, das man einem Eingabefeld nicht nimmt.
-                Button("Zurück zum vorherigen Ordner") { model.goBackFolder() }
-                    .keyboardShortcut("[", modifiers: .command)
-                    .disabled(!model.canGoBackFolder)
-                Button("Vorwärts") { model.goForwardFolder() }
-                    .keyboardShortcut("]", modifiers: .command)
-                    .disabled(!model.canGoForwardFolder)
-                Divider()
-                // Auch als Menuebefehl: Die Gliederung ist die Grundentscheidung
-                // der Ansicht und muss ohne Maus erreichbar sein.
+                // Die Gliederung ist die Grundentscheidung der Ansicht und muss
+                // ohne Maus erreichbar sein.
                 Picker("Gliederung", selection: Binding(
                     get: { model.viewMode },
                     set: { model.setViewMode($0) }
@@ -177,44 +156,51 @@ struct ActivitiesApp: App {
                     }
                 }
                 Divider()
-                // Auswahl in einem anderen Programm oeffnen. Ohne eingerichteten
-                // Platz erscheint der Befehl gar nicht – ein Menuepunkt „In
-                // (nichts) oeffnen" waere Ratlosigkeit in Menueform.
-                if let editor = model.editorApp {
-                    Button("In \(editor.name) öffnen") { model.requestOpenInEditor(model.commandTargets) }
-                        .keyboardShortcut("e", modifiers: [.command, .shift])
-                        .disabled(model.commandTargets.isEmpty)
-                }
-                if let terminal = model.terminalApp {
-                    Button("In \(terminal.name) öffnen") { model.requestOpenInTerminal(model.commandTargets) }
-                        .keyboardShortcut("t", modifiers: [.command, .shift])
-                        .disabled(model.commandTargets.isEmpty)
-                }
-                Divider()
-                Button("Nach Datum sortieren") { model.setSortField(.date) }
-                    .keyboardShortcut("1", modifiers: [.command, .option])
-                Button("Nach Name sortieren") { model.setSortField(.name) }
-                    .keyboardShortcut("2", modifiers: [.command, .option])
-                Button("Nach Typ sortieren") { model.setSortField(.type) }
-                    .keyboardShortcut("3", modifiers: [.command, .option])
+                Button(Shortcuts.sortByDate.label) { model.setSortField(.date) }
+                    .keyboardShortcut(Shortcuts.sortByDate)
+                Button(Shortcuts.sortByName.label) { model.setSortField(.name) }
+                    .keyboardShortcut(Shortcuts.sortByName)
+                Button(Shortcuts.sortByType.label) { model.setSortField(.type) }
+                    .keyboardShortcut(Shortcuts.sortByType)
                 // ⚠️ „nur Dateien" steht im Menuepunkt selbst, nicht in einem
                 // Hilfetext. Ein Ordner hat in dieser App keine Groesse (siehe
                 // `SortField.size`); wer das erst nach dem Klick merkt, haelt
                 // es fuer einen Fehler.
-                Button("Nach \(SortField.size.menuLabel) sortieren") { model.setSortField(.size) }
-                    .keyboardShortcut("4", modifiers: [.command, .option])
+                Button(Shortcuts.sortBySize.label) { model.setSortField(.size) }
+                    .keyboardShortcut(Shortcuts.sortBySize)
                 Divider()
+                // **⚠️ Ein Name, der sich nicht mit der Gliederung aendert.**
+                // Der Schalter in der Werkzeugleiste heisst im Baum anders als
+                // in der Zeitansicht; genau das machte ihn unauffindbar, weil
+                // selbst der Kurzhinweis kein fester Suchbegriff war (UX-35).
+                // Im Menue steht deshalb **eine** Formulierung, und sie
+                // beschreibt, was man sieht – nicht, was technisch geschieht.
+                Toggle(Shortcuts.toggleAllExpanded.label, isOn: Binding(
+                    get: { model.allExpanded },
+                    set: { model.setAllExpanded($0) }
+                ))
+                .keyboardShortcut(Shortcuts.toggleAllExpanded)
                 Toggle("Dateien außerhalb des Zeitraums zeigen", isOn: Binding(
                     get: { model.showOutOfWindowFiles },
                     set: { model.setShowOutOfWindowFiles($0) }
                 ))
-                // Auch im Menue, weil der Schalter in der Titelleiste bei
-                // schmalem Fenster ins Ueberlaufmenue wandert. Ein Zustand, den
-                // man nur ueber „»" erreicht, ist beinahe ein verborgener.
-                Toggle("Automatisch aktualisieren", isOn: Binding(
-                    get: { model.autoRefresh },
-                    set: { model.setAutoRefresh($0) }
+                Toggle("Diagramm einblenden", isOn: Binding(
+                    get: { model.headerExpanded },
+                    set: { model.setHeaderExpanded($0) }
                 ))
+                .keyboardShortcut(Shortcuts.toggleChart)
+                Divider()
+                Button(Shortcuts.focusFilter.label) { model.filterFocusToken += 1 }
+                    .keyboardShortcut(Shortcuts.focusFilter)
+                Button(Shortcuts.clearNameFilter.label) { model.clearNameFilter() }
+                    .keyboardShortcut(Shortcuts.clearNameFilter)
+                    .disabled(!model.hasNameFilter)
+                Button(Shortcuts.resetTypeFilter.label) { model.resetTypeFilters() }
+                    .keyboardShortcut(Shortcuts.resetTypeFilter)
+                    .disabled(!model.hasTypeFilter)
+                Divider()
+                Button(Shortcuts.scrollToTop.label) { model.scrollToTopToken += 1 }
+                    .keyboardShortcut(Shortcuts.scrollToTop)
             }
             // Export gehoert ins Menue „Ablage" – dort sucht man ihn.
             CommandGroup(replacing: .saveItem) {
@@ -271,6 +257,102 @@ struct ActivitiesApp: App {
             CommandGroup(replacing: .help) {
                 HelpMenuButton()
             }
+
+            // **⚠️ Drei eigene Menues statt eines Sammelbeckens.**
+            //
+            // Die HIG sieht fuer app-eigene Befehle den Platz zwischen
+            // „Darstellung" und „Fenster" vor und raet ausdruecklich, dort die
+            // *Gliederung der App* abzubilden. Diese App hat genau drei
+            // Groessen: **wo** gesucht wird (Ordner), **wann** (Zeitraum) und
+            // **womit man dann arbeitet** (Auswahl). Ein einzelnes Menue
+            // „Befehle" haette dieselben Eintraege getragen und keine davon
+            // erklaert.
+            //
+            // Der Anlass war handfester als die Ordnungsliebe: Zeitraum,
+            // Ordnerwahl, „alles auf-/zuklappen", „Suchlauf abbrechen" und die
+            // Vorschau standen in **keinem** Menue und hatten damit weder ein
+            // Kuerzel noch einen Weg fuer die Vollstaendige Tastaturbedienung
+            // (UX-36). Der Ordner-Umschalter war so unauffindbar geworden, dass
+            // ihn der eigene Erbauer nicht mehr fand (UX-35).
+            CommandMenu("Ordner") {
+                Button(Shortcuts.chooseFolder.label + " …") { model.folderPickerToken += 1 }
+                    .keyboardShortcut(Shortcuts.chooseFolder)
+                Menu("Zuletzt geöffnet") {
+                    ForEach(model.recentFolders, id: \.self) { url in
+                        Button(url.lastPathComponent) { model.setRoot(url) }
+                    }
+                }
+                .disabled(model.recentFolders.isEmpty)
+                Divider()
+                Button(Shortcuts.back.label) { model.goBackFolder() }
+                    .keyboardShortcut(Shortcuts.back)
+                    .disabled(!model.canGoBackFolder)
+                Button(Shortcuts.forward.label) { model.goForwardFolder() }
+                    .keyboardShortcut(Shortcuts.forward)
+                    .disabled(!model.canGoForwardFolder)
+                Divider()
+                Button(Shortcuts.rescan.label) { model.rescan() }
+                    .keyboardShortcut(Shortcuts.rescan)
+                Button(Shortcuts.cancelScan.label) { model.cancelScan() }
+                    .keyboardShortcut(Shortcuts.cancelScan)
+                    .disabled(!model.isScanning && !model.isLoadingDetails)
+                Toggle("Automatisch aktualisieren", isOn: Binding(
+                    get: { model.autoRefresh },
+                    set: { model.setAutoRefresh($0) }
+                ))
+                Divider()
+                // ⚠️ Loest einen neuen Suchlauf aus (die Ausschluesse wechseln).
+                // Deshalb steht der Schalter hier und nicht bei der Darstellung:
+                // Er aendert, **was gelesen wird**, nicht, wie es aussieht.
+                Toggle("Ausgeblendete Ordner zeigen", isOn: Binding(
+                    get: { model.revealHiddenFolders },
+                    set: { _ in model.toggleRevealHiddenFolders() }
+                ))
+            }
+
+            CommandMenu("Zeitraum") {
+                // `Toggle` statt `Button`, weil ein Menuepunkt ohne Haken nicht
+                // sagt, welcher Zeitraum gerade gilt – und das ist die Angabe,
+                // ohne die das Diagramm nicht deutbar ist (Entscheidung 6).
+                ForEach(TimePreset.rollingPresets, id: \.self) { preset in
+                    Toggle(preset.menuLabel, isOn: presetBinding(preset))
+                        .keyboardShortcut(Self.shortcut(for: preset))
+                }
+                Divider()
+                Toggle(TimePreset.customDays.menuLabel, isOn: presetBinding(.customDays))
+                Toggle(TimePreset.range.menuLabel, isOn: presetBinding(.range))
+                Divider()
+                Toggle(TimePreset.all.menuLabel, isOn: presetBinding(.all))
+                    .keyboardShortcut(Shortcuts.periodAll)
+            }
+
+            CommandMenu("Auswahl") {
+                Button(Shortcuts.quickLook.label) { model.quickLookToken += 1 }
+                    .keyboardShortcut(Shortcuts.quickLook)
+                    .disabled(model.selectedFileURL == nil)
+                Button(Shortcuts.revealInFinder.label) { model.requestReveal(model.commandTargets) }
+                    .keyboardShortcut(Shortcuts.revealInFinder)
+                    .disabled(model.commandTargets.isEmpty)
+                Button(Shortcuts.copyPath.label) {
+                    ClipboardService.copy(model.commandTargets.map(\.path).joined(separator: "\n"))
+                }
+                .keyboardShortcut(Shortcuts.copyPath)
+                .disabled(model.commandTargets.isEmpty)
+                Divider()
+                // Ohne eingerichteten Platz erscheint der Befehl gar nicht – ein
+                // Menuepunkt „In (nichts) oeffnen" waere Ratlosigkeit in
+                // Menueform.
+                if let editor = model.editorApp {
+                    Button("In \(editor.name) öffnen") { model.requestOpenInEditor(model.commandTargets) }
+                        .keyboardShortcut(Shortcuts.openInEditor)
+                        .disabled(model.commandTargets.isEmpty)
+                }
+                if let terminal = model.terminalApp {
+                    Button("Ordner in \(terminal.name) öffnen") { model.requestOpenInTerminal(model.commandTargets) }
+                        .keyboardShortcut(Shortcuts.openInTerminal)
+                        .disabled(model.commandTargets.isEmpty)
+                }
+            }
         }
 
         // Kurzansicht in der Menueleiste – der Kern von „taeglicher Begleiter":
@@ -294,6 +376,31 @@ struct ActivitiesApp: App {
             HelpView()
         }
         .defaultSize(width: 560, height: 680)
+    }
+
+    /// Haken-Bindung für einen Zeitraum im Menü.
+    ///
+    /// Nur das Einschalten wirkt: Wer den bereits gesetzten Punkt noch einmal
+    /// wählt, hebt ihn nicht auf – es gibt keinen Zustand „gar kein Zeitraum",
+    /// und ein Menü, das einen erzeugt, wäre eine Sackgasse.
+    private func presetBinding(_ preset: TimePreset) -> Binding<Bool> {
+        Binding(
+            get: { model.timePreset == preset },
+            set: { if $0 { model.setTimePreset(preset) } }
+        )
+    }
+
+    /// Das Kürzel eines Zeitraums; `nil` für die, die eine Eingabe verlangen.
+    private static func shortcut(for preset: TimePreset) -> ShortcutEntry? {
+        switch preset {
+        case .today:  return Shortcuts.periodToday
+        case .days3:  return Shortcuts.period3
+        case .days7:  return Shortcuts.period7
+        case .days30: return Shortcuts.period30
+        case .days90: return Shortcuts.period90
+        case .all:    return Shortcuts.periodAll
+        case .customDays, .range: return nil
+        }
     }
 }
 

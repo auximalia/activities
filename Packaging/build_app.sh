@@ -60,6 +60,21 @@ set_key BuildDate "$BUILD_DATE"
 "$PB" -c "Set :CFBundleVersion $GIT_COUNT" "$PLIST" 2>/dev/null || true
 echo "   v$APP_VERSION ($GIT_DESCRIBE, rev $GIT_REVISION, build $GIT_COUNT)"
 
+echo "==> Sprachverzeichnis (de.lproj)"
+# ⚠️ Sieht ueberfluessig aus, ist es nicht. `CFBundleDevelopmentRegion` allein
+# genuegt nicht: macOS haelt ein Buendel ohne `.lproj`-Verzeichnis fuer
+# unlokalisiert und liefert die Standardmenues (Ablage, Bearbeiten, Fenster,
+# „Einstellungen …", „activities beenden") dann auf Englisch – neben lauter
+# deutschen eigenen Befehlen. Das Verzeichnis muss existieren; sein Inhalt darf
+# klein sein, weil die App ihre Texte fest im Quelltext traegt (siehe PR-23).
+LPROJ="$APP/Contents/Resources/de.lproj"
+mkdir -p "$LPROJ"
+cat > "$LPROJ/InfoPlist.strings" <<'STRINGS'
+/* Anzeigename der App im Finder und in der Menueleiste. */
+"CFBundleName" = "activities";
+"CFBundleDisplayName" = "activities";
+STRINGS
+
 echo "==> App-Icon"
 ICONSET="$DIST/AppIcon.iconset"
 rm -rf "$ICONSET"

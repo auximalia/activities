@@ -243,6 +243,19 @@ final class ReportViewModel {
     /// Ob Dateien **ausserhalb** des Zeitraums in der Detailliste erscheinen.
     /// Standard: aus – so bleiben nur die gesuchten Treffer stehen.
     var showOutOfWindowFiles: Bool { didSet { invalidateRows() } }
+    /// Hinweis zur letzten Quellen-Aktion – etwa eine abgelehnte Ueberlappung.
+    ///
+    /// **⚠️ Ausdruecklich NICHT ``errorMessage``.** Die blendet die ganze Liste
+    /// aus und titelt „Es ist ein Problem aufgetreten". Eine abgelehnte Quelle
+    /// ist aber kein Fehler, sondern der vorhergesehene Normalfall: Die Daten
+    /// stimmen weiter, es fehlt nur ein Ordner, den man ohnehin doppelt gesehen
+    /// haette. Wer dafuer das Fenster leert, bestraft eine richtige Entscheidung
+    /// des Programms wie einen Absturz.
+    private(set) var sourceNotice: String?
+
+    /// Verwirft den Hinweis.
+    func clearSourceNotice() { sourceNotice = nil }
+
     /// Zaehler, um die Fokussierung des Filterfeldes anzustossen (Menue ⌘F).
     var filterFocusToken = 0
     /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
@@ -1769,7 +1782,7 @@ final class ReportViewModel {
             abgelehnt.append(Self.rejectionText(url, grund))
         }
         applySourceChange()
-        errorMessage = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: "\n")
+        sourceNotice = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: " ")
     }
 
     /// Der Grund einer Ablehnung im Klartext.
@@ -1782,9 +1795,9 @@ final class ReportViewModel {
         case .alreadyKnown:
             return "\u{201E}\(name)\u{201C} ist bereits als Quelle eingetragen."
         case .containedIn(let aeusserer):
-            return "\u{201E}\(name)\u{201C} liegt in \u{201E}\(aeusserer.lastPathComponent)\u{201C} und wuerde doppelt gezaehlt."
+            return "\u{201E}\(name)\u{201C} liegt in \u{201E}\(aeusserer.lastPathComponent)\u{201C} und würde doppelt gezählt."
         case .contains(let innerer):
-            return "\u{201E}\(name)\u{201C} enthaelt die Quelle \u{201E}\(innerer.lastPathComponent)\u{201C} und wuerde doppelt gezaehlt."
+            return "\u{201E}\(name)\u{201C} enthält die Quelle \u{201E}\(innerer.lastPathComponent)\u{201C} und würde doppelt gezählt."
         }
     }
 
@@ -1820,6 +1833,7 @@ final class ReportViewModel {
     /// bekommt einen Suchlauf ueber **diese**; wer eine abhakt, bekommt gar
     /// keinen – ihr Eimer faellt einfach weg.
     private func applySourceChange() {
+        sourceNotice = nil
         store.saveSources(sources)
         updateWatcher()
 

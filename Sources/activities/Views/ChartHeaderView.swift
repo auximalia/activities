@@ -144,6 +144,21 @@ struct ChartHeaderView: View {
         let zeigtRauschen = model.revealHiddenFolders
             || model.skippedFolderCount > 0
             || !model.excludedPaths.isEmpty
+        if let hinweis = model.sourceNotice {
+            HStack(spacing: 5) {
+                Image(systemName: "info.circle.fill").foregroundStyle(.tint)
+                Text(hinweis)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Verstanden") { model.clearSourceNotice() }
+                    .buttonStyle(.link)
+            }
+            .font(.subheadline)
+            .padding(.horizontal, Self.yAxisGutter)
+            .padding(.bottom, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(hinweis)
+        }
         if model.hasNameFilter || model.hasTypeFilter || zeigtRauschen {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 10) {

@@ -783,6 +783,12 @@ nichts mehr bewirken.
 
 **Nicht gespeichert**, wie festgelegt: Jede Sitzung beginnt mit vollständiger Anzeige.
 
+**⚠️ Nebenbefund beim Prüfen: eine abgelehnte Quelle ist kein Fehler.** Die erste Fassung
+meldete sie über ``errorMessage`` – und die blendet die **ganze Liste** aus und titelt „Es ist
+ein Problem aufgetreten". Für den vorhergesehenen Normalfall („der Ordner liegt schon in einer
+Quelle") ist das die Bestrafung einer richtigen Entscheidung des Programms. Es gibt jetzt einen
+eigenen, nicht blockierenden Hinweis unter dem Diagramm; die Liste bleibt stehen.
+
 ### AP3 · Das Leerzeichen bedeutet UND
 
 `Angebot Muster` findet jetzt auch `Muster für Angebot.pdf`; `ODER` (und `OR`) trennt
@@ -815,6 +821,50 @@ Ein **Fehlerzustand im Suchfeld war nicht nötig**: Es gibt keine ungültige Ein
 unvollständige, und die werden übergangen. Die Änderung liegt vollständig in `ActivitiesCore`
 und ist damit von `CoreChecks` erreichbar – `SearchField` und die Werkzeugleiste blieben
 unberührt.
+
+### Am laufenden Programm gegengeprüft
+
+Am signierten Bündel, mit Kontrollversuch je fehlgeschlagenem Versuch:
+
+- **Übernahme der alten Einstellungen:** `Documents` (der bisherige Wurzelordner) aktiv,
+  `Downloads` aus „Zuletzt geöffnet" bekannt und abgewählt. Vor/Zurück ist aus dem Menü
+  verschwunden.
+- **Festlegung 5, gemessen statt behauptet** – protokolliert wurde, *welche* Quellen die
+  Platte anfassen:
+
+  | Handlung | Suchlauf liest | Detaillisten |
+  |---|---|---|
+  | Quelle abgewählt | **gar nichts** | 17 aus Speicher, 0 von Platte |
+  | Quelle angehakt | nur diese eine | 17 aus Speicher, **1** von Platte |
+  | ⌘R „neu einlesen" | beide | 0 aus Speicher, **18** von Platte |
+
+  Die letzte Zeile ist die wichtige Gegenprobe: Der Zwischenspeicher darf beim Neueinlesen
+  **nicht** greifen.
+- **AP2:** Schalter an → 21 auf 10 Zeilen, Erklärtext erscheint; aus → 21 zurück.
+- **AP3:** „swift" 11 Zeilen → „swift Report" **7** (enger, UND) → „swift ODER md" **12**
+  (breiter) → „Report swift" wieder **7**, die Reihenfolge ist also egal.
+- **Abgelehnte Quelle:** Der Hinweis erscheint als Zeile unter dem Diagramm, **die Liste
+  bleibt stehen**.
+
+**⚠️ Drei Fehlbefunde an einem Abend – und alle drei lagen am Messverfahren, nicht an der
+App.** Das ist die Fortsetzung der Lehre aus Sprint 14 und 15, aber mit drei *neuen* Fallen,
+die man nicht durch bloße Wachsamkeit vermeidet:
+
+1. **Ein `LazyVStack` zeichnet nur Sichtbares.** Die zweite Quelle „fehlte" im Baum – sie
+   stand als älteste ganz unten, außerhalb der 75 gezeichneten Zeilen. Sichtbar wurde sie
+   erst, als ⌘L die Dateizeilen wegnahm. *Wer eine Liste über die Bedienhilfen zählt, zählt
+   das Gezeichnete, nicht das Vorhandene.*
+2. **Ein direkt gestartetes `.build/debug/activities` liest eine andere
+   Einstellungsdomäne als das Bündel.** Ohne Bundle-Kennung ist es ein anderes Programm für
+   `UserDefaults`. Die erste Messung zeigte darum `roots=1`, wo das Bündel `roots=2` hatte.
+   *Wer Einstellungen misst, muss das signierte Bündel messen.*
+3. **`.accessibilityElement(children: .combine)` erzeugt ein Element mit *Label*, keinen
+   `static text` mit *Wert*.** Ein Scan über die Texte fand den Hinweis nie – auch nicht, als
+   er nachweislich auf dem Bildschirm stand. Entschieden hat erst ein Bildschirmfoto.
+
+Dazu ein Nebenschaden, der zur Vorsicht mahnt: Zweimal wechselte während einer Tastenfolge
+der Fokus zu einem anderen Programm, und die Tastendrücke landeten dort. **Vor jedem
+Tastendruck ist zu prüfen, wer im Vordergrund ist** – nicht nur einmal am Anfang.
 
 ### Prüfungen
 

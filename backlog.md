@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.31 · 2026-08-09*
+*Stand: v1.19.32 · 2026-08-10*
 
 Priorisierte Sammlung der Verbesserungen aus dem Design-Review **zur App v1.6.0**.
 Aus diesem Backlog werden einzelne Sprints geschnitten.
@@ -2141,6 +2141,65 @@ kein Versehen: Eine Kante, die zeilenweise aussetzt, ist schlechter als keine. A
 Abschnittsköpfen setzt sie dagegen aus, und das ist richtig – dort endet der Block.
 
 Im Kompakt-Layout entfällt mit der Größenspalte auch der Trenner.
+
+### PR-41 · Doppelklick auf den Dateinamen öffnete nicht *(Hotfix, erledigt v1.19.32)*
+**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt im Feld
+
+**Gemeldet:** „Ich möchte gerne zusätzlich zum Klick auf das Icon auch per Doppelklick auf den
+Dateinamen die Datei öffnen können." – Nachgeprüft: „Doppelklick auf den Namen öffnet weder
+Ordner noch die Datei."
+
+**⚠️ Als Wunsch gemeldet, am Code als Defekt entlarvt.** Die Geste war seit jeher vorhanden
+(`FileRowView`, `.onTapGesture(count: 2)`), hing an der **ganzen Zeile** und war sogar im
+Tooltip dokumentiert: „Klick: markieren · Doppelklick: öffnen". Sie feuerte nur nie. *Hätte ich
+den Wunsch ungeprüft ins Backlog geschrieben, wäre dort ein Feature gelandet, das es längst gab
+– und der Fehler dahinter wäre unentdeckt geblieben.*
+
+**Ursache:** In dieser Zeile liegen zwei Erkenner, die beim **Mausdruck** anspringen – `.onDrag`
+(Ziehen in andere Programme) und eine `DragGesture(minimumDistance: 0)` für die
+Sofort-Markierung. Ein gewöhnliches `onTapGesture` ordnet sich beiden unter und wurde
+verschluckt. Jetzt `simultaneousGesture(TapGesture(count: 2))` – ausdrücklich **neben** dem,
+was ohnehin läuft.
+
+*Der Kommentar direkt darüber warnte bereits, dass die Reihenfolge der Erkenner in dieser Zeile
+heikel ist. Nur wurde daraus nicht gefolgert, dass es dem Doppelklick genauso ergeht. Eine
+Warnung, die nur den Fall beschreibt, in dem sie entstand, schützt den nächsten nicht.*
+
+**Zwei Dinge kamen beim Beheben mit in Ordnung:**
+1. **Finder-Regel.** Der Doppelklick schrumpfte die Auswahl per `select` auf **eine** Datei.
+   Markiert man dreißig und drückt Enter, öffnen dreißig – doppelklickt man eine davon, öffnete
+   genau eine. Jetzt über `actionTargets(for:)` wie Kontextmenü und Enter.
+2. **Die Rückfrage aus PR-26 gilt jetzt auch hier.** Der direkte Weg über `FinderService` ging
+   an ihr vorbei – genau die Lücke, vor der PR-26 gewarnt hatte („sonst driften die Wege
+   auseinander"). Sie ist erst durch diesen Fund aufgefallen.
+
+**⚠️ Nicht selbst verifizierbar.** Ob die Geste jetzt feuert, lässt sich nur am laufenden
+Programm feststellen, nicht am Code und nicht in `CoreChecks`. Die Änderung beruht auf einer
+begründeten Annahme über die Gestenauflösung – bestätigt ist sie erst durch den Anwender.
+
+**Ordnerzeilen sind ausdrücklich nicht betroffen** – siehe PR-42.
+
+### PR-42 · Doppelklick auf Ordner: Erwartung gegen Reaktionszeit
+**Aufwand:** S · **Nutzen:** offen · **Stand:** zur Entscheidung, **nicht** umgesetzt
+
+**Beobachtet bei PR-41:** „Doppelklick auf den Namen öffnet weder Ordner noch die Datei."
+
+Für Ordner ist das **kein Defekt**, sondern die sichtbare Folge einer bewussten Entscheidung:
+Ein *Einfachklick* klappt auf und zu (`FolderRowView:116`, `TreeRowView:135`). Ein Doppelklick
+ist damit zweimal umschalten – auf und sofort wieder zu, also sichtbar nichts. Der Finder wird
+über das Ordner-Symbol oder das Kontextmenü geöffnet.
+
+**⚠️ Der Preis eines Doppelklicks auf Ordnerzeilen wäre Reaktionszeit für alle.** Der Kommentar
+an `FolderRowView:113` hält fest, warum es dort *keinen* konkurrierenden Doppelklick gibt:
+Sobald einer existiert, muss jeder Einfachklick erst das Doppelklick-Intervall abwarten (~300 ms),
+bevor er wirkt. Auf- und Zuklappen ist der häufigste Handgriff in dieser App – ihn für einen
+selteneren zu verlangsamen wäre ein schlechter Tausch.
+
+**Denkbare Auswege, falls der Punkt aufgegriffen wird:**
+- Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile – dann bleibt der Klick auf die
+  Zeilenfläche unverzögert.
+- Gar nichts ändern und stattdessen die vorhandenen Wege sichtbarer machen; der Tooltip nennt
+  sie bereits („Finder: Ordner-Symbol oder Kontextmenü").
 
 ---
 

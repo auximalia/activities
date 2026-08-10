@@ -147,10 +147,35 @@ struct FileRowView: View {
                     }
                 }
         )
-        .onTapGesture(count: 2) {
-            model.select(.file(file.url))
-            FinderService.open(file.url)
-        }
+        // **⚠️ `simultaneousGesture` statt `onTapGesture` – hier lag der Fehler.**
+        // Gemeldet: „Doppelklick auf den Namen öffnet die Datei nicht." Die
+        // Geste war vorhanden, kam aber nie zum Zug: In dieser Zeile liegen
+        // bereits zwei Erkenner, die beim **Mausdruck** anspringen – `.onDrag`
+        // (Ziehen in andere Programme) und die `DragGesture(minimumDistance: 0)`
+        // direkt darüber (Sofort-Markierung). Ein gewoehnliches
+        // `onTapGesture` ordnet sich diesen unter und wurde verschluckt.
+        // `simultaneousGesture` sagt ausdruecklich: **neben** dem, was ohnehin
+        // laeuft.
+        //
+        // *Der Kommentar zwei Zeilen weiter oben warnte bereits, dass die
+        // Reihenfolge der Erkenner in dieser Zeile heikel ist – nur wurde
+        // daraus nicht gefolgert, dass es dem Doppelklick genauso ergeht.*
+        //
+        // **⚠️ Über ``ReportViewModel/requestOpen(_:)``, nicht direkt.** Zwei
+        // Dinge kamen dabei in Ordnung, die vorher schief lagen:
+        //
+        // 1. **Finder-Regel.** Vorher schrumpfte der Doppelklick die Auswahl
+        //    per `select` auf **eine** Datei und oeffnete nur diese. Markiert
+        //    man dreissig und drueckt Enter, oeffnen dreissig – doppelklickt
+        //    man eine davon, oeffnete genau eine. Der Finder oeffnet in beiden
+        //    Faellen die ganze Auswahl; `actionTargets(for:)` stellt das her.
+        // 2. **Die Bremse aus PR-26 gilt jetzt auch hier.** Der direkte Weg
+        //    ueber `FinderService` ging an ihr vorbei.
+        .simultaneousGesture(
+            TapGesture(count: 2).onEnded {
+                model.requestOpen(model.actionTargets(for: file.url))
+            }
+        )
         .contextMenu {
             // Aktionen wirken auf die gesamte Auswahl, wenn diese Zeile dazugehoert.
             let targets = model.actionTargets(for: file.url)

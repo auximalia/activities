@@ -407,56 +407,76 @@ Entwurf sah einen Editor in den Einstellungen und mehrere umschaltbare Presets v
 Argument wie in PR-36. Wartet auf das zweite Preset, das jemand wirklich vermisst; dann weiß man
 auch, wonach es sich unterscheiden soll.
 
-### PR-45 · Suchfeld mit UND und ODER
-**Aufwand:** S–M · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
+### PR-45 · Suchfeld: mehrere Begriffe, und ODER
+**Aufwand:** S · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
 
-Heute: `NameFilter` (`NameFilter.swift:10-36`) – leer passt auf alles; enthält die Eingabe `*`
-oder `?`, gilt sie wörtlich als Glob; sonst wird sie zu `*wort*`. `GlobMatcher`
-(`GlobMatcher.swift:17-53`) kann **nur** `*` und `?`, ausdrücklich keine Zeichenklassen.
+Heute kennt `NameFilter` (`NameFilter.swift:10-36`) genau **ein** Muster und zwei Zweige:
+enthält die Eingabe `*` oder `?`, gilt sie wörtlich als Glob (`:20-23`); sonst wird sie zu
+`*wort*` (`:25-28`). Ein leeres Muster passt auf alles.
+
+**⚠️ „UND ist doch schon implizit" – nein, und die Prüfung dieser Annahme hat den Eintrag
+halbiert.** `Angebot Muster` wird heute zu `*Angebot Muster*`: gesucht wird der **wörtliche
+Text samt Leerzeichen**. Zwei Begriffe in beliebiger Reihenfolge findet die App nicht.
+
+**Der Zuschnitt, der daraus folgt:** Das **Leerzeichen** wird zum UND, und **ODER** ist der
+einzige neue Operator. Kein `AND`-Schlüsselwort – es wäre nur ein zweiter Name für das, was
+das Leerzeichen dann schon sagt.
+
+**⚠️ Warum das Leerzeichen gefahrlos umgedeutet werden darf, das Schlüsselwort `AND` aber
+nicht.** Beide ändern die Bedeutung bestehender Eingaben – aber nicht in dieselbe Richtung.
+Jeder Name, der „Angebot Muster" enthält, enthält auch „Angebot" **und** „Muster": Die neue
+Auslegung ist eine **echte Obermenge**, es verliert niemand einen Treffer, es kommen welche
+dazu. Ein Schlüsselwort `AND` hätte dieselbe Eingabe stattdessen etwas **anderes** finden
+lassen. *Deshalb ist der billigere Weg hier zugleich der sicherere.*
+
+**⚠️ Die Obermenge gilt nur ohne Platzhalter – und genau daran hängt die Aufteilung.**
+Bei `*Angebot Muster*.pdf` wäre das Zerlegen am Leerzeichen **kein** Zugewinn, sondern ein
+Verlust: `*Angebot` hieße „endet auf Angebot", und „Mein Angebot Muster 2024.pdf" fiele heraus.
+Also wird **nur der Zweig ohne Platzhalter** zerlegt (`:25-28`) – der, der heute schon
+„Bequemlichkeit" heißt. Der Glob-Zweig (`:20-23`) bleibt **wörtlich und unverändert**. Wer
+Leerzeichen wörtlich sucht, schreibt sie mit Platzhalter.
+
+**Vorrang, in einem Satz:** `ODER` trennt oben, das Leerzeichen bindet enger –
+`a b ODER c` heißt `(a UND b) ODER c`. Eine Summe von Gruppen, keine Klammern, keine
+Verschachtelung. Das deckt ab, wofür man ein Suchfeld benutzt.
+
+**Beide Schreibweisen annehmen, `ODER` und `OR`.** Die Oberfläche ist deutsch, die Gewohnheit
+ist englisch. Das kostet eine Zeile und erspart die Frage „warum findet er nichts". Erkannt
+wird nur die **Großschreibung** und nur **freistehend** – „oder" im Dateinamen bleibt Text.
+
+**Was dadurch entfällt:** Ein **Fehlerzustand im Suchfeld ist nicht nötig**. Es gibt keine
+ungültige Eingabe mehr, nur unvollständige – ein hängendes `ODER` ohne zweiten Begriff wird
+schlicht übergangen. Damit bleiben `SearchField.swift` und `MainToolbar.swift:36-55`
+unberührt; die Änderung liegt vollständig in `ActivitiesCore` und ist damit von `CoreChecks`
+erreichbar.
 
 **Ein Typ deckt beide Wirkorte ab:** `NameFilter` wird im Suchlauf gebaut
-(`FileScanner.swift:68`) *und* bei der Anzeige (`isVisibleDetail`, `:1366`). Wer den Typ
-erweitert, erweitert beides – kein zweiter Ort, der nachziehen muss.
+(`FileScanner.swift:68`) **und** bei der Anzeige (`isVisibleDetail`, `:1366`). Kein zweiter
+Ort muss nachziehen.
 
-**⚠️ Die Falle ist nicht die Technik, sondern die stille Bedeutungsänderung.** Heute sucht
-`Angebot AND Muster` nach dem **wörtlichen Text** „Angebot AND Muster". Sobald `AND` ein
-Operator wird, findet dieselbe Eingabe etwas anderes – ohne dass der Anwender etwas geändert
-hat. Das braucht eine ausdrückliche Entscheidung, nicht die naheliegendste Grammatik. Zwei
-Wege, in der Reihenfolge, in der sie mir tragfähig erscheinen:
-1. Operatoren nur in **Großschreibung** und nur **freistehend** (`AND`, `OR`, umgeben von
-   Leerzeichen) – „and" im Dateinamen bleibt Text. Kollisionsrisiko klein, aber vorhanden.
-2. Ein **Wahlschalter** am Feld (einfach / mit Operatoren). Eindeutig, aber ein Bedienelement
-   mehr in einer Leiste, die UX-36 gerade entrümpelt hat.
-
-**Bezahlbar – gemessen, nicht geschätzt** (500 000 Dateinamen, Release-Bau, mit dem Messstand
-aus PR-25): Ein Glob-Lauf kostet **421 ms**, zwei verundete Läufe **850 ms**. Die Kosten sind
-**linear in der Zahl der Terme**, und ein Ausdruck mit zwei Termen bleibt unter dem, was die
-Sichtbarkeitsprüfung ohnehin kostet. Es braucht keinen neuen Mechanismus, nur mehrere Läufe
-des vorhandenen. **Nicht gemessen und deshalb offen:** das Zerlegen des Ausdrucks je
-Tastendruck – `NameFilter` liegt seit v1.19.35 im Speicher
+**Bezahlbar – gemessen, nicht geschätzt** (500 000 Dateinamen, Release-Bau, Messstand aus
+PR-25): ein Glob-Lauf **421 ms**, zwei verundete Läufe **850 ms**. Linear in der Zahl der
+Begriffe, und ein UND bricht beim ersten Fehlschlag ohnehin ab. **Nicht gemessen und deshalb
+offen:** das Zerlegen je Tastendruck – `NameFilter` liegt seit v1.19.35 im Speicher
 (`ReportViewModel.swift:1329-1338`), aber ein Tastendruck ändert die Fassung und baut neu.
 
 **⚠️ Reguläre Ausdrücke sind ausdrücklich NICHT Teil dieses Eintrags** (Entscheidung vom
-2026-08-10, auf Wunsch gestrichen). **Die Messung dazu wird hier trotzdem festgehalten, damit
-sie niemand wiederholt** – und weil sie die verbreitete Annahme umdreht: `NSRegularExpression`
-schafft dieselben 500 000 Namen in **214 ms** und ist damit **schneller als der heutige
+2026-08-10, auf Wunsch gestrichen). **Die Messung dazu bleibt hier stehen, damit sie niemand
+wiederholt** – und weil sie die verbreitete Annahme umdreht: `NSRegularExpression` schafft
+dieselben 500 000 Namen in **214 ms** und ist damit **schneller als der heutige
 handgeschriebene Glob**; `localizedCaseInsensitiveContains` braucht 436 ms. Der teure ist
-ausgerechnet der moderne Swift-`Regex`-Typ mit **1514 ms**, also **siebenmal** so lang wie
-`NSRegularExpression`. *Falls reguläre Ausdrücke je zurückkommen: Leistung ist kein Argument
-dagegen, und die Wahl des Typs entscheidet alles.*
+ausgerechnet der moderne Swift-`Regex`-Typ mit **1514 ms**, also **siebenmal** so lang.
+*Falls reguläre Ausdrücke je zurückkommen: Leistung ist kein Argument dagegen, und die Wahl
+des Typs entscheidet alles.*
 
-**Was noch dazugehört:**
-- **Ein ungültiger Ausdruck muss sich melden.** `NameFilter.init` kann heute nicht scheitern
-  (`:15-29`). `Angebot AND` ohne zweiten Term kann es. Das Suchfeld (`SearchField.swift`,
-  `MainToolbar.swift:36-55`) braucht einen Fehlerzustand – sonst sieht ein halb getippter
-  Ausdruck wie „keine Treffer" aus, und das ist die schlimmste Antwort, die eine Suche geben
-  kann.
-- **PR-21 (Suchbegriffe merken) gewinnt dadurch.** Ein Ausdruck mit UND/ODER ist teurer zu
-  tippen als ein Wort; ihn wiederzufinden ist dann mehr wert als heute.
+**PR-21 (Suchbegriffe merken) gewinnt dadurch** – ein Ausdruck aus mehreren Begriffen ist
+teurer zu tippen als ein Wort; ihn wiederzufinden ist dann mehr wert als heute.
 
-**Akzeptanz:** UND und ODER greifen im Suchlauf **und** in der Anzeige; eine Eingabe ohne
-Operatoren bedeutet unverändert dasselbe wie heute; ein unvollständiger Ausdruck wird als
-Fehler angezeigt, nicht als leeres Ergebnis; die Zeit je Tastendruck ist gemessen.
+**Akzeptanz:** Mehrere durch Leerzeichen getrennte Begriffe wirken als UND, `ODER` trennt
+Gruppen; beides greift im Suchlauf **und** in der Anzeige; **eine Prüfung in `CoreChecks`
+belegt die Obermengen-Zusage** – jede platzhalterfreie Eingabe findet mindestens alles, was
+sie heute findet; eine Eingabe **mit** Platzhalter bedeutet unverändert genau dasselbe wie
+heute; ein hängendes `ODER` liefert ein Ergebnis, keinen Fehler.
 
 ### Wie die drei zusammenhängen *(für den nächsten Sprintschnitt)*
 
@@ -467,8 +487,9 @@ Filter** (`isHidden`, `NameFilter`) – zwei unabhängige Schichten, die sich ni
 kommen.
 
 PR-44 und PR-45 sind die engere Klammer: beide berühren denselben Warnhinweis über stille
-Filterzustände (UX-06), und beide sind seit dem Zuschnitt vom 2026-08-10 **klein** (S bzw.
-S–M). **⚠️ Zwei S ergeben nach der Sprint-Regel in `AGENTS.md` noch keinen Release** – sie
+Filterzustände (UX-06), und beide sind nach dem Zuschnitt vom 2026-08-10 **je ein S** – PR-45
+ist dabei erst durch das Nachrechnen einer Annahme („UND ist doch schon implizit") so klein
+geworden. **⚠️ Zwei S ergeben nach der Sprint-Regel in `AGENTS.md` keinen Release** – sie
 brauchen ein tragendes Stück. PR-19 ist das einzige L und trüge einen Release allein; die
 beiden Filter wären dann die Beifahrer. Das ist der naheliegende Schnitt, aber ein großer:
 PR-19 bringt sechs Entwurfsentscheidungen mit.

@@ -337,95 +337,78 @@ das **kein Defekt** – siehe Entscheidung 2. Denkbarer Ausweg, falls der Punkt 
 wird: Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile, dann bleibt der Klick
 auf die Zeilenfläche unverzögert.
 
-### PR-43 · Outlook-Anhänge durchsuchen *(gemessen – so nicht machbar)*
-**Aufwand:** — · **Nutzen:** — · *gewünscht am 2026-08-10, am selben Tag am Bestand geprüft*
+### PR-44 · „Nur Arbeitsdateien" – ein Schalter unter dem Diagramm
+**Aufwand:** S · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
 
-Gewünscht: die lokal gespeicherten Outlook-Anhänge mitdurchsuchen, Standardpfad einstellbar.
+Ein Schalter in der Kopfzone, unter dem Diagramm: **an** – es erscheinen nur Dateien der
+Erlaubnisliste; **aus** – alles wie bisher.
 
-**⚠️ Am eigenen Rechner nachgesehen, bevor irgendetwas geplant wurde – und der Befund kippt
-den Eintrag.** Outlook 16.108.1, Ablage
-`~/Library/Group Containers/UBF8T346G9.Office/Outlook/Outlook 15 Profiles/Main Profile/Data/Message Attachments`:
+**⚠️ Der Eintrag hieß bis zum selben Tag „Filter-Voreinstellungen, einstellbar" (M) und ist
+auf S geschrumpft, weil die Liste schon da ist.** Der Wunsch war „Office anzeigen, Rest
+ausblenden". Gegen `WorkDays.resumableCategories` (`WorkDays.swift:57-59` – Dokumente, PDF,
+Tabellen, Präsentationen) geprüft:
 
-- **15 343 Dateien, 6,8 GB** – und **jede einzelne** heißt `<UUID>.olk15MsgAttachment`.
-- Der Originalname steht **nirgends im Dateisystem**: kein erweitertes Attribut außer
-  `com.apple.quarantine`, `kMDItemDisplayName` ist der UUID-Name, `file` sagt „data".
-- Die Zuordnung liegt in `Outlook.sqlite`, Tabelle `Files` – einer **virtuellen Tabelle** auf
-  dem proprietären Modul `FilesVTabModule`. Von außen nicht lesbar (`no such module`).
-- `~/Library/Containers/com.microsoft.Outlook/Data/tmp/TemporaryItems` ist **leer**.
+| gewünscht zu sehen | Ergebnis |
+|---|---|
+| Tabellen, Schreibprogramme, txt, md, ppt, **xmind**, pdf | ✅ trifft ohne Zutun |
+| graph, bpmn | ❌ liegen in keiner Zuordnung |
 
-Diese Quelle einzuhängen ergäbe also 15 343 namenlose Zeilen **eines** Typs, mit
-Cache-Zeitstempeln statt Arbeitszeitpunkten. Der Namensfilter (PR-45) träfe nichts, der
-Typ-Filter zeigte einen einzigen Chip, „Arbeit fortsetzen" wäre sinnlos. **Das ist keine
-Funktion, das ist eine Störung.** *Nebenbei:* `Library` steht in den Ordner-Ausschlüssen
-(`ExclusionRules.swift:49-64`), die Ablage wäre heute ohnehin übersprungen.
+| gewünscht auszublenden | Ergebnis |
+|---|---|
+| py, json, yaml | ✅ (`code`) |
+| eml, swift, toml, **Dateien ohne Endung** | ✅ (`other`) |
 
-**Was von dem Wunsch übrig bleibt und ihn wahrscheinlich ganz erfüllt:** Gesucht wird „der
-Anhang, den ich neulich bekommen habe" – und der liegt dort, wo er **gesichert** wurde. Im
-`~/Downloads` dieses Rechners sind es in 90 Tagen 28 md, 27 pdf, 26 xlsx: genau der Bestand,
-den die App zeigen soll. **Damit ist PR-43 kein eigener Eintrag, sondern ein Anwendungsfall von
-PR-19** – „Downloads" als vorgeschlagene Quelle in der Liste, ein Haken, fertig.
+Sieben von neun Anzeige-Wünschen und **alle** Ausblend-Wünsche treffen sofort. Bemerkenswert
+ist der letzte: **Dateien ohne Endung sind über die Legende heute gar nicht ausblendbar**
+(`recomputeLegend` überspringt leere Endungen, `:905`). Die Erlaubnisliste erledigt das
+nebenbei, weil sie von der anderen Seite denkt.
 
-**⚠️ Wer den Eintrag wieder aufmacht, braucht einen neuen Befund, nicht einen neuen Anlauf:**
-entweder eine dokumentierte Schnittstelle, die UUID → Originalname auflöst, oder ein Outlook,
-das Anhänge unter ihrem echten Namen ablegt. Beides ist am 2026-08-10 nachweislich nicht der
-Fall.
+**⚠️ Die Erlaubnisliste wird NICHT wiederverwendet, sondern verdoppelt – mit Absicht.**
+Naheliegend wäre, `graph` und `bpmn` einfach nach `documents` zu schieben. Das wäre der
+gefährliche Handgriff: `FileCategory.extensionMap` speist zugleich `isResumable`
+(`WorkDays.swift:62-64`), also **was ein Klick ausführt**. Stattdessen bekommt die Sichtbarkeit
+einen **eigenen, erweiterten Schlüsselraum** – erlaubte Kategorien *plus* zusätzlich erlaubte
+Endungen –, und `extensionMap` bleibt unberührt.
 
-### PR-44 · Filter-Voreinstellungen, einstellbar
-**Aufwand:** M · **Nutzen:** hoch · **P2** · *ausdrücklich gewünscht am 2026-08-10*
+*Der Grund, warum es zwei Listen sein müssen und nicht eine, obwohl sie heute fast gleich
+aussehen:* Die Ausführungsliste muss **eng** bleiben, denn ihr schlimmster Fall ist „es ist
+etwas gestartet". Die Sichtbarkeitsliste darf **großzügig** wachsen, denn ihr schlimmster Fall
+ist „ich sehe zu viel". Dieselbe Asymmetrie, die `WorkDays.swift:32-38` schon für Verbots-
+gegen Erlaubnisliste beschreibt. Wer die beiden je zusammenlegt, gibt die engere Liste auf.
 
-Gewünscht: benannte, einstellbare Voreinstellungen – z. B. „Office" (Tabellenkalkulation,
-Textverarbeitung, md, ppt, xmind, graph, bpmn, txt, pdf) gegen „Rest ausgeblendet"
-(py, eml, json, swift, toml, yaml, Dateien ohne Endung).
+**Wirkorte – vier davon hängen bereits an einer Stelle:** `isHidden` (`:893-898`) wird von
+Diagramm (`:929`), Ordnerliste (`:955`), Detailsichtbarkeit (`:1366`) und `visibleFiles`
+(`:1399`) benutzt. Eine Bedingung dort deckt alle vier ab.
 
-**Heute gibt es genau einen Weg zum Typ-Filter: den Klick auf die Legende**
-(`toggleExtension:849`, `soloExtension:882`, zurücksetzen `:873` und ⌥⌘R). Gefiltert wird nach
-**roher Endung** (`isHidden:893-898`), nicht nach Kategorie.
+**⚠️ Die Legende braucht die einzige zusätzliche Zeile – und eine Ausnahme von ihrer eigenen
+Regel.** Sie wird bewusst aus den *ungefilterten* Dateien gebaut, „stabil über Filterwechsel"
+(`:900`), damit Chips beim Klicken nicht unter dem Mauszeiger wegspringen. Für einen Chip-Klick
+ist das richtig; für diesen Schalter nicht – sonst stünden weiter `swift`- und `py`-Chips da,
+die nichts mehr bewirken. Schalter an → die Legende zeigt nur noch erlaubte Typen.
 
-**⚠️ `FileCategory` kann die Voreinstellungen nicht tragen – nachgesehen, nicht vermutet.**
-In `extensionMap` (`FileCategory.swift:29-68`) fehlen `swift`, `toml`, `eml`, `bpmn` und
-`graph` vollständig; sie fallen alle unter `.other`. Und die vorhandene Aufteilung läuft
-**quer** zum Wunsch: `md`/`txt` liegen bei `documents` (die will das Office-Preset haben),
-`json`/`yaml` bei `code` (die soll es weghaben). Seit v1.19.35 ist `FileCategory` ohnehin nur
-noch der Sicherheitsriegel für „Arbeit fortsetzen" (`WorkDays.swift:57-64`).
+**⚠️ Seit v1.19.35 gilt für jeden neuen Eingang der Zeilenliste:** Er braucht ein
+`didSet { invalidateRows() }`, sonst zeigt die Liste ein veraltetes Ergebnis, das richtig
+aussieht (`ReportViewModel.rowsGeneration`). Der Schalter ist ein solcher Eingang.
 
-**⚠️ Und genau daraus folgt die gefährlichste Kopplung des Vorhabens:** Wer `extensionMap`
-für die Presets erweitert, verschiebt damit still, was „Arbeit fortsetzen" **ausführt**. Jede
-Endung, die nach `documents` wandert, wird ohne weiteres Zutun mit einem Klick geöffnet – das
-ist der Mangel aus PR-35 (v1.19.27) zurück. *Wer die Map anfasst, muss `resumableCategories`
-im selben Atemzug prüfen.*
+**Vorschlag zur einzigen offenen Entscheidung – Schalter merken oder nicht:** *nicht* merken.
+Der Typ-Filter wird ausdrücklich nicht gespeichert, „damit niemand mit einem vergessenen Filter
+weiterarbeitet" (`:868-872`). Ein gemerkter Schalter verschwiege eines Morgens Dateien, und der
+Hinweis darauf steht in der Kopfzone – die man einklappen kann (`headerExpanded`). Ein Klick je
+Sitzung ist der billigere Preis. *Wer ihn merken will, muss die Entscheidung von `:868-872`
+ausdrücklich widerrufen und einen Hinweis schaffen, der die eingeklappte Kopfzone überlebt.*
 
-**Vorschlag zur Entwurfsfrage „Endung oder Kategorie":** **beides, über einen erweiterten
-Schlüsselraum.** Ein Preset hält eine Menge von Schlüsseln; ein Schlüssel ist eine Endung,
-`otherKey`, ein neuer Schlüssel „ohne Endung" oder ein Kategoriename. `isHidden` (`:893-898`)
-bekommt genau einen Zweig dazu. Die Legende bleibt der Endungs-Filter, der sie ist; das Preset
-darf gröber sprechen. Der Bruch im Schlüsselraum ist vertretbar – `otherKey` hat ihn bereits
-eingeführt.
+**Akzeptanz:** Ein Schalter unter dem Diagramm; an heißt: nur erlaubte Dateien in Liste, Baum,
+Diagramm und Legende; aus heißt: unverändertes Verhalten; „Arbeit fortsetzen" ändert sein
+Verhalten **nicht**; die Erlaubnismenge ist im Kern definiert und von `CoreChecks` geprüft.
 
-**Zwei Dinge, die heute gar nicht gehen und dazugehören:**
-- **Dateien ohne Endung gezielt ausblenden.** `pathExtension` ist `""`, die Legende
-  überspringt leere Endungen (`:905`), sie landen im Sammelchip „Sonstige" – zusammen mit
-  `.app`, `.dmg`, `.eml`, `.swift`. Technisch griffe `hiddenExtensions.insert("")` sofort
-  (`:895`); es gibt nur keinen Weg dorthin.
-- **Ein Typ ohne Legendenchip.** Ein Preset blendet Endungen aus, die im Zeitraum nicht unter
-  den Top 10 sind (`legendTopCount = 10`, `:211`) – **unsichtbar**, weil kein Chip sie zeigt.
-  Das ist der stille Zustand, vor dem UX-06 warnt. `hiddenTypeCount` (`:863`) zählt sie
-  bereits; der Hinweis in `ChartHeaderView.typeSegment` (`:206-219`) muss ihn nennen.
+**Zurückgestellt: benannte, selbst zusammengestellte Voreinstellungen.** Der ursprüngliche
+Entwurf sah einen Editor in den Einstellungen und mehrere umschaltbare Presets vor. Solange es
+**ein** Preset gibt und ein Schalter es abbildet, ist das ein Bedienelement ohne Bedarf – dasselbe
+Argument wie in PR-36. Wartet auf das zweite Preset, das jemand wirklich vermisst; dann weiß man
+auch, wonach es sich unterscheiden soll.
 
-**⚠️ Der Typ-Filter wird bewusst NICHT gespeichert** – „damit niemand mit einem vergessenen
-Filter weiterarbeitet" (`ReportViewModel.swift:868-872`). Ein gespeichertes *aktives* Preset
-hebelt das aus. **Vorschlag: nur die Definitionen speichern, die Sitzung startet ungefiltert.**
-Das hält die Entscheidung und kostet einen Klick. Wer sie widerrufen will, widerruft sie
-ausdrücklich hier.
-
-**Vorlage:** `ExclusionRules` (bekannte Menge + aktive Menge + eigene ergänzen + zurücksetzen,
-`:84-100`) plus ein dritter Reiter in `SettingsView` (`:22-29`) nach dem Muster des
-Rauschfilters. Der **Umschalter** gehört ins Menü „Darstellung" neben ⌥⌘R (`:198-200`), der
-**Editor** in die Einstellungen – so will es die dort festgehaltene Aufnahmeregel (`:142-146`).
-Ein Vorbild für *benannte, umschaltbare* Mengen gibt es im Repo bisher nicht; `TimePreset` ist
-ein fest verdrahtetes Enum ohne Benutzerdefinition.
-
-### PR-45 · Suchfeld mit UND, ODER und regulären Ausdrücken
-**Aufwand:** M · **Nutzen:** hoch · **P2** · *ausdrücklich gewünscht am 2026-08-10*
+### PR-45 · Suchfeld mit UND und ODER
+**Aufwand:** S–M · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
 
 Heute: `NameFilter` (`NameFilter.swift:10-36`) – leer passt auf alles; enthält die Eingabe `*`
 oder `?`, gilt sie wörtlich als Glob; sonst wird sie zu `*wort*`. `GlobMatcher`
@@ -438,56 +421,57 @@ erweitert, erweitert beides – kein zweiter Ort, der nachziehen muss.
 **⚠️ Die Falle ist nicht die Technik, sondern die stille Bedeutungsänderung.** Heute sucht
 `Angebot AND Muster` nach dem **wörtlichen Text** „Angebot AND Muster". Sobald `AND` ein
 Operator wird, findet dieselbe Eingabe etwas anderes – ohne dass der Anwender etwas geändert
-hat. Das braucht eine ausdrückliche Entscheidung, nicht die naheliegendste Grammatik. Drei
+hat. Das braucht eine ausdrückliche Entscheidung, nicht die naheliegendste Grammatik. Zwei
 Wege, in der Reihenfolge, in der sie mir tragfähig erscheinen:
-1. Operatoren nur in **Großschreibung** (`AND`, `OR`) und nur **freistehend** – „and" im
-   Dateinamen bleibt Text. Kollisionsrisiko klein, aber vorhanden.
-2. Ein **Präfix** schaltet die Sprache um (`re:` für Regex), Vorgabe bleibt wie heute.
-   Eindeutig, kostet aber ein gelerntes Kürzel.
-3. Ein **Wahlschalter** am Feld (Text / Glob / Regex). Sichtbar, aber ein Bedienelement mehr
-   in einer Leiste, die UX-36 gerade entrümpelt hat.
+1. Operatoren nur in **Großschreibung** und nur **freistehend** (`AND`, `OR`, umgeben von
+   Leerzeichen) – „and" im Dateinamen bleibt Text. Kollisionsrisiko klein, aber vorhanden.
+2. Ein **Wahlschalter** am Feld (einfach / mit Operatoren). Eindeutig, aber ein Bedienelement
+   mehr in einer Leiste, die UX-36 gerade entrümpelt hat.
 
-**⚠️ „Regex ist zu teuer je Datei" ist widerlegt – gemessen, nicht geschätzt** (500 000
-Dateinamen, Release-Bau, mit dem Messstand aus PR-25):
+**Bezahlbar – gemessen, nicht geschätzt** (500 000 Dateinamen, Release-Bau, mit dem Messstand
+aus PR-25): Ein Glob-Lauf kostet **421 ms**, zwei verundete Läufe **850 ms**. Die Kosten sind
+**linear in der Zahl der Terme**, und ein Ausdruck mit zwei Termen bleibt unter dem, was die
+Sichtbarkeitsprüfung ohnehin kostet. Es braucht keinen neuen Mechanismus, nur mehrere Läufe
+des vorhandenen. **Nicht gemessen und deshalb offen:** das Zerlegen des Ausdrucks je
+Tastendruck – `NameFilter` liegt seit v1.19.35 im Speicher
+(`ReportViewModel.swift:1329-1338`), aber ein Tastendruck ändert die Fassung und baut neu.
 
-| Verfahren | Zeit | |
-|---|---|---|
-| `NSRegularExpression`, einmal gebaut | **214 ms** | **schneller als heute** |
-| `GlobMatcher` `*studium*` (heute) | 421 ms | |
-| `localizedCaseInsensitiveContains` | 436 ms | |
-| `Regex` (Swift-Typ), einmal gebaut | **1514 ms** | **7× langsamer** als `NSRegularExpression` |
-| Glob UND Glob (zwei Läufe) | 850 ms | linear in der Zahl der Terme |
-
-Also: Der reguläre Ausdruck ist der **billigste** der drei Wege – aber nur mit
-`NSRegularExpression`. Der neue Swift-`Regex`-Typ ist hier die teure Variante; wer ihn aus
-Modernität wählt, macht die Suche siebenmal langsamer. UND/ODER kosten linear je Term, das ist
-unauffällig. **Nicht gemessen und deshalb offen:** das Bauen des Ausdrucks je Tastendruck –
-`NameFilter` liegt seit v1.19.35 im Speicher (`ReportViewModel.swift:1329-1338`), aber ein
-Tastendruck ändert die Fassung und baut neu.
+**⚠️ Reguläre Ausdrücke sind ausdrücklich NICHT Teil dieses Eintrags** (Entscheidung vom
+2026-08-10, auf Wunsch gestrichen). **Die Messung dazu wird hier trotzdem festgehalten, damit
+sie niemand wiederholt** – und weil sie die verbreitete Annahme umdreht: `NSRegularExpression`
+schafft dieselben 500 000 Namen in **214 ms** und ist damit **schneller als der heutige
+handgeschriebene Glob**; `localizedCaseInsensitiveContains` braucht 436 ms. Der teure ist
+ausgerechnet der moderne Swift-`Regex`-Typ mit **1514 ms**, also **siebenmal** so lang wie
+`NSRegularExpression`. *Falls reguläre Ausdrücke je zurückkommen: Leistung ist kein Argument
+dagegen, und die Wahl des Typs entscheidet alles.*
 
 **Was noch dazugehört:**
 - **Ein ungültiger Ausdruck muss sich melden.** `NameFilter.init` kann heute nicht scheitern
-  (`:15-29`); `Regex` kann es. Das Suchfeld (`SearchField.swift`, `MainToolbar.swift:36-55`)
-  braucht einen Fehlerzustand – sonst sieht ein Tippfehler wie „keine Treffer" aus, und das
-  ist die schlimmste Antwort, die eine Suche geben kann.
-- **Portabilität prüfen.** `GlobMatcher` wurde bewusst von Hand geschrieben statt `fnmatch` zu
-  nehmen (`GlobMatcher.swift:5-8`). `NSRegularExpression` ist Foundation und damit für
-  `ActivitiesCore` zulässig – die Begründung von damals greift hier nicht.
+  (`:15-29`). `Angebot AND` ohne zweiten Term kann es. Das Suchfeld (`SearchField.swift`,
+  `MainToolbar.swift:36-55`) braucht einen Fehlerzustand – sonst sieht ein halb getippter
+  Ausdruck wie „keine Treffer" aus, und das ist die schlimmste Antwort, die eine Suche geben
+  kann.
 - **PR-21 (Suchbegriffe merken) gewinnt dadurch.** Ein Ausdruck mit UND/ODER ist teurer zu
   tippen als ein Wort; ihn wiederzufinden ist dann mehr wert als heute.
 
-**Akzeptanz:** UND/ODER und ein regulärer Ausdruck greifen im Suchlauf **und** in der Anzeige;
-eine Eingabe ohne Operatoren bedeutet unverändert dasselbe wie heute; ein ungültiger Ausdruck
-wird als Fehler angezeigt, nicht als leeres Ergebnis; die Zeit je Tastendruck ist gemessen.
+**Akzeptanz:** UND und ODER greifen im Suchlauf **und** in der Anzeige; eine Eingabe ohne
+Operatoren bedeutet unverändert dasselbe wie heute; ein unvollständiger Ausdruck wird als
+Fehler angezeigt, nicht als leeres Ergebnis; die Zeit je Tastendruck ist gemessen.
 
-### Wie die vier zusammenhängen *(für den nächsten Sprintschnitt)*
+### Wie die drei zusammenhängen *(für den nächsten Sprintschnitt)*
 
-PR-43 ist in PR-19 aufgegangen. Von den drei verbleibenden fasst **PR-19 die Quellen** an
-(Store, Scan, Baum) und **PR-44/PR-45 die Filter** (`isHidden`, `NameFilter`) – zwei
-unabhängige Schichten, die sich nicht ins Gehege kommen. PR-44 und PR-45 sind die technisch
-engere Klammer: beide entscheiden über die **Bedeutung einer Eingabe** und beide berühren
-denselben Warnhinweis über stille Filterzustände (UX-06). PR-19 ist das einzige L und trüge
-einen Release allein.
+Aus vier Wünschen wurden drei Einträge: **PR-43 (Outlook) ist gestrichen** – die Ablage
+enthält keine wiederherstellbaren Namen, der brauchbare Rest ist ein Haken in PR-19. Von den
+verbleibenden fasst **PR-19 die Quellen** an (Store, Scan, Baum) und **PR-44/PR-45 die
+Filter** (`isHidden`, `NameFilter`) – zwei unabhängige Schichten, die sich nicht ins Gehege
+kommen.
+
+PR-44 und PR-45 sind die engere Klammer: beide berühren denselben Warnhinweis über stille
+Filterzustände (UX-06), und beide sind seit dem Zuschnitt vom 2026-08-10 **klein** (S bzw.
+S–M). **⚠️ Zwei S ergeben nach der Sprint-Regel in `AGENTS.md` noch keinen Release** – sie
+brauchen ein tragendes Stück. PR-19 ist das einzige L und trüge einen Release allein; die
+beiden Filter wären dann die Beifahrer. Das ist der naheliegende Schnitt, aber ein großer:
+PR-19 bringt sechs Entwurfsentscheidungen mit.
 
 ---
 

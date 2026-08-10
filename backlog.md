@@ -2201,6 +2201,80 @@ selteneren zu verlangsamen wäre ein schlechter Tausch.
 - Gar nichts ändern und stattdessen die vorhandenen Wege sichtbarer machen; der Tooltip nennt
   sie bereits („Finder: Ordner-Symbol oder Kontextmenü").
 
+## Sprint 13 – „Die App sagt, was sie weiß" *(Zuschnitt nach Code-Durchsicht, Stand v1.19.32)*
+
+| AP | Eintrag | Aufwand | Nutzen |
+|---|---|---|---|
+| **AP1** | PR-16 · Zusammenfassung in die Zwischenablage | S | hoch |
+| **AP2** | PR-17 · Berichte, die man zeigen kann | M | mittel |
+| **AP3** | PR-24 · Erklären, was gelesen wird | S | hoch |
+
+**Die Klammer ist technisch, nicht nur thematisch.** AP1 und AP2 arbeiten beide auf
+`ReportExport` (heute 88 Zeilen, nur `csv` und `html`) und brauchen dieselbe Sache: eine
+**verdichtete Darstellung des aktuellen Ergebnisses samt Zeitraum**. Wer eine baut, hat die
+andere fast. *Das ist die Lehre aus Sprint 11, wo ich eine Klammer zurücknehmen musste, weil
+sie keinen gemeinsamen Code erzeugte.*
+
+**AP3 ist Beifahrer aus Release-Ökonomie** – S allein trägt keinen Bau- und
+Veröffentlichungslauf. Der thematische Bezug ist echt (die App spricht: zu dir, zu anderen,
+über sich selbst), aber der schwächste der drei; das soll man wissen.
+
+**Warum PR-15 (Wochenrückblick, L) nicht dabei ist:** Es ist der große Bruder von PR-16 –
+dieselbe Frage, nur als eigene Ansicht. Erst das S bauen und sehen, ob das L danach überhaupt
+noch fehlt. Ein L zu bauen, das ein S überflüssig gemacht hätte, wäre die teuerste Art, das
+herauszufinden.
+
+### Befunde der Durchsicht
+
+1. **Die Datenlage für AP1 ist vollständig.** `ReportExport` bekommt `[BucketedEntries]` mit
+   Ordner, neuestem Datum und Dateizahl; `ClipboardService.copy(_:)` gibt es. Die Zusammenfassung
+   ist eine **reine Funktion** – sie gehört zu `csv` und `html` in den Kern und ist in
+   `CoreChecks` prüfbar.
+
+2. **⚠️ „KW 32" aus dem Beispiel wäre in den meisten Fällen eine Lüge.** Der eingestellte
+   Zeitraum ist selten eine Kalenderwoche – Vorgabe sind 30 Tage, dazu kommen Spanne und der
+   Modus „Alle" (UX-28). Die Zusammenfassung muss den **tatsächlichen** Zeitraum benennen, sonst
+   trägt jemand eine falsche Woche in seine Zeiterfassung. Derselbe Fehlertyp wie die falsche
+   Zahl in der Rückfrage aus PR-26.
+
+3. **⚠️ Das Diagramm im HTML-Bericht ist der riskante Teil von AP2.** Das Diagramm der App ist
+   SwiftUI (`HistoryChartView`); im Bericht bräuchte es eine zweite Darstellung, etwa als
+   eingebettetes SVG. Vertretbar ist das **nur, solange beide dieselbe Aggregation benutzen**
+   (`FolderAggregator`) und sich lediglich im Zeichnen unterscheiden. Entstünde daneben eine
+   zweite Rechnung, wäre es exakt der Zerfall, der die Zeitstempel-Formatierung vor PR-32
+   auseinandergebracht hat.
+
+4. **PDF gehört nach heutigem Stand nicht in diesen Sprint.** Der Eintrag nennt es beiläufig
+   („PDF-Ausgabe ergänzen"), es ist aber ein eigener Ausgabeweg mit eigener Seitenaufteilung –
+   und damit ein zweites Ziel, das dieselbe Darstellung noch einmal erzeugen muss. Ein
+   vorzeigbarer HTML-Bericht lässt sich über den Systemdruck als PDF sichern; solange niemand
+   das vermisst, ist das die kleinere Antwort. **Zur Entscheidung.**
+
+5. **AP3 hat bereits zwei Plätze** – den Erstkontakt-Streifen (`RootView.showsIntro`) und die
+   Hilfe (207 Zeilen). Es ist also kein neues Fenster nötig, nur eine klare Aussage an den
+   Stellen, an denen ohnehin erklärt wird. **⚠️ Kein Wall aus Text:** Ein Satz im Erstkontakt,
+   ein Abschnitt in der Hilfe. Vertrauen entsteht durch eine Auskunft, die man liest – nicht
+   durch eine, die man wegklickt.
+
+**Reihenfolge:** AP1 vor AP2 – die Zusammenfassung legt fest, wie Zeitraum und Verdichtung
+formuliert werden; der Bericht setzt darauf auf. AP3 ist unabhängig.
+
+**Sprint-Akzeptanz:** Ein Knopf legt eine lesbare Zusammenfassung mit **korrekt benanntem
+Zeitraum** in die Zwischenablage; der HTML-Bericht trägt Kopfzeile, Zeitraum und Diagramm und
+ist ohne Nachbearbeitung vorzeigbar; Zusammenfassung und Berichtsaufbau sind in `CoreChecks`
+geprüft; im Erstkontakt und in der Hilfe steht in klaren Worten, was gelesen wird und dass
+nichts das Gerät verlässt.
+
+### Zwei Korrekturen am Backlog, bei der Durchsicht gefunden
+
+- **PR-27 AP3 ist faktisch erledigt.** Diagramm-Sprung mit Vorfahren, Anheften im Baum und die
+  VoiceOver-Ebenenansage sind im Code vorhanden. Der Eintrag steht seit v1.19.11 als offen –
+  dieselbe Art veralteter Aufzeichnung wie die Zeilennummern vor Sprint 10. Braucht eine
+  Durchsicht, kein Bauvorhaben.
+- **PR-20 („Filter: Größe und Alter") ist zur Hälfte überholt.** Die Alters-Hälfte leistet der
+  Zeitraum längst; die Größen-Hälfte ist seit PR-37 fast geschenkt, weil `RelevantFile.size`
+  vorliegt. Der Eintrag ist neu zu formulieren, bevor ihn jemand schätzt.
+
 ---
 
 ## Sprint 12 – „Wie groß" *(erledigt, v1.19.29)*

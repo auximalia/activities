@@ -680,6 +680,115 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.34 | Sprint 14 · „Befehle, die man findet" | UX-33, UX-34, UX-35, UX-36, UX-37, UX-38, UX-39, UX-41 |
 | v1.19.35 | Sprint 15 · „Wissen, was es aushält" | PR-25, PR-27 AP3, Totholz |
 
+## Sprint 16 – „Mehrere Quellen, gezielter Blick" *(geplant, Stand v1.19.35)*
+
+| AP | Eintrag | Aufwand | |
+|---|---|---|---|
+| **AP1** | PR-19 · Quellen als verwaltete Liste | **L** | trägt den Release |
+| **AP2** | PR-44 · Schalter „Nur Arbeitsdateien" unter dem Diagramm | S | Beifahrer |
+| **AP3** | PR-45 · Leerzeichen als UND, `ODER` als Operator | S | Beifahrer |
+
+**Die Klammer:** AP1 ändert, **woher** die Dateien kommen; AP2 und AP3 ändern, **welche davon**
+man sieht. Zwei Enden derselben Kette, technisch unabhängig – AP1 fasst Store, Suchlauf und
+Baum an, AP2/AP3 nur `isHidden` und `NameFilter`. *Ehrlicherweise sind AP2 und AP3 zugleich
+Release-Ökonomie; sie sind aber auch die beiden Punkte, die am konkretesten gewünscht wurden.*
+
+**⚠️ Reihenfolge: AP1 zuerst.** Es ist das einzige Stück, das überraschen kann – sechs
+Entwurfsentscheidungen, ein Datenmodell, das an zwölf Stellen angenommen wird. AP2 und AP3 sind
+bekannte Größen. Das unsichere Stück gehört an den Anfang, nicht ans Ende.
+
+### Festlegungen vor der Umsetzung
+
+1. **Überlappende Quellen werden beim Hinzufügen abgelehnt, nicht im Baum repariert.**
+   `~/Documents` und `~/Documents/Projekte` gleichzeitig brechen die Zusicherung „jeder Ordner
+   genau einmal" (`FolderTree.swift:9-11`), auf der auch `ReportExport.summary` steht
+   (`:40-43`), und zählen jede Datei zweimal in Legende (`:901`), Diagramm (`:931`) und
+   Dateizähler (`:1902`). **Eine Prüfung beim Hinzufügen kostet fünf Zeilen; die Reparatur im
+   Baum wäre ein anderes Programm.** Die Meldung muss den Grund nennen („`Projekte` liegt
+   bereits in `Documents`"), nicht nur ablehnen.
+2. **⚠️ Bei mehreren Quellen wird die Quellzeile immer gezeigt.** `FolderTree.swift:240`
+   unterdrückt heute die Wurzelzeile, wenn die Wurzel keine eigenen Dateien hat – bei *einer*
+   Quelle richtig, bei mehreren fatal: Die Teilbäume zweier Quellen stünden ununterscheidbar
+   nebeneinander. Bei genau einer Quelle bleibt das heutige Verhalten. *Das ist bewusst eine
+   Fallunterscheidung und keine einheitliche Regel – die Quellzeile trägt nur dann
+   Information, wenn es etwas zu unterscheiden gibt.*
+3. **Namensgleichheit wird nur dann aufgelöst, wenn sie auftritt.** Zwei Quellen namens `src`
+   bekommen so viel Elternpfad in die Beschriftung, wie zur Unterscheidung nötig ist
+   (`FolderTree.swift:228`); bei eindeutigen Namen bleibt es beim bloßen Ordnernamen. Betrifft
+   ebenso `relativePath(of:)` (`:1759`), Statuszeile (`RootView.swift:299`) und
+   `ReportExport.summary` (`:65`).
+4. **Der Aufklappzustand bekommt je Quelle einen Eintrag**, nicht je Kombination.
+   `ExpansionState.Map` ist bereits nach Wurzelpfad geschlüsselt (`ExpansionState.swift:18`);
+   `pruned(_:keeping:)` (`:36`) braucht eine neue Definition von „bekannt" – **alle bekannten
+   Quellen**, nicht nur die zuletzt geöffneten. **⚠️ `nil` ≠ `[]` bleibt** (`:57-64`): Eine neu
+   hinzugefügte Quelle ist unbekannt und klappt auf; eine ausdrücklich zugeklappte bleibt zu.
+5. **Das Hinzuhaken einer Quelle scannt nur diese.** `guard lastScanRoot == rootURL`
+   (`:1727`) wird ein Mengenvergleich; die Differenz bestimmt, was gescannt wird. Ohne das
+   kostet jeder Haken einen Volldurchlauf – bei 500 000 Dateien nachweislich 10 s
+   (Sprint 15). **Das ist messbar und gehört gemessen**, nicht behauptet.
+6. **Vor/Zurück wird abgeschafft.** `FolderHistory` (`FolderHistory.swift:19,65-77`) ist ein
+   Verlauf **einzelner** Ordner und setzt voraus, dass Quellen einander *ablösen*. Sobald sie
+   sich *addieren*, hat „zurück" keine Bedeutung mehr – ein Verlauf von Mengen wäre ein neues
+   Bedienkonzept für ein Problem, das die sichtbare, dauerhafte Quellenliste bereits löst.
+   **⚠️ Das ist die einzige Festlegung, die etwas wegnimmt, und deshalb die, die ausdrücklich
+   bestätigt werden muss.** Betrifft `ActivitiesApp.swift` (Menü „Ordner"), `MainToolbar` und
+   zwei Kürzel.
+7. **Die Sichtbarkeitsliste aus AP2 ist eine eigene Liste, nicht `resumableCategories`.**
+   Erlaubte Kategorien plus zusätzlich erlaubte Endungen (`bpmn`, `graph`);
+   `FileCategory.extensionMap` bleibt unangetastet, „Arbeit fortsetzen" ändert sein Verhalten
+   nicht. Begründung in PR-44: Die Ausführungsliste muss eng bleiben, die Sichtbarkeitsliste
+   darf wachsen.
+8. **Der Schalter aus AP2 wird nicht gespeichert.** Hält die Entscheidung von
+   `ReportViewModel.swift:868-872`. Wer ihn merken will, widerruft sie ausdrücklich und
+   schafft einen Hinweis, der die eingeklappte Kopfzone überlebt.
+9. **⚠️ Jeder neue Eingang der Zeilenliste braucht `didSet { invalidateRows() }`.** Seit
+   v1.19.35 hängt die Liste an `rowsGeneration`; ein vergessener Eingang zeigt ein veraltetes
+   Ergebnis, **das richtig aussieht**. Betroffen: die Menge der aktiven Quellen (AP1) und der
+   Schalter (AP2). *Das ist die wahrscheinlichste stille Fehlerquelle dieses Sprints.*
+
+### Sprint-Akzeptanz
+
+**AP1:** Quellen lassen sich an- und abwählen, hinzufügen und **löschen**, ohne Neustart · eine
+überlappende Quelle wird mit Begründung abgelehnt · zwei gleichnamige Quellen sind im Baum
+unterscheidbar · jede Quelle erscheint als eigener Wurzelknoten, auch ohne eigene Dateien ·
+das Hinzuhaken einer Quelle scannt **nur diese**, belegt mit einer Messung · der Aufklappzustand
+überlebt je Quelle einen Neustart · keine Datei wird doppelt gezählt.
+
+**AP2:** Ein Schalter unter dem Diagramm; an heißt: nur erlaubte Dateien in Liste, Baum,
+Diagramm **und Legende**; aus heißt: unverändertes Verhalten · „Arbeit fortsetzen" verhält sich
+unverändert · die Erlaubnismenge liegt im Kern und ist von `CoreChecks` geprüft.
+
+**AP3:** Mehrere Begriffe wirken als UND, `ODER`/`OR` trennt Gruppen · beides greift im
+Suchlauf **und** in der Anzeige · **eine Prüfung belegt die Obermengen-Zusage**: jede
+platzhalterfreie Eingabe findet mindestens alles, was sie heute findet · eine Eingabe **mit**
+Platzhalter bedeutet unverändert genau dasselbe · ein hängendes `ODER` liefert ein Ergebnis,
+keinen Fehler.
+
+**Gemeinsam:** `swift build` und `swift run CoreChecks` grün · am laufenden Programm
+gegengeprüft, mit Kontrollversuch je fehlgeschlagenem Versuch (Lehre aus Sprint 14 und 15).
+
+### Bewusst nicht in diesem Sprint
+
+- **Benannte, selbst zusammengestellte Filter-Voreinstellungen** – solange ein Schalter das
+  eine Preset abbildet, ist ein Editor ein Bedienelement ohne Bedarf (PR-44, Zurückgestellt).
+- **Reguläre Ausdrücke** – am 2026-08-10 gestrichen. Die Messung dazu steht in PR-45; Leistung
+  war nie das Argument.
+- **PR-13** (Typverteilung je Zeile) – wäre eine neue Rechnung je Zeile, und der Messstand aus
+  PR-25 ist da, um sie *vorher* zu beziffern. Nicht neben einem L.
+- **PR-15, PR-18, PR-20, PR-23** – kein Platz neben einem L; PR-20 ist zudem noch nicht neu
+  geschätzt.
+- **PR-42** (Doppelklick auf Ordner) – wartet weiter auf eine Entscheidung, nicht auf Zeit.
+
+### Risiko, offen benannt
+
+**Das L ist das einzige tragende Stück.** Wächst AP1 über den Sprint hinaus, gibt es keinen
+zweiten Träger – AP2 und AP3 sind zusammen zwei S und ergeben nach der Regel in `AGENTS.md`
+keinen Release. Der Ausweg wäre dann nicht, sie trotzdem zu veröffentlichen, sondern AP1 zu
+verkleinern: Festlegung 1 (Überlappung ablehnen) und Festlegung 6 (Vor/Zurück abschaffen) sind
+genau die beiden Schnitte, die den Aufwand tragen. Fällt einer von beiden, wächst AP1 um ein
+Vielfaches.
+
+---
 ## Sprint 15 – „Wissen, was es aushält" *(v1.19.35)*
 
 | AP | Eintrag | Aufwand | |

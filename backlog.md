@@ -118,26 +118,37 @@ dieselben Farben wie die Legende, kein eigenes Grau neben „Sonstige", und er d
 nicht dominieren.
 
 **⚠️ Zwei Voraussetzungen, die vor jeder Schätzung geklärt sein müssen** (Code-Durchsicht
-vor Sprint 15):
+vor Sprint 15, nachgeprüft vor Sprint 17):
 
 1. **Es gibt keine Datenquelle.** Nichts in `ActivitiesCore` liefert je Ordner eine
-   Verteilung nach Endungen. `FolderEntry.files` (`Models.swift:50`) wird von **beiden**
-   Erzeugern nie befüllt (`FolderAggregator.swift:24`, `:61`) – die Ordnerzeile hat zur
-   Zeichenzeit nur Zahl und Datum. Die einzige Stelle, die je ein Histogramm baut, ist
-   `dominantExtension(of:)` (`ReportViewModel.swift:789-793`) – und sie wirft alles bis auf
-   den häufigsten Schlüssel weg.
+   Verteilung nach Endungen. `FolderEntry` trägt heute nur `folder`, `newestDate`,
+   `fileCount` (`Models.swift:53-63`) – das Feld `files` ist seit Sprint 15 gelöscht, und es
+   gibt nur noch **einen** Erzeuger (`FolderAggregator.folderEntries`, `:17-39`). Die einzige
+   Stelle, die je ein Histogramm baut, ist `dominantExtension(of:)`
+   (`ReportViewModel.swift:822-832`) – und sie wirft alles bis auf den häufigsten Schlüssel
+   weg. Sie liegt zudem in der **App-Schicht**, also außer Reichweite von `Bench` und
+   `CoreChecks`.
 2. **Der einzige Weg an die Dateien ist ein heißer Pfad.** `visibleFiles(in:)` filtert
-   **und sortiert bei jedem Aufruf neu** (`ReportViewModel.swift:1343-1350`). Ein Streifen
+   **und sortiert bei jedem Aufruf neu** (`ReportViewModel.swift:1481-1488`). Ein Streifen
    je Zeile hieße diese Rechnung einmal pro Zeile pro Neuzeichnung.
 
-**⚠️ Punkt 2 ist mit v1.19.35 überholt – aber nicht erledigt.** `visibleFiles(in:)` läuft jetzt
-über den Zwischenspeicher (PR-25), die Rechnung fällt also nicht mehr je Neuzeichnung an. Der
-Streifen selbst wäre trotzdem eine **neue** Rechnung je Zeile, und die liegt außerhalb dieses
-Speichers. Gemessen werden muss sie weiterhin – nur ist der Messstand jetzt da (`Bench`).
+**⚠️ Die frühere Entwarnung „Punkt 2 ist mit v1.19.35 überholt" war falsch und ist
+zurückgezogen** (nachgeprüft vor Sprint 17). Gepuffert sind `visibleSortedFilesByFolder` und
+`treeRows` – **nicht** `visibleFiles(in:)`. `FolderRowView` geht an diesem Speicher vorbei und
+ruft es **zweimal je Rumpfauswertung** (`FolderRowView.swift:20,23`), die Baumzeile dreimal
+(`TreeRowView.swift:102,108,182`). Ein Streifen wäre also nicht die zweite, sondern die
+**dritte** ungepufferte Rechnung je Zeile. *Der Ausweg ist derselbe wie bei
+`visibleSortedFilesByFolder`: die Verteilung einmal je `rowsGeneration` bauen, im Kern, damit
+`Bench` sie beziffern kann.*
 
 **Platz ist ebenfalls knapp:** Der Ordnername trägt `.fixedSize(horizontal: true)`
 (`FolderRowView.swift:61`) und kann nicht schrumpfen; feste Kosten der Zeile sind 284 pt
-(breit) bzw. 212 pt (kompakt) bei 22 pt Höhe. Ein Streifen konkurriert mit dem Pfad.
+(breit) bzw. 212 pt (kompakt) bei 22 pt Höhe. Ein Streifen konkurriert mit dem Pfad – nicht
+mit dem Namen: Der Pfad trägt `layoutPriority(-1)` und gibt als Erstes nach (`:67-68`).
+**⚠️ Die Baumzeile ist enger und ist ein zweiter, getrennt gebauter Zeilentyp:**
+`TreeFolderRowView` hat 292 pt feste Kosten **zuzüglich `level × 28 pt` Einrückung**
+(`TreeRowView.swift:114,172-235`). PR-13 muss beide bedienen.
+
 
 **Akzeptanz:** Jede Ordnerzeile zeigt die Verteilung ihrer sichtbaren Dateien in
 Legendenfarben; VoiceOver liest sie als Text („3 .swift, 2 .md"); ausgeblendete Typen
@@ -226,25 +237,52 @@ Quellen sind im Baum unterscheidbar.
 
 Ursprünglich „Filter: Größe **und Alter**". Die Alters-Hälfte leistet der Zeitraum längst.
 
-**⚠️ „Seit PR-37 fast geschenkt" ist widerlegt** (Code-Durchsicht vor Sprint 15).
-`RelevantFile.size` liegt zwar vor (`Models.swift:34`), aber die Entscheidung *ist diese
-Datei sichtbar* fällt an **sechs** Stellen, und die für Ordnerliste und Baum zuständige
-arbeitet auf `URL`, nicht auf `RelevantFile`:
+**⚠️ „Seit PR-37 fast geschenkt" ist widerlegt – aber die Gegenrede war auch nicht richtig**
+(neu geprüft vor Sprint 17). `RelevantFile.size` liegt vor (`Models.swift:34`), und die
+Entscheidung *ist diese Datei sichtbar* fällt an **sieben lebenden** Stellen, nicht sechs;
+Legende (`ReportViewModel.swift:984-1001`) und Diagramm-Sprung (`:1633`) fehlten in der
+Zählung.
 
-- `ReportViewModel.recomputeDisplayBuckets()` übergibt `{ url in … }`
-  (`ReportViewModel.swift:954-956`) an `FolderAggregator.folderEntries(…, isVisible: (URL) -> Bool)`
-  (`FolderAggregator.swift:53`) – **dort ist die Größe nicht erreichbar**. Ein Größenfilter
-  verlangt also eine Änderung der Kern-Signatur und aller Aufrufer.
-- `visibleFiles(in:)` hat einen Schnellpfad, der `isVisibleDetail` **überspringt**
-  (`ReportViewModel.swift:1345-1347`). Ein Prädikat, das nur dort einzöge, fiele
-  stillschweigend aus – genau die Art Lücke, die man erst im Gebrauch bemerkt.
+**Die Kern-Signatur ist der kleinste Posten, nicht der größte.**
+`FolderAggregator.folderEntries(…, isVisible: (URL) -> Bool)` (`FolderAggregator.swift:17-26`)
+hält die Datei an `:26` bereits als `RelevantFile` in der Hand und wirft nur `.url` weg. Die
+Umstellung ist **zwei Zeilen im Kern mit einem produktiven Aufrufer** (`:1033-1040`); der Rest
+sind `Bench` und `CoreChecks`.
 
-*Aus S–M wird damit M. Lehre: „fast geschenkt, weil das Feld schon da ist" verwechselt die
-Daten mit den Stellen, die sie lesen.*
+**Was die Schätzung wirklich trägt, sind drei andere Dinge:**
+
+1. **Die Verdrahtungsfläche eines zweiten Filters neben Office** – Statuszeile
+   (`hasTypeFilter`, `typeFilterSummary`), Reset (⌥⌘R), Legendenzeile, Menü,
+   Persistenz-Entscheidung. Dass genau daran Sprint 16 im ersten Anlauf gescheitert ist, ist
+   der Beleg: Diese vier Stellen sind von **keiner** Prüfung erfasst.
+2. **⚠️ Die `nil`-Bedeutung von `size`.** „Weiß ich nicht" ist ein eigener Zustand
+   (`Models.swift:28-34`) und bei „größer als X" weder ein Ja noch ein Nein. Das ist eine
+   Produktentscheidung und damit `decision-check`-pflichtig, keine Implementierungsfrage.
+3. **Der Schnellpfad** – war ein Defekt, ist mit PR-46 behoben. Kein Posten mehr, aber die
+   Bauform der neuen Bedingung ist ab jetzt bindend (Lehre 8).
+
+*Nach AP1 von Sprint 17 schrumpft Posten 1 auf einen Eintrag im Sichtbarkeitstyp. Dann ist
+PR-20 ein S. Vorher bleibt es ein M – und ein M mit „gering–mittel" ist ein schlechter Tausch.*
+
 
 ### PR-21 · Suchbegriffe merken
-**Aufwand:** S · **Nutzen:** gering–mittel · **P3**
-Zuletzt verwendete Filter im Suchfeld anbieten.
+**Aufwand:** S · **Nutzen:** mittel · **P3** · *durch PR-45 aufgewertet*
+
+Zuletzt verwendete Ausdrücke im Suchfeld anbieten. **Der Nutzen ist seit Sprint 16 höher als
+bei der Aufnahme:** Seit das Leerzeichen UND bedeutet und `ODER` trennt, ist ein Ausdruck
+teurer zu tippen als ein Wort – ihn wiederzufinden ist entsprechend mehr wert.
+
+**⚠️ Die Vorlage ist `SourceList`, nicht der gelöschte `FolderHistory`.** Ein Bestand, aus dem
+man wählt, ist etwas anderes als ein Vor/Zurück über eine Reihenfolge – Sprint 16 hat den
+Verlaufsbegriff aus genau diesem Grund abgeschafft, und ihn über das Suchfeld
+wiedereinzuführen wäre derselbe Fehler mit anderem Gegenstand.
+
+**⚠️ Speichern widerspricht der Nicht-Speicher-Regel der Filter nicht.** Der Typ-Filter wird
+bewusst nicht persistiert, „damit niemand mit einem vergessenen Filter weiterarbeitet"
+(`ReportViewModel.swift:868-872`). Eine **Vorschlagsliste** ist kein aktiver Filter: Sie
+verändert nichts, bis jemand sie anklickt. Die Regel gilt dem stillen Zustand, nicht dem
+Gedächtnis.
+
 
 ### PR-22 · Notarisierung *(zurückgestellt – keine Mitgliedschaft)*
 **Aufwand:** M (plus Apple-Mitgliedschaft) · **Nutzen:** hoch · **P2**
@@ -262,13 +300,46 @@ App bei fremden Beständen aushält, stellt sich beim ersten großen Ordner des 
 genauso. Beantwortet in Sprint 15 (v1.19.35).*
 
 ### PR-23 · Englische Sprachfassung
-**Aufwand:** L · **Nutzen:** mittel · **P3**
+**Aufwand:** XL · **Nutzen:** mittel · **P3** · *nicht schätzbar, bevor eine Entwurfsfrage
+entschieden ist*
 
-Heute **180 deutsche Zeichenketten** fest im Quelltext und `Locale(identifier: "de_DE")`
-fest verdrahtet. Auch für Datums- und Zahlenformate relevant: Ein englischer Nutzer sähe
-heute deutsche Wochentagskürzel.
+**⚠️ Die alte Schätzung „L, 180 Zeichenketten" war um den Faktor 3 daneben** (nachgezählt
+vor Sprint 17). Tatsächlich:
+
+| | Zahl |
+|---|---|
+| deutsche UI-Zeichenketten | **558** – 132 im Kern, 426 in der App-Schicht |
+| davon mit Interpolation (Formatzeichenketten nötig) | 84 |
+| handgeschriebene Pluralregeln | 13 – eine davon (`RootView.swift:130`) ist schon heute ein Artefakt: beide Zweige lauten „Ordner" |
+| Locale-Verdrahtungen | 8 × `Locale(identifier: "de_DE")` **plus** 3 versteckte: das Wochentags-Array (`DateFormatting.swift:12`), das feste Dezimalkomma (`SizeFormatting.swift:76`), `<html lang="de">` (`ReportExport.swift:150`) |
+| feste deutsche Datumsmuster | 7 |
+| Zusicherungen, die deutschen Wortlaut festnageln | 18 in `CoreChecks`, ~33 in `Tests/` |
+| vorhandene Lokalisierungs-Infrastruktur | **keine** – null Treffer für `String(localized:)`, `Localizable`, `.xcstrings`; `Package.swift` hat weder `defaultLocalization` noch `resources` |
+
+Das `de.lproj` im Bündel ist **kein** Ansatz einer Textinfrastruktur, sondern der Formalgriff
+aus UX-33: zwei Einträge, zur Bauzeit erzeugt (`build_app.sh:63-76`). `build_app.sh` kopiert
+kein Ressourcenbündel – der Bauweg muss angefasst werden.
+
+**⚠️ Der teuerste Teil ist nicht `HelpView`, sondern eine Entwurfsfrage ohne folgenlose
+Antwort:** 132 Zeichenketten entstehen in einem Foundation-only-Ziel ohne Bündel. Ressourcen
+in den Kern zu holen zieht sie auch in `CoreChecks` und `Bench`; die Texte in die App-Schicht
+zu schieben nimmt sie `CoreChecks` weg – und genau dagegen wurden `Shortcuts` (UX-39) und
+`DateFormatting` (PR-32) überhaupt erst in den Kern gelegt. **Das ist
+`decision-check`-pflichtig, bevor eine Zeile entsteht.**
+
+**Zwei Fallen davor:** `FileCategory` und `ShortcutEntry.Section` tragen **deutschen Text als
+`rawValue`** – Identität und Anzeigename müssen getrennt werden, bevor irgendetwas übersetzt
+wird. Immerhin sind die *persistierten* `rawValue`s englisch (`SortField`, `ViewMode`), also
+ist keine Migration nötig.
+
+**Ein Zwischenschritt, der für sich trägt (M):** `rawValue` von Anzeigename trennen, die 13
+Ternäroperatoren durch echte Pluralregeln ersetzen, die drei versteckten Locale-Verdrahtungen
+entfernen. Behebt nebenbei `RootView.swift:130` und den Widerspruch, dass der xcodegen-Pfad
+`developmentRegion = en` erzeugt und UX-33 damit **nicht** reproduziert (`project.yml` kennt
+keine Lokalisierungsangabe). Danach ist PR-23 belastbar schätzbar; heute ist es das nicht.
 
 **⚠️ UX-33 ist die Vorarbeit** – ohne deklarierte Basissprache gibt es keine zweite.
+
 
 ### ✅ PR-25 · Leistung bei sehr großen Bäumen absichern *(v1.19.35)*
 **Erledigt in Sprint 15.** Messstand `Sources/Bench/`, gemessen bei 100k/250k/500k, Engstelle
@@ -542,7 +613,7 @@ Fehlers ist die schlechteste Art, Code aufzuheben.
 **zweimal je Rumpfauswertung** (`:20`, `:23`) und geht dabei am Zwischenspeicher vorbei; und
 `hasTypeFilter`, `typeFilterSummary`, `resetTypeFilters` sind von **keiner** Prüfung erfasst.
 
-### Wie die drei zusammenhängen *(für den nächsten Sprintschnitt)*
+### Wie die drei zusammenhingen *(Zuschnitt-Notiz zu Sprint 16, erledigt)*
 
 Aus vier Wünschen wurden drei Einträge: **PR-43 (Outlook) ist gestrichen** – die Ablage
 enthält keine wiederherstellbaren Namen, der brauchbare Rest ist ein Haken in PR-19. Von den
@@ -756,6 +827,119 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.38 | — | PR-44 · Der Filter heißt „Office", wie ihn seine Nutzer nennen |
 | v1.19.39 | Hotfix | PR-46 · Der Schnellpfad der Detailliste filterte weder Office noch Namen |
 
+## Sprint 17 – „Ein Filter, eine Wahrheit" *(geplant)*
+
+| AP | Eintrag | Aufwand | |
+|---|---|---|---|
+| **AP1** | Die Sichtbarkeitsentscheidung als **ein** Typ im Kern | **M** | trägt den Release |
+| **AP2** | PR-21 · Suchbegriffe merken | S | Beifahrer |
+| *(vorab)* | *PR-46 · Schnellpfad-Defekt* | *S* | *als Hotfix v1.19.39 ausgeliefert* |
+
+**Der Anlass ist gezählt, nicht gefühlt.** Die letzten **drei** Auslieferungen waren
+Filter-Korrekturen: v1.19.37 (Platzierung), v1.19.38 (Beschriftung), v1.19.39 (der
+Schnellpfad, PR-46). Das ist kein Zufall, sondern die Bauform: Die Entscheidung *ist diese
+Datei sichtbar* fällt an **sieben** Stellen in der App-Schicht, und `hasTypeFilter`,
+`typeFilterSummary`, `resetTypeFilters` und `isHidden` sind von **keiner** Prüfung erfasst –
+weder `CoreChecks` noch `Tests/`. Das ist Lehre 4 im Wortlaut: *Was `CoreChecks` nicht
+erreicht, driftet unbemerkt.*
+
+### AP1 · Ein Sichtbarkeitstyp im Kern
+
+Ein Typ in `ActivitiesCore`, der alles zusammenfasst, was heute an sieben Stellen einzeln
+gefragt wird: ausgeblendete Endungen samt „Sonstige", Office-Schalter, Namensfilter,
+Zeitfenster. Er beantwortet **zwei** Fragen und sonst nichts:
+
+- `isVisible(_ file: RelevantFile) -> Bool` – die eine Entscheidung.
+- `filtersNothing: Bool` – abgeleitet **aus seinem eigenen Zustand**, nach der Bauform von
+  `NameFilter.matchesEverything` (`NameFilter.swift:113`).
+
+**Die entscheidende Prüfung, die es heute nicht geben kann:** Über einem Prüfbestand gilt
+`filtersNothing` ⟺ `isVisible` ist für **jede** Datei wahr. Fällt sie, hat jemand einen
+Filter ergänzt, ohne ihn in die Vorbedingung aufzunehmen – also genau PR-46 ein drittes Mal.
+*Das ist der ganze Zweck des Sprints: die Vorbedingung strukturell an das Prädikat zu binden,
+statt sie durch einen Doc-Kommentar zu bewachen.*
+
+### Festlegungen vor der Umsetzung
+
+1. **`FolderAggregator.folderEntries` bekommt `isVisible: (RelevantFile) -> Bool`.**
+   Es hält die Datei an `FolderAggregator.swift:26` bereits als `RelevantFile` und wirft nur
+   `.url` weg. Zwei Zeilen im Kern, **ein** produktiver Aufrufer (`ReportViewModel:1033-1040`),
+   der Rest `Bench` und `CoreChecks`. Ohne diesen Schritt kann der neue Typ nicht die einzige
+   Quelle sein – die Ordnerliste und der Baum blieben bei `URL` und damit blind für alles,
+   was nicht aus dem Pfad ablesbar ist.
+2. **⚠️ „Sonstige" geht mit, obwohl es an der Legende hängt.** `isHidden` ist nur mit
+   `topExtensionSet` vollständig (`ReportViewModel.swift:971`), also mit den zehn häufigsten
+   Endungen. Das ist **kein Kreisbezug** – die Legende wird aus `relevantFiles` gebaut und
+   liest `hiddenExtensions` nicht –, aber der Typ muss die Menge **hereingereicht** bekommen
+   und darf sie nicht selbst bestimmen. *Wer sie selbst berechnen lässt, baut den Kreis, den
+   es heute nicht gibt.*
+3. **⚠️ Zu entscheiden, nicht zu bauen: Zählt „Dateien außerhalb des Zeitraums zeigen" als
+   Filter?** Er filtert (er blendet aus), steht aber **nicht** in der Statuszeile
+   (`ChartHeaderView.swift:162` kennt nur Namens-, Typ- und Rauschfilter). Damit fallen
+   `filtersNothing` und „die Statuszeile sagt es" heute auseinander, und die schöne
+   Äquivalenz aus der Prüfung oben gilt nur für die Teilmenge. **Zwei ehrliche Antworten,
+   beide vertretbar:** ihn in die Statuszeile aufnehmen (dann ist UX-06 vollständig, aber die
+   Zeile wird länger und meldet einen Zustand, den die Werkzeugleiste schon zeigt) – oder ihn
+   ausdrücklich als *Darstellungsschalter* führen und die Prüfung entsprechend zweiteilen.
+   *`decision-check` vor der Umsetzung; die Entscheidung ist der einzige Teil von AP1, der
+   nach außen sichtbar wird.*
+4. **`hasTypeFilter` und `typeFilterSummary` ziehen mit in den Kern.** Sonst wandert die
+   Entscheidung dorthin, wo sie geprüft werden kann, und ihre **Ansage** bleibt dort, wo sie
+   es nicht kann – und genau die Ansage war in v1.19.37 falsch. Beide sind reine
+   Zeichenketten- und Mengenarbeit, Foundation genügt.
+5. **`FolderRowView` und `TreeRowView` gehen über den Zwischenspeicher.** Sie rufen heute
+   `visibleFiles(in:)` zwei- bzw. dreimal je Rumpfauswertung (`FolderRowView.swift:20,23`,
+   `TreeRowView.swift:102,108,182`) und gehen dabei an `visibleSortedFilesByFolder` vorbei.
+   Die Bedeutung ist identisch – jener Speicher wird aus derselben Funktion gebaut.
+   **⚠️ Gemessen wird vorher und nachher**, sonst ist es eine Behauptung; `Bench` erreicht
+   diese Zeilen nicht, die Messung muss also am Modell ansetzen.
+6. **Der Schnellpfad bleibt.** PR-46 hat entschieden, warum: Ihn ohne Messung zu streichen
+   wäre derselbe Fehler wie ihn ohne Messung einzuführen. Nach AP1 ist er ungefährlich, weil
+   seine Bedingung nicht mehr von Hand gepflegt wird.
+7. **Nichts an der Oberfläche ändert sich durch AP1.** Wenn doch etwas anders aussieht, ist
+   das ein Fehler und keine Verbesserung. *Diese Festlegung ist die Abnahmebedingung, nicht
+   eine Absichtserklärung.*
+8. **AP2 speichert seine Liste, der Filter selbst bleibt ungespeichert.** Begründung in
+   PR-21: Eine Vorschlagsliste ist kein aktiver Zustand.
+
+### Sprint-Akzeptanz
+
+**AP1:** Genau **eine** Stelle entscheidet über Sichtbarkeit, und sie liegt in
+`ActivitiesCore` · `CoreChecks` belegt die Äquivalenz `filtersNothing` ⟺ „nichts fällt
+heraus" · `CoreChecks` belegt die Ansage der Statuszeile gegen den Filterzustand · die
+Oberfläche verhält sich in allen Kombinationen aus Plättchen, Office, Suchfeld und
+Zeitraum-Schalter **unverändert**, am laufenden Programm gegengeprüft · die Zeilenkosten sind
+vorher und nachher gemessen.
+
+**AP2:** Zuletzt verwendete Ausdrücke sind im Suchfeld erreichbar und überleben einen
+Neustart · sie ändern nichts, bis man sie wählt · die Liste ist begrenzt und einzeln löschbar.
+
+**Gemeinsam:** `swift build` und `swift run CoreChecks` grün · am laufenden Programm
+gegengeprüft, mit Kontrollversuch je fehlgeschlagenem Versuch.
+
+### Bewusst nicht in diesem Sprint
+
+- **PR-20 (Größenfilter)** – wird durch AP1 von M auf S schrumpfen. Genau deshalb **nicht
+  jetzt**: Ihn währenddessen zu bauen hieße, den Gewinn an der Verdrahtungsfläche zu
+  verspielen, den AP1 erst erzeugt. *Kandidat für Sprint 18, dann als S.*
+- **PR-13** – wäre eine dritte ungepufferte Rechnung je Zeile und braucht zuerst eine
+  Datenquelle im Kern. Nach AP1 ist der Weg dorthin kürzer.
+- **PR-23** – XL, und die Entwurfsfrage „Texte im Foundation-only-Kern" ist ungeklärt.
+- **PR-15, PR-18** – kein Platz neben einem M plus S.
+- **PR-36, PR-42** – warten weiter auf einen Fall, nicht auf Zeit.
+
+### Risiko, offen benannt
+
+**Der Sprint hat nach außen fast nichts vorzuweisen.** AP1 ist per Festlegung 7 unsichtbar;
+sichtbar wird allein AP2 (S) und, je nach Entscheidung aus Festlegung 3, eine Zeile mehr in
+der Statuszeile. Das ist der Preis dafür, die Ursache statt des dritten Symptoms zu
+behandeln – aber er gehört benannt und nicht schöngeredet.
+
+**Das zweite Risiko ist Festlegung 2.** Wächst der Sichtbarkeitstyp über „Sonstige" hinaus in
+die Legende hinein, zieht AP1 `recomputeLegend` mit und wird ein L. Der Schnitt, der das
+verhindert, ist die hereingereichte Endungsmenge; fällt er, verdoppelt sich AP1.
+
+---
 ## Sprint 16 – „Mehrere Quellen, gezielter Blick" *(v1.19.36)*
 
 | AP | Eintrag | Aufwand | |

@@ -71,6 +71,8 @@ struct HistoryChartView: View {
         case .day: .day
         case .week: .weekOfYear
         case .month: .month
+        case .quarter: .month
+        case .year: .year
         }
     }
 
@@ -85,6 +87,8 @@ struct HistoryChartView: View {
         case .day: unit = "nach Tag"
         case .week: unit = "nach Woche"
         case .month: unit = "nach Monat"
+        case .quarter: unit = "nach Quartal"
+        case .year: unit = "nach Jahr"
         }
         let top = topExtensions.prefix(3).map { ".\($0.ext) \($0.count)" }.joined(separator: ", ")
         return "\(bucketLabel(first)) bis \(bucketLabel(last)), gebündelt \(unit). "
@@ -178,6 +182,12 @@ struct HistoryChartView: View {
                                     .font(.system(size: 10)).fontWeight(.medium).foregroundStyle(.primary)
                             case .month:
                                 Text(DateFormatting.monthShort(date))
+                                    .font(.system(size: 10)).fontWeight(.medium).foregroundStyle(.primary)
+                            case .quarter:
+                                Text(DateFormatting.quarterShort(date))
+                                    .font(.system(size: 10)).fontWeight(.medium).foregroundStyle(.primary)
+                            case .year:
+                                Text(DateFormatting.yearOnly(date))
                                     .font(.system(size: 10)).fontWeight(.medium).foregroundStyle(.primary)
                             }
                         }
@@ -351,6 +361,10 @@ struct HistoryChartView: View {
             return "Woche \(DateFormatting.dayMonth(date))–\(DateFormatting.day(end))"
         case .month:
             return DateFormatting.monthYear(date)
+        case .quarter:
+            return "Quartal \(DateFormatting.quarterShort(date))"
+        case .year:
+            return "Jahr \(DateFormatting.yearOnly(date))"
         }
     }
 
@@ -424,24 +438,22 @@ struct HistoryChartView: View {
         max(chartDays.map(\.total).max() ?? 0, 1)
     }
 
-    /// Steuert die Beschriftungsdichte, damit die Achse nicht zulaeuft.
+    /// Welche Buendel eine Beschriftung tragen.
+    ///
+    /// **⚠️ Die Regel liegt seit v1.19.44 im Kern und rechnet in
+    /// Balkenpositionen, nicht in Kalendereinheiten.** Die Vorgaengerfassung
+    /// stand hier und fragte „ist es ein Montag?", „ist es ein Quartalsanfang?"
+    /// – eine solche Regel kann nicht wissen, wie viele Beschriftungen dabei
+    /// herauskommen. Aus der Praxis gemeldet: 846 Monatsbalken ergaben **282**
+    /// Beschriftungen, und die Achse lief zu einem schwarzen Streifen zusammen.
+    /// Jetzt bewacht ``CoreChecks`` die Obergrenze.
+    private var labelledDays: Set<Date> {
+        let positionen = ChartGranularity.labelPositions(barCount: chartDays.count)
+        return Set(positionen.compactMap { chartDays.indices.contains($0) ? chartDays[$0].day : nil })
+    }
+
     private func shouldLabel(_ date: Date) -> Bool {
-        guard !chartDays.isEmpty else { return false }
-        if chartDays.count <= 8 { return true }
-        switch granularity {
-        case .day:
-            // Montag und Freitag.
-            let weekday = Calendar.current.component(.weekday, from: date)
-            return weekday == 2 || weekday == 6
-        case .week:
-            // Etwa jede vierte Woche.
-            let week = Calendar.current.component(.weekOfYear, from: date)
-            return week % 4 == 1
-        case .month:
-            // Bei vielen Monaten nur jedes Quartal.
-            let month = Calendar.current.component(.month, from: date)
-            return chartDays.count <= 18 || (month - 1) % 3 == 0
-        }
+        labelledDays.contains(date)
     }
 }
 

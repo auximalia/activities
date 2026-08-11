@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.43 · 2026-08-11*
+*Stand: v1.19.44 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -315,7 +315,7 @@ gebraucht wird; `CoreChecks` hält den heutigen Zustand fest.
 Sprint-Regel aus `AGENTS.md` bleibt sonst gültig; hier stand die tägliche Arbeit des Anwenders
 gegen einen Versionssprung.
 
-### PR-48 · Die Bündelung hat keine Stufe über „Monat"
+### ✅ PR-48 · Die Bündelung hat keine Stufe über „Monat" *(v1.19.44)*
 **Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P2** · *gemeldet am 2026-08-11*
 
 **Beobachtet:** Bei sehr großen Zeiträumen läuft die X-Achse zu einem schwarzen Streifen
@@ -364,7 +364,7 @@ gezeichneten Balken** – höchstens etwa 12 bis 15 Beschriftungen, gleichmäßi
 weder die Balken- noch die Beschriftungszahl ihre Schranke überschreitet · die Achse ist im
 gemeldeten Fall lesbar.
 
-### PR-49 · Die Zeitraum-Überschrift nennt nur Tage
+### ✅ PR-49 · Die Zeitraum-Überschrift nennt nur Tage *(v1.19.44)*
 **Aufwand:** S · **Nutzen:** mittel · **P3** · *gewünscht am 2026-08-11*
 
 **Beobachtet:** Die Überschrift lautet „Mo., 22.03.2021 – So., 23.09.2091 · **25753 Tage**".
@@ -380,7 +380,7 @@ Kern und ist damit von `CoreChecks` erreichbar.
 „1 Woche" liest, muss zurückrechnen. Die Schwelle ist damit eine Aussage darüber, ab wann
 niemand mehr in Tagen denkt, und keine Formatfrage.
 
-### PR-50 · Ein Datum in der Zukunft zieht die Achse über Jahrzehnte
+### ✅ PR-50 · Ein Datum in der Zukunft zieht die Achse über Jahrzehnte *(v1.19.44)*
 **Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt · **P2** · *nicht gemeldet, im Beleg zu PR-48 gefunden*
 
 **Beobachtet:** Im gemeldeten Bild endet die Achse am **23.09.2091** – 65 Jahre in der
@@ -1021,8 +1021,9 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.41 | Sprint 17, AP3 | PR-36 · `bpmn`/`graph` auch in „Arbeit fortsetzen" |
 | v1.19.42 | Sprint 17, AP1 | `FileVisibility` – eine Entscheidung, im Kern, geprüft |
 | v1.19.43 | Sprint 17, AP2 | Reiter „Dateitypen" mit Typschranke; UX-42 |
+| v1.19.44 | Sprint 18 | PR-48, PR-49, PR-50 · Achse, Bündelung, Überschrift |
 
-## Sprint 18 – „Eine Achse, die man lesen kann" *(geplant)*
+## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 
 | AP | Eintrag | Aufwand | |
 |---|---|---|---|
@@ -1037,6 +1038,35 @@ Gemeinsamer Code: ``TimeWindow.chartEndDay``, ``ChartGranularity``, ``DateFormat
 **⚠️ Reihenfolge: AP1 zuerst, und ohne AP1 ist AP2 wertlos.** Eine gröbere Bündelung macht die
 Achse lesbar – im gemeldeten Fall bliebe sie zu 95 % leer. *Wer nur AP2 baut, hat einen gut
 lesbaren leeren Streifen.*
+
+
+### ✅ Wie es ausgefallen ist *(v1.19.44)*
+
+`CoreChecks` von 1200 auf **1300**. Gerechnet über dieselben Kernfunktionen, die die Ansicht
+aufruft:
+
+| gemeldeter Fall | vorher | nachher |
+|---|---|---|
+| Balken | 846 | **66** |
+| Beschriftungen | **282** | **12** – `Mär 21 \| Sep 21 \| … \| Aug 26` |
+| Überschrift | „25753 Tage" | **„5 Jahre, 4 Monate"** |
+
+Und für einen echten 70-Jahre-Bestand, bei dem nichts zu kappen wäre: 71 Jahresbalken,
+13 Beschriftungen.
+
+**⚠️ Die Prüfung über eine Reihe von Spannen hat sofort einen Fehler gefunden – meinen
+eigenen.** `labelPositions` fügte den letzten Balken zusätzlich zum Raster ein und lieferte
+dadurch **15** statt 14 Marken, bei 400 und bei 846 Balken. Geteilt werden muss durch
+`maximum - 1`. *Ein Beispiel hätte das nicht gezeigt – genau der Fehler, den die alte Prüfung
+mit ihren 2.557 Tagen gemacht hat.*
+
+**⚠️ Die `ux-review` konnte NICHT durchgeführt werden.** Der Bildschirm des Zielrechners war
+gesperrt, und die Sperre lässt sich mit `caffeinate` nicht aufhalten – sie kommt von einer
+Richtlinie. Am laufenden Programm ist damit **nichts** gegengeprüft. An ihrer Stelle stehen:
+die 1300 Zusicherungen, die die Regeln vollständig abdecken, und die oben ausgerechnete Achse.
+**Was das nicht ersetzt:** wie die Beschriftungen tatsächlich gesetzt sind, ob sie sich bei
+schmalem Fenster überlappen, und wie der Zukunfts-Hinweis neben den anderen Hinweisen wirkt.
+*Nachzuholen, sobald jemand am Rechner ist.*
 
 ### Festlegungen vor der Umsetzung
 

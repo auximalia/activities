@@ -331,14 +331,69 @@ do {
     expectEqual(monthly[0].total, 2, "Maerz buendelt zwei Dateien")
     expectEqual(monthly[1].total, 1, "April buendelt eine Datei")
 
-    // Ein langer Zeitraum liefert eine handhabbare Balkenzahl – frueher war das Diagramm leer.
-    let longSpan = FolderAggregator.countFilesPerDayByType(
-        files, startDay: date(2020, 1, 1), endDay: date(2026, 12, 31),
-        individual: ["md"], otherKey: nil, ignored: [],
-        granularity: ChartGranularity.automatic(spanDays: 2557)
-    )
-    expect(!longSpan.isEmpty, "Langer Zeitraum liefert ein Diagramm (nicht leer)")
-    expect(longSpan.count <= 130, "Langer Zeitraum bleibt unter ~130 Balken (\(longSpan.count))")
+    // ⚠️ Die Schranke wird ueber eine REIHE von Spannen geprueft, nicht an einem
+    // Beispiel.
+    //
+    // Bis v1.19.43 stand hier genau ein Wert – 2557 Tage – und die Pruefung
+    // bestand, weil dieser eine Wert zufaellig unter der Schranke liegt. Sie
+    // belegte damit nichts. Gemeldet wurde dann ein Zeitraum von 25.753 Tagen:
+    // `.month` war die groebste Stufe, das ergab **846 Balken** gegen eine
+    // zugesicherte Obergrenze von 130 – Faktor 6,5 – und die Achse lief zu einem
+    // schwarzen Streifen zusammen. *Wer eine Zusicherung an einem Beispiel
+    // festnagelt, prueft sie nicht.*
+    for jahre in [1, 2, 3, 5, 7, 11, 15, 20, 25, 33, 50, 70, 100, 130] {
+        let spanne = jahre * 365
+        let ende = calendar.date(byAdding: .day, value: spanne, to: date(2020, 1, 1))!
+        let balken = FolderAggregator.countFilesPerDayByType(
+            files, startDay: date(2020, 1, 1), endDay: ende,
+            individual: ["md"], otherKey: nil, ignored: [],
+            granularity: ChartGranularity.automatic(spanDays: spanne)
+        )
+        expect(!balken.isEmpty, "Spanne \(jahre) J.: Diagramm ist nicht leer")
+        expect(balken.count <= ChartGranularity.maxBars,
+               "Spanne \(jahre) J.: \(balken.count) Balken bleiben unter \(ChartGranularity.maxBars)")
+        // Und die Beschriftungen, die daraus folgen.
+        let marken = ChartGranularity.labelPositions(barCount: balken.count)
+        expect(marken.count <= ChartGranularity.maxLabels,
+               "Spanne \(jahre) J.: \(marken.count) Beschriftungen bleiben unter \(ChartGranularity.maxLabels)")
+    }
+
+    // Die Stufenleiter selbst.
+    expectEqual(ChartGranularity.automatic(spanDays: 3_950), .month, "Granularitaet: 10,8 Jahre -> Monat")
+    expectEqual(ChartGranularity.automatic(spanDays: 3_951), .quarter, "Granularitaet: darueber -> Quartal")
+    expectEqual(ChartGranularity.automatic(spanDays: 11_800), .quarter, "Granularitaet: 32 Jahre -> Quartal")
+    expectEqual(ChartGranularity.automatic(spanDays: 11_801), .year, "Granularitaet: darueber -> Jahr")
+    expectEqual(ChartGranularity.automatic(spanDays: 25_753), .year, "Granularitaet: der gemeldete Fall -> Jahr")
+
+    // ⚠️ Die Leiter muss monoton sein: Eine laengere Spanne darf nie eine
+    // feinere Buendelung ergeben. Ohne das koennte eine neue Stufe eine alte
+    // ueberholen, ohne dass es auffaellt.
+    let stufenRang: [ChartGranularity: Int] = [.day: 0, .week: 1, .month: 2, .quarter: 3, .year: 4]
+    var letzterRang = 0
+    var monoton = true
+    for tage in stride(from: 1, through: 40_000, by: 37) {
+        let rang = stufenRang[ChartGranularity.automatic(spanDays: tage)] ?? -1
+        if rang < letzterRang { monoton = false; break }
+        letzterRang = rang
+    }
+    expect(monoton, "Granularitaet: die Stufenleiter steigt monoton")
+
+    // Beschriftungspositionen.
+    expect(ChartGranularity.labelPositions(barCount: 0).isEmpty, "Marken: kein Balken, keine Marke")
+    expectEqual(ChartGranularity.labelPositions(barCount: 5).count, 5, "Marken: wenige Balken werden alle beschriftet")
+    for anzahl in [1, 2, 14, 15, 40, 130, 400, 846] {
+        let marken = ChartGranularity.labelPositions(barCount: anzahl)
+        expect(marken.count <= ChartGranularity.maxLabels,
+               "Marken: \(anzahl) Balken ergeben hoechstens \(ChartGranularity.maxLabels) (\(marken.count))")
+        expect(marken.contains(0), "Marken: der erste Balken traegt eine (\(anzahl))")
+        expect(marken.contains(anzahl - 1), "Marken: der letzte Balken traegt eine (\(anzahl))")
+        expect(marken.allSatisfy { $0 >= 0 && $0 < anzahl },
+               "Marken: keine Position ausserhalb der Balken (\(anzahl))")
+    }
+    // Der gemeldete Fall, gegengerechnet: 846 Monatsbalken haetten 282
+    // Beschriftungen ergeben.
+    expect(ChartGranularity.labelPositions(barCount: 846).count < 282 / 10,
+           "Marken: der gemeldete Fall liegt weit unter den frueheren 282")
 }
 
 // MARK: - Zeitabschnitte sind nach oben gedeckelt (UX-28)
@@ -2066,6 +2121,77 @@ do {
     // dort waere Angstmacherei ohne Anlass.
     expect(!BulkAction.explanation(kind: .reveal, count: 50, executables: 12).contains("ausgeführt"),
            "Rueckfrage: kein Hinweis beim Anzeigen im Finder")
+}
+
+// MARK: - ChartAxis: die Achse endet heute (Sprint 18, PR-50)
+do {
+    let calendar = Calendar(identifier: .gregorian)
+    func tag(_ j: Int, _ m: Int, _ t: Int) -> Date {
+        calendar.date(from: DateComponents(year: j, month: m, day: t))!
+    }
+    let heute = tag(2026, 8, 11)
+
+    // ⚠️ Der gemeldete Fall: eine Datei von 2091 zog die Achse ueber 70 Jahre.
+    expectEqual(ChartAxis.endDay(lastData: tag(2091, 9, 23), now: heute, calendar: calendar),
+                calendar.startOfDay(for: heute), "Achse: ein Datum in der Zukunft wird auf heute gekappt")
+    expectEqual(ChartAxis.endDay(lastData: tag(2026, 8, 5), now: heute, calendar: calendar),
+                tag(2026, 8, 5), "Achse: ein Datum in der Vergangenheit bleibt")
+    expectEqual(ChartAxis.endDay(lastData: heute, now: heute, calendar: calendar),
+                calendar.startOfDay(for: heute), "Achse: heute selbst bleibt")
+
+    // ⚠️ Nur die Zukunft wird gekappt. Ein Archiv von 1994 ist ungewoehnlich,
+    // nicht unmoeglich – wer beide Enden kappt, macht aus einer Tatsache eine
+    // Geschmacksfrage.
+    expectEqual(ChartAxis.startDay(firstData: tag(1994, 3, 1), now: heute, calendar: calendar),
+                tag(1994, 3, 1), "Achse: die ferne Vergangenheit bleibt unangetastet")
+
+    // Laege ALLES in der Zukunft, waere der Anfang sonst nach dem Ende.
+    let nurZukunft = ChartAxis.startDay(firstData: tag(2090, 1, 1), now: heute, calendar: calendar)
+    expect(nurZukunft <= ChartAxis.endDay(lastData: tag(2091, 1, 1), now: heute, calendar: calendar),
+           "Achse: Anfang liegt nie nach dem Ende")
+
+    // ⚠️ Die Grenze ist der Beginn des MORGIGEN Tages, nicht „jetzt": Eine
+    // Datei, die heute spaet geschrieben wird, waehrend die Uhr frueh steht,
+    // ist eine Zeitzonen-Abweichung und keine Zeitreise.
+    let heuteSpaet = calendar.date(byAdding: .hour, value: 23, to: calendar.startOfDay(for: heute))!
+    expect(!ChartAxis.isInFuture(heuteSpaet, now: heute, calendar: calendar),
+           "Zukunft: heute 23 Uhr ist keine Zukunft")
+    expect(ChartAxis.isInFuture(tag(2026, 8, 12), now: heute, calendar: calendar),
+           "Zukunft: morgen schon")
+    expect(ChartAxis.isInFuture(tag(2091, 9, 23), now: heute, calendar: calendar),
+           "Zukunft: der gemeldete Fall")
+    expect(!ChartAxis.isInFuture(tag(2020, 1, 1), now: heute, calendar: calendar),
+           "Zukunft: Vergangenes nicht")
+}
+
+// MARK: - Spannenangabe in der Ueberschrift (Sprint 18, PR-49)
+do {
+    // ⚠️ Unter der Schwelle bleibt es bei Tagen: „7 Tage" ist besser als
+    // „1 Woche" – wer die Woche liest, rechnet zurueck.
+    expectEqual(DateFormatting.spanLabel(days: 1), "1 Tag", "Spanne: Einzahl")
+    expectEqual(DateFormatting.spanLabel(days: 7), "7 Tage", "Spanne: eine Woche bleibt in Tagen")
+    expectEqual(DateFormatting.spanLabel(days: 364), "364 Tage", "Spanne: knapp unter der Schwelle")
+
+    // Ab einem Jahr in Jahre und Monate.
+    expectEqual(DateFormatting.spanLabel(days: 365), "1 Jahr", "Spanne: genau ein Jahr, Einzahl")
+    expectEqual(DateFormatting.spanLabel(days: 730), "2 Jahre", "Spanne: zwei Jahre ohne Monatsrest")
+    // ⚠️ Der gemeldete Fall: „25753 Tage" ist keine Angabe, die jemand liest.
+    expectEqual(DateFormatting.spanLabel(days: 25_753), "70 Jahre, 6 Monate",
+                "Spanne: der gemeldete Fall wird lesbar")
+
+    // Null Monate werden weggelassen, nicht als „0 Monate" genannt.
+    expect(!DateFormatting.spanLabel(days: 365).contains("0 Monate"), "Spanne: kein Nullrest")
+
+    // ⚠️ Die Tageszahl entfaellt oberhalb der Schwelle, statt zusaetzlich
+    // dazustehen – sonst muesste der Leser doch wieder umrechnen.
+    expect(!DateFormatting.spanLabel(days: 25_753).contains("25753"), "Spanne: die Tageszahl entfaellt")
+
+    // Die Ueberschrift benutzt dieselbe Formulierung wie der Export.
+    let start = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2021, month: 3, day: 22))!
+    let ende = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 8, day: 11))!
+    let text = DateFormatting.range(from: start, to: ende, days: 1_969)
+    expect(text.contains("5 Jahre"), "Ueberschrift: nennt die Spanne in Jahren (\(text))")
+    expect(!text.contains("1969 Tage"), "Ueberschrift: und nicht mehr in Tagen")
 }
 
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")

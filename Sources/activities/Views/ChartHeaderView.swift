@@ -159,6 +159,29 @@ struct ChartHeaderView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(hinweis)
         }
+        // ⚠️ Eigene Zeile, nicht in die Filterzeile hinein: Das hier ist kein
+        // Filter, sondern eine Auskunft ueber die **Daten**. Wer es zwischen
+        // Namens- und Typ-Filter setzt, laesst es wie etwas aussehen, das man
+        // abschalten kann.
+        if model.futureFileCount > 0 {
+            let n = model.futureFileCount
+            let text = n == 1
+                ? "1 Datei ist auf ein Datum in der Zukunft gesetzt und liegt außerhalb des Diagramms."
+                : "\(n) Dateien sind auf ein Datum in der Zukunft gesetzt und liegen außerhalb des Diagramms."
+            HStack(spacing: 5) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .foregroundStyle(.secondary)
+                Text(text)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, Self.yAxisGutter)
+            .padding(.bottom, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(text)
+        }
         if model.hasNameFilter || model.hasTypeFilter || zeigtRauschen {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 10) {

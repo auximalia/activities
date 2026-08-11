@@ -602,11 +602,25 @@ final class ReportViewModel {
             let days = scannedFiles.map(\.timestamp)
             let first = days.min() ?? now
             let last = days.max() ?? now
+            // **⚠️ Die Achse endet heute, auch wenn Dateien spaeter datiert sind.**
+            // Gemeldet aus der Praxis: eine einzige Datei mit dem Zeitstempel
+            // 2091 zog die Achse ueber **70 Jahre**, und der gesamte echte
+            // Bestand rueckte in die linken rund 5 % der Flaeche. Ein Datum nach
+            // heute ist **unmoeglich**; ein Datum von 1994 ist nur
+            // **ungewoehnlich** und kann ein echtes Archiv sein – deshalb wird
+            // nur dieses eine Ende gekappt. Wer beide kappt, macht aus einer
+            // Tatsachenaussage eine Geschmacksfrage.
+            //
+            // **⚠️ Gekappt wird allein die ACHSE, nicht der Bestand.** `start`
+            // und `end` bleiben unbegrenzt, die Datei steht also weiterhin in
+            // Liste und Baum. Diagramm und Liste widersprechen sich damit nicht:
+            // Das Diagramm zeigt die Zeit, die Liste den Bestand. Sie aus den
+            // Daten zu werfen waere die bequemere und die unehrlichere Antwort.
             return TimeWindow(
                 start: .distantPast,
                 end: .distantFuture,
-                chartStartDay: calendar.startOfDay(for: first),
-                chartEndDay: calendar.startOfDay(for: last)
+                chartStartDay: ChartAxis.startDay(firstData: first, now: now, calendar: calendar),
+                chartEndDay: ChartAxis.endDay(lastData: last, now: now, calendar: calendar)
             )
         }
         if useDateRange {
@@ -926,6 +940,18 @@ final class ReportViewModel {
     /// sichtbaren Hinweis – ohne ihn waere das ein stiller Zustand, der die
     /// Ergebnisliste unerklaerlich unvollstaendig wirken laesst.
     var hiddenTypeCount: Int { hiddenExtensions.count }
+
+    /// Dateien, deren Zeitstempel **nach heute** liegt.
+    ///
+    /// **⚠️ Sie werden nicht versteckt, sondern benannt.** Die Achse endet heute
+    /// (siehe ``window``), sonst zieht ein einziges falsches Datum sie ueber
+    /// Jahrzehnte. Ohne diesen Hinweis waere das ein stiller Zustand: Das
+    /// Diagramm zeigte weniger als die Liste, und niemand koennte sagen warum –
+    /// genau das, was UX-06 abgeschafft hat.
+    var futureFileCount: Int {
+        let jetzt = Date()
+        return scannedFiles.count { ChartAxis.isInFuture($0.timestamp, now: jetzt) }
+    }
 
     /// Ob ueberhaupt Typen ausgeblendet sind – Grundlage der Statuszeile.
     ///

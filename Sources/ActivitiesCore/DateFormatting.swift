@@ -156,7 +156,38 @@ public enum DateFormatting {
     /// Deshalb steht sie jetzt hier, wird von Ueberschrift **und** Export
     /// benutzt und ist in `CoreChecks` geprueft.
     public static func range(from start: Date, to end: Date, days: Int) -> String {
-        "\(weekdayDate(start)) – \(weekdayDate(end)) · \(days) \(days == 1 ? "Tag" : "Tage")"
+        "\(weekdayDate(start)) – \(weekdayDate(end)) · \(spanLabel(days: days))"
+    }
+
+    /// Ab wann eine Spanne nicht mehr in Tagen genannt wird.
+    ///
+    /// **⚠️ Die Schwelle ist eine Aussage, kein Format.** „7 Tage" ist besser
+    /// als „1 Woche" – wer die Woche liest, rechnet zurueck. Erst wo niemand
+    /// mehr in Tagen denkt, lohnt die Zerlegung; ein Jahr ist die erste Groesse,
+    /// bei der das sicher gilt.
+    public static let spanYearThreshold = 365
+
+    /// Die Laenge einer Spanne in lesbarer Form.
+    ///
+    /// **⚠️ Aus der Praxis: „25753 Tage".** Eine fuenfstellige Tageszahl ist
+    /// keine Angabe, die jemand liest – sie ist eine, die man ueberschlaegt und
+    /// dabei falsch ueberschlaegt. Ab einem Jahr steht deshalb „70 Jahre,
+    /// 6 Monate".
+    ///
+    /// **⚠️ Die Tageszahl entfaellt dann, statt zusaetzlich dazustehen.** Beides
+    /// zu nennen hiesse, dem Leser die Umrechnung doch wieder zuzumuten – und
+    /// die Ueberschrift traegt bereits Anfang und Ende.
+    ///
+    /// Null Monate werden weggelassen: „3 Jahre" statt „3 Jahre, 0 Monate".
+    public static func spanLabel(days: Int) -> String {
+        guard days >= spanYearThreshold else {
+            return "\(days) \(days == 1 ? "Tag" : "Tage")"
+        }
+        let jahre = days / 365
+        let monate = (days % 365) / 30
+        let jahrText = "\(jahre) \(jahre == 1 ? "Jahr" : "Jahre")"
+        guard monate > 0 else { return jahrText }
+        return "\(jahrText), \(monate) \(monate == 1 ? "Monat" : "Monate")"
     }
 
     private static let monthYearFormatter: DateFormatter = {
@@ -176,6 +207,18 @@ public enum DateFormatting {
     /// Kurzer Monat mit Jahr, z. B. "Aug 26".
     public static func monthShort(_ date: Date) -> String {
         monthShortFormatter.string(from: date)
+    }
+
+    /// Quartal mit Jahr, z. B. "Q3 26".
+    public static func quarterShort(_ date: Date, calendar: Calendar = .current) -> String {
+        let monat = calendar.component(.month, from: date)
+        let jahr = calendar.component(.year, from: date) % 100
+        return String(format: "Q%d %02d", (monat - 1) / 3 + 1, jahr)
+    }
+
+    /// Jahreszahl, z. B. "2026".
+    public static func yearOnly(_ date: Date, calendar: Calendar = .current) -> String {
+        String(calendar.component(.year, from: date))
     }
 
     /// Monat und Jahr, z. B. "August 2026".

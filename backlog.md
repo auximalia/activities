@@ -1022,6 +1022,82 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.42 | Sprint 17, AP1 | `FileVisibility` – eine Entscheidung, im Kern, geprüft |
 | v1.19.43 | Sprint 17, AP2 | Reiter „Dateitypen" mit Typschranke; UX-42 |
 
+## Sprint 18 – „Eine Achse, die man lesen kann" *(geplant)*
+
+| AP | Eintrag | Aufwand | |
+|---|---|---|---|
+| **AP1** | PR-50 · Achse bis heute, Ausreißer benennen | **M** | trägt den Release |
+| **AP2** | PR-48 · Bündelungsstufen und Beschriftungsdichte | S | Beifahrer |
+| **AP3** | PR-49 · Überschrift in Jahre/Monate/Tage | S | Beifahrer |
+
+**Die Klammer ist echt und nicht thematisch:** Alle drei ändern dieselbe Größe – wie ein
+Zeitraum auf der Achse abgebildet wird. AP1 begrenzt ihn, AP2 bündelt ihn, AP3 benennt ihn.
+Gemeinsamer Code: ``TimeWindow.chartEndDay``, ``ChartGranularity``, ``DateFormatting.range``.
+
+**⚠️ Reihenfolge: AP1 zuerst, und ohne AP1 ist AP2 wertlos.** Eine gröbere Bündelung macht die
+Achse lesbar – im gemeldeten Fall bliebe sie zu 95 % leer. *Wer nur AP2 baut, hat einen gut
+lesbaren leeren Streifen.*
+
+### Festlegungen vor der Umsetzung
+
+1. **Nur die Diagramm-Achse wird begrenzt, nicht der Datenbestand.** Im Modus „Alle" stehen
+   ``start``/``end`` bereits auf `.distantPast`/`.distantFuture`
+   (`ReportViewModel.swift:605-610`) – die Dateiliste ist also gar nicht eingeschränkt. Es
+   genügt, ``chartEndDay`` auf heute zu ziehen. **Damit bleibt die Datei mit dem Datum 2091 in
+   Liste und Baum auffindbar**, und Diagramm und Liste widersprechen sich nicht: Das Diagramm
+   zeigt die Zeit, die Liste den Bestand. *Das war der Grund, warum Antwort 2 verworfen wurde;
+   sie ist hier gar nicht nötig.*
+2. **⚠️ Nur die Zukunft wird begrenzt, nicht die ferne Vergangenheit.** Ein Zeitstempel nach
+   heute ist **unmöglich**; ein Zeitstempel von 1994 ist nur **ungewöhnlich** und kann ein
+   echtes Archiv sein. Die Asymmetrie ist die ganze Begründung – wer beide Enden kappt, macht
+   aus einer Tatsachenaussage eine Geschmacksfrage. *Sollte sich die Vergangenheit als Problem
+   erweisen, ist das ein eigener Befund mit eigenem Beleg.*
+3. **Der Hinweis steht in der Zeile unter dem Diagramm**, bei „47 Ordner samt Inhalt
+   übersprungen" und dem Hinweis auf abgelehnte Quellen. Das ist der etablierte Ort für „die
+   App zeigt weniger, als es gibt – und hier ist der Grund" (Sprint 16). Kein Fehlerzustand:
+   ``errorMessage`` blendet die ganze Liste aus, und eine Datei mit falschem Datum ist kein
+   Fehler des Programms.
+4. **⚠️ Die Beschriftungsdichte wandert in den Kern und rechnet in Balken, nicht in
+   Kalendereinheiten.** ``shouldLabel`` (`HistoryChartView.swift:428-445`) fragt heute „ist es
+   ein Montag?", „ist es ein Quartalsanfang?" – und kann deshalb **nicht wissen**, wie viele
+   Beschriftungen dabei herauskommen. Genau daran ist es gescheitert (282 Stück). Die neue
+   Regel gibt die zu beschriftenden **Balkenpositionen** zurück und ist damit von ``CoreChecks``
+   auf ihre Obergrenze prüfbar.
+5. **Zwei neue Stufen: Quartal und Jahr.** Gerechnet hält die zugesicherte Schranke damit bis
+   130 Jahre. Die Zusage im Doc-Kommentar (`ChartGranularity.swift:16-17`) wird zum ersten Mal
+   auch geprüft – **über eine Reihe von Spannen, nicht an einem Beispiel**. Die heutige Prüfung
+   (`CoreChecks:334-341`, 2557 Tage) besteht nur, weil ihr Wert zufällig darunter liegt.
+6. **⚠️ AP3 braucht eine Schwelle, und die ist eine Aussage, kein Format.** „7 Tage" ist besser
+   als „1 Woche" – wer die Woche liest, rechnet zurück. Erst wo niemand mehr in Tagen denkt,
+   lohnt die Zerlegung. *Vorschlag: ab 365 Tagen Jahre und Monate, darunter Tage; die Tageszahl
+   entfällt dann, statt doppelt dazustehen.*
+
+### Sprint-Akzeptanz
+
+**AP1:** Ein Bestand mit einem Zeitstempel in ferner Zukunft ergibt ein Diagramm, dessen Achse
+heute endet · die Ausreißer bleiben in Liste und Baum auffindbar · ein sichtbarer Hinweis nennt
+ihre Zahl · in den Modi „letzte N Tage" und „Spanne" ändert sich nichts.
+
+**AP2:** Eine Prüfung belegt **für eine Reihe von Spannen bis 130 Jahre**, dass weder die
+Balken- noch die Beschriftungszahl ihre Schranke überschreitet · die Achse ist im gemeldeten
+Fall lesbar · kurze Zeiträume sehen unverändert aus.
+
+**AP3:** Ab der Schwelle nennt die Überschrift Jahre und Monate · darunter unverändert Tage ·
+die Formulierung liegt im Kern und ist geprüft.
+
+**Gemeinsam:** `swift build` und `swift run CoreChecks` grün · am laufenden Programm
+gegengeprüft, mit einem eigens erzeugten Bestand, der bis 2091 reicht · `ux-review` vor der
+Auslieferung.
+
+### Risiko, offen benannt
+
+**AP1 ist ein M, das klein aussieht.** Die Begrenzung selbst ist eine Zeile; der Aufwand liegt
+darin, dass ``chartEndDay`` und ``chartStartDay`` an mehreren Stellen die Achse, die
+Bündelungswahl **und** die Zusammenfassung im Export speisen. Wird eine davon vergessen, sagen
+Diagramm und Bericht Verschiedenes – und das fällt erst jemandem auf, der beides nebeneinander
+legt.
+
+---
 ## Sprint 17 – „Ein Filter, eine Wahrheit" *(v1.19.41–43)*
 
 | AP | Eintrag | Aufwand | Stand |

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.42 · 2026-08-11*
+*Stand: v1.19.43 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -927,15 +927,82 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.40 | Hotfix | PR-47 · Update-Prüfung hing am API-Kontingent einer geteilten IP |
 | v1.19.41 | Sprint 17, AP3 | PR-36 · `bpmn`/`graph` auch in „Arbeit fortsetzen" |
 | v1.19.42 | Sprint 17, AP1 | `FileVisibility` – eine Entscheidung, im Kern, geprüft |
+| v1.19.43 | Sprint 17, AP2 | Reiter „Dateitypen" mit Typschranke; UX-42 |
 
-## Sprint 17 – „Ein Filter, eine Wahrheit" *(laufend)*
+## Sprint 17 – „Ein Filter, eine Wahrheit" *(v1.19.41–43)*
 
 | AP | Eintrag | Aufwand | Stand |
 |---|---|---|---|
 | **AP1** | Die Sichtbarkeitsentscheidung als **ein** Typ im Kern | **M** | ✅ **v1.19.42** |
-| **AP2** | Dateitypen-Tabelle in den Einstellungen, mit Typschranke | **M** | offen |
+| **AP2** | Dateitypen-Tabelle in den Einstellungen, mit Typschranke | **M** | ✅ **v1.19.43** |
 | **AP3** | `bpmn`/`graph` auch für „Arbeit fortsetzen" | S | ✅ v1.19.41 |
 | *(verschoben)* | *PR-21 · Suchbegriffe merken* | *S* | *Klammer zu schwach* |
+
+
+### ✅ AP2, wie es ausgefallen ist *(v1.19.43)*
+
+Ein vierter Einstellungs-Reiter „Dateitypen": je Endung eine Zeile mit Anzahl,
+**Standardprogramm dieses Rechners** und zwei Häkchen. `CoreChecks` von 1152 auf **1200**.
+
+**Zwei Messungen haben den Entwurf nach dem Aufschreiben noch geändert.**
+
+**⚠️ Das Ausführungsbit ist aus Netz 3 gestrichen – gemessen ohne Nutzen und mit
+Fehlalarmen.** Die Annahme war, `+x` sei ein Gefahrensignal. Nachgemessen:
+
+| Datei | UTType der Datei | `+x` | Netz 2 |
+|---|---|---|---|
+| Shell-Skript **ohne** Endung | `public.unix-executable` | ja | **abgelehnt** |
+| Shell-Skript als `.txt` getarnt | `public.plain-text` | ja | durchgelassen |
+
+Das endungslose Programm fängt die Typhierarchie also **selbst**; und die getarnte Datei
+würde `open` an den Texteditor geben, nicht ausführen. Ein `+x`-Netz hätte nur harmlose
+Textdateien aussortiert.
+
+**⚠️ Verweise auflösen ist dazugekommen – und das war eine echte Lücke.** Ein Symlink meldet
+`public.symlink` und **nicht** den Typ seines Ziels:
+
+| Datei | UTType | aufgelöst |
+|---|---|---|
+| `verweis.docx` → Shell-Skript | `public.symlink` | `public.shell-script` |
+
+Ein Verweis namens `bericht.docx` auf ein Skript wäre damit durch **alle** Netze gekommen –
+`docx` ist von Haus aus erlaubt, und `NSWorkspace.open` folgt dem Verweis. Das ist der einzige
+Grund, warum es die Prüfung zur Handlungszeit überhaupt gibt.
+
+**⚠️ Nur ergänzen, nicht entfernen.** Eingebaute Kategorien lassen sich nicht abwählen; für
+„weniger sehen" gibt es die Legenden-Plättchen. Zwei additive Mengen sind prüfbar, ein Modell
+aus Übersteuerungen in beide Richtungen kaum noch. *Abweichung vom Rauschfilter-Reiter, der
+eine vollständige Auswahlmenge speichert – dort ist die Grundmenge endlich und aufzählbar,
+hier kategorial und offen.*
+
+**Die Zusicherung wird erzwungen, nicht angenommen:** Der Konstruktor von ``FileTypeRules``
+wirft eine fortsetzbare Endung weg, die weder eingebaut noch ergänzt sichtbar ist. Sich darauf
+zu verlassen, dass die Oberfläche es einhält, hieße die Zusicherung dort zu führen, wo sie
+niemand prüft.
+
+**Aus der `ux-review`: UX-42, sofort behoben.** Die Tabelle hat **198 Zeilen**, nach
+Häufigkeit sortiert – oben `.svg` (4.665) und `.png` (1.472), die niemand freigibt, und
+`.form`, wegen dem der Reiter entstand, auf **Rang 85**. Der Reiter konnte seinen eigenen
+Anlass nicht bedienen. Ein Suchfeld darüber löst es; **verworfen wurde, eigene Freigaben nach
+oben zu sortieren** – dann springen Zeilen beim Klicken unter dem Mauszeiger weg, genau der
+Grund, aus dem die Legende ihre Plättchen stabil hält.
+
+**Am laufenden Programm belegt, mit Gegenprobe:**
+
+| Handlung | Ergebnis |
+|---|---|
+| `.py` → „Arbeit fortsetzen" anklicken | bleibt leer, `extraResumableExtensions` = `()` – **die Schranke hält** |
+| `.svg` → „Office" anklicken | wird gesetzt, `extraVisibleExtensions` = `(svg)` – **Ergänzen wirkt** |
+| Suche „form" | `.form · 5 · Camunda Modeler`, vier Tastendrücke statt 84 Zeilen |
+| Suche ohne Treffer | nennt den Grund, statt eine leere Tabelle stehen zu lassen |
+
+**Beifahrer:** Die Rückfrage bei Mengen nennt jetzt, was sie weiß – *„Darunter 12 Dateien, die
+dabei ausgeführt werden."* **Informieren, nicht blockieren:** Die Auswahl hat der Anwender
+selbst zusammengestellt, anders als bei „Arbeit fortsetzen", wo das Programm sie bildet.
+
+**Ausdrücklich unangetastet:** Ein Doppelklick auf eine benannte Datei kennt weiterhin **keine**
+Erlaubnisliste. Das ist die Festlegung aus dem Sprintplan und der Kern der Sache – die
+Schranke greift nur, wo das Programm die Menge zusammenstellt.
 
 ### ✅ AP1, wie es ausgefallen ist *(v1.19.42)*
 

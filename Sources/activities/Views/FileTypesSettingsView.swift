@@ -13,6 +13,25 @@ import ActivitiesCore
 struct FileTypesSettingsView: View {
     @Bindable var model: ReportViewModel
 
+    /// Sucheingabe ueber der Tabelle.
+    ///
+    /// **⚠️ Ohne sie ist der Reiter fuer seinen eigenen Anlass unbrauchbar.**
+    /// Gemessen am Bestand: 198 Endungen, nach Haeufigkeit sortiert. Oben stehen
+    /// `.svg` (4.665) und `.png` (1.472) – Typen, die niemand freigibt –, und
+    /// `.form`, wegen dem der Reiter entstanden ist, steht auf **Rang 85**.
+    ///
+    /// **⚠️ Die naheliegende Alternative ist verworfen: eigene Freigaben nach
+    /// oben sortieren.** Dann springen Zeilen beim Klicken unter dem Mauszeiger
+    /// weg – genau der Grund, aus dem die Legende ihre Plaettchen ausdruecklich
+    /// stabil haelt. Ein Suchfeld ordnet nichts um, es blendet nur aus.
+    @State private var suche = ""
+
+    private var zeilen: [ReportViewModel.TypeInventoryRow] {
+        let muster = suche.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !muster.isEmpty else { return model.typeInventory }
+        return model.typeInventory.filter { $0.ext.contains(muster) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Welche Dateitypen als Arbeitsdateien gelten – und welche „Arbeit fortsetzen“ öffnen darf.")
@@ -20,7 +39,19 @@ struct FileTypesSettingsView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Table(model.typeInventory) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                TextField("Endung suchen, z. B. form", text: $suche)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Endung suchen")
+                if !suche.isEmpty {
+                    Button("Löschen") { suche = "" }.buttonStyle(.link)
+                }
+            }
+
+            Table(zeilen) {
                 TableColumn("Endung") { zeile in
                     Text(".\(zeile.ext)").font(.system(.body, design: .monospaced))
                 }
@@ -53,7 +84,17 @@ struct FileTypesSettingsView: View {
                 }
                 .width(min: 130, ideal: 140)
             }
-            .frame(minHeight: 260)
+            .frame(minHeight: 240)
+
+            // ⚠️ Ein leeres Suchergebnis muss sagen, WARUM es leer ist – sonst
+            // haelt man den Bestand fuer unvollstaendig statt die Suche fuer zu eng.
+            if zeilen.isEmpty {
+                Text("Keine Endung enthält „" + suche + "“. Aufgeführt sind nur Endungen, "
+                     + "die im eigenen Bestand vorkommen.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             // ⚠️ Der Satz nennt die Regel, nicht die Bedienung. Dass man
             // Haeckchen setzt, sieht man; **warum** manche nicht gehen, nicht.

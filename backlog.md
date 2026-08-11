@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.44 · 2026-08-11*
+*Stand: v1.19.45 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -1022,6 +1022,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.42 | Sprint 17, AP1 | `FileVisibility` – eine Entscheidung, im Kern, geprüft |
 | v1.19.43 | Sprint 17, AP2 | Reiter „Dateitypen" mit Typschranke; UX-42 |
 | v1.19.44 | Sprint 18 | PR-48, PR-49, PR-50 · Achse, Bündelung, Überschrift |
+| v1.19.45 | Hotfix | Nachgeholte `ux-review`: Beschriftungen überlappten am rechten Rand |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 
@@ -1060,7 +1061,21 @@ dadurch **15** statt 14 Marken, bei 400 und bei 846 Balken. Geteilt werden muss 
 `maximum - 1`. *Ein Beispiel hätte das nicht gezeigt – genau der Fehler, den die alte Prüfung
 mit ihren 2.557 Tagen gemacht hat.*
 
-**⚠️ Die `ux-review` konnte NICHT durchgeführt werden.** Der Bildschirm des Zielrechners war
+**⚠️ Nachgetragen in v1.19.45: Die nachgeholte `ux-review` hat einen Defekt gefunden – einen
+eigenen.** Die letzte Beschriftung überlappte ihre Vorgängerin (`Jul 2Aug 26`), weil
+`labelPositions` den letzten Balken **zusätzlich** zum Raster erzwang. Zwei Lehren daraus, und
+beide stehen jetzt als Prüfung da:
+
+1. **Eine Obergrenze für die Anzahl sagt nichts über die Verteilung.** Die Prüfung zählte
+   Marken und bestand; überlappt haben sie trotzdem. Jetzt werden auch die **Abstände**
+   geprüft.
+2. **Die Zahl der Marken hat eine zweite Schranke: den Mindestabstand.** Bei 15 Balken und 14
+   Marken *müssen* zwei benachbart sein. Es bleibt höchstens jede zweite Position.
+
+Verteilt wird jetzt gleichmäßig zwischen erstem und letztem Balken, statt in Schritten zu
+zählen und das Ende hinterher dazuzulegen. `CoreChecks` 1300 → **1316**.
+
+**⚠️ Die `ux-review` konnte zum Zeitpunkt der Auslieferung NICHT durchgeführt werden.** Der Bildschirm des Zielrechners war
 gesperrt, und die Sperre lässt sich mit `caffeinate` nicht aufhalten – sie kommt von einer
 Richtlinie. Am laufenden Programm ist damit **nichts** gegengeprüft. An ihrer Stelle stehen:
 die 1300 Zusicherungen, die die Regeln vollständig abdecken, und die oben ausgerechnete Achse.

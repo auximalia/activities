@@ -390,6 +390,25 @@ do {
         expect(marken.allSatisfy { $0 >= 0 && $0 < anzahl },
                "Marken: keine Position ausserhalb der Balken (\(anzahl))")
     }
+    // ⚠️ Die Abstaende, nicht nur die Anzahl.
+    //
+    // Die erste Fassung zaehlte nur die Marken und bestand deshalb – am
+    // laufenden Programm ueberlappten sich trotzdem zwei, weil der erzwungene
+    // letzte Balken dicht hinter der letzten Rasterposition lag („Jul 2Aug 26“,
+    // v1.19.44). *Eine Obergrenze fuer die Anzahl sagt nichts ueber die
+    // Verteilung.*
+    for anzahl in [15, 20, 40, 66, 73, 130, 400, 846] {
+        let sortiert = ChartGranularity.labelPositions(barCount: anzahl).sorted()
+        let abstaende = zip(sortiert, sortiert.dropFirst()).map { $1 - $0 }
+        expect(abstaende.allSatisfy { $0 >= 2 },
+               "Marken: keine zwei Beschriftungen auf benachbarten Balken (\(anzahl))")
+        // Gleichmaessig heisst: die Abstaende unterscheiden sich um hoechstens 1.
+        if let kleinster = abstaende.min(), let groesster = abstaende.max() {
+            expect(groesster - kleinster <= 1,
+                   "Marken: gleichmaessig verteilt, Abstand \(kleinster)…\(groesster) (\(anzahl))")
+        }
+    }
+
     // Der gemeldete Fall, gegengerechnet: 846 Monatsbalken haetten 282
     // Beschriftungen ergeben.
     expect(ChartGranularity.labelPositions(barCount: 846).count < 282 / 10,

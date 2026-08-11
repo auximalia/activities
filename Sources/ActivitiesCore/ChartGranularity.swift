@@ -95,22 +95,27 @@ public enum ChartGranularity: Sendable, Equatable, CaseIterable {
     public static func labelPositions(barCount: Int, maximum: Int = maxLabels) -> Set<Int> {
         guard barCount > 0 else { return [] }
         guard barCount > maximum else { return Set(0..<barCount) }
-        var positionen: Set<Int> = [0, barCount - 1]
-        // **⚠️ Geteilt wird durch `maximum - 1`, nicht durch `maximum`.** Der
-        // letzte Balken wird oben zusaetzlich eingefuegt und liegt im Regelfall
-        // **nicht** auf dem Raster; mit `maximum` als Teiler ergaeben sich
-        // deshalb `maximum + 1` Marken. Die Pruefung ueber eine Reihe von
-        // Balkenzahlen hat genau das gefunden – bei 400 und 846 Balken waren es
-        // 15 statt 14. *Ein Beispiel haette es nicht gezeigt.*
+        // **⚠️ Gleichmaessig zwischen erstem und letztem Balken verteilen –
+        // nicht in Schritten zaehlen und den letzten hinterher dazulegen.**
+        // Genau daran ist die erste Fassung gescheitert: Der erzwungene letzte
+        // Balken lag dicht hinter der letzten Rasterposition, und die
+        // Beschriftungen ueberlappten sich zu „Jul 2Aug 26“. Am laufenden
+        // Programm gefunden (v1.19.44), nicht im Test – die Pruefung zaehlte
+        // Marken, aber nicht ihre Abstaende.
         //
-        // Die Rundung darf nie 0 ergeben, sonst entstuende eine Endlosdichte
-        // statt einer Ausduennung.
-        let schritt = max(1, (barCount + maximum - 2) / (maximum - 1))
-        var i = 0
-        while i < barCount {
-            positionen.insert(i)
-            i += schritt
-        }
-        return positionen
+        // Mit dieser Rechnung liegen Anfang und Ende **auf** dem Raster, und die
+        // Abstaende unterscheiden sich um hoechstens einen Balken.
+        // **⚠️ Auch die Zahl der Marken hat eine zweite Schranke: den
+        // Mindestabstand.** Bei 15 Balken und 14 Marken muessen zwei davon
+        // benachbart sein – dann ueberlappen sie, egal wie gleichmaessig sie
+        // verteilt sind. Es bleibt also hoechstens jede zweite Position.
+        // *Die erste Fassung kannte nur die Obergrenze und hat genau deshalb
+        // eine Ueberlappung ausgeliefert.*
+        let anzahl = min(maximum, barCount, (barCount + 1) / 2)
+        guard anzahl > 1 else { return [0] }
+        let letzte = Double(barCount - 1)
+        return Set((0..<anzahl).map { i in
+            Int((Double(i) * letzte / Double(anzahl - 1)).rounded())
+        })
     }
 }

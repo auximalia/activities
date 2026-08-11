@@ -218,6 +218,23 @@ struct TreeFolderRowView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
+                // **⚠️ Auch im Baum, obwohl die Einrueckung den Ort schon
+                // zeigt.** Ausdruecklich so gewuenscht. Das Argument dagegen
+                // ist real – der Pfad wiederholt, was die Verschachtelung
+                // sagt – aber es traegt nur, solange die Elternzeilen sichtbar
+                // sind. Beim Blaettern in einem tiefen Baum sind sie es nicht,
+                // und Durchgangsknoten fassen ohnehin mehrere Stufen zu einer
+                // Zeile zusammen. Gleiche Form wie in der Zeitansicht: Name,
+                // dahinter der Pfad in Grau, bei schmalem Fenster entfaellt er.
+                if !isCompact {
+                    Text(model.displayPath(of: node.folder))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .layoutPriority(-1)
+                }
+
                 Text(countLabel)
                     // Nebenangabe wie Datum und Groesse (PR-38): 11 pt.
                     .font(.system(size: RowMetrics.metaFontSize))

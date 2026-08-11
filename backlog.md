@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.55 · 2026-08-11*
+*Stand: v1.19.56 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,56 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-49 · Zwei verschiedene Ordner, eine identische Zeile *(v1.19.56)*
+**Aufwand:** S · **Art:** Defekt
+
+**Beobachtet:** *„Mit mehreren Quell-Ordnern weiß ich nicht mehr, welcher Ordner zu welcher
+Quelle gehört."* Die Zeilen zeigten längst einen grauen Pfad – aber `relativePath(of:)` streifte
+das Präfix **der passenden Quelle** ab.
+
+**Nachgestellt und im Bild belegt:** Je ein Ordner `zzz_pruef` in `~/Documents` und in
+`~/Downloads`, beide Quellen aktiv. Ergebnis in der Zeitansicht:
+
+```
+zzz_pruef   zzz_pruef     → zzzpruef_bericht.md
+zzz_pruef   zzz_pruef     → zzzpruef_bericht.md
+```
+
+**Zwei identische Zeilen für zwei verschiedene Ordner.** Das ist keine Unschärfe, sondern
+Mehrdeutigkeit.
+
+**⚠️ Die alte Entscheidung war richtig – ihr Grund ist verfallen.** Der Doc-Kommentar
+begründete das Abstreifen so: *„Der absolute Pfad wiederholt in jeder Zeile den Wurzelpfad, der
+bereits in der Statuszeile steht – das ist Rauschen."* **Beide Hälften galten für genau einen
+Wurzelordner.** Seit Sprint 16 gibt es keinen einen mehr, und die Statuszeile nennt bei
+mehreren Quellen keinen Pfad, sondern „2 Quellen". *Nicht die Entscheidung war zu korrigieren,
+sondern ihre abgelaufene Voraussetzung zu bemerken* – der Fall, vor dem `ux-review` warnt:
+den Grund angreifen, nicht die Entscheidung.
+
+**Gewählt: der volle Pfad in `~`-Schreibweise**, nicht ein vorangestellter Quellenname
+(`Documents · zzz`). Der volle Pfad führt keinen Modus ein, der sich beim Anhaken einer zweiten
+Quelle ändert, und er ist ein **echter** Pfad; `Documents · zzz` wäre eine erfundene
+Schreibweise, die wie einer aussieht. Dieselbe Form steht seit v1.19.55 in den Quellen-Menüs –
+Konsistenz war hier billiger als Kürze.
+
+**⚠️ Auch im Baum – ausdrücklich so entschieden, gegen meinen Einwand.** Dort trägt die
+Einrückung den Ort schon, und der Pfad wiederholt sie sichtbar:
+
+```
+Documents      ~/Documents
+  opencode     ~/Documents/opencode
+    activities ~/Documents/opencode/activities
+```
+
+Das Argument dagegen trägt aber nur, solange die Elternzeilen sichtbar sind – beim Blättern in
+einem tiefen Baum sind sie es nicht, und Durchgangsknoten fassen ohnehin mehrere Stufen zu einer
+Zeile zusammen. **Offen als Angebot, nicht als Aufgabe:** den Pfad im Baum auf die Wurzelzeilen
+und die Durchgangsknoten zu beschränken. Das ist die Stelle, an der er etwas sagt, was die
+Einrückung nicht sagt.
+
+**Nebenbei billiger geworden:** `displayPath` fragt einmal `PathFormatting.withTilde`, wo
+`relativePath` je Zeile über alle aktiven Quellen lief und Pfade normalisierte.
 
 ### ✅ UX-47 · Man sah, *welche* Quellen es gibt, aber nicht *wo* sie liegen *(v1.19.55)*
 **Aufwand:** S · **Art:** Defekt
@@ -891,6 +941,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.53 | Kleinigkeit | PR-55 · Suche startet mit Enter statt entprellt beim Tippen |
 | v1.19.54 | Kleinigkeit | UX-46 · Hilfe verschwieg, wie man ein Wort abgrenzt |
 | v1.19.55 | Kleinigkeit | UX-47 · Pfade bei den Quellen · UX-48 · Suchfeld 273 pt |
+| v1.19.56 | Kleinigkeit | UX-49 · Voller Pfad hinter jedem Ordner (Baum und Liste) |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

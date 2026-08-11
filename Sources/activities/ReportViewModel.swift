@@ -2131,21 +2131,29 @@ final class ReportViewModel {
         }
     }
 
-    /// Pfad eines Ordners **relativ zum Wurzelordner**, z. B. `opencode/activities/dist`.
+    /// Der Pfad eines Ordners, wie er in der Zeile steht – `~/Documents/opencode`.
     ///
-    /// Der absolute Pfad wiederholt in jeder Zeile den Wurzelpfad, der bereits in
-    /// der Statuszeile steht – das ist Rauschen. Der vollstaendige Pfad bleibt im
-    /// Tooltip und in der Zwischenablage erhalten.
-    func relativePath(of folder: URL) -> String {
-        let path = folder.standardizedFileURL.path
-        // Die **passende** Quelle, nicht die erste: Bei mehreren Quellen ist der
-        // gemeinsame Praefix nur fuer eine von ihnen der richtige.
-        for quelle in activeSources {
-            let root = quelle.standardizedFileURL.path
-            if path == root { return "." }
-            if path.hasPrefix(root + "/") { return String(path.dropFirst(root.count + 1)) }
-        }
-        return path
+    /// **⚠️ Hier stand bis v1.19.56 der Pfad RELATIV zur Quelle, und diese
+    /// Entscheidung war richtig, solange es einen Wurzelordner gab.** Ihre
+    /// Begruendung lautete: *„Der absolute Pfad wiederholt in jeder Zeile den
+    /// Wurzelpfad, der bereits in der Statuszeile steht – das ist Rauschen."*
+    /// **Beide Haelften sind mit Sprint 16 verfallen:** Es gibt keinen einen
+    /// Wurzelpfad mehr, und die Statuszeile nennt bei mehreren Quellen keinen
+    /// Pfad, sondern „2 Quellen".
+    ///
+    /// Die Folge war nicht Unschaerfe, sondern **Mehrdeutigkeit**:
+    /// `~/Documents/zzz` und `~/Downloads/zzz` ergaben beide die Zeile
+    /// `zzz  zzz` – zwei verschiedene Ordner, nicht zu unterscheiden.
+    /// Nachgestellt und im Bild belegt.
+    ///
+    /// Gewaehlt wurde der volle Pfad in der `~`-Schreibweise und nicht ein
+    /// vorangestellter Quellenname (`Documents · zzz`): Der volle Pfad fuehrt
+    /// keinen Modus ein, der sich beim Anhaken einer zweiten Quelle aendert,
+    /// und er ist ein **echter** Pfad – `Documents · zzz` waere eine erfundene
+    /// Schreibweise, die wie einer aussieht. Dieselbe Form steht seit v1.19.55
+    /// in den Quellen-Menues.
+    func displayPath(of folder: URL) -> String {
+        PathFormatting.withTilde(folder.standardizedFileURL.path, home: NSHomeDirectory())
     }
 
     /// Warum die Ergebnisliste leer ist. Grundlage fuer eine Meldung, die die

@@ -63,7 +63,7 @@ struct FolderRowView: View {
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                 if !isCompact {
-                    Text(model.relativePath(of: entry.folder))
+                    Text(model.displayPath(of: entry.folder))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

@@ -216,6 +216,21 @@ final class ReportViewModel {
     /// sich einklappen; ein gemerkter Schalter verschwiege dann eines Morgens
     /// Dateien, ohne dass es irgendwo staende.
     var showsOnlyWorkFiles = false { didSet { invalidateRows(); recomputeAfterFilterChange() } }
+
+    /// Die vom Anwender ergaenzten Dateitypen (Reiter „Dateitypen").
+    ///
+    /// **⚠️ Anders als der Office-Schalter wird das hier gespeichert** – und
+    /// das widerspricht der Nicht-Speicher-Regel von `:868-872` nicht: Jene
+    /// gilt einem **stillen Zustand**, der eines Morgens Dateien verschweigt.
+    /// Eine Typ-Freigabe verschweigt nichts, sie erlaubt zusaetzlich; ihr
+    /// schlimmster Fall ist „ich sehe mehr, als ich erwartet habe".
+    var typeRules: FileTypeRules = .leer {
+        didSet {
+            invalidateRows()
+            store.saveTypeRules(typeRules)
+            recomputeAfterFilterChange()
+        }
+    }
     /// Die haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm), max. ``legendTopCount``.
     var topExtensions: [ExtensionCount] = []
     /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-Endungen (Sammel-Eintrag "Sonstige").
@@ -385,6 +400,7 @@ final class ReportViewModel {
         self.namePattern = saved.namePattern
         self.autoRefresh = saved.autoRefresh
         self.showOutOfWindowFiles = saved.showOutOfWindowFiles
+        self.typeRules = store.loadTypeRules()
         self.headerExpanded = saved.headerExpanded
         self.ignoreTimeWindow = saved.ignoreTimeWindow
         self.sort = saved.sort
@@ -452,7 +468,17 @@ final class ReportViewModel {
         var app: ExternalApp?
 
         var question: String { BulkAction.question(kind: kind, count: urls.count) }
-        var explanation: String { BulkAction.explanation(kind: kind, count: urls.count) }
+        /// Wie viele Objekte der Menge beim Oeffnen **ausgefuehrt** wuerden.
+        ///
+        /// Gezaehlt an der wirklichen Datei, mit aufgeloesten Verweisen – ein
+        /// Symlink meldet sonst `public.symlink` statt des Typs seines Ziels.
+        var executableCount: Int {
+            guard case .open = kind else { return 0 }
+            return urls.count { FileTypeInspector.refusesToOpen($0) != nil }
+        }
+        var explanation: String {
+            BulkAction.explanation(kind: kind, count: urls.count, executables: executableCount)
+        }
         var confirmLabel: String { BulkAction.confirmLabel(kind: kind) }
     }
 
@@ -939,6 +965,41 @@ final class ReportViewModel {
         recomputeDisplayBuckets()
     }
 
+    /// Eine Zeile der Dateitypen-Tabelle (Sprint 17, AP2).
+    struct TypeInventoryRow: Identifiable, Hashable {
+        let ext: String
+        let count: Int
+        /// Eine **echte** Datei dieser Endung – LaunchServices liefert fuer einen
+        /// erfundenen Pfad keine Zuordnung (am 2026-08-11 gemessen).
+        let sample: URL
+        var id: String { ext }
+    }
+
+    /// Die Endungen des eigenen Bestands, haeufigste zuerst.
+    ///
+    /// **⚠️ Aus dem Rohbestand, nicht aus dem gefilterten.** Eine
+    /// Verwaltungstabelle, die sich mit dem Zeitraum oder dem Suchfeld
+    /// veraendert, ist keine Verwaltung – man kaeme nicht an die Endung heran,
+    /// die man gerade freigeben will, weil sie im aktuellen Ausschnitt fehlt.
+    ///
+    /// Gemessen am Bestand des Anwenders: **198 verschiedene Endungen**, 86 davon
+    /// mit mindestens fuenf Dateien, 65 mit genau einer. Nach Anzahl absteigend
+    /// ist das benutzbar; unsortiert waere es eine Wand.
+    var typeInventory: [TypeInventoryRow] {
+        var zahl: [String: Int] = [:]
+        var beispiel: [String: URL] = [:]
+        for file in scannedFiles {
+            let ext = file.url.pathExtension.lowercased()
+            guard !ext.isEmpty else { continue }
+            zahl[ext, default: 0] += 1
+            if beispiel[ext] == nil { beispiel[ext] = file.url }
+        }
+        return zahl.compactMap { ext, n in
+            beispiel[ext].map { TypeInventoryRow(ext: ext, count: n, sample: $0) }
+        }
+        .sorted { $0.count != $1.count ? $0.count > $1.count : $0.ext < $1.ext }
+    }
+
     /// Schaltet den Office-Filter um.
     func toggleWorkFilesOnly() { showsOnlyWorkFiles.toggle() }
 
@@ -966,7 +1027,7 @@ final class ReportViewModel {
         // wegspringen); der Schalter ist kein Chip, sondern eine Ansage
         // darueber, was ueberhaupt zaehlt.
         let quelle = showsOnlyWorkFiles
-            ? relevantFiles.filter { WorkFileFilter.isWorkFile($0.url) }
+            ? relevantFiles.filter { typeRules.allowsVisible($0.url) }
             : relevantFiles
         for file in quelle {
             let ext = file.url.pathExtension.lowercased()
@@ -1106,6 +1167,7 @@ final class ReportViewModel {
                 hiddenExtensions: hiddenExtensions,
                 topExtensions: topExtensionSet,
                 showsOnlyWorkFiles: showsOnlyWorkFiles,
+                typeRules: typeRules,
                 nameFilter: NameFilter(namePattern),
                 windowStart: cachedWindowStart,
                 windowEnd: cachedWindowEnd,
@@ -1435,9 +1497,24 @@ final class ReportViewModel {
     /// (`.py`, `.sh`, `.command`, `.app`) wird nicht angeboten, weil Oeffnen
     /// dort Ausfuehren heisst. Die Liste kann also weniger enthalten als die
     /// Zeilen darunter, und das ist Absicht.
+    /// Die Arbeitstage eines Ordners – Grundlage von „Arbeit fortsetzen".
+    ///
+    /// **⚠️ Hier sitzen die Netze 1 bis 3 zusammen** (Sprint 17, AP2):
+    /// die Erlaubnisliste samt Nutzer-Freigaben (``FileTypeRules/allowsResume``)
+    /// **und** die Typschranke an der wirklichen Datei
+    /// (``FileTypeInspector/refusesToOpen(_:)``), die Verweise aufloest. Die
+    /// zweite ist **nicht abschaltbar**: Kein Haeckchen in den Einstellungen
+    /// kann sie aufheben, und damit ist es gleichgueltig, welches
+    /// Standardprogramm auf diesem Rechner eingetragen ist.
+    ///
+    /// **⚠️ Gefiltert wird beim Einsammeln, nicht erst beim Oeffnen.** Ein
+    /// Menue, das etwas anbietet, das danach abgelehnt wird, ist schlimmer als
+    /// eines, das es gar nicht erst nennt.
     func workDays(in folder: URL) -> [WorkDay] {
         guard let files = visibleFiles(in: folder) else { return [] }
-        return WorkDays.group(files)
+        return WorkDays.group(files) { url in
+            self.typeRules.allowsResume(url) && FileTypeInspector.refusesToOpen(url) == nil
+        }
     }
 
     /// Menuebeschriftung eines Arbeitstags.

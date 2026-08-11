@@ -28,8 +28,13 @@ struct SettingsView: View {
                 .tabItem { Label("Quellen", systemImage: "folder") }
             noiseTab
                 .tabItem { Label("Rauschfilter", systemImage: "eye.slash") }
+            // Eigener Reiter, kein Abschnitt im Rauschfilter: andere Schluessel
+            // (Endungen statt Ordnernamen), anderer Zeitpunkt (Anzeige statt
+            // Suchlauf). Begruendung in ``FileTypesSettingsView``.
+            FileTypesSettingsView(model: model)
+                .tabItem { Label("Dateitypen", systemImage: "doc.badge.gearshape") }
         }
-        .frame(width: 560, height: 480)
+        .frame(width: 620, height: 520)
     }
 
     private var generalTab: some View {

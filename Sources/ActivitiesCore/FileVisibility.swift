@@ -50,6 +50,14 @@ public struct FileVisibility: Sendable, Equatable {
     /// Ob nur Arbeitsdateien gelten (Oberfläche: „Office").
     public let showsOnlyWorkFiles: Bool
 
+    /// Die vom Anwender ergänzten Dateitypen (Reiter „Dateitypen").
+    ///
+    /// **⚠️ Sie sind ein Feld dieses Typs und keine achte Stelle daneben.**
+    /// Genau darin liegt der Gewinn: Eine Ergänzung des Anwenders wirkt
+    /// dadurch überall dort, wo auch die eingebaute Liste wirkt – Liste, Baum,
+    /// Diagramm, Legende –, ohne dass eine davon nachgezogen werden müsste.
+    public let typeRules: FileTypeRules
+
     /// Der Namensfilter aus dem Suchfeld.
     public let nameFilter: NameFilter
 
@@ -64,6 +72,7 @@ public struct FileVisibility: Sendable, Equatable {
         hiddenExtensions: Set<String> = [],
         topExtensions: Set<String> = [],
         showsOnlyWorkFiles: Bool = false,
+        typeRules: FileTypeRules = .leer,
         nameFilter: NameFilter = NameFilter(""),
         windowStart: Date = .distantPast,
         windowEnd: Date = .distantFuture,
@@ -72,6 +81,7 @@ public struct FileVisibility: Sendable, Equatable {
         self.hiddenExtensions = hiddenExtensions
         self.topExtensions = topExtensions
         self.showsOnlyWorkFiles = showsOnlyWorkFiles
+        self.typeRules = typeRules
         self.nameFilter = nameFilter
         self.windowStart = windowStart
         self.windowEnd = windowEnd
@@ -86,7 +96,7 @@ public struct FileVisibility: Sendable, Equatable {
     /// einen Klick in der Legende nicht aushebeln: Er sagt, was überhaupt
     /// Material ist, nicht welches Plättchen gerade aus ist.
     public func passesType(_ url: URL) -> Bool {
-        if showsOnlyWorkFiles, !WorkFileFilter.isWorkFile(url) { return false }
+        if showsOnlyWorkFiles, !typeRules.allowsVisible(url) { return false }
         let ext = url.pathExtension.lowercased()
         if hiddenExtensions.contains(ext) { return false }
         if hiddenExtensions.contains(Self.otherKey), !topExtensions.contains(ext) { return false }

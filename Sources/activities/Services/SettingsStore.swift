@@ -46,7 +46,7 @@ struct StoredSettings {
 /// App ohne Sandbox; der ueber den Ordner-Dialog gewaehlte Pfad bleibt damit
 /// zugreifbar (kein Security-Scoped Bookmark noetig).
 final class SettingsStore {
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
     /// **⚠️ Nur noch zum Uebernehmen.** Bis v1.19.35 der eine Wurzelordner;
     /// seit Sprint 16 abgeloest durch ``knownSourcesKey``/``activeSourcesKey``.
     private let rootPathKey = "rootPath"
@@ -68,6 +68,8 @@ final class SettingsStore {
     private let sortAscendingKey = "sortAscending"
     private let introKey = "didShowIntro"
     private let folderRulesKey = "activeFolderRules"
+    private let typeRulesVisibleKey = "extraVisibleExtensions"
+    private let typeRulesResumableKey = "extraResumableExtensions"
     private let excludedPathsKey = "excludedPaths"
     private let pinnedKey = "pinnedFolders"
     private let dockIconKey = "showsDockIcon"
@@ -335,5 +337,30 @@ final class SettingsStore {
 
     static func defaultDocumentsDirectory() -> URL {        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
+    }
+}
+
+
+// MARK: - Dateitypen (Sprint 17, AP2)
+
+extension SettingsStore {
+    /// Die vom Anwender ergaenzten Dateitypen.
+    ///
+    /// **⚠️ Zwei getrennte Schluessel, nicht ein verschachteltes Objekt.**
+    /// `UserDefaults` haelt Zeichenkettenlisten von Haus aus; ein kodiertes
+    /// Objekt waere in `defaults read` eine Wolke aus Base64 und damit von aussen
+    /// nicht mehr nachzusehen – bei einem Sicherheitsmerkmal ist das der
+    /// falsche Tausch. *Die Trennung der beiden Mengen ist ohnehin der Kern der
+    /// Sache; sie auch in der Ablage zu trennen, macht sie sichtbar.*
+    func loadTypeRules() -> FileTypeRules {
+        FileTypeRules(
+            extraVisible: Set(defaults.stringArray(forKey: typeRulesVisibleKey) ?? []),
+            extraResumable: Set(defaults.stringArray(forKey: typeRulesResumableKey) ?? [])
+        )
+    }
+
+    func saveTypeRules(_ rules: FileTypeRules) {
+        defaults.set(rules.extraVisible.sorted(), forKey: typeRulesVisibleKey)
+        defaults.set(rules.extraResumable.sorted(), forKey: typeRulesResumableKey)
     }
 }

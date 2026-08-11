@@ -1944,6 +1944,130 @@ do {
     }
 }
 
+// MARK: - FileTypeRules: Nutzer-Freigaben und die Schranke (Sprint 17, AP2)
+do {
+    func u(_ n: String) -> URL { URL(fileURLWithPath: "/t/\(n)") }
+
+    // ── Ergaenzen wirkt, und zwar auf beiden Ebenen getrennt. ──
+    let leer = FileTypeRules.leer
+    expect(!leer.allowsVisible(u("Formular.form")), "Vorgabe: form ist keine Arbeitsdatei")
+    expect(!leer.allowsResume(u("Formular.form")), "Vorgabe: form ist nicht fortsetzbar")
+    expect(leer.allowsVisible(u("Prozess.bpmn")), "Vorgabe: bpmn ist eingebaut sichtbar")
+    expect(leer.allowsResume(u("Prozess.bpmn")), "Vorgabe: bpmn ist eingebaut fortsetzbar")
+
+    let nurSichtbar = FileTypeRules(extraVisible: ["form"])
+    expect(nurSichtbar.allowsVisible(u("Formular.form")), "Ergaenzt: form wird sichtbar")
+    expect(!nurSichtbar.allowsResume(u("Formular.form")),
+           "Ergaenzt: sichtbar macht NICHT fortsetzbar - das ist die ganze Trennung")
+
+    let beides = FileTypeRules(extraVisible: ["form"], extraResumable: ["form"])
+    expect(beides.allowsResume(u("Formular.form")), "Ergaenzt: eigens freigegeben, also fortsetzbar")
+
+    // Gross-/Kleinschreibung darf nicht entscheiden.
+    expect(FileTypeRules(extraVisible: ["FORM"]).allowsVisible(u("Formular.form")),
+           "Ergaenzt: Schreibweise der Endung ist egal")
+
+    // ── ⚠️ Die Zusicherung wird ERZWUNGEN, nicht angenommen. ──
+    //
+    // Eine fortsetzbare Endung, die weder eingebaut noch ergaenzt sichtbar ist,
+    // waere eine Falltuer: Man koennte sie oeffnen, ohne sie je zu sehen. Der
+    // Konstruktor wirft sie deshalb weg - sich auf die Oberflaeche zu verlassen
+    // hiesse, die Zusicherung dort zu fuehren, wo sie niemand prueft.
+    let falltuer = FileTypeRules(extraVisible: [], extraResumable: ["form"])
+    expect(falltuer.extraResumable.isEmpty,
+           "Zusicherung: fortsetzbar ohne sichtbar wird verworfen")
+    expect(!falltuer.allowsResume(u("Formular.form")), "Zusicherung: und wirkt auch nicht")
+
+    // Eingebaut sichtbare Endungen brauchen keine Ergaenzung, um freigebbar zu sein.
+    let aufEingebautem = FileTypeRules(extraVisible: [], extraResumable: ["bpmn"])
+    expect(aufEingebautem.extraResumable.contains("bpmn"),
+           "Zusicherung: eingebaut sichtbar genuegt als Grundlage")
+
+    // ── Die Schranke. ──
+    //
+    // ⚠️ Geprueft wird die REGEL, nicht die Typhierarchie - die Bezeichner
+    // reicht die App-Schicht herein, weil `UniformTypeIdentifiers` nicht zu
+    // Foundation gehoert. Dieselbe Aufteilung wie `ExclusionRules` und
+    // `isPackageKey`.
+    expect(FileTypeRules.resumeRejection(conformingTo: []) == nil,
+           "Schranke: ein Typ ohne verbotene Oberklasse ist erlaubt")
+    expect(FileTypeRules.mayBeResumed(conformingTo: []), "Schranke: mayBeResumed sagt dasselbe")
+
+    for (bezeichner, wortteil) in [("public.script", "Skript"),
+                                   ("public.executable", "Programm"),
+                                   ("public.unix-executable", "Programm"),
+                                   ("com.apple.application", "Programm"),
+                                   ("public.disk-image", "Abbild")] {
+        let grund = FileTypeRules.resumeRejection(conformingTo: [bezeichner])
+        expect(grund != nil, "Schranke: \(bezeichner) wird abgelehnt")
+        expect(grund?.contains(wortteil) == true,
+               "Schranke: der Grund nennt die Art (\(bezeichner) -> \(wortteil))")
+        expect(!FileTypeRules.mayBeResumed(conformingTo: [bezeichner]),
+               "Schranke: mayBeResumed verneint (\(bezeichner))")
+    }
+
+    // ⚠️ Der Grund nennt die FOLGE, nicht die Kategorie. "Skript" allein sagt
+    // niemandem, warum es abgelehnt wird - "wuerde an einen Interpreter gehen"
+    // schon. Dieselbe Regel wie bei `BulkAction.explanation`.
+    for bezeichner in FileTypeRules.forbiddenTypeIdentifiers {
+        let grund = FileTypeRules.resumeRejection(conformingTo: [bezeichner]) ?? ""
+        expect(grund.contains("würde") || grund.contains("wuerde"),
+               "Schranke: der Grund nennt die Folge (\(bezeichner))")
+    }
+
+    // Mehrere Konformitaeten zugleich: Das Skript gewinnt, weil es die genauere
+    // Auskunft ist - `.jar` ist beides.
+    expect(FileTypeRules.resumeRejection(conformingTo: ["public.script", "public.executable"])?
+            .contains("Skript") == true,
+           "Schranke: bei mehreren Treffern die genauere Auskunft")
+
+    // ⚠️ Ein Typ, der zu einer NICHT verbotenen Oberklasse gehoert, darf nicht
+    // durch Zufall haengenbleiben. `public.archive` steht ausdruecklich nicht
+    // auf der Liste - gemessen: `org.xmind.openformat.xmind` conform dazu, und
+    // xmind ist eine der wichtigsten Arbeitsdateien.
+    expect(FileTypeRules.mayBeResumed(conformingTo: ["public.archive", "public.data"]),
+           "Schranke: Archive sind NICHT gesperrt (xmind ist eines)")
+    expect(!FileTypeRules.forbiddenTypeIdentifiers.contains("public.archive"),
+           "Schranke: public.archive steht bewusst nicht auf der Liste")
+
+    // ── Die Erlaubnisliste bleibt das erste Netz. ──
+    //
+    // ⚠️ Die Typhierarchie kann VERWEIGERN, nie ERLAUBEN: `bpmn` hat einen
+    // dynamischen Bezeichner und conform zu nichts. Aus "nicht verboten" folgt
+    // also kein "erlaubt" - sonst waere jede unbekannte Endung offen.
+    expect(FileTypeRules.mayBeResumed(conformingTo: []), "Netz: unbekannter Typ ist nicht verboten")
+    expect(!FileTypeRules.leer.allowsResume(u("Unbekannt.xyz")),
+           "Netz: aber trotzdem nicht erlaubt - die Erlaubnisliste entscheidet zuerst")
+
+    // ── Wirkung im Sichtbarkeitstyp: eine Ergaenzung wirkt ueberall. ──
+    let sicht = FileVisibility(showsOnlyWorkFiles: true,
+                               typeRules: FileTypeRules(extraVisible: ["form"]))
+    expect(sicht.passesType(u("Formular.form")), "Wirkung: Ergaenzung wirkt im Office-Filter")
+    expect(!sicht.passesType(u("Skript.py")), "Wirkung: der Rest bleibt draussen")
+    expect(!FileVisibility(showsOnlyWorkFiles: true).passesType(u("Formular.form")),
+           "Wirkung: ohne Ergaenzung faellt form heraus")
+}
+
+// MARK: - Rueckfrage nennt ausgefuehrte Objekte (Sprint 17, AP2)
+do {
+    let ohne = BulkAction.explanation(kind: .open, count: 50)
+    expect(ohne.contains("50"), "Rueckfrage: die Zahl steht darin")
+    expect(!ohne.contains("ausgeführt"), "Rueckfrage: ohne Skripte kein zweiter Satz")
+
+    let mit = BulkAction.explanation(kind: .open, count: 50, executables: 12)
+    expect(mit.hasPrefix(ohne), "Rueckfrage: der bisherige Satz bleibt unveraendert vorn")
+    expect(mit.contains("12 Dateien"), "Rueckfrage: nennt die Zahl der ausgefuehrten")
+    expect(mit.contains("ausgeführt"), "Rueckfrage: und benennt die Folge")
+
+    expect(BulkAction.explanation(kind: .open, count: 2, executables: 1).contains("eine Datei"),
+           "Rueckfrage: Einzahl")
+
+    // ⚠️ Nur beim Oeffnen. „Im Finder anzeigen" fuehrt nichts aus; ein Hinweis
+    // dort waere Angstmacherei ohne Anlass.
+    expect(!BulkAction.explanation(kind: .reveal, count: 50, executables: 12).contains("ausgeführt"),
+           "Rueckfrage: kein Hinweis beim Anzeigen im Finder")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

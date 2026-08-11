@@ -82,10 +82,24 @@ public enum BulkAction {
     /// Nennt die **Folge**, nicht die Handlung: Dass geoeffnet wird, steht
     /// bereits in der Frage; was das bedeutet – so viele Fenster, so viele
     /// gestartete Programme –, ist die Information, die zur Entscheidung fehlt.
-    public static func explanation(kind: Kind, count: Int) -> String {
+    ///
+    /// **⚠️ Bei ``Kind/open`` kommt seit Sprint 17 ein zweiter Satz dazu, wenn
+    /// Skripte oder Programme in der Menge liegen.** Das Argument ist dasselbe,
+    /// mit dem die Zahl hier steht, nur eine Stufe weiter: Wer fünfzig Objekte
+    /// öffnet, von denen zwölf ausgeführt werden, trifft ohne diese Angabe eine
+    /// andere Entscheidung, als er glaubt.
+    ///
+    /// **⚠️ Es wird informiert, nicht blockiert.** Die Auswahl hat der Anwender
+    /// selbst zusammengestellt – anders als bei „Arbeit fortsetzen", wo das
+    /// Programm sie bildet und deshalb die Schranke greift. Wer die Auswahl hier
+    /// beschneidet, nimmt dem Werkzeug seinen Zweck.
+    public static func explanation(kind: Kind, count: Int, executables: Int = 0) -> String {
         switch kind {
         case .open:
-            return "Es werden \(count) Fenster geöffnet, je nach Dateityp in verschiedenen Programmen."
+            let grund = "Es werden \(count) Fenster geöffnet, je nach Dateityp in verschiedenen Programmen."
+            guard executables > 0 else { return grund }
+            let objekte = executables == 1 ? "eine Datei" : "\(executables) Dateien"
+            return grund + " Darunter \(objekte), die dabei ausgeführt werden."
         case .reveal:
             return "Der Finder zeigt \(count) Objekte an."
         case .openInApp(let app):

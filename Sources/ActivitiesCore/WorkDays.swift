@@ -129,10 +129,19 @@ public enum WorkDays {
     /// - Parameters:
     ///   - files: bereits gefilterte Dateien des Ordners (Typ, Name, Zeitraum).
     ///   - limit: hoechstens so viele Tage; `0` oder kleiner liefert nichts.
+    /// - Parameter isResumable: Womit gefiltert wird. Die Vorgabe ist
+    ///   ``isResumable(_:)``; die App-Schicht reicht ein strengeres Praedikat
+    ///   herein, das zusaetzlich die Nutzer-Freigaben und die Typschranke
+    ///   beruecksichtigt (Sprint 17, AP2).
+    ///
+    ///   **⚠️ Gefiltert wird VOR dem Gruppieren, und das bleibt so.** Sonst
+    ///   versprich das Menue eine Zahl, die es nicht haelt – und der Anwender
+    ///   erfaehrt erst nach dem Klick, wie viele Fenster wirklich aufgehen.
     public static func group(
         _ files: [RelevantFile],
         calendar: Calendar = .current,
-        limit: Int = maxDays
+        limit: Int = maxDays,
+        isResumable: (URL) -> Bool = { Self.isResumable($0) }
     ) -> [WorkDay] {
         guard limit > 0 else { return [] }
 

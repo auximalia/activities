@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.48 · 2026-08-11*
+*Stand: v1.19.49 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,47 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-44 · Die Hilfe war zehn Versionen alt *(v1.19.49)*
+**Aufwand:** S · **Art:** Defekt · *Durchsicht am 2026-08-11*
+
+**⚠️ Der eigentliche Befund ist nicht die veraltete Hilfe, sondern warum sie veralten
+konnte.** `HelpView.swift` trägt die Lehre aus UX-39 im eigenen Doc-Kommentar: *„Eine Hilfe,
+die etwas anderes sagt als die App, ist schlechter als keine – ihr glaubt man."* Die Antwort
+damals war richtig und wurde **nur zur Hälfte angewandt**: Die **Kürzeltabelle** wird seither
+aus `Shortcuts` erzeugt und von `CoreChecks` bewacht – und sie ist bis heute korrekt. Die
+**Prosa daneben** blieb handgepflegt und lief genau so auseinander. *Der Teil, der sich erzeugen
+ließ, wurde geschützt; der Teil, der es nicht kann, blieb ungeschützt.*
+
+**Vier Aussagen waren falsch.** Die schwerste: „Einen Ordner aufs Fenster ziehen setzt ihn als
+**neuen Wurzelordner**" – `RootView.swift` ruft `addSources`, und der `⚠️`-Kommentar direkt
+darüber sagt *„Seit PR-19 hinzufügen statt ersetzen"*. **Die Hilfe sagte das Gegenteil des
+Codes, zwei Zeilen voneinander entfernt.** Dazu „zuletzt genutzte" (in Sprint 16 abgeschafft)
+und zweimal „die Wurzel" statt mehrerer Quellen.
+
+**Drei waren unvollständig:** Bündelung ohne Quartal und Jahr, Sortierung ohne Größe (⌥⌘4),
+Namensfilter ohne UND/ODER.
+
+**Drei Merkmale fehlten ganz:** Office-Filter, Reiter „Dateitypen", und **„Arbeit
+fortsetzen"** – letzteres ist ausschließlich über das Kontextmenü erreichbar und stand in
+keinem Menü und in keiner Hilfe. Es hat jetzt einen eigenen Abschnitt, gerade *weil* es nur
+dort lebt.
+
+**⚠️ Zwei Fehler fand erst das laufende Programm, keiner davon den Quelltext.**
+
+1. **Markdown wurde nie ausgewertet.** `Text(bullet)` mit einer **Variablen** nimmt die reine
+   Zeichenkette; nur ein Literal wird als `LocalizedStringKey` gelesen. Seit jeher standen
+   `**Kalendertagen**` und `**Baum (wo?)**` als Sternchen in der Hilfe. Behoben mit
+   `Text(.init(bullet))`.
+2. **Und die Behebung riss sofort ein neues Loch:** Mit aktivem Markdown verschluckte die
+   Zeile zu den Platzhaltern ihre eigenen Sternchen – die Hilfe zu `*` und `?` zeigte kein
+   `*` mehr. Muster stehen jetzt in Backticks, was ohnehin richtig ist: Es sind Muster, kein
+   Fließtext. *Beide Male hätte ein Blick in den Quelltext nichts gezeigt.*
+
+**Der Schutz gegen die Wiederholung steht in `AGENTS.md`, nicht im Code:** Ein sichtbares
+Merkmal bekommt seine Hilfe-Zeile **im selben Commit**. Prosa lässt sich nicht erzeugen, also
+ist die Regel schwächer als eine Prüfung – *eine Prüfung, die es nicht geben kann, ist aber
+kein Argument gegen die schwächere.*
 
 ### ✅ UX-43 · Der Aufklapp-Pfeil war nicht eindeutig zu erfassen *(v1.19.46)*
 **Aufwand:** XS · **Art:** Defekt · *gemeldet am 2026-08-11*
@@ -592,6 +633,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.46 | Kleinigkeit | UX-43 · Aufklapp-Pfeil ist ein gefülltes Dreieck statt eines Chevrons |
 | v1.19.47 | Kleinigkeit | UX-43 · … und dann ein Kreis mit `+`/`−`: zwei Zeichen statt eines gedrehten |
 | v1.19.48 | Kleinigkeit | UX-43 · Das Plus wiegt schwerer als das Minus |
+| v1.19.49 | Kleinigkeit | UX-44 · Hilfe berichtigt; Markdown wurde nie ausgewertet |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

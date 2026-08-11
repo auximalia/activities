@@ -9,16 +9,20 @@ struct HelpView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
 
-                Text("activities zeigt, in welchen Unterordnern eines Ordners du "
-                     + "zuletzt gearbeitet hast – als Verlaufsdiagramm nach Dateiendung "
-                     + "und als Liste der betroffenen Ordner.")
+                Text("activities zeigt, in welchen Ordnern du zuletzt gearbeitet hast – "
+                     + "über eine oder mehrere Quellen hinweg, als Verlaufsdiagramm nach "
+                     + "Dateiendung und als Liste der betroffenen Ordner.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                section("Ordner wählen", icon: "folder", [
-                    "Ordner-Knopf links in der Titelleiste: „Ordner wählen …“ oder zuletzt genutzte.",
-                    "Der gewählte Ordner ist die Wurzel – alle Unterordner zählen mit.",
+                section("Quellen wählen", icon: "folder", [
+                    "Knopf links in der Titelleiste: Quellen einzeln an- und abwählen.",
+                    "Mehrere Quellen gleichzeitig möglich – jede erscheint als eigener Wurzelknoten.",
+                    "Alle Unterordner einer Quelle zählen mit.",
+                    "Einen Ordner aufs Fenster ziehen fügt ihn als **weitere** Quelle hinzu.",
+                    "Überlappende Quellen werden abgelehnt – sie würden jede Datei doppelt zählen.",
+                    "Hinzufügen und Entfernen: Einstellungen → Quellen (⌘,).",
                 ])
 
                 section("Zeitraum festlegen", icon: "calendar", [
@@ -32,7 +36,15 @@ struct HelpView: View {
                 section("Nach Namen filtern", icon: "line.3.horizontal.decrease.circle", [
                     "Einfach einen Teil des Namens eingeben, z. B. studium.",
                     "Wirkt beim Tippen; Groß-/Kleinschreibung spielt keine Rolle.",
-                    "Zusätzlich möglich: Platzhalter * und ?, z. B. *.pdf oder *Studium*.xls*.",
+                    "Mehrere Begriffe: Das Leerzeichen bedeutet UND – „Angebot Muster“ findet auch „Muster für Angebot.pdf“.",
+                    "„ODER“ (auch „OR“) trennt Alternativen: „Angebot ODER Rechnung“.",
+                    // ⚠️ Muster in Backticks, nicht nackt: Seit die Stichpunkte als
+                    // Markdown ausgewertet werden, verschluckt ein nacktes `*`
+                    // sich selbst – die Hilfe zu Platzhaltern zeigte dann keine
+                    // Platzhalter mehr. Backticks sind hier ohnehin richtig: Es
+                    // sind Muster, kein Fliesstext.
+                    "Zusätzlich möglich: Platzhalter `*` und `?`, z. B. `*.pdf` oder `*Studium*.xls*`.",
+                    "Mit Platzhalter wird **nicht** zerlegt – dort gilt der Text wörtlich.",
                 ])
 
                 section("Aktualisieren & Auto-Refresh", icon: "arrow.clockwise", [
@@ -53,7 +65,9 @@ struct HelpView: View {
                     "Chips per Tabulator erreichbar: Leertaste schaltet, Enter zeigt nur diesen Typ.",
                     "Klick auf ein Segment springt zur passenden Datei.",
                     "Ziehen im Diagramm wählt einen Zeitraum aus.",
-                    "Lange Zeiträume werden nach Woche oder Monat gebündelt.",
+                    "Lange Zeiträume werden nach Woche, Monat, Quartal oder Jahr gebündelt.",
+                    "Die Achse endet heute; Dateien mit einem Datum in der Zukunft liegen außerhalb – ein Hinweis nennt ihre Zahl.",
+                    "Ganz links das Plättchen „Office“: zeigt nur Arbeitsdateien (Dokumente, PDF, Tabellen, Präsentationen, bpmn, graph).",
                     "Legende: jeder Eintrag ist ein Knopf – Klick blendet den Typ aus/ein.",
                     "Doppelklick = nur diesen Typ; erneuter Doppelklick = wieder alle.",
                     "Sind Typen ausgeblendet, erscheint ein Hinweis mit „Zurücksetzen“ (⌥⌘R).",
@@ -66,7 +80,7 @@ struct HelpView: View {
                     "Mehrere Stufen ohne Verzweigung stehen zusammengefasst (Sources/App).",
                     "Zeit: nach „Heute“, „Gestern“ … gruppiert, mit angehefteten Ordnern oben.",
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
-                    "Pfade sind relativ zum gewählten Ordner; Datum relativ („Heute, 14:32“).",
+                    "Pfade sind relativ zur jeweiligen Quelle; Datum relativ („Heute, 14:32“).",
                     "Bei schmalem Fenster entfällt der Pfad – er bleibt im Tooltip.",
                     "Diagramm und Legende bleiben oben stehen; „Diagramm ausblenden“ schafft Platz.",
                     "Über dem Diagramm steht der angezeigte Zeitraum als Überschrift.",
@@ -75,9 +89,8 @@ struct HelpView: View {
                     "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",
                     "Der Uhr-Schalter oben zeigt sie bei Bedarf (grau/gedimmt, Uhr-Symbol).",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",
-                    "Sortieren nach Datum, Name oder Typ (⇅-Menü, ⌥⌘1/2/3).",
+                    "Sortieren nach Datum, Name, Typ oder Größe (⇅-Menü, ⌥⌘1/2/3/4).",
                     "Dateien lassen sich in andere Programme ziehen.",
-                    "Einen Ordner aufs Fenster ziehen setzt ihn als neuen Wurzelordner.",
                 ])
 
                 section("In anderen Programmen öffnen", icon: "arrow.up.forward.app", [
@@ -85,6 +98,24 @@ struct HelpView: View {
                     "Bei Dateien öffnet der Editor die Dateien, das Terminal deren Ordner.",
                     "Vorbelegt wird, was tatsächlich installiert ist – sonst fehlt der Eintrag.",
                     "Änderbar unter Einstellungen → Allgemein → Programme (⌘,).",
+                ])
+
+                // ⚠️ Eigener Abschnitt, obwohl der Befehl nur im Kontextmenue
+                // lebt. Gerade deshalb: Was man nicht in einem Menue findet,
+                // erfaehrt man sonst nirgends.
+                section("Arbeit fortsetzen", icon: "arrow.uturn.backward.circle", [
+                    "Rechtsklick auf einen Ordner: „Arbeit fortsetzen“ öffnet die Dateien eines Arbeitstags auf einmal." ,
+                    "Angeboten werden die letzten Arbeitstage mit Datum und Anzahl.",
+                    "Geöffnet werden nur Dokumente – Skripte, Programme und Abbilder nie, auch nicht auf Wunsch.",
+                    "Ein Doppelklick auf eine **einzelne** Datei öffnet dagegen immer alles.",
+                    "Ab 10 Objekten fragt die App zurück und nennt die Zahl.",
+                ])
+
+                section("Dateitypen", icon: "doc.badge.gearshape", [
+                    "Einstellungen → Dateitypen (⌘,): je Endung Anzahl, Standardprogramm und zwei Häkchen.",
+                    "„Office“ bestimmt, was der Office-Filter zeigt." ,
+                    "„Arbeit fortsetzen“ bestimmt, was ein Klick öffnen darf – nur setzbar, wenn „Office“ gesetzt ist." ,
+                    "Skripte, Programme und Abbilder lassen sich nicht freigeben; der Grund steht in der Zeile.",
                 ])
 
                 section("Tastatur & Vorschau", icon: "keyboard", [
@@ -172,7 +203,15 @@ struct HelpView: View {
                 ForEach(bullets, id: \.self) { bullet in
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("•").foregroundStyle(.secondary)
-                        Text(bullet)
+                        // ⚠️ `.init(bullet)` macht daraus einen
+                        // `LocalizedStringKey` – nur dann wertet SwiftUI das
+                        // Markdown aus. `Text(bullet)` mit einer **Variablen**
+                        // nimmt die reine Zeichenkette und zeigt die Sternchen
+                        // an. Der Fehler stand hier unbemerkt, weil er nur an
+                        // den wenigen hervorgehobenen Stellen sichtbar ist –
+                        // gefunden bei der Durchsicht am laufenden Programm,
+                        // nicht am Quelltext.
+                        Text(.init(bullet))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .font(.callout)

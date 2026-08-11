@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Stand: v1.19.35 · 2026-08-10*
+*Stand: v1.19.49 · 2026-08-11*
 
 ## What this repo is
 
@@ -105,6 +105,17 @@ Therefore, from v1.19.45 on:
   because a release felt due. Work arrives from **practice**, not from the list. The
   four most recent entries all came that way: `.bpmn` in Camunda Modeller, the update
   check behind a shared IP quota, the seventy-year axis, the overlapping labels.
+- **⚠️ A visible feature gets its help line in the same commit.** Not later, not in a
+  follow-up. `HelpView.swift` already carries the lesson from UX-39 — five shipped
+  shortcuts were missing from the help, and *"a help that says something other than
+  the app is worse than none: that one gets believed"*. The answer then was right and
+  **only half applied**: the shortcut table is generated from `Shortcuts` in the core
+  and verified by `CoreChecks`, and it has been correct ever since. The prose beside it
+  stayed hand-kept and drifted the same way — by v1.19.48 it claimed a dropped folder
+  becomes the *root folder*, the exact opposite of what the code's own `⚠️` says, and
+  it did not mention the Office filter, the file-type tab or "Arbeit fortsetzen" at
+  all. Prose cannot be generated, so this rule is the guard, and it is weaker than a
+  check on purpose — a check that cannot exist is no argument against the weaker one.
 - **Nothing else is relaxed.** `swift build` and `swift run CoreChecks` stay green,
   `decision-check` still runs before a decision that would earn a `⚠️`, and
   `ux-review` still runs before anything visible ships. **Those obligations were never

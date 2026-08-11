@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.52 · 2026-08-11*
+*Stand: v1.19.53 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,56 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-55 · Die Entprellung war kürzer als die Arbeit, die sie auslöste *(v1.19.53)*
+**Aufwand:** S · **Art:** Defekt · *Gemeldet: „bei sehr vielen Dateien kann man kaum schreiben"*
+
+**Gemessen, nicht geschätzt** (`swift run -c release Bench`, ein Durchgang aus Filtern,
+Ordnerzeilen, Baum und Sortieren – alles auf dem Hauptstrang):
+
+| Bestand | Filter | Baum | Ordnerzeilen | Sortieren | **je Tastendruck** |
+|---|---|---|---|---|---|
+| 100 000 | 195 ms | 124 ms | 47 ms | 219 ms | **~0,6 s** |
+| 250 000 | 478 ms | 307 ms | 116 ms | 508 ms | **~1,4 s** |
+| 500 000 | 994 ms | 639 ms | 268 ms | 1,08 s | **~3,0 s** |
+
+**⚠️ Damit ist der Befund nicht „zu kurz entprellt", sondern „falsches Mittel".** Eine
+Entprellung hilft nur, wenn die Arbeit **kürzer** ist als die Pause. Bei 250 ms Pause und
+0,6–3,0 s Arbeit garantierte sie einen Stillstand nach jedem Tippstocken. Ein größerer Wert
+hätte das nur verschoben – und die Grenze wäre geraten, nicht gemessen.
+
+**Entschieden:** Enter startet die Suche. Die Kurzhilfe am Suchfeld **versprach das ohnehin
+schon** („Enter startet die Suche"), und `onSubmit` gab es bereits – das Tippen-wirkt-sofort
+war der Teil, der dem eigenen Versprechen widersprach. `namePattern` bedeutet jetzt das
+**angewandte** Muster, `namePatternDraft` den Text im Feld; alle Stellen, die filtern, zählen
+oder begründen, benutzen das angewandte.
+
+**⚠️ Zwei Dinge, die sonst ein Ruckeln gegen eine Lüge getauscht hätten:**
+
+1. **Ein leer gewordenes Feld wirkt SOFORT, ohne Enter.** Sonst stünde ein leeres Suchfeld
+   über einer beschnittenen Liste – die umgekehrte Form von UX-06, und schlimmer als das
+   Ruckeln: Der Anwender hätte genau das Zeichen entfernt, das ihn auf den Filter hinweist,
+   und der Filter bliebe.
+2. **Der Schwebezustand ist sichtbar.** Solange Getipptes und Angewandtes auseinanderfallen,
+   steht in der Statuszeile „Enter drücken, um nach „…" zu suchen" – **neben** dem gesetzten
+   Filter, nicht an seiner Stelle, denn beides kann gleichzeitig gelten. Ohne dieses Zeichen
+   wäre die Erfahrung „ich tippe, und nichts passiert" – dieselbe, die diese Woche schon zu
+   „die Funktion ist kaputt" geführt hat.
+
+**Beleg am laufenden Programm** (Quelle: USB-Platte, 7 323 Dateien): tippen → Liste bleibt bei
+30 Dateien, Hinweis erscheint; Enter → 20 Dateien, Hinweis weicht dem Namensfilter; Feld leeren
+→ sofort zurück auf 30 ohne Enter.
+
+**Nicht gebaut:** Das Filtern nebenläufig oder abbrechbar zu machen. Das wäre die große Lösung
+für dasselbe Problem, und sie zieht die gesamte Kette (Filter → Ordnerzeilen → Baum → Sortieren)
+vom Hauptstrang – ein Umbau, kein Hotfix. Ebenso verworfen: unterhalb einer gemessenen
+Bestandsgröße weiter live zu filtern. Dasselbe Bedienelement verhielte sich dann auf zwei
+Rechnern verschieden.
+
+**⚠️ Nebenbefund, nicht behoben:** Im Profillauf tauchten `SourceList.activeInOrder` und
+`isActive` auf – beide bauen bei jedem Aufruf eine Liste neu und normalisieren dabei jeden
+Pfad. Aufgerufen werden sie unter anderem aus `relativePath(of:)`, also **je Zeile**. Bei
+7 000 Dateien fällt das nicht auf; es ist ein eigener Eintrag wert, kein Anhängsel hier.
 
 ### ✅ PR-54 · „Quelle hinzufügen" konnte wortlos aufgeben *(v1.19.52)*
 **Aufwand:** S · **Art:** Defekt · *Nachtrag zu PR-53, gemeldet als „die Funktion ist kaputt"*
@@ -750,6 +800,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.50 | Kleinigkeit | UX-45 · „Arbeit fortsetzen" ins Menü Auswahl |
 | v1.19.51 | Kleinigkeit | PR-53 · Bekannte, abgehakte Quelle wird angehakt statt abgelehnt |
 | v1.19.52 | Kleinigkeit | PR-54 · Zwei stumme Pfade beim Hinzufügen einer Quelle |
+| v1.19.53 | Kleinigkeit | PR-55 · Suche startet mit Enter statt entprellt beim Tippen |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

@@ -137,7 +137,28 @@ final class ReportViewModel {
     /// sich Suchlauf, Baum und Statuszeile beziehen.
     private(set) var sources: SourceList { didSet { invalidateRows() } }
     var days: Int
+    /// Das **angewandte** Namensmuster – das, was die Liste gerade zeigt.
+    ///
+    /// **⚠️ Nicht das, was im Suchfeld steht.** Dafuer gibt es
+    /// ``namePatternDraft``. Die Trennung ist der ganze Punkt von PR-55: Getippt
+    /// wird ohne Rechnen, gesucht wird auf Enter. Alle Stellen, die filtern,
+    /// zaehlen oder begruenden, benutzen **dieses** Feld – sie sollen nie
+    /// beschreiben, was der Anwender gerade halb eingegeben hat.
     var namePattern: String { didSet { invalidateRows() } }
+
+    /// Der Text **im Suchfeld** – noch nicht unbedingt angewandt.
+    var namePatternDraft: String = ""
+
+    /// Ob im Feld etwas anderes steht als das, was die Liste zeigt.
+    ///
+    /// **⚠️ Muss sichtbar sein, sonst tauscht man ein Ruckeln gegen eine Luege.**
+    /// Waehrend des Schwebezustands zeigt die Liste etwas anderes als das
+    /// Suchfeld – wer das nicht sieht, haelt die Suche fuer kaputt. Das ist
+    /// dieselbe Klasse von Fehler wie UX-06 (stiller Filter), nur umgekehrt:
+    /// nicht zu wenig angezeigt, sondern zu viel.
+    var nameFilterPending: Bool {
+        namePatternDraft.trimmingCharacters(in: .whitespacesAndNewlines) != namePattern
+    }
     /// Zeitmodus: false = rollierend (Tage), true = feste Zeitspanne (von–bis).
     var useDateRange: Bool
     /// Kein Zeitfenster – die App arbeitet als reines Suchwerkzeug ueber den
@@ -398,6 +419,7 @@ final class ReportViewModel {
         self.sources = saved.sources
         self.days = saved.days
         self.namePattern = saved.namePattern
+        self.namePatternDraft = saved.namePattern
         self.autoRefresh = saved.autoRefresh
         self.showOutOfWindowFiles = saved.showOutOfWindowFiles
         self.typeRules = store.loadTypeRules()
@@ -2151,35 +2173,41 @@ final class ReportViewModel {
         return .timeWindow(total: scannedFiles.count)
     }
 
-    /// Laufende Entprellung der Filtereingabe.
-    private var filterDebounceTask: Task<Void, Never>?
-    /// Wartezeit, bis eine Filtereingabe wirkt.
+    /// Reagiert auf eine Aenderung im Suchfeld – **ohne zu rechnen**.
     ///
-    /// Ohne Entprellung wuerde jede Zwischenstufe („s", „st", „stu") eine
-    /// Neuberechnung samt Nachladen von Detaildateien ausloesen – beim Tippen
-    /// spuerbar ruckelig.
-    private static let filterDebounce = Duration.milliseconds(250)
-
-    /// Reagiert auf eine Aenderung im Suchfeld – **entprellt**.
+    /// **⚠️ Bis v1.19.52 stand hier eine Entprellung von 250 ms, und die war
+    /// kuerzer als die Arbeit, die sie ausloeste.** Gemessen mit dem hauseigenen
+    /// Messstand (`swift run -c release Bench`) kostet ein Durchgang aus
+    /// Filtern, Ordnerzeilen, Baum und Sortieren rund **0,6 s bei 100.000**,
+    /// **1,4 s bei 250.000** und **3,0 s bei 500.000** Dateien – auf dem
+    /// Hauptstrang. Eine Entprellung hilft nur, wenn die Arbeit kuerzer ist als
+    /// die Pause; hier garantierte sie einen Stillstand nach jedem Tippstocken.
+    /// Ein groesserer Wert haette das Problem nur verschoben.
+    ///
+    /// **⚠️ Ein leer gewordenes Feld wirkt dagegen SOFORT.** Sonst stuende ein
+    /// leeres Suchfeld ueber einer beschnittenen Liste – das waere die
+    /// umgekehrte Form von UX-06 und schlimmer als das Ruckeln: Der Anwender
+    /// haette das Zeichen entfernt, das ihn auf den Filter hinweist, und trotzdem
+    /// bliebe der Filter.
     func namePatternDidChange() {
-        filterDebounceTask?.cancel()
-        filterDebounceTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.filterDebounce)
-            guard !Task.isCancelled, let self else { return }
-            self.applyWindowChange()
-        }
+        let entwurf = namePatternDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard entwurf.isEmpty, !namePattern.isEmpty else { return }
+        namePattern = ""
+        applyWindowChange()
     }
 
-    /// Wendet den Filter sofort an (Enter im Suchfeld).
+    /// Wendet den Filter an (Enter im Suchfeld).
     func applyNameFilterNow() {
-        filterDebounceTask?.cancel()
+        let entwurf = namePatternDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard entwurf != namePattern else { return }
+        namePattern = entwurf
         applyWindowChange()
     }
 
     /// Loescht den Namensfilter und rechnet neu (ohne Suchlauf).
     func clearNameFilter() {
+        namePatternDraft = ""
         guard !namePattern.isEmpty else { return }
-        filterDebounceTask?.cancel()
         namePattern = ""
         applyWindowChange()
     }
@@ -2205,13 +2233,14 @@ final class ReportViewModel {
     func rescan(preservingState: Bool = false) {
         scanTask?.cancel()
         detailLoadTask?.cancel()
-        // **Haengende Filtereingabe verwerfen.** Eine noch laufende Entprellung
-        // wuerde 250 ms spaeter ``applyWindowChange()`` ausloesen und die
-        // Tabelle mitten im frischen Suchlauf aus dem **alten** Speicherbestand
-        // neu aufbauen. Wer „neu einlesen" auslaest, will die Platte sehen –
-        // das aktuell im Feld stehende Muster wirkt ohnehin, denn der Suchlauf
-        // wertet es am Ende ueber ``filteredFromScan()`` aus.
-        filterDebounceTask?.cancel()
+        // **⚠️ Hier stand ein `filterDebounceTask?.cancel()`, und es faellt mit
+        // der Entprellung weg – nicht aus Versehen.** Es verhinderte, dass eine
+        // haengende Eingabe 250 ms spaeter die Tabelle mitten im frischen
+        // Suchlauf aus dem **alten** Speicherbestand neu aufbaut. Seit PR-55
+        // gibt es keine haengende Eingabe mehr: Was nicht mit Enter bestaetigt
+        // wurde, wirkt gar nicht. Ein halb getipptes Muster kann den Suchlauf
+        // also nicht mehr ueberholen; ``filteredFromScan()`` wertet am Ende das
+        // **angewandte** Muster aus.
 
         let w = window
         if useDateRange {

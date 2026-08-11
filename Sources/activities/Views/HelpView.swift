@@ -35,7 +35,9 @@ struct HelpView: View {
 
                 section("Nach Namen filtern", icon: "line.3.horizontal.decrease.circle", [
                     "Einfach einen Teil des Namens eingeben, z. B. studium.",
-                    "Wirkt beim Tippen; Groß-/Kleinschreibung spielt keine Rolle.",
+                    "**Enter** startet die Suche – beim Tippen rechnet das Programm nicht. Bis dahin steht unter dem Diagramm, dass noch nichts gesucht wurde.",
+                    "Feld leeren hebt den Filter sofort auf, ohne Enter.",
+                    "Groß-/Kleinschreibung spielt keine Rolle.",
                     "Mehrere Begriffe: Das Leerzeichen bedeutet UND – „Angebot Muster“ findet auch „Muster für Angebot.pdf“.",
                     "„ODER“ (auch „OR“) trennt Alternativen: „Angebot ODER Rechnung“.",
                     // ⚠️ Muster in Backticks, nicht nackt: Seit die Stichpunkte als

@@ -33,7 +33,7 @@ struct MainToolbar: ToolbarContent {
         // 2. Suche
         ToolbarItem(placement: .navigation) {
             SearchField(
-                text: $model.namePattern,
+                text: $model.namePatternDraft,
                 prompt: "Name filtern, z. B. studium",
                 onChange: { model.namePatternDidChange() },
                 onSubmit: { model.applyNameFilterNow() }
@@ -50,9 +50,11 @@ struct MainToolbar: ToolbarContent {
                         .allowsHitTesting(false)
                 }
             }
-            .help("Teil des Dateinamens eingeben. Platzhalter * und ? sind zusätzlich möglich. Enter startet die Suche.")
+            .help("Teil des Dateinamens eingeben, dann Enter. Mehrere Wörter: alle müssen vorkommen. ODER trennt Alternativen. Platzhalter * und ? sind möglich. Ein leeres Feld hebt den Filter sofort auf.")
             .accessibilityLabel("Name filtern")
-            .accessibilityValue(model.hasNameFilter ? "Filter aktiv: \(model.namePattern)" : "kein Filter")
+            .accessibilityValue(model.nameFilterPending
+                ? "Noch nicht gesucht – Enter drücken"
+                : (model.hasNameFilter ? "Filter aktiv: \(model.namePattern)" : "kein Filter"))
         }
 
         // 3. Zeitraum – mit dem Trennstrich zu den Anpassungen im selben Element.

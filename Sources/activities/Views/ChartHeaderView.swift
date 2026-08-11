@@ -182,9 +182,13 @@ struct ChartHeaderView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(text)
         }
-        if model.hasNameFilter || model.hasTypeFilter || zeigtRauschen {
+        if model.nameFilterPending || model.hasNameFilter || model.hasTypeFilter || zeigtRauschen {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 10) {
+                    if model.nameFilterPending { pendingSegment }
+                    if model.nameFilterPending && (model.hasNameFilter || model.hasTypeFilter || zeigtRauschen) {
+                        Divider().frame(height: 11)
+                    }
                     if model.hasNameFilter { nameSegment }
                     if model.hasNameFilter && (model.hasTypeFilter || zeigtRauschen) {
                         Divider().frame(height: 11)
@@ -196,6 +200,7 @@ struct ChartHeaderView: View {
                     if model.hasTypeFilter { typeSegment }
                 }
                 VStack(alignment: .leading, spacing: 3) {
+                    if model.nameFilterPending { pendingSegment }
                     if model.hasNameFilter { nameSegment }
                     if zeigtRauschen { noiseSegment }
                     if model.hasTypeFilter { typeSegment }
@@ -223,6 +228,29 @@ struct ChartHeaderView: View {
     /// Der Filter steht zwar im Suchfeld, aber ein Feld mit Text sieht fast aus
     /// wie eines ohne. Wer ihn uebersieht, haelt eine gefilterte Liste fuer den
     /// ganzen Bestand.
+    /// **Getipptes, das noch nicht gesucht wurde.**
+    ///
+    /// **⚠️ Der Preis der Enter-Auslösung, und er muss bezahlt werden.** Seit
+    /// PR-55 rechnet das Programm beim Tippen nicht mehr – dafür zeigt die Liste
+    /// währenddessen etwas anderes, als im Suchfeld steht. Ohne sichtbares
+    /// Zeichen ist das genau die Erfahrung „die Suche ist kaputt": Man tippt,
+    /// und nichts passiert. Derselbe Fehler wie UX-06, nur umgekehrt – dort war
+    /// zu wenig zu sehen, hier zu viel.
+    ///
+    /// Steht **neben** dem Namensfilter, nicht an seiner Stelle: Beides kann
+    /// gleichzeitig gelten (ein Filter ist gesetzt, und im Feld steht schon der
+    /// nächste). Wer das eine durch das andere ersetzt, verschweigt, wonach
+    /// gerade gefiltert wird.
+    private var pendingSegment: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "return.circle.fill")
+                .foregroundStyle(.tint)
+            Text("Enter drücken, um nach „\(model.namePatternDraft.trimmingCharacters(in: .whitespacesAndNewlines))“ zu suchen")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Noch nicht gesucht: \(model.namePatternDraft). Enter drücken.")
+    }
+
     private var nameSegment: some View {
         HStack(spacing: 5) {
             Image(systemName: "magnifyingglass.circle.fill")

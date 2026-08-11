@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.51 · 2026-08-11*
+*Stand: v1.19.52 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,35 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-54 · „Quelle hinzufügen" konnte wortlos aufgeben *(v1.19.52)*
+**Aufwand:** S · **Art:** Defekt · *Nachtrag zu PR-53, gemeldet als „die Funktion ist kaputt"*
+
+**⚠️ Nicht nachstellbar – und das änderte, wonach gesucht wurde.** Auf v1.19.51 wurde jeder
+Weg geprüft: neuer Ordner über das Menü, neuer Ordner über Blättern und den Knopf „Öffnen",
+bekannter abgehakter Ordner, überlappender Ordner. Alle vier taten das Richtige. Statt weiter
+nach der Reproduktion zu suchen, wurde die Frage umgedreht: **An welchen Stellen kann diese
+Funktion aufgeben, ohne ein Wort zu sagen?** Es waren zwei.
+
+1. **Ein `.failure` des Dateidialogs wurde verschluckt.** Beide Aufrufer werteten nur
+   `if case .success` aus. Scheiterte die Übernahme – Rechte, Quarantäne, ausgehängtes
+   Laufwerk –, geschah nichts und es stand nichts da. Für den Anwender ist das nicht „ein
+   Fehler", sondern „die Funktion ist kaputt", und er hat recht damit.
+
+2. **`for url in urls where url.hasDirectoryPath` übersprang stillschweigend.** Das ist eine
+   Eigenschaft der **URL-Zeichenkette**, nicht des Ordners: Sie fehlt, wenn die URL ohne
+   Schrägstrich am Ende gebildet wurde – bei Verweisen, Aliassen, eingehängten Laufwerken.
+   Der Ordner existierte, wurde aber übersprungen. Gefragt wird jetzt die Platte
+   (`fileExists(atPath:isDirectory:)`), und wenn dort kein Ordner liegt, wird das gesagt statt
+   verschwiegen.
+
+**Warum die Prüfung nicht in den Kern kam:** `SourceList` kennt die Platte nicht. Wo dieses
+Wissen nötig ist, wird es hineingereicht – so macht es `existingOnly(_:)` bereits. Deshalb
+bleibt die Zusicherungszahl bei 1324: **Hier kam keine neue Regel dazu, nur eine Stimme.**
+
+**Die Lehre steht quer zu PR-53 und ergänzt sie:** Dort war die Regel richtig und wirkungslos,
+weil die App ein zweites Mal entschied. Hier ist die Regel richtig und **unhörbar**. Beides
+sieht am Bildschirm gleich aus – es passiert nichts –, und beides ist im Quelltext unauffällig.
 
 ### ✅ PR-53 · Eine Quelle hinzufügen tat nichts, wenn sie schon bekannt war *(v1.19.51)*
 **Aufwand:** S · **Art:** Defekt · *Gemeldet vom Anwender mit Bildschirmfoto*
@@ -720,6 +749,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.49 | Kleinigkeit | UX-44 · Hilfe berichtigt; Markdown wurde nie ausgewertet |
 | v1.19.50 | Kleinigkeit | UX-45 · „Arbeit fortsetzen" ins Menü Auswahl |
 | v1.19.51 | Kleinigkeit | PR-53 · Bekannte, abgehakte Quelle wird angehakt statt abgelehnt |
+| v1.19.52 | Kleinigkeit | PR-54 · Zwei stumme Pfade beim Hinzufügen einer Quelle |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

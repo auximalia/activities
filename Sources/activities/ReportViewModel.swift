@@ -1922,7 +1922,24 @@ final class ReportViewModel {
     /// und erfahren, warum der dritte fehlt.
     func addSources(_ urls: [URL]) {
         var abgelehnt: [String] = []
-        for url in urls where url.hasDirectoryPath {
+        for url in urls {
+            // **⚠️ Gefragt wird die Platte, nicht die Zeichenkette.** Hier stand
+            // `where url.hasDirectoryPath` – und das ist eine Eigenschaft der
+            // URL, nicht des Ordners: Sie fehlt, wenn die URL ohne Schrägstrich
+            // am Ende gebildet wurde, etwa bei Verweisen, Aliassen oder
+            // eingehaengten Laufwerken. Der Ordner existierte, wurde aber
+            // **stillschweigend uebersprungen** – die Funktion schien kaputt,
+            // ohne ein Wort zu sagen. Die Pruefung gehoert nicht in den Kern:
+            // ``SourceList`` kennt die Platte nicht, und wo dieses Wissen noetig
+            // ist, wird es hineingereicht (siehe ``SourceList/existingOnly(_:)``).
+            var istOrdner: ObjCBool = false
+            let vorhanden = FileManager.default.fileExists(atPath: url.path, isDirectory: &istOrdner)
+            guard vorhanden, istOrdner.boolValue else {
+                abgelehnt.append(vorhanden
+                    ? "\u{201E}\(url.lastPathComponent)\u{201C} ist kein Ordner."
+                    : "\u{201E}\(url.lastPathComponent)\u{201C} wurde nicht gefunden.")
+                continue
+            }
             // **⚠️ Der Rueckgabewert von ``SourceList/add(_:)`` entscheidet –
             // NICHT ein eigener Aufruf von ``rejectionReason(forAdding:)``.**
             // Genau so stand es hier bis v1.19.51, und damit traf die App die
@@ -1937,6 +1954,17 @@ final class ReportViewModel {
         }
         applySourceChange()
         sourceNotice = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: " ")
+    }
+
+    /// Meldet, dass der Dateidialog selbst gescheitert ist.
+    ///
+    /// **⚠️ Ein `.failure` wurde bis v1.19.52 verschluckt** – beide Aufrufer
+    /// werteten nur `if case .success` aus. Scheiterte die Uebernahme (Rechte,
+    /// Quarantaene, ausgehaengtes Laufwerk), geschah nichts und es stand nichts
+    /// da: Fuer den Anwender war „Quelle hinzufuegen" schlicht kaputt. Ein
+    /// Fehlschlag, den niemand sieht, ist schlimmer als eine Fehlermeldung.
+    func reportSourceImportFailure(_ fehler: Error) {
+        sourceNotice = "Der Ordner konnte nicht übernommen werden: \(fehler.localizedDescription)"
     }
 
     /// Der Grund einer Ablehnung im Klartext.

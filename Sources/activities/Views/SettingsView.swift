@@ -205,7 +205,10 @@ struct SettingsView: View {
             allowedContentTypes: [.folder],
             allowsMultipleSelection: true
         ) { result in
-            if case .success(let urls) = result { model.addSources(urls) }
+            switch result {
+            case .success(let urls): model.addSources(urls)
+            case .failure(let fehler): model.reportSourceImportFailure(fehler)
+            }
         }
     }
 

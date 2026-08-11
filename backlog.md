@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.53 · 2026-08-11*
+*Stand: v1.19.54 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,43 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-46 · Der Anwender gab auf, obwohl die App es konnte *(v1.19.54)*
+**Aufwand:** S · **Art:** Defekt · *Gefunden im Gespräch, nicht auf der Liste*
+
+**Beobachtet:** Gesucht war „Garten", aber nicht „Kindergartenplatz". Die Schlussfolgerung des
+Anwenders: *„Ich sehe ein, dass Regexp Overkill ist."* – **Er hat auf etwas verzichtet, das
+das Programm längst kann.** Genau das ist der teuerste Mangel: kein Absturz, keine
+Fehlermeldung, nur eine stillschweigend nicht genutzte Fähigkeit.
+
+**Nachgemessen** (`NameFilter` + `GlobMatcher` gegen sechs Beispielnamen):
+
+| Muster | findet | findet **nicht** |
+|---|---|---|
+| `Garten` | alle sechs | – |
+| `_Garten_` | `Foto_Garten_Sommer.png` | Kindergartenplatz |
+| `Garten.` | `Mein Garten.pdf`, `Ziergarten.md` | Kindergartenplatz |
+| `* Garten *` | `Der Garten waechst.pdf` | Kindergartenplatz, Ziergarten |
+| `*_Garten_* ODER * Garten.*` | beide gewünschten | Kindergartenplatz, Ziergarten, Gartenzwerg |
+
+**Die Ursache ist eine Lücke in der Hilfe, keine im Programm.** Die Hilfe nannte Platzhalter
+und `ODER` je einzeln, verschwieg aber die Regel, die beides erst brauchbar macht: **Sobald ein
+Platzhalter im Muster steht, gilt der Text wörtlich – Leerzeichen eingeschlossen.** Ohne sie
+ist ein Leerzeichen ein UND-Trenner und nicht suchbar; mit ihr grenzt man ein Wort ab. Die Regel
+stand seit Sprint 16 als `⚠️` im Doc-Kommentar von `NameFilter` – **also dort, wo der Anwender
+nie hinsieht.**
+
+**⚠️ Die Zusage bekommt eine Prüfung, nicht nur einen Satz.** 13 neue Zusicherungen
+(1324 → 1337) halten die Beispiele der Hilfe fest, samt der unbequemen: `Garten.` grenzt nach
+rechts ab, **nach links nicht** – `Ziergarten.md` bleibt Treffer. Wer die Hilfe später kürzt
+oder den Glob-Zweig anfasst, bricht eine Prüfung statt still ein Versprechen. Das ist die
+Antwort auf UX-44: Prosa lässt sich nicht erzeugen, aber eine Zusage, die eine Prüfung bewachen
+kann, bekommt eine.
+
+**Nicht gebaut:** Ein `NICHT`-Schlüsselwort und eine Wortgrenzen-Schreibweise (`"Garten"`).
+Beide waren als Entwurf fertig und beide sind überflüssig, sobald die vorhandene Schreibweise
+bekannt ist. Eine zweite Syntax für dasselbe Ergebnis hätte die erste nur unauffindbarer
+gemacht.
 
 ### ✅ PR-55 · Die Entprellung war kürzer als die Arbeit, die sie auslöste *(v1.19.53)*
 **Aufwand:** S · **Art:** Defekt · *Gemeldet: „bei sehr vielen Dateien kann man kaum schreiben"*
@@ -801,6 +838,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.51 | Kleinigkeit | PR-53 · Bekannte, abgehakte Quelle wird angehakt statt abgelehnt |
 | v1.19.52 | Kleinigkeit | PR-54 · Zwei stumme Pfade beim Hinzufügen einer Quelle |
 | v1.19.53 | Kleinigkeit | PR-55 · Suche startet mit Enter statt entprellt beim Tippen |
+| v1.19.54 | Kleinigkeit | UX-46 · Hilfe verschwieg, wie man ein Wort abgrenzt |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

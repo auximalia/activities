@@ -46,6 +46,8 @@ struct HelpView: View {
                     // Platzhalter mehr. Backticks sind hier ohnehin richtig: Es
                     // sind Muster, kein Fliesstext.
                     "Zusätzlich möglich: Platzhalter `*` und `?`, z. B. `*.pdf` oder `*Studium*.xls*`.",
+                    "Sobald ein Platzhalter vorkommt, gilt der Text wörtlich – **auch Leerzeichen**. Nur so lässt sich ein Leerzeichen suchen, sonst trennt es UND-Begriffe.",
+                    "**Ein Wort abgrenzen** braucht keine regulären Ausdrücke: `*_Garten_* ODER * Garten.*` findet „Foto_Garten_Sommer.png“ und „Mein Garten.pdf“, aber nicht „Kindergartenplatz.pdf“.",
                     "Mit Platzhalter wird **nicht** zerlegt – dort gilt der Text wörtlich.",
                 ])
 

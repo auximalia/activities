@@ -44,6 +44,37 @@ do {
     expect(!glob.matches("Studium.pdf"), "Glob lehnt pdf ab")
     expect(!glob.matches("Urlaub.xls"), "Glob lehnt fehlendes Wort ab")
 
+    // ⚠️ **Ein Wort abgrenzen, ohne regulaere Ausdruecke.** Gemeldet als
+    // „ich wollte nur `_Garten_` oder ` Garten.` finden, aber nicht
+    // `Kindergartenplatz`" – und die App konnte das laengst, nur stand es
+    // nirgends. Diese Zusicherungen halten fest, was die Hilfe seit v1.19.54
+    // verspricht: Ohne Platzhalter ist das Muster ein Teilstring, MIT
+    // Platzhalter gilt der Text woertlich, **Leerzeichen eingeschlossen**.
+    // Prosa laesst sich nicht erzeugen (UX-44) – aber eine Zusage, die eine
+    // Pruefung bewachen kann, bekommt eine.
+    let unten = NameFilter("_Garten_")
+    expect(unten.matches("Foto_Garten_Sommer.png"), "Unterstriche grenzen ab")
+    expect(!unten.matches("Kindergartenplatz 2026.pdf"), "und schliessen das Wort im Wort aus")
+
+    let punkt = NameFilter("Garten.")
+    expect(punkt.matches("Mein Garten.pdf"), "Punkt grenzt nach rechts ab")
+    expect(!punkt.matches("Kindergartenplatz 2026.pdf"), "Kindergartenplatz faellt heraus")
+    expect(punkt.matches("Ziergarten.md"), "aber nach LINKS grenzt der Punkt nicht ab")
+
+    // Das Leerzeichen trennt sonst UND-Begriffe; woertlich wird es nur im
+    // Glob-Zweig, also sobald ein Platzhalter im Muster steht.
+    let mitRaum = NameFilter("* Garten *")
+    expect(mitRaum.matches("Der Garten waechst.pdf"), "Leerzeichen im Glob ist woertlich")
+    expect(!mitRaum.matches("Kindergartenplatz 2026.pdf"), "und grenzt beidseitig ab")
+    expect(!mitRaum.matches("Ziergarten.md"), "Ziergarten hat links keine Grenze")
+
+    let beides = NameFilter("*_Garten_* ODER * Garten.*")
+    expect(beides.matches("Foto_Garten_Sommer.png"), "ODER verbindet zwei Abgrenzungen (1)")
+    expect(beides.matches("Mein Garten.pdf"), "ODER verbindet zwei Abgrenzungen (2)")
+    expect(!beides.matches("Kindergartenplatz 2026.pdf"), "ohne Kindergartenplatz")
+    expect(!beides.matches("Ziergarten.md"), "ohne Ziergarten")
+    expect(!beides.matches("Gartenzwerg.xlsx"), "ohne Gartenzwerg")
+
     let q = NameFilter("datei?.txt")
     expect(q.matches("datei1.txt"), "? trifft ein Zeichen")
     expect(!q.matches("datei.txt"), "? verlangt ein Zeichen")

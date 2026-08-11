@@ -175,7 +175,7 @@ struct TreeFolderRowView: View {
             // Ordnersymbol – die Masse dafuer stehen in ``RowMetrics``.
             Color.clear.frame(width: RowMetrics.treeDisclosureLeading)
 
-            Image(systemName: isExpanded ? "arrowtriangle.down.fill" : "arrowtriangle.right.fill")
+            Image(systemName: isExpanded ? "minus.circle" : "plus.circle")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: RowMetrics.disclosureWidth)

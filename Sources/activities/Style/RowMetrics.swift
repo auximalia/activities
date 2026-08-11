@@ -7,24 +7,40 @@ import SwiftUI
 enum RowMetrics {
     /// Waagerechter Innenabstand einer Zeile (links wie rechts).
     static let horizontalPadding: CGFloat = 8
-    /// Breite des Aufklapp-Dreiecks in der Ordnerzeile.
+    /// Breite des Aufklapp-Zeichens in der Ordnerzeile.
     ///
-    /// **⚠️ Ein gefuelltes Dreieck, kein `chevron` – aus der Praxis gemeldet:
-    /// „nicht eindeutig und gut erfassbar".** Der Haken ist eine
-    /// *Strichzeichnung* von 10 pt, und seine beiden Zustaende unterscheiden
-    /// sich **nur durch Drehung**; bei dieser Groesse ist das schwer zu lesen.
-    /// Ein gefuelltes Dreieck traegt bei gleicher Punktgroesse ein Vielfaches
-    /// an Flaeche, und seine Richtung liest sich sofort.
+    /// **⚠️ Ein Kreis mit `+` und `−`, und das ist die zweite Aenderung an dieser
+    /// Stelle innerhalb eines Tages – beide Male aus der Praxis gemeldet.** Die
+    /// Geschichte gehoert hierher, damit niemand einen der Schritte
+    /// zurueckdreht:
     ///
-    /// Es ist zugleich die Plattform-Konvention fuer Baumansichten
-    /// (Finder-Listenansicht, `NSOutlineView`); das `chevron` gehoert zu
-    /// `DisclosureGroup`, also zu Einklapp-Gruppen, nicht zu Dateibaeumen.
+    /// 1. Urspruenglich `chevron.right`/`chevron.down` – eine *Strichzeichnung*
+    ///    von 10 pt, deren beide Zustaende sich **nur durch Drehung**
+    ///    unterschieden. Gemeldet als „nicht eindeutig und gut erfassbar".
+    /// 2. Dann `arrowtriangle.*.fill` (v1.19.46), mit dem Argument der
+    ///    Plattform-Konvention fuer Baumansichten (Finder, `NSOutlineView`).
+    ///    Das behob die *Flaeche*, aber die Zustaende unterschieden sich
+    ///    weiterhin nur durch die **Richtung** desselben Zeichens.
+    /// 3. Jetzt `plus.circle`/`minus.circle`: **zwei verschiedene Zeichen**
+    ///    statt eines gedrehten. Das ist der Unterschied, den das Auge ohne
+    ///    Vergleich erfasst – und der Punkt, den die ersten beiden Fassungen
+    ///    beide verfehlt haben.
     ///
-    /// **⚠️ Der Kontrast war NICHT das Problem** – gemessen 4,51:1 auf der
-    /// hellen Zeile und 4,25:1 auf der Zebrazeile, bei einer Schwelle von 3:1
-    /// fuer Bedienelemente. Wer hier nachtraeglich an der Farbe dreht, behebt
-    /// etwas, das nie kaputt war, und macht den Pfeil lauter als den
-    /// Ordnernamen, den er ordnet.
+    /// **⚠️ Der Einwand dagegen wurde geprueft und nicht bloss abgewogen:** Auf
+    /// macOS bedeuten ⊕/⊖ ueblicherweise *hinzufuegen* und *entfernen*. In
+    /// **diesem** Programm aber nicht – Quellen und Regeln werden ueber
+    /// Textknoepfe hinzugefuegt und entfernt („Quelle hinzufuegen …",
+    /// „Entfernen"), und `plus.circle` kommt sonst nirgends vor. Es gibt also
+    /// keine Kollision im eigenen Vokabular. *Waere eine da, gaelte die
+    /// Entscheidung nicht.*
+    ///
+    /// **⚠️ Der Kontrast war nie das Problem** – gemessen 4,51:1 auf der hellen
+    /// Zeile und 4,25:1 auf der Zebrazeile, bei einer Schwelle von 3:1 fuer
+    /// Bedienelemente. Wer hier an der Farbe dreht, behebt etwas, das nie kaputt
+    /// war, und macht das Zeichen lauter als den Ordnernamen, den es ordnet.
+    ///
+    /// Der Zustand wird ausserdem **nicht nur** ueber das Zeichen getragen:
+    /// ``FolderRowView`` sagt ihn als „, aufgeklappt" / „, zugeklappt" an.
     static let disclosureWidth: CGFloat = 12
     /// Abstand zwischen den Elementen einer Zeile.
     static let itemSpacing: CGFloat = 8

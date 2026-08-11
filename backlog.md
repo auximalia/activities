@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.46 · 2026-08-11*
+*Stand: v1.19.47 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -76,6 +76,24 @@ Einklapp-Gruppen, nicht zu Dateibäumen.
 
 **Am laufenden Programm belegt:** beide Zustände nebeneinander in einer Ansicht, zugeklappte
 und aufgeklappte Ordner auf einen Blick unterscheidbar.
+
+**⚠️ Zweiter Anlauf in v1.19.47 – und der erste hatte nur die halbe Ursache getroffen.**
+Gewünscht wurde ein Kreis mit `+` (zuklappbar) und `−` (aufgeklappt). Das Dreieck hatte die
+**Fläche** behoben; die beiden Zustände unterschieden sich aber weiterhin nur durch die
+**Richtung desselben Zeichens**. `plus.circle`/`minus.circle` sind **zwei verschiedene
+Zeichen** – das ist der Unterschied, den das Auge ohne Vergleich erfasst, und den beide
+Vorgängerfassungen verfehlt haben. *Die Plattform-Konvention, mit der v1.19.46 begründet war,
+löste das Problem des Melders nicht; sie beantwortete eine benachbarte Frage.*
+
+**⚠️ Der Einwand wurde geprüft, nicht abgewogen.** Auf macOS bedeuten ⊕/⊖ üblicherweise
+*hinzufügen* und *entfernen*. In **diesem** Programm nicht: Quellen und Regeln werden über
+Textknöpfe verwaltet („Quelle hinzufügen …", „Entfernen"), und `plus.circle` kommt sonst
+nirgends vor – nachgesehen, nicht vermutet. Es gibt also keine Kollision im eigenen
+Vokabular. *Wäre eine da, gälte die Entscheidung nicht.*
+
+**Nicht gefüllt, sondern als Umriss.** Ein gefüllter Kreis von 10 pt wäre eine massive Scheibe
+neben dem blauen Ordnersymbol und träte mit ihm in Wettbewerb – gegen Entscheidung 1, die die
+Zeile ausdrücklich ruhig hält.
 
 ### PR-13 · Typverteilung in der Ordnerzeile
 **Aufwand:** S · **Nutzen:** mittel · **P3** · *von M auf S, geprüft nach Sprint 17*
@@ -559,6 +577,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.45 | Hotfix | Nachgeholte `ux-review`: Beschriftungen überlappten am rechten Rand |
 | — | Bereinigung | Erledigtes verdichtet; Vergleichszweig gestrichen (2026-08-11) |
 | v1.19.46 | Kleinigkeit | UX-43 · Aufklapp-Pfeil ist ein gefülltes Dreieck statt eines Chevrons |
+| v1.19.47 | Kleinigkeit | UX-43 · … und dann ein Kreis mit `+`/`−`: zwei Zeichen statt eines gedrehten |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

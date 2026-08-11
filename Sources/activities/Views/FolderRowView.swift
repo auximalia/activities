@@ -26,7 +26,7 @@ struct FolderRowView: View {
 
     var body: some View {
         HStack(spacing: RowMetrics.itemSpacing) {
-            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+            Image(systemName: isExpanded ? "arrowtriangle.down.fill" : "arrowtriangle.right.fill")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: RowMetrics.disclosureWidth)

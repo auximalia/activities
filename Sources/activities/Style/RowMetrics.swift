@@ -7,7 +7,24 @@ import SwiftUI
 enum RowMetrics {
     /// Waagerechter Innenabstand einer Zeile (links wie rechts).
     static let horizontalPadding: CGFloat = 8
-    /// Breite des Aufklapp-Pfeils in der Ordnerzeile.
+    /// Breite des Aufklapp-Dreiecks in der Ordnerzeile.
+    ///
+    /// **⚠️ Ein gefuelltes Dreieck, kein `chevron` – aus der Praxis gemeldet:
+    /// „nicht eindeutig und gut erfassbar".** Der Haken ist eine
+    /// *Strichzeichnung* von 10 pt, und seine beiden Zustaende unterscheiden
+    /// sich **nur durch Drehung**; bei dieser Groesse ist das schwer zu lesen.
+    /// Ein gefuelltes Dreieck traegt bei gleicher Punktgroesse ein Vielfaches
+    /// an Flaeche, und seine Richtung liest sich sofort.
+    ///
+    /// Es ist zugleich die Plattform-Konvention fuer Baumansichten
+    /// (Finder-Listenansicht, `NSOutlineView`); das `chevron` gehoert zu
+    /// `DisclosureGroup`, also zu Einklapp-Gruppen, nicht zu Dateibaeumen.
+    ///
+    /// **⚠️ Der Kontrast war NICHT das Problem** – gemessen 4,51:1 auf der
+    /// hellen Zeile und 4,25:1 auf der Zebrazeile, bei einer Schwelle von 3:1
+    /// fuer Bedienelemente. Wer hier nachtraeglich an der Farbe dreht, behebt
+    /// etwas, das nie kaputt war, und macht den Pfeil lauter als den
+    /// Ordnernamen, den er ordnet.
     static let disclosureWidth: CGFloat = 12
     /// Abstand zwischen den Elementen einer Zeile.
     static let itemSpacing: CGFloat = 8

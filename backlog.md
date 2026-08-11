@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.45 · 2026-08-11*
+*Stand: v1.19.46 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,33 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-43 · Der Aufklapp-Pfeil war nicht eindeutig zu erfassen *(v1.19.46)*
+**Aufwand:** XS · **Art:** Defekt · *gemeldet am 2026-08-11*
+
+**Beobachtet:** „Die Pfeile zum Aus- und Einklappen sehen noch nicht so eindeutig und gut
+erfassbar aus."
+
+**⚠️ Der Kontrast war NICHT das Problem – gemessen, bevor daran gedreht wurde.**
+`secondaryLabel` erreicht auf der hellen Zeile **4,51:1**, auf der Zebrazeile **4,25:1**; für
+ein Bedienelement gilt die Schwelle **3:1**. Beides erfüllt. *Hätte ich hier „zu blass"
+geschrieben und die Farbe verstärkt, wäre der Pfeil lauter geworden als der Ordnername, den er
+ordnet – und der eigentliche Mangel wäre geblieben.*
+
+**Der Mangel sind Form und Fläche.** `chevron` ist eine **Strichzeichnung** von 10 pt
+(`.caption`, gemessen), und seine beiden Zustände unterscheiden sich **nur durch Drehung**.
+Ein gefülltes Dreieck trägt bei gleicher Punktgröße ein Vielfaches an Fläche, und seine
+Richtung liest sich sofort.
+
+**Es ist zugleich die Plattform-Konvention.** Finder-Listenansicht und `NSOutlineView` benutzen
+für Baumansichten ein gefülltes Dreieck; das `chevron` gehört zu `DisclosureGroup`, also zu
+Einklapp-Gruppen, nicht zu Dateibäumen.
+
+**Nicht angefasst:** Farbe, Größe, Breite (12 pt) und damit die Geometrie der Baumlinien –
+`connectorX` rechnet mit `disclosureWidth`, nicht mit dem Zeichen.
+
+**Am laufenden Programm belegt:** beide Zustände nebeneinander in einer Ansicht, zugeklappte
+und aufgeklappte Ordner auf einen Blick unterscheidbar.
 
 ### PR-13 · Typverteilung in der Ordnerzeile
 **Aufwand:** S · **Nutzen:** mittel · **P3** · *von M auf S, geprüft nach Sprint 17*
@@ -531,6 +558,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.44 | Sprint 18 | PR-48, PR-49, PR-50 · Achse, Bündelung, Überschrift |
 | v1.19.45 | Hotfix | Nachgeholte `ux-review`: Beschriftungen überlappten am rechten Rand |
 | — | Bereinigung | Erledigtes verdichtet; Vergleichszweig gestrichen (2026-08-11) |
+| v1.19.46 | Kleinigkeit | UX-43 · Aufklapp-Pfeil ist ein gefülltes Dreieck statt eines Chevrons |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

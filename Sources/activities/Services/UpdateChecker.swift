@@ -30,15 +30,42 @@ struct SemanticVersion: Comparable, CustomStringConvertible {
 }
 
 /// Fehler bei der Update-Pruefung.
+///
+/// **⚠️ Es gab hier einmal genau einen Fall (`badResponse`) fuer fuenf
+/// verschiedene Ursachen, und sein Text lautete „Die Versionsinformation konnte
+/// nicht gelesen werden".** Bei vier der fuenf war das schlicht falsch: Gelesen
+/// wurde nichts, die Anfrage kam gar nicht durch. Aus der Praxis gemeldet, als
+/// GitHub das Kontingent einer geteilten Firmen-IP erschoepft hatte – der
+/// Anwender sah einen Lesefehler und suchte ihn bei sich.
+///
+/// Eine Meldung, die jede Ursache gleich benennt, ist keine Meldung, sondern
+/// ein Platzhalter. Jeder Fall sagt deshalb, **was** geschehen ist und **was zu
+/// tun** ist; wo nichts zu tun ist, sagt er auch das.
 enum UpdateError: LocalizedError {
-    case badResponse
+    /// Kein Netz, Zeitueberschreitung, Name nicht aufloesbar.
+    case unreachable
+    /// GitHub hat die Anfrage abgewiesen (Kontingent, Drosselung).
+    case refused
+    /// Es gibt (noch) kein veroeffentlichtes Release.
+    case noRelease
+    /// Antwort kam an, war aber nicht zu deuten.
+    case unexpected(status: Int)
 
     var errorDescription: String? {
         switch self {
-        case .badResponse: "Die Versionsinformation konnte nicht gelesen werden."
+        case .unreachable:
+            "github.com ist nicht erreichbar. Besteht eine Netzwerkverbindung?"
+        case .refused:
+            "GitHub hat die Anfrage vorübergehend abgewiesen. Das passiert, wenn "
+                + "sich viele Rechner eine Internetadresse teilen. Später erneut versuchen."
+        case .noRelease:
+            "Für dieses Programm ist noch keine Fassung veröffentlicht."
+        case let .unexpected(status):
+            "Unerwartete Antwort von github.com (Code \(status))."
         }
     }
 }
+
 
 /// Ergebnis einer Update-Pruefung.
 enum UpdateCheckResult {
@@ -50,6 +77,12 @@ enum UpdateCheckResult {
     case failed(String)
 
     /// Ueberschrift fuer den Hinweisdialog der manuellen Suche.
+    ///
+    /// **⚠️ „Prüfung fehlgeschlagen" sagt bereits, dass nicht geprueft werden
+    /// konnte** – der Erklaertext darf das nicht wiederholen. Er tat es: Auf die
+    /// Ueberschrift folgte „Es konnte nicht geprüft werden, ob eine neuere
+    /// Version vorliegt", und erst danach kam der Grund. Drei Zeilen fuer eine
+    /// Aussage, und die einzige mit Inhalt stand zuunterst.
     var title: String {
         switch self {
         case .updateAvailable: "Update verfügbar"
@@ -66,7 +99,7 @@ enum UpdateCheckResult {
         case let .upToDate(current):
             "Du nutzt bereits die neueste Version (\(current))."
         case let .failed(reason):
-            "Es konnte nicht geprüft werden, ob eine neuere Version vorliegt.\n\n\(reason)"
+            reason
         }
     }
 
@@ -222,30 +255,67 @@ final class UpdateChecker {
         }
     }
 
-    /// Holt die Version des neuesten Releases von der GitHub-API.
-    /// Das Repo ist oeffentlich, daher ist kein Token noetig.
+    /// Holt die Version des neuesten Releases – **ohne die GitHub-API**.
+    ///
+    /// `https://github.com/<repo>/releases/latest` leitet auf die Seite des
+    /// neuesten Releases um (`.../releases/tag/v1.19.39`). Gefragt wird per
+    /// `HEAD`, gelesen wird allein die **Ziel-URL** der Umleitung; ein Koerper
+    /// wird nie uebertragen (gemessen: 0 Bytes). Es wird also kein HTML
+    /// ausgewertet.
+    ///
+    /// **⚠️ Frueher stand hier `api.github.com/repos/…/releases/latest`, und das
+    /// war der eigentliche Fehler.** Die API begrenzt nicht angemeldete
+    /// Anfragen auf 60 je Stunde **und Internetadresse**. Hinter einem
+    /// Firmen-Zugang teilen sich alle Rechner eine Adresse – das Kontingent ist
+    /// dann regelmaessig aufgebraucht, ohne dass dieses Programm auch nur einmal
+    /// gefragt haette. Aus der Praxis gemeldet, hier mit 403 belegt.
+    ///
+    /// **⚠️ Der neue Weg ist zugleich derselbe, auf dem die Installation
+    /// beruht:** `web-install.sh` laedt
+    /// `github.com/<repo>/releases/latest/download/activities.zip`. Damit gibt
+    /// es fuer „welches ist das neueste?" nur noch **eine** Quelle statt zweier.
+    /// Sollte die Umleitung je wegfallen, ist die Installation ohnehin kaputt –
+    /// und dann ist es richtig, dass die Pruefung mitbricht, statt ein Update
+    /// anzubieten, das sich nicht laden laesst. *Genau das konnte die alte
+    /// Aufteilung nicht zusichern.*
     private func fetchLatestVersion() async throws -> SemanticVersion {
-        guard let url = URL(string: "https://api.github.com/repos/\(Self.repositorySlug)/releases/latest") else {
-            throw UpdateError.badResponse
+        guard let url = URL(string: "https://github.com/\(Self.repositorySlug)/releases/latest") else {
+            throw UpdateError.noRelease
         }
         var request = URLRequest(url: url)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.httpMethod = "HEAD"
         request.timeoutInterval = 10
         request.cachePolicy = .reloadIgnoringLocalCacheData
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw UpdateError.badResponse
+        let response: URLResponse
+        do {
+            (_, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            // Kein Netz, Zeitueberschreitung, Name nicht aufloesbar – alles
+            // dasselbe fuer den Anwender: github.com ist nicht zu erreichen.
+            throw UpdateError.unreachable
         }
+
+        guard let http = response as? HTTPURLResponse else { throw UpdateError.unexpected(status: 0) }
+        switch http.statusCode {
+        case 200: break
+        case 403, 429: throw UpdateError.refused
+        case 404: throw UpdateError.noRelease
+        default: throw UpdateError.unexpected(status: http.statusCode)
+        }
+
+        // Die letzte Wegmarke der Ziel-URL ist die Marke: `.../tag/v1.19.39`.
+        // Hat das Repo noch kein Release, endet die Umleitung auf `/releases` –
+        // daraus laesst sich keine Version lesen, und genau das ist die Aussage.
         guard
-            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let tag = json["tag_name"] as? String,
-            let version = SemanticVersion(tag)
+            let final = http.url,
+            let version = SemanticVersion(final.lastPathComponent)
         else {
-            throw UpdateError.badResponse
+            throw UpdateError.noRelease
         }
         return version
     }
+
 
     /// Startet den Installer sichtbar in Terminal.app und beendet die App.
     ///

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.39 · 2026-08-11*
+*Stand: v1.19.40 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -613,6 +613,60 @@ Fehlers ist die schlechteste Art, Code aufzuheben.
 **zweimal je Rumpfauswertung** (`:20`, `:23`) und geht dabei am Zwischenspeicher vorbei; und
 `hasTypeFilter`, `typeFilterSummary`, `resetTypeFilters` sind von **keiner** Prüfung erfasst.
 
+### ✅ PR-47 · „Nach Updates suchen" meldete einen Lesefehler, der keiner war *(v1.19.40)*
+**Art:** Defekt · **P2** · *aus der Praxis gemeldet am 2026-08-11*
+
+**Der Befund:** Ein Klick auf „Nach Updates suchen …" brachte den Dialog *„Prüfung
+fehlgeschlagen — Es konnte nicht geprüft werden, ob eine neuere Version vorliegt. Die
+Versionsinformation konnte nicht gelesen werden."*
+
+**Gelesen wurde nichts — die Anfrage kam nicht durch.** Nachgemessen im selben Netz:
+`api.github.com` antwortete mit **403** und dem Klartext „API rate limit exceeded for
+195.13.40.70". Die GitHub-API begrenzt nicht angemeldete Anfragen auf **60 je Stunde und
+Internetadresse**; hinter einem Firmen-Zugang teilen sich alle Rechner eine Adresse.
+
+| | `api.github.com` (alt) | `github.com`-Release-Umleitung (neu) |
+|---|---|---|
+| Kontingent | `x-ratelimit-limit: 60` je Stunde **und IP** | keine `x-ratelimit`-Kopfzeile |
+| gemessen verbraucht | `used: 19` **von fremden Rechnern** derselben Adresse | — |
+| Körper | JSON, muss geparst werden | **0 Bytes** (`HEAD`) |
+
+Die App fragt **einmal je 24 h**. Die 19 verbrauchten Anfragen stammten also von anderen
+Rechnern hinter derselben Adresse. *Daher ist der Fehler sporadisch, schwer nachzustellen —
+und daher sucht der Anwender ihn bei sich.*
+
+**⚠️ Die Bezugsquelle war der Ausreißer, nicht die Meldung** (`decision-check`). Für „welche
+Fassung ist die neueste?" gab es **zwei** Antworten: Der Prüfer fragte die API, der Installer
+lädt seit jeher `github.com/<repo>/releases/latest/download/activities.zip`
+(`web-install.sh:19`). Zwei von drei Stellen mieden die API bereits. Jetzt liest der Prüfer
+per `HEAD` die **Ziel-URL** derselben Umleitung (`…/releases/tag/v1.19.39`) — kein HTML wird
+ausgewertet, kein Körper übertragen. *Fällt die Umleitung je weg, ist die Installation ohnehin
+kaputt; dann ist es richtig, dass die Prüfung mitbricht, statt ein Update anzubieten, das sich
+nicht laden lässt. Genau das konnte die alte Aufteilung nicht zusichern.*
+
+**Das stärkste Gegenargument, festgehalten:** Die API ist die *dokumentierte* Schnittstelle,
+eine Umleitung ist ein Implementierungsdetail. Es wiegt hier nicht auf, weil der neue Weg
+derselbe ist, auf dem die Installation beruht — und weil der dokumentierte Weg unter geteilter
+Adresse nachweislich unbenutzbar ist.
+
+**Die zweite Hälfte: ein Fehlerfall für fünf Ursachen.** `UpdateError.badResponse` deckte
+offline, Zeitüberschreitung, Kontingent, fehlendes Release und unlesbare Antwort **gleich** ab,
+und sein Satz war bei vier davon falsch. Jetzt sagt jeder Fall, was geschehen ist und was zu
+tun ist. **Und der Erklärtext wiederholt die Überschrift nicht mehr:** Auf „Prüfung
+fehlgeschlagen" folgte „Es konnte nicht geprüft werden, ob eine neuere Version vorliegt" —
+drei Zeilen für eine Aussage, und die einzige mit Inhalt stand zuunterst.
+
+**Am laufenden Programm belegt:** derselbe Menüpunkt antwortet jetzt „Keine Aktualisierung
+nötig — Du nutzt bereits die neueste Version (1.19.39)". *Ehrlich dazu: Der Erfolgslauf fiel
+in ein Zeitfenster, in dem sich das API-Kontingent bereits erholt hatte (403 um 08:36, wieder
+200 um 08:42). Er beweist also den neuen Weg, nicht die Immunität — die belegen die
+Kopfzeilen oben.* Die Statusabbildung ist einzeln gemessen: bestehendes Repo → 200 mit
+Tag-URL; erfundenes Repo → 404 → „noch keine Fassung veröffentlicht".
+
+**⚠️ Nicht behoben, gehört in Sprint 17:** `SemanticVersion` und das Ablesen der Marke aus der
+URL liegen in der App-Schicht und sind damit für `CoreChecks` unerreichbar — Lehre 4. Ein
+Vergleich, der still falsch antwortet, böte entweder nie ein Update an oder immer.
+
 ### Wie die drei zusammenhingen *(Zuschnitt-Notiz zu Sprint 16, erledigt)*
 
 Aus vier Wünschen wurden drei Einträge: **PR-43 (Outlook) ist gestrichen** – die Ablage
@@ -731,6 +785,16 @@ greift **den Grund** an – nicht die Entscheidung.
 28. **``TimePreset`` im Kern statt einer privaten Zuordnung in der Werkzeugleiste.** Die
     Regel „*Alle* schlägt *Spanne* schlägt Tageszahl, und eine unbekannte Tageszahl ist
     *eigene*" gilt jetzt für Leiste und Menü gemeinsam und ist geprüft.
+29. **Die neueste Fassung wird über die Release-Umleitung von `github.com` ermittelt, nicht
+    über `api.github.com`** (PR-47). Der dokumentierte Weg sieht richtiger aus und ist es
+    nicht: Die API begrenzt auf **60 Anfragen je Stunde und Internetadresse**, und hinter
+    einem Firmen-Zugang ist das Kontingent regelmäßig von fremden Rechnern aufgebraucht —
+    gemessen 19 von 60, obwohl diese App nur einmal je 24 h fragt. Gelesen wird per `HEAD`
+    allein die Ziel-URL der Umleitung, **0 Bytes Körper**, kein HTML. Der entscheidende
+    Zugewinn ist aber nicht die Robustheit, sondern dass Prüfung und Installation jetzt
+    **dieselbe** Quelle benutzen (`web-install.sh:19`): Es kann kein Update mehr angeboten
+    werden, das sich nicht laden lässt.
+
 
 ---
 
@@ -826,6 +890,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.37 | Hotfix | PR-44 · „Nur Arbeitsdateien" stand außerhalb der Filter, auf die es wirkt |
 | v1.19.38 | — | PR-44 · Der Filter heißt „Office", wie ihn seine Nutzer nennen |
 | v1.19.39 | Hotfix | PR-46 · Der Schnellpfad der Detailliste filterte weder Office noch Namen |
+| v1.19.40 | Hotfix | PR-47 · Update-Prüfung hing am API-Kontingent einer geteilten IP |
 
 ## Sprint 17 – „Ein Filter, eine Wahrheit" *(geplant)*
 
@@ -927,6 +992,10 @@ gegengeprüft, mit Kontrollversuch je fehlgeschlagenem Versuch.
 - **PR-23** – XL, und die Entwurfsfrage „Texte im Foundation-only-Kern" ist ungeklärt.
 - **PR-15, PR-18** – kein Platz neben einem M plus S.
 - **PR-36, PR-42** – warten weiter auf einen Fall, nicht auf Zeit.
+- **`SemanticVersion` in den Kern holen** (aus PR-47) – wäre eine falsche Klammer: AP1 fasst
+  die Sichtbarkeit an, nicht die Update-Prüfung. „Beides gehört in den Kern" ist ein Thema,
+  kein gemeinsamer Code (Lehre 3). *Eigener Kandidat, S.*
+
 
 ### Risiko, offen benannt
 

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.47 · 2026-08-11*
+*Stand: v1.19.48 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -90,6 +90,19 @@ löste das Problem des Melders nicht; sie beantwortete eine benachbarte Frage.*
 Textknöpfe verwaltet („Quelle hinzufügen …", „Entfernen"), und `plus.circle` kommt sonst
 nirgends vor – nachgesehen, nicht vermutet. Es gibt also keine Kollision im eigenen
 Vokabular. *Wäre eine da, gälte die Entscheidung nicht.*
+
+**⚠️ Dritter Anlauf in v1.19.48: Das Plus trägt mehr Gewicht als das Minus** – gewünscht mit
+einer Vorlage aus XMind. Der Grund ist mehr als Geschmack: **Zugeklappt verbirgt der Knoten
+etwas, das Zeichen ist eine Aufforderung; aufgeklappt verbirgt er nichts mehr und darf
+zurücktreten.** Gleiches Gewicht würde diese Auskunft wegwerfen. Dieselbe Logik benutzt die
+Baumzeile bereits: ein Knoten ohne Kinder zeichnet sein Zeichen mit 0,25 Deckkraft.
+
+**⚠️ Die Vorlage hellt das Minus zusätzlich auf – das wurde gemessen und verworfen.**
+`tertiaryLabel` erreicht 2,20 / 2,07 : 1 (hell) und 2,84 / 2,47 : 1 (dunkel), **durchweg unter
+der 3:1-Schwelle für Bedienelemente**. Beide Zeichen bleiben auf `secondaryLabel`; der
+Unterschied liegt allein im Gewicht. *Ein Mindmap-Werkzeug hat andere Randbedingungen als eine
+Dateiliste – eine Vorlage wörtlich zu übernehmen, hätte hier die Zugänglichkeit gekostet, und
+es hätte dabei besser ausgesehen.*
 
 **Nicht gefüllt, sondern als Umriss.** Ein gefüllter Kreis von 10 pt wäre eine massive Scheibe
 neben dem blauen Ordnersymbol und träte mit ihm in Wettbewerb – gegen Entscheidung 1, die die
@@ -578,6 +591,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | — | Bereinigung | Erledigtes verdichtet; Vergleichszweig gestrichen (2026-08-11) |
 | v1.19.46 | Kleinigkeit | UX-43 · Aufklapp-Pfeil ist ein gefülltes Dreieck statt eines Chevrons |
 | v1.19.47 | Kleinigkeit | UX-43 · … und dann ein Kreis mit `+`/`−`: zwei Zeichen statt eines gedrehten |
+| v1.19.48 | Kleinigkeit | UX-43 · Das Plus wiegt schwerer als das Minus |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

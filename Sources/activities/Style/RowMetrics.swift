@@ -39,6 +39,27 @@ enum RowMetrics {
     /// Bedienelemente. Wer hier an der Farbe dreht, behebt etwas, das nie kaputt
     /// war, und macht das Zeichen lauter als den Ordnernamen, den es ordnet.
     ///
+    /// **⚠️ Das Plus traegt mehr Gewicht als das Minus, und das ist keine
+    /// Verzierung.** Zugeklappt **verbirgt** der Knoten etwas – das Zeichen ist
+    /// eine Aufforderung. Aufgeklappt verbirgt er nichts mehr, und das Zeichen
+    /// darf zuruecktreten. Das ungleiche Gewicht kodiert also, welcher der
+    /// beiden Zustaende noch etwas hinter sich hat; gleiches Gewicht wuerde
+    /// diese Auskunft wegwerfen.
+    ///
+    /// **⚠️ Der Unterschied liegt allein im GEWICHT, nicht in der Farbe – und
+    /// das ist gemessen, nicht abgewogen.** Die Vorlage aus der Praxis (XMind)
+    /// zeichnet das Minus zusaetzlich deutlich heller. Nachgerechnet erreicht
+    /// `tertiaryLabel` aber nur **2,20 / 2,07 : 1** (hell, beide Zebratoene) und
+    /// **2,84 / 2,47 : 1** (dunkel) – durchweg **unter der 3:1-Schwelle fuer
+    /// Bedienelemente**. Beide Zeichen bleiben deshalb auf `secondaryLabel`
+    /// (4,51 / 4,25 : 1). *Wer das Minus nachtraeglich aufhellt, macht es
+    /// unzugaenglich, und es sieht dabei besser aus – das ist die gefaehrliche
+    /// Sorte Verbesserung.*
+    ///
+    /// Dieselbe Logik benutzt die Baumzeile bereits an anderer Stelle: Ein
+    /// Knoten ohne Kinder und ohne sichtbare Dateien zeichnet sein Zeichen mit
+    /// 0,25 Deckkraft – nichts dahinter, also kaum Gewicht.
+    ///
     /// Der Zustand wird ausserdem **nicht nur** ueber das Zeichen getragen:
     /// ``FolderRowView`` sagt ihn als „, aufgeklappt" / „, zugeklappt" an.
     static let disclosureWidth: CGFloat = 12

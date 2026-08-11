@@ -27,7 +27,10 @@ struct FolderRowView: View {
     var body: some View {
         HStack(spacing: RowMetrics.itemSpacing) {
             Image(systemName: isExpanded ? "minus.circle" : "plus.circle")
-                .font(.caption)
+                // ⚠️ Das Plus traegt mehr Gewicht als das Minus – siehe
+                // ``RowMetrics/disclosureWidth``. Zugeklappt verbirgt etwas,
+                // aufgeklappt verbirgt nichts.
+                .font(.caption.weight(isExpanded ? .regular : .bold))
                 .foregroundStyle(.secondary)
                 .frame(width: RowMetrics.disclosureWidth)
 

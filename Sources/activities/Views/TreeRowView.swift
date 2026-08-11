@@ -176,7 +176,10 @@ struct TreeFolderRowView: View {
             Color.clear.frame(width: RowMetrics.treeDisclosureLeading)
 
             Image(systemName: isExpanded ? "minus.circle" : "plus.circle")
-                .font(.caption)
+                // ⚠️ Das Plus traegt mehr Gewicht als das Minus – siehe
+                // ``RowMetrics/disclosureWidth``. Zugeklappt verbirgt etwas,
+                // aufgeklappt verbirgt nichts.
+                .font(.caption.weight(isExpanded ? .regular : .bold))
                 .foregroundStyle(.secondary)
                 .frame(width: RowMetrics.disclosureWidth)
                 .opacity(node.children.isEmpty && model.visibleFileCount(in: node.folder) == 0 ? 0.25 : 1)

@@ -189,8 +189,10 @@ struct FolderContextMenu: View {
     /// **⚠️ Nur Dokumente – und der Menuepunkt verschwindet, wenn es keine
     /// gibt.** Gemeldet wurde, dass der Befehl `.py`-Dateien **ausfuehrte**;
     /// ``WorkDays/resumableCategories`` laesst deshalb nur Dokumente,
-    /// Tabellen, Praesentationen und PDF durch. In einem reinen
-    /// Quelltext-Ordner bleibt damit nichts uebrig, und der Eintrag entfaellt.
+    /// Tabellen, Praesentationen und PDF durch, dazu die benannten
+    /// Zusatzendungen aus ``WorkDays/extraResumableExtensions`` (`bpmn`,
+    /// `graph`). In einem reinen Quelltext-Ordner bleibt damit nichts uebrig,
+    /// und der Eintrag entfaellt.
     ///
     /// Das ist kein stiller Zustand im Sinne von UX-06: Es fehlt keine
     /// *Information*, sondern eine Handlung, die dort keinen Sinn ergibt. Der

@@ -1217,13 +1217,28 @@ do {
     let gemischt = [
         datei("bericht.docx", 2026, 8, 3, 9),
         datei("skript.py", 2026, 8, 3, 10),
-        datei("start.sh", 2026, 8, 3, 11)
+        datei("start.sh", 2026, 8, 3, 11),
+        datei("prozess.bpmn", 2026, 8, 3, 12)
     ]
     let gefiltert = WorkDays.group(gemischt, calendar: calendar)
     expectEqual(gefiltert.count, 1, "Erlaubnisliste: der Tag bleibt")
-    expectEqual(gefiltert[0].count, 1, "Erlaubnisliste: die Zahl nennt nur, was wirklich geoeffnet wird")
-    expectEqual(gefiltert[0].files.first?.lastPathComponent, "bericht.docx",
-                "Erlaubnisliste: genau das Dokument, nicht das Skript")
+    expectEqual(gefiltert[0].count, 2, "Erlaubnisliste: die Zahl nennt nur, was wirklich geoeffnet wird")
+    expect(gefiltert[0].files.map(\.lastPathComponent).contains("bericht.docx"),
+           "Erlaubnisliste: das Dokument ist dabei")
+    expect(gefiltert[0].files.map(\.lastPathComponent).contains("prozess.bpmn"),
+           "Erlaubnisliste: die Zusatzendung kommt bis ins Menue durch (v1.19.41)")
+    expect(!gefiltert[0].files.map(\.lastPathComponent).contains("skript.py"),
+           "Erlaubnisliste: das Skript nicht")
+    expect(!gefiltert[0].files.map(\.lastPathComponent).contains("start.sh"),
+           "Erlaubnisliste: die Shell-Datei nicht")
+
+    // ⚠️ Der Weg vom Praedikat bis ins Menue, nicht nur das Praedikat. Eine
+    // Zusicherung ueber ``WorkDays/isResumable`` allein saehe nicht, wenn
+    // ``WorkDays/group(_:calendar:limit:)`` eines Tages an ihm vorbei filterte –
+    // und genau dort entsteht, was der Menuepunkt anbietet.
+    let nurModelle = [datei("a.bpmn", 2026, 8, 3, 9), datei("b.graph", 2026, 8, 2, 9)]
+    expectEqual(WorkDays.group(nurModelle, calendar: calendar).count, 2,
+                "Erlaubnisliste: ein reiner Modell-Ordner bietet jetzt zwei Tage an")
 
     // Reiner Quelltext-Ordner: kein Tag, damit spaeter kein Menuepunkt.
     let nurCode = [datei("a.py", 2026, 8, 3, 9), datei("b.swift", 2026, 8, 2, 9)]
@@ -1703,24 +1718,66 @@ do {
     expect(arbeit("Bericht.PDF"), "Endung gross geschrieben")
     expect(arbeit("Modell.GRAPH"), "Zusatzendung gross geschrieben")
 
-    // ⚠️ Die beiden Listen sind getrennt - und muessen es bleiben.
+    // ⚠️ Die beiden Listen bleiben getrennt - auch jetzt, wo sie denselben
+    // Inhalt haben.
     //
-    // `bpmn` und `graph` gelten als Arbeitsdatei, duerfen aber NICHT von
-    // "Arbeit fortsetzen" geoeffnet werden: Sie liegen weiterhin in `other`,
-    // und die Ausfuehrungsliste kennt `other` nicht. Faellt diese Pruefung,
-    // hat jemand `extensionMap` erweitert - und damit ungewollt entschieden,
-    // was ein Klick ausfuehrt (PR-35).
+    // Frueher stand hier "bpmn ist sichtbar UND NICHT ausfuehrbar". Das nagelte
+    // ein **Beispiel** fest, nicht die Regel - und als `bpmn` mit v1.19.41
+    // fortsetzbar wurde (Camunda Modeller, konkreter Fall), musste die Zusage
+    // fallen. **Eine gelockerte Zusicherung ist nur dann in Ordnung, wenn die
+    // schaerfere dahinter sichtbar wird**, sonst ist das Lockern der ganze
+    // Vorgang. Die Regel, die immer galt, ist diese:
+    //
+    //   1. `extensionMap` wird nicht erweitert - sie speist Sichtbarkeit,
+    //      Legende und Sortierung zugleich (PR-35).
+    //   2. Ausfuehrungsliste ⊆ Sichtbarkeitsliste, in BEIDEN Teilen.
+    //
+    // Faellt 1, hat jemand die Kategorientabelle angefasst und damit ungewollt
+    // entschieden, was ein Klick startet. Faellt 2, laesst sich eine Datei
+    // oeffnen, die man nie zu Gesicht bekommt.
     expect(WorkFileFilter.isWorkFile(datei("Prozess.bpmn")), "bpmn: sichtbar")
-    expect(!WorkDays.isResumable(datei("Prozess.bpmn")), "bpmn: NICHT ausfuehrbar")
+    expect(WorkDays.isResumable(datei("Prozess.bpmn")), "bpmn: fortsetzbar (v1.19.41)")
     expect(WorkFileFilter.isWorkFile(datei("Modell.graph")), "graph: sichtbar")
-    expect(!WorkDays.isResumable(datei("Modell.graph")), "graph: NICHT ausfuehrbar")
-    expectEqual(FileCategory.category(for: datei("Prozess.bpmn")), .other,
-                "bpmn liegt weiterhin in Sonstige")
+    expect(WorkDays.isResumable(datei("Modell.GRAPH")), "graph: fortsetzbar, Schreibweise egal")
 
-    // Was ausfuehrbar ist, ist auch sichtbar - die engere Liste ist Teilmenge.
+    expectEqual(FileCategory.category(for: datei("Prozess.bpmn")), .other,
+                "Regel 1: bpmn liegt weiterhin in Sonstige")
+    expectEqual(FileCategory.category(for: datei("Modell.graph")), .other,
+                "Regel 1: graph liegt weiterhin in Sonstige")
+
     expect(WorkFileFilter.categories.isSuperset(of: WorkDays.resumableCategories),
-           "Sichtbarkeitsliste umfasst die Ausfuehrungsliste")
+           "Regel 2a: Sichtbarkeitsliste umfasst die Ausfuehrungsliste (Kategorien)")
+    expect(WorkFileFilter.extraExtensions.isSuperset(of: WorkDays.extraResumableExtensions),
+           "Regel 2b: Sichtbarkeitsliste umfasst die Ausfuehrungsliste (Zusatzendungen)")
+
+    // Regel 2 an Dateien statt an Mengen: Was fortsetzbar ist, ist sichtbar.
+    // Die Mengenpruefung allein genuegt nicht - sie saehe nicht, wenn
+    // `isResumable` eines Tages an den Mengen vorbei entschiede.
+    for name in ["Bericht.docx", "Zahlen.xlsx", "Vortrag.pptx", "Handbuch.pdf",
+                 "Notiz.md", "Prozess.bpmn", "Modell.graph", "Skript.py",
+                 "Start.sh", "Archiv.zip", "Bild.png", "Formular.form",
+                 "LICENSE", "Programm.app"] {
+        if WorkDays.isResumable(datei(name)) {
+            expect(WorkFileFilter.isWorkFile(datei(name)),
+                   "Regel 2c: fortsetzbar heisst sichtbar (\(name))")
+        }
+    }
+
+    // Was nicht durchkommen darf - die Erlaubnisliste bleibt eine.
+    expect(!WorkDays.isResumable(datei("Skript.py")), "py: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(datei("Start.sh")), "sh: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(datei("Werkzeug.jar")), "jar: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(datei("Programm.app")), "app: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(datei("LICENSE")), "ohne Endung: nicht fortsetzbar")
+
+    // ⚠️ `.form` ist bewusst in KEINER der beiden Listen. Camunda Modeller
+    // bedient sie, und der Anwender hat welche - sie jetzt aufzunehmen hiesse
+    // fuer ihn zu entscheiden. Sie ist der erste Kandidat fuer die Tabelle aus
+    // Sprint 17/AP2 und damit deren Nachweis, dass sie gebraucht wird.
+    expect(!WorkFileFilter.isWorkFile(datei("Formular.form")), "form: noch nicht sichtbar")
+    expect(!WorkDays.isResumable(datei("Formular.form")), "form: noch nicht fortsetzbar")
 }
+
 
 // MARK: - Memo
 do {

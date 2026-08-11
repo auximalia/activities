@@ -53,14 +53,51 @@ public enum WorkDays {
     ///   Werkstueck. Das ist die strittigste der Entscheidungen – und der beste
     ///   Kandidat, falls die Auswahl je einstellbar wird.
     /// - ``FileCategory/other`` faellt weg: der Eimer fuer alles Unbekannte,
-    ///   und damit genau dort, wo `.app` und `.command` liegen.
+    ///   und damit genau dort, wo `.app` und `.command` liegen. **Einzelne
+    ///   Endungen daraus koennen dennoch zugelassen werden – aber nur einzeln
+    ///   und benannt**, siehe ``extraResumableExtensions``. Die Kategorie als
+    ///   Ganzes bleibt gesperrt, denn sie ist keine Aussage ueber den Inhalt,
+    ///   sondern das Fehlen einer solchen.
     public static let resumableCategories: Set<FileCategory> = [
         .documents, .pdf, .spreadsheets, .presentations
     ]
 
+    /// Endungen, die ``FileCategory`` nicht kennt und die trotzdem wieder
+    /// aufgeschlagen werden duerfen.
+    ///
+    /// **⚠️ Diese Menge muss eine Teilmenge von
+    /// ``WorkFileFilter/extraExtensions`` sein** – was fortgesetzt wird, muss
+    /// auch sichtbar sein. ``CoreChecks`` prueft das; ein Eintrag hier ohne
+    /// Gegenstueck dort waere eine Datei, die man oeffnen kann, ohne sie je zu
+    /// sehen.
+    ///
+    /// **⚠️ Warum das die Trennung der beiden Listen NICHT aufhebt, obwohl sie
+    /// damit denselben Inhalt haben.** Die Gleichheit ist eine Zufaelligkeit,
+    /// solange **beide** Listen von uns kuratiert werden. Sobald die
+    /// Sichtbarkeitsliste dem Anwender gehoert (Sprint 17, AP2), hoert sie auf,
+    /// sicher zu sein: Wer `code` aufnimmt, um seine Python-Arbeit zu *sehen*,
+    /// haette bei einer gemeinsamen Liste ein „Arbeit fortsetzen", das gemessene
+    /// 1.763 `.jar`-Dateien an den JavaLauncher reicht. *Wer die beiden je
+    /// zusammenlegt, gibt die engere auf – und merkt es nicht, weil das
+    /// Zusammenlegen sich wie Aufraeumen anfuehlt.*
+    ///
+    /// `bpmn` und `graph` sind Modellierungsdateien: XML-Daten ohne
+    /// Interpreter-Pfad. Aufgenommen auf einen konkreten Fall hin (Camunda
+    /// Modeller, 2026-08-11), nicht auf Vorrat – genau der Ausgang, den PR-36
+    /// vorhergesagt hat: „die kleinste Loesung ist womoeglich gar keine
+    /// Einstellung, sondern eine bessere Vorgabe".
+    public static let extraResumableExtensions: Set<String> = ["bpmn", "graph"]
+
     /// Ob eine Datei von „Arbeit fortsetzen" geoeffnet werden darf.
+    ///
+    /// **⚠️ ``FileCategory/extensionMap`` bleibt dafuer unangetastet.** `bpmn`
+    /// liegt weiterhin in ``FileCategory/other``. Die Kategorientabelle zu
+    /// erweitern waere der bequemere Weg und der gefaehrliche: Sie speist
+    /// zugleich die Sichtbarkeit, die Legende und die Sortierung – wer sie
+    /// anfasst, entscheidet ungewollt an vier Stellen mit.
     public static func isResumable(_ url: URL) -> Bool {
-        resumableCategories.contains(FileCategory.category(for: url))
+        if extraResumableExtensions.contains(url.pathExtension.lowercased()) { return true }
+        return resumableCategories.contains(FileCategory.category(for: url))
     }
 
     /// Wie viele Tage hoechstens angeboten werden.

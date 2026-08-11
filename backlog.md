@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.40 · 2026-08-11*
+*Stand: v1.19.41 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -265,6 +265,56 @@ sind `Bench` und `CoreChecks`.
 PR-20 ein S. Vorher bleibt es ein M – und ein M mit „gering–mittel" ist ein schlechter Tausch.*
 
 
+### ✅ PR-36 · Dateitypen für „Arbeit fortsetzen" – gelöst durch eine bessere Vorgabe *(v1.19.41)*
+**Aufwand:** S · **Nutzen:** mittel · **P3** · *AP3 aus Sprint 17, vorgezogen*
+
+**Der Eintrag hat auf genau das gewartet, was jetzt eingetreten ist:** „Wartet auf den ersten
+konkreten Fall: *welcher* Typ fehlt, in *welchem* Ordner." Gemeldet am 2026-08-11 — `.bpmn`,
+gezeichnet im Camunda Modeller, in den Dokumentationsordnern. 173 solche Dateien liegen im
+Bestand.
+
+**Und der Eintrag hat auch die Lösung vorhergesagt:** „Kommt er, ist die kleinste Lösung
+womöglich gar keine Einstellung, sondern eine bessere Vorgabe." Genau so ist es ausgefallen —
+`WorkDays.extraResumableExtensions = ["bpmn", "graph"]`, gespiegelt zu
+`WorkFileFilter.extraExtensions`. Kein Bedienelement.
+
+**⚠️ Die Prüfung des Wunsches hat mehr widerlegt als bestätigt.** Verlangt war, den
+Office-Filter verwaltbar zu machen. Am laufenden Programm zeigte sich: `.bpmn` **war bereits
+vollständig darin** (Legende `.bpmn 173` bei eingeschaltetem Office), und ein Doppelklick
+öffnete es seit jeher — `FinderService.open` kennt keine Erlaubnisliste. Die Lücke war eine
+einzige, und sie lag in der **Ausführungsliste**, nicht im Office-Filter. *Zwei Drittel des
+Wunsches waren erfüllt, bevor jemand etwas gebaut hat; das aufzudecken war der ganze Ertrag der
+Bestandsaufnahme.*
+
+**⚠️ `FileCategory.extensionMap` ist unangetastet** — `bpmn` liegt weiterhin in `other`. Sie
+zu erweitern wäre der bequemere Weg und der gefährliche: Sie speist Sichtbarkeit, Legende und
+Sortierung zugleich.
+
+**⚠️ Die alte `CoreChecks`-Zusicherung musste fallen — und das ist der heikle Teil.** Sie
+lautete „`bpmn` ist sichtbar **und nicht** ausführbar" und nagelte damit ein **Beispiel** fest,
+nicht die Regel. Ersetzt durch die schärfere, die immer dahinterstand: `extensionMap`
+unverändert **und** Ausführungsliste ⊆ Sichtbarkeitsliste in **beiden** Teilen (Kategorien
+*und* Zusatzendungen), zusätzlich an einem Dateienbestand statt nur an Mengen. *Eine
+gelockerte Zusicherung ist nur dann in Ordnung, wenn die schärfere dahinter sichtbar wird –
+sonst ist das Lockern der ganze Vorgang.* 1096 → 1116 Zusicherungen.
+
+**Am laufenden Programm belegt, mit Gegenprobe im selben Aufbau:**
+
+| Ordner | Inhalt | Kontextmenü |
+|---|---|---|
+| `PM2025/14_Prozesse` | nur `.bpmn` | **„Arbeit fortsetzen ›"** vorhanden |
+| `ba_python/BPMN_magic/src` | nur `.py` | **fehlt** – beginnt direkt mit „Im Finder öffnen" |
+
+**⚠️ `.form` bewusst nicht mitgenommen.** Camunda Modeller bedient sie, und es liegen 5 im
+Bestand — sie jetzt in die Vorgabe zu nehmen hieße, für den Anwender zu entscheiden. Dasselbe
+Argument, mit dem dieser Eintrag jahrelang gegen eine ungefragte Einstellung stand. `.form` ist
+der erste Kandidat für die Tabelle aus Sprint 17/AP2 und damit deren Nachweis, dass sie
+gebraucht wird; `CoreChecks` hält den heutigen Zustand fest.
+
+**Ausgeliefert ohne Reisebegleiter, auf ausdrücklichen Wunsch** — wie v1.19.38. Die
+Sprint-Regel aus `AGENTS.md` bleibt sonst gültig; hier stand die tägliche Arbeit des Anwenders
+gegen einen Versionssprung.
+
 ### PR-21 · Suchbegriffe merken
 **Aufwand:** S · **Nutzen:** mittel · **P3** · *durch PR-45 aufgewertet*
 
@@ -388,22 +438,6 @@ Baumlinien, Auswahlhintergrund und Kompakt-Layout gleichzeitig berührt.
 
 **Auslöser für eine Wiedervorlage:** Ein realer Bestand, in dem mehr als ~5 % der Zeilen
 bei üblicher Fensterbreite abgeschnitten werden. Dann **neu messen, nicht schätzen**.
-
-### PR-36 · Dateitypen für „Arbeit fortsetzen" einstellbar machen
-**Aufwand:** S · **Nutzen:** offen · **P3**
-
-**⚠️ Bewusst noch nicht gebaut** – der Wunsch stand im Konjunktiv („vielleicht kann man …,
-sollte noch ein Wunsch dazukommen"). Eine Einstellung, die niemand vermisst hat, ist ein
-Bedienelement mehr und eine Entscheidung, die der Anwender treffen *muss*, statt sie
-geschenkt zu bekommen. Wartet auf den ersten konkreten Fall: *welcher* Typ fehlt, in
-*welchem* Ordner.
-
-**Der wahrscheinlichste Fall ist `images`.** Kommt er, ist die kleinste Lösung womöglich
-gar keine Einstellung, sondern eine bessere Vorgabe.
-
-**⚠️ Falls es doch eine Einstellung wird:** Sie gehört zu den Typ-Filtern (UX-06), nicht in
-ein neues Fenster – und sie darf die Erlaubnisliste **erweitern**, nicht ersetzen. Sonst
-hätte man den Sicherheitsmangel aus PR-35 zurück.
 
 ### PR-42 · Doppelklick auf Ordner *(zur Entscheidung)*
 **Aufwand:** S · **Nutzen:** offen · **P3**
@@ -891,6 +925,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.38 | — | PR-44 · Der Filter heißt „Office", wie ihn seine Nutzer nennen |
 | v1.19.39 | Hotfix | PR-46 · Der Schnellpfad der Detailliste filterte weder Office noch Namen |
 | v1.19.40 | Hotfix | PR-47 · Update-Prüfung hing am API-Kontingent einer geteilten IP |
+| v1.19.41 | Sprint 17, AP3 | PR-36 · `bpmn`/`graph` auch in „Arbeit fortsetzen" |
 
 ## Sprint 17 – „Ein Filter, eine Wahrheit" *(geplant)*
 

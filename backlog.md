@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.37 · 2026-08-10*
+*Stand: v1.19.39 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -492,6 +492,56 @@ belegt die Obermengen-Zusage** – jede platzhalterfreie Eingabe findet mindeste
 sie heute findet; eine Eingabe **mit** Platzhalter bedeutet unverändert genau dasselbe wie
 heute; ein hängendes `ODER` liefert ein Ergebnis, keinen Fehler.
 
+### ✅ PR-46 · Der Schnellpfad filterte nicht mit *(v1.19.39)*
+**Art:** Defekt · **P1** · gefunden bei der Bestandsaufnahme vor Sprint 17
+
+**Der Befund:** War „Dateien außerhalb des Zeitraums zeigen" an und kein Plättchen
+ausgeblendet, so wirkten **Office-Schalter und Suchfeld auf die Dateiliste nicht mehr**.
+Diagramm, Legende, Ordnerzeilen und Statuszeile filterten weiter — die Liste darunter nicht.
+Über `visibleSortedFilesByFolder` betraf es ebenso Baum, Tastaturnavigation und QuickLook.
+
+Am laufenden Programm belegt, mit Gegenprobe: Office an, Legende auf `.md 6 · .pdf 5 ·
+.xmind 3 · .xlsx 2` geschrumpft, Statuszeile „Office · Zurücksetzen" — und in der Liste
+standen weiter `Package.swift`, `project.yml`, `svn_roundcheck.sh`, zwei `.html` und eine
+`.lnk`. Mit Namensfilter „swift" dasselbe: Legende und Diagramm zeigten 49 Treffer, die Liste
+zeigte `AGENTS.md`, `README.md`, `VERSION`.
+
+**⚠️ Die Ursache ist nicht der Schnellpfad, sondern dass seine Bedingung eine Kopie war.**
+`visibleFiles(in:)` überspringt `isVisibleDetail`, wenn nichts zu filtern ist — und fragte
+dafür die *Eingänge* jenes Prädikats ein zweites Mal ab, 500 Zeilen entfernt. Die Kopie ist
+dem Original zweimal nicht gefolgt:
+
+| Version | Was dazukam | Bedingung nachgezogen? |
+|---|---|---|
+| v1.0.12 | Schnellpfad entsteht; `hiddenExtensions` ist der einzige Filter | — |
+| v1.5.0 | „außerhalb des Zeitraums" | ✅ von Hand |
+| **v1.10.0** | **Namensfilter** (Filtern wandert in den Speicher) | ❌ vergessen |
+| **v1.19.36** | **Office** | ❌ vergessen |
+
+Die Namensfilter-Hälfte ist damit **29 Versionen alt**, nicht neu aus Sprint 16. Unentdeckt
+blieb sie, weil beide Hälften den nicht vorgegebenen Zeitraum-Schalter voraussetzen.
+
+**Die Behebung setzt die Bedingung aus den Geschwistern zusammen, statt sie zu reparieren**
+(`decision-check`, Urteil „anzupassen"): Jeder Teil ist das Inaktivitäts-Prädikat, das ohnehin
+neben seinem Filter steht — `hasTypeFilter`, `NameFilter.matchesEverything`,
+`showOutOfWindowFiles`. Keine neue Ableitung aus Feldern.
+
+**⚠️ Der Schnellpfad wurde bewusst nicht gestrichen**, obwohl „das einzige Konstrukt, das
+nicht zurückfallen kann, ist keines" das stärkere Argument ist. Er greift im **häufigen** Fall
+(kein Filter gesetzt) und zieht über `visibleSortedFilesByFolder` den ganzen Baum; Sprint 15
+hat die Nachbarkosten bei 500 000 Dateien mit 0,97–1,26 s beziffert. Eine kostensparende
+Konstruktion **ohne Messung** zu entfernen wäre derselbe Fehler wie sie ohne Messung
+einzuführen — und ein Hotfix ist nicht der Ort zu messen. *Die strukturelle Auflösung ist AP1
+von Sprint 17: ein Sichtbarkeitstyp im Kern, den `CoreChecks` erreicht.*
+
+**Mitgenommen:** `visibleFilesByFolder` ist gelöscht. Es hatte seit v1.19.35 keinen Aufrufer
+mehr und trug **dieselbe** zurückgefallene Bedingung — eine tote Kopie eines gerade behobenen
+Fehlers ist die schlechteste Art, Code aufzuheben.
+
+**Nicht mitgenommen, gehört in Sprint 17:** `FolderRowView` ruft `visibleFiles(in:)`
+**zweimal je Rumpfauswertung** (`:20`, `:23`) und geht dabei am Zwischenspeicher vorbei; und
+`hasTypeFilter`, `typeFilterSummary`, `resetTypeFilters` sind von **keiner** Prüfung erfasst.
+
 ### Wie die drei zusammenhängen *(für den nächsten Sprintschnitt)*
 
 Aus vier Wünschen wurden drei Einträge: **PR-43 (Outlook) ist gestrichen** – die Ablage
@@ -640,6 +690,14 @@ greift **den Grund** an – nicht die Entscheidung.
    (UX-01: der vermutete Funktionsfehler existierte nicht). *Und umgekehrt – siehe Lehre 2.*
 7. **Vor jeder Umsetzung an einer heiklen Stelle: erst den Kern, dann die Ladekette.** Was
    prüfbar sein kann, muss vorher prüfbar sein (Sprint 11, AP1).
+8. **Ein Schnellpfad ist eine Kopie eines Prädikats – und Kopien fallen zurück.** Die
+   Abkürzung in `visibleFiles(in:)` fragte die *Eingänge* von `isVisibleDetail` ein zweites
+   Mal ab und wuchs zweimal nicht mit (PR-46): einmal 2 Versionen, einmal 29 Versionen lang
+   unbemerkt, weil ein falsches Ergebnis richtig aussieht. **Eine Vorbedingung darf nur aus
+   den Inaktivitäts-Prädikaten zusammengesetzt werden, die neben ihrem Filter stehen** –
+   `NameFilter.matchesEverything` ist die Bauform, `hiddenExtensions.isEmpty` an fremder
+   Stelle ist es nicht. *Dieselbe Regel wie Lehre 4, eine Ebene tiefer: Was die eine Wahrheit
+   verdoppelt, driftet.*
 
 ---
 
@@ -695,6 +753,8 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.35 | Sprint 15 · „Wissen, was es aushält" | PR-25, PR-27 AP3, Totholz |
 | v1.19.36 | Sprint 16 · „Mehrere Quellen, gezielter Blick" | PR-19, PR-44, PR-45 |
 | v1.19.37 | Hotfix | PR-44 · „Nur Arbeitsdateien" stand außerhalb der Filter, auf die es wirkt |
+| v1.19.38 | — | PR-44 · Der Filter heißt „Office", wie ihn seine Nutzer nennen |
+| v1.19.39 | Hotfix | PR-46 · Der Schnellpfad der Detailliste filterte weder Office noch Namen |
 
 ## Sprint 16 – „Mehrere Quellen, gezielter Blick" *(v1.19.36)*
 

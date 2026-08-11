@@ -1108,9 +1108,12 @@ final class ReportViewModel {
     ///
     /// Grundlage der Baumzeilen und der Tastaturnavigation. Bewusst dieselbe
     /// Quelle wie die Anzeige (``visibleFiles(in:)``) – frueher navigierte die
-    /// flache Liste ueber ``visibleFilesByFolder``, das **nicht** sortiert. Bei
-    /// Sortierung nach Name oder Typ lief der Cursor dadurch in einer anderen
-    /// Reihenfolge als das Auge.
+    /// flache Liste ueber ein zweites, **unsortiertes** `visibleFilesByFolder`.
+    /// Bei Sortierung nach Name oder Typ lief der Cursor dadurch in einer
+    /// anderen Reihenfolge als das Auge. Jene Eigenschaft ist seit v1.19.39
+    /// geloescht: Sie hatte seit v1.19.35 keinen Aufrufer mehr und trug
+    /// dieselbe zurueckgefallene Filterbedingung wie der Schnellpfad – eine
+    /// tote Kopie eines gerade behobenen Fehlers.
     ///
     /// Gemessen bei 500.000 Dateien (`swift run -c release Bench`): sichtbare
     /// Dateien bestimmen 1,26 s, je Ordner sortieren 1,07 s. Deshalb der
@@ -1434,14 +1437,25 @@ final class ReportViewModel {
 
     // MARK: - Detailansicht (alle Dateien des Ordners, Typ-gefiltert)
 
-    /// Detaildateien je Ordner, gefiltert nach ausgeblendeten Endungen.
-    var visibleFilesByFolder: [URL: [RelevantFile]] {
-        guard !hiddenExtensions.isEmpty || !showOutOfWindowFiles else { return filesByFolder }
-        var result: [URL: [RelevantFile]] = [:]
-        for (folder, files) in filesByFolder {
-            result[folder] = files.filter { isVisibleDetail($0) }
-        }
-        return result
+    /// Ob an der Detailliste ueberhaupt ein Filter zieht.
+    ///
+    /// **⚠️ Jeder Teil dieser Bedingung ist das Inaktivitaets-Praedikat, das
+    /// ohnehin neben seinem Filter steht – ausdruecklich KEINE zweite Ableitung
+    /// aus dessen Eingaengen.** Genau daran ist die Vorgaengerfassung zweimal
+    /// gescheitert: Sie fragte `hiddenExtensions` und `showOutOfWindowFiles`
+    /// direkt ab, also eine **Kopie** der Eingaenge von
+    /// ``isVisibleDetail(_:)``. Als v1.10.0 den Namensfilter und v1.19.36 den
+    /// Office-Schalter hinzufuegte, wuchs das Original und die Kopie nicht mit –
+    /// beide Male unbemerkt, weil die Abkuerzung nur greift, wenn „Dateien
+    /// ausserhalb des Zeitraums zeigen" an ist. Die Liste zeigte dann Dateien,
+    /// die Diagramm, Legende und Statuszeile bereits ausgeschlossen hatten.
+    ///
+    /// Wer einen Filter ergaenzt, ergaenzt hier **kein** Feld, sondern dessen
+    /// vorhandenes Praedikat – und wenn es keines gibt, ist das der Befund.
+    /// *Die eigentliche Aufloesung ist ein Sichtbarkeitstyp im Kern, den
+    /// ``CoreChecks`` erreicht (Sprint 17); bis dahin traegt dieser Kommentar.*
+    private var detailFilterIsActive: Bool {
+        hasTypeFilter || !nameFilter.matchesEverything || !showOutOfWindowFiles
     }
 
     /// Ob eine Detaildatei angezeigt wird: Typ-Filter **und** – je nach
@@ -1480,9 +1494,7 @@ final class ReportViewModel {
     /// ``nil`` bedeutet "noch nicht geladen".
     func visibleFiles(in folder: URL) -> [RelevantFile]? {
         guard let files = filesByFolder[folder] else { return nil }
-        let filtered = (hiddenExtensions.isEmpty && showOutOfWindowFiles)
-            ? files
-            : files.filter { isVisibleDetail($0) }
+        let filtered = detailFilterIsActive ? files.filter { isVisibleDetail($0) } : files
         guard sort != .byNewest else { return filtered }
         return RowSorting.files(filtered, by: sort)
     }

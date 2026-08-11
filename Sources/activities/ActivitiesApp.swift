@@ -283,10 +283,14 @@ struct ActivitiesApp: App {
                     .keyboardShortcut(Shortcuts.chooseFolder)
                 Menu("Quellen") {
                     ForEach(model.sources.known, id: \.self) { url in
-                        Toggle(model.sourceLabel(for: url), isOn: Binding(
+                        // Wie im Werkzeugleisten-Menue: Name, dahinter der Pfad.
+                        Toggle(isOn: Binding(
                             get: { model.sources.isActive(url) },
                             set: { model.setSourceActive(url, $0) }
-                        ))
+                        )) {
+                            Text(url.lastPathComponent)
+                                + Text("   " + model.sourcePath(for: url)).foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .disabled(model.sources.known.isEmpty)

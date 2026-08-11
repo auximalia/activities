@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.54 · 2026-08-11*
+*Stand: v1.19.55 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,57 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-47 · Man sah, *welche* Quellen es gibt, aber nicht *wo* sie liegen *(v1.19.55)*
+**Aufwand:** S · **Art:** Defekt
+
+**Beobachtet:** Im Ordner-Menü und im Werkzeugleisten-Menü stand nur der Ordnername. Zwei
+Ordner namens `Dokumente` – einer intern, einer auf einer USB-Platte – waren nicht
+auseinanderzuhalten. *„Sonst weiß keiner, wo die Quellen liegen."*
+
+**Entschieden:** Name, dahinter der Pfad in Grau – **die Form der Ordnerzeilen in der Tabelle**
+(`activities  opencode/activities`). Gekürzt in der Schreibweise des Systems: `~/Documents`,
+`/Volumes/Master/scansnap`.
+
+**⚠️ Und damit fällt an diesen Stellen `sourceLabel(for:)` weg.** Die Geschwisterprobe fand
+einen bestehenden Mechanismus, der dieselbe Aufgabe löst: `FolderTree.distinctLabels` verlängert
+den Namen um Elternstufen, bis die Quellen unterscheidbar sind. Neben dem Pfad ergäbe das
+„Master/scansnap  /Volumes/Master/scansnap" – zweimal dieselbe Auskunft. Der Pfad kann es
+besser, denn er sagt nicht nur *welche*, sondern *wo*. `distinctLabels` bleibt genau dort, wo
+kein Pfad hinpasst: in der Schaltfläche der Werkzeugleiste.
+
+**⚠️ Die Kürzung steht im Kern, nicht in der Ansicht** (`PathFormatting`, neben `DateFormatting`
+und `SizeFormatting`). Eine Formatierungsregel, die `CoreChecks` nicht erreicht, driftet
+unbemerkt – genau so ist vor PR-32 die Zeitstempel-Darstellung auseinandergefallen. Die
+wichtigste der 7 neuen Zusicherungen ist die Falle: `/Users/mtri2/Berichte` darf **nicht** zu
+`~2/Berichte` werden. Verglichen wird deshalb mit Schrägstrich dahinter. *Der Fehler wäre
+niemandem aufgefallen, weil das Ergebnis plausibel aussieht.*
+
+**Beleg:** Beide Menüs am laufenden Programm – „✓ Documents  ~/Documents". Das Grau rendert in
+SwiftUI-Menüs, was nicht selbstverständlich ist; geprüft, nicht angenommen.
+
+### ✅ UX-48 · Suchfeld breiter – 1,3 statt der gewünschten 1,5 *(v1.19.55)*
+**Aufwand:** XS · **Art:** Geschmack, mit gemessener Grenze
+
+**Gewünscht:** Faktor 1,5 (210 → 315 pt), *„oder wenigstens Faktor 1,3"*.
+
+**Gemessen**, ab welcher Fensterbreite die Werkzeugleiste überläuft und Knöpfe ins `»`-Menü
+wandern (eingegrenzt über die Bedienhilfen: „Weitere Objekte in der Symbolleiste"):
+
+| Feldbreite | Überlauf unterhalb |
+|---|---|
+| 210 pt (bisher) | ~1295 pt |
+| **273 pt (1,3)** | **~1358 pt** |
+| 315 pt (1,5) | ~1400 pt (1390 ja, 1410 nein) |
+
+**⚠️ Gewählt wurde 1,3, und der Grund steht im Backlog dieses Projekts:** UX-35 – *„Der
+Ordner-Umschalter war so unauffindbar geworden, dass ihn der eigene Erbauer nicht mehr fand."*
+Ein Knopf im Überlaufmenü ist erreichbar und unauffindbar. 1,5 hätte das schon bei einem
+1 400 pt breiten Fenster ausgelöst – also bei fast jedem Fenster, das nicht Vollbild ist.
+
+**Versucht und verworfen:** `minWidth: 210, idealWidth: 315`, damit das Feld bei Enge schrumpft.
+SwiftUI nimmt die Wunschbreite und lässt lieber Knöpfe überlaufen – die Schwelle blieb bei
+~1400 pt. Ein mitatmendes Feld wäre die bessere Lösung; es gibt sie hier nicht.
 
 ### ✅ UX-46 · Der Anwender gab auf, obwohl die App es konnte *(v1.19.54)*
 **Aufwand:** S · **Art:** Defekt · *Gefunden im Gespräch, nicht auf der Liste*
@@ -839,6 +890,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.52 | Kleinigkeit | PR-54 · Zwei stumme Pfade beim Hinzufügen einer Quelle |
 | v1.19.53 | Kleinigkeit | PR-55 · Suche startet mit Enter statt entprellt beim Tippen |
 | v1.19.54 | Kleinigkeit | UX-46 · Hilfe verschwieg, wie man ein Wort abgrenzt |
+| v1.19.55 | Kleinigkeit | UX-47 · Pfade bei den Quellen · UX-48 · Suchfeld 273 pt |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

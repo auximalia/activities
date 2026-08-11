@@ -1908,6 +1908,19 @@ final class ReportViewModel {
             ?? url.lastPathComponent
     }
 
+    /// Der Pfad einer Quelle in der Schreibweise des Systems (`~/Documents`).
+    ///
+    /// **⚠️ Wo dieser Pfad steht, wird der Name NICHT mehr durch
+    /// ``sourceLabel(for:)`` verlaengert.** Beide loesen dieselbe Aufgabe – die
+    /// Quellen unterscheidbar machen –, und nebeneinander ergaeben sie
+    /// „Master/scansnap  /Volumes/Master/scansnap". Der Pfad kann es besser: Er
+    /// sagt nicht nur *welche*, sondern *wo*. ``sourceLabel(for:)`` bleibt
+    /// deshalb genau dort, wo kein Pfad hinpasst – in der Schaltflaeche der
+    /// Werkzeugleiste.
+    func sourcePath(for url: URL) -> String {
+        PathFormatting.withTilde(url.path, home: NSHomeDirectory())
+    }
+
     /// Kurzform der Auswahl fuer Werkzeugleiste und Menue.
     ///
     /// **⚠️ Bei mehreren Quellen die Zahl statt der Namen.** Drei Ordnernamen

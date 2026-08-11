@@ -38,7 +38,25 @@ struct MainToolbar: ToolbarContent {
                 onChange: { model.namePatternDidChange() },
                 onSubmit: { model.applyNameFilterNow() }
             )
-            .frame(width: 210)
+            // **⚠️ 273 pt (Faktor 1,3), nicht 315 (1,5) – und die Zahl ist
+            // gemessen, nicht gewaehlt.** Gewuenscht war 1,5. Gemessen wurde,
+            // ab welcher Fensterbreite die Werkzeugleiste ueberlaeuft und
+            // Knoepfe ins `»`-Menue wandern:
+            //
+            //   210 pt (bisher) → unter ~1295 pt Fensterbreite
+            //   273 pt (1,3)    → unter ~1358 pt
+            //   315 pt (1,5)    → unter ~1400 pt   (eingegrenzt: 1390 ja, 1410 nein)
+            //
+            // Verborgene Bedienelemente sind in diesem Programm eine teure
+            // Lehre: UX-35, „Der Ordner-Umschalter war so unauffindbar
+            // geworden, dass ihn der eigene Erbauer nicht mehr fand."
+            //
+            // **Versucht und verworfen:** `minWidth: 210, idealWidth: 315`,
+            // damit das Feld bei Enge schrumpft. SwiftUI nimmt die Wunschbreite
+            // und laesst stattdessen Knoepfe ueberlaufen – die Schwelle blieb
+            // bei ~1400 pt. Ein flexibles Feld waere die bessere Loesung; es
+            // gibt sie hier nicht.
+            .frame(width: 273)
             // **Ein gesetzter Filter muss auffallen.** Ein Suchfeld mit Text
             // sieht sonst fast aus wie eines ohne – und dann wundert man sich
             // ueber eine unerklaerlich kurze Liste. Derselbe Grundsatz wie beim
@@ -279,10 +297,23 @@ struct MainToolbar: ToolbarContent {
                     // sie addieren sich. Ein Menue mit Haken sagt das; eine
                     // Liste, aus der man eine Zeile anklickt, sagt das Gegenteil.
                     ForEach(model.sources.known, id: \.self) { url in
-                        Toggle(model.sourceLabel(for: url), isOn: Binding(
+                        // **⚠️ Ordnername plus Pfad – nicht die verlaengerte
+                        // Beschriftung aus ``sourceLabel(for:)``.** Gemeldet:
+                        // „Sonst weiss keiner, wo die Quellen liegen." Zwei
+                        // Ordner namens `Dokumente` auf interner und externer
+                        // Platte waren nicht auseinanderzuhalten. Der Pfad loest
+                        // das besser als ein verlaengerter Name, weil er nicht
+                        // nur sagt *welche*, sondern *wo* – und zusammen ergaeben
+                        // beide „Master/scansnap  /Volumes/Master/scansnap".
+                        // Form wie in den Ordnerzeilen der Tabelle: Name, dahinter
+                        // der Pfad in Grau.
+                        Toggle(isOn: Binding(
                             get: { model.sources.isActive(url) },
                             set: { model.setSourceActive(url, $0) }
-                        ))
+                        )) {
+                            Text(url.lastPathComponent)
+                                + Text("   " + model.sourcePath(for: url)).foregroundStyle(.secondary)
+                        }
                         .help(url.path)
                     }
                 }

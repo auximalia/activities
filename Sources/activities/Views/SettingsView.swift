@@ -172,8 +172,8 @@ struct SettingsView: View {
                                 set: { model.setSourceActive(url, $0) }
                             )) {
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(model.sourceLabel(for: url))
-                                    Text(url.path)
+                                    Text(url.lastPathComponent)
+                                    Text(model.sourcePath(for: url))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)

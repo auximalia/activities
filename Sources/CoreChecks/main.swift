@@ -884,6 +884,28 @@ do {
     expectEqual(einzelner["/nur/eine"], "eine", "eine Quelle: nur der Name")
 }
 
+// MARK: - PathFormatting (Pfade kuerzen)
+do {
+    let heim = "/Users/mtri"
+    expectEqual(PathFormatting.withTilde("/Users/mtri/Documents", home: heim), "~/Documents", "Heimatpfad wird gekuerzt")
+    expectEqual(PathFormatting.withTilde("/Users/mtri", home: heim), "~", "das Heimatverzeichnis selbst")
+    expectEqual(PathFormatting.withTilde("/Volumes/Master/scansnap", home: heim), "/Volumes/Master/scansnap",
+                "fremdes Laufwerk bleibt unveraendert")
+
+    // ⚠️ Die eine Zeile, wegen der es diesen Typ gibt: Ohne den Schraegstrich
+    // im Vergleich wuerde ein FREMDES Benutzerverzeichnis als das eigene
+    // ausgegeben – und das Ergebnis saehe plausibel aus.
+    expectEqual(PathFormatting.withTilde("/Users/mtri2/Berichte", home: heim), "/Users/mtri2/Berichte",
+                "anderer Benutzer wird NICHT gekuerzt")
+
+    expectEqual(PathFormatting.withTilde("/Users/mtri/Documents", home: "/Users/mtri/"), "~/Documents",
+                "Schraegstrich am Ende der Heimat aendert nichts")
+    expectEqual(PathFormatting.withTilde("/Users/mtri/Documents", home: ""), "/Users/mtri/Documents",
+                "ohne Heimat wird nicht gekuerzt")
+    expectEqual(PathFormatting.withTilde("/Users/mtri/Documents", home: "/"), "/Users/mtri/Documents",
+                "die Wurzel ist keine Heimat")
+}
+
 // MARK: - SourceList (Bestand und Auswahl)
 do {
     let docs = URL(fileURLWithPath: "/u/Documents", isDirectory: true)

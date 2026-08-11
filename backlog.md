@@ -106,7 +106,7 @@ Bedienelement für eine Abkürzung.
 ## Aus der Produkt-Roadmap
 
 ### PR-13 · Typverteilung in der Ordnerzeile
-**Aufwand:** M · **Nutzen:** mittel · **P3**
+**Aufwand:** S · **Nutzen:** mittel · **P3** · *von M auf S, geprüft nach Sprint 17*
 
 Ein schmaler Streifen aus den Farben der `TypePalette` in jeder Ordnerzeile, **dauerhaft**
 statt beim Überfahren.
@@ -132,14 +132,24 @@ vor Sprint 15, nachgeprüft vor Sprint 17):
    **und sortiert bei jedem Aufruf neu** (`ReportViewModel.swift:1481-1488`). Ein Streifen
    je Zeile hieße diese Rechnung einmal pro Zeile pro Neuzeichnung.
 
-**⚠️ Die frühere Entwarnung „Punkt 2 ist mit v1.19.35 überholt" war falsch und ist
-zurückgezogen** (nachgeprüft vor Sprint 17). Gepuffert sind `visibleSortedFilesByFolder` und
-`treeRows` – **nicht** `visibleFiles(in:)`. `FolderRowView` geht an diesem Speicher vorbei und
-ruft es **zweimal je Rumpfauswertung** (`FolderRowView.swift:20,23`), die Baumzeile dreimal
-(`TreeRowView.swift:102,108,182`). Ein Streifen wäre also nicht die zweite, sondern die
-**dritte** ungepufferte Rechnung je Zeile. *Der Ausweg ist derselbe wie bei
-`visibleSortedFilesByFolder`: die Verteilung einmal je `rowsGeneration` bauen, im Kern, damit
-`Bench` sie beziffern kann.*
+**⚠️ Punkt 2 ist mit Sprint 17 erledigt – und meine eigene Rücknahme davor war falsch.** Vor
+Sprint 17 stand hier, ein Streifen wäre „die dritte ungepufferte Rechnung je Zeile", weil
+`FolderRowView` an `visibleSortedFilesByFolder` vorbeigriff. Das stimmte, als es geschrieben
+wurde – und wurde **im selben Sprint durch Festlegung 5 behoben** (gemessen: 243 Aufrufe
+vorher, 0 nachher). Der Eintrag wurde nur nie nachgezogen. *Ein Backlog, der eine Behauptung
+über einen Zustand führt, den derselbe Sprint beseitigt hat, ist genau so falsch wie eine
+veraltete Zeilennummer – nur überzeugender.*
+
+**Heute liegt die Eingangsmenge fertig und gepuffert vor.** Eine Verteilung je Ordner ist eine
+Faltung über `visibleSortedFilesByFolder` in einem vierten `Memo` am `rowsGeneration` – dem
+Muster von `treeRows`. Die Farbzuordnung existiert vollständig (`typeColorAssignment`,
+`FileTypeColor.color(forExtension:assignment:)`). **Was bleibt:** ein kleiner Kerntyp samt
+Zusicherung, zwei getrennt gebaute Zeilentypen, der VoiceOver-Text in **beiden**
+`accessibilityValue`-Bausteinen, und die einzige echte Entscheidung – die Breite.
+
+**Nebengewinn:** `dominantExtension(of:)` ist heute die einzige Histogramm-Stelle, liegt in der
+App-Schicht und wird als **Komparator-Closure** gerufen, also O(n log n) mal je Sortierlauf
+nach Typ. Eine gepufferte Verteilung im Kern ersetzt sie ersatzlos.
 
 **Platz ist ebenfalls knapp:** Der Ordnername trägt `.fixedSize(horizontal: true)`
 (`FolderRowView.swift:61`) und kann nicht schrumpfen; feste Kosten der Zeile sind 284 pt
@@ -165,8 +175,32 @@ Frage als S. Ein L zu bauen, das ein S überflüssig gemacht hätte, wäre die t
 das herauszufinden. *Zur Wiedervorlage, sobald PR-16 eine Weile im Gebrauch war.*
 
 ### PR-18 · Zwei Zeiträume vergleichen
-**Aufwand:** M · **Nutzen:** mittel · **P3**
+**Aufwand:** M–L · **Nutzen:** mittel · **P3** · *erstmals untersucht am 2026-08-11*
+
 „Diese Woche gegen letzte" – zeigt Verlagerung statt nur Bestand.
+
+**⚠️ Die alte Schätzung „M" war nie untersucht.** Zwei Zeilen im Backlog, keine Fundstelle.
+Nachgeprüft ergibt sich ein anderes Bild:
+
+**Die Rechnung ist billig.** `scannedFiles` wird **ohne Zeitgrenze** gelesen
+(`ScanSettings(start: .distantPast, end: .distantFuture)`), und `RelevantFile` trägt seinen
+Ordner. „Zähle je Ordner in Fenster A und Fenster B" ist damit **eine Faltung über den
+vorhandenen Rohbestand** – kein zweiter Suchlauf, kein Nachladen.
+
+**Teuer ist alles andere.** ⚠️ **Es gibt keinen Ort für das Ergebnis.** Das Fenster hat zwei
+Zonen: Kopfzone (Überschrift, Diagramm, Statuszeile) und Liste. Die Diagrammachse ist auf
+**einen zusammenhängenden** Zeitraum gebaut, die Zeile ist mit 284/212/292 pt voll. PR-16 hat
+sich aus genau diesem Grund für die Zwischenablage entschieden statt für eine Ansicht.
+
+**⚠️ Und die Ergebnisfelder des Modells sind sämtlich einfenstrig:** `window` ist argumentlos,
+`filteredFromScan()` ebenso, und `chartDays`, `displayBuckets`, `topExtensions`,
+`cachedWindowStart/End` sowie `visibility` tragen genau **ein** Fenster. Ein zweiter Bestand
+daneben ist der Punkt, an dem der Einheitsgewinn aus Sprint 17 wieder kippen kann.
+
+**⚠️ PR-18 ist ein Teilstück von PR-15.** Jener Eintrag führt „Vergleich zur Vorwoche"
+ausdrücklich als Bestandteil von „Deine Woche". *Ein M zu bauen, das ein L ohnehin enthält,
+ist die Umkehrung des Fehlers, vor dem PR-15 selbst warnt.* **Die Ortsfrage entscheidet
+beides und gehört vor jede Zeile Code.**
 
 ### ✅ PR-19 · Mehrere Quellordner, verwaltet als Liste *(v1.19.36)*
 **Erledigt in Sprint 16.** Bestand mit Auswahl, Überlappung beim Hinzufügen abgelehnt,

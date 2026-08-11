@@ -76,7 +76,7 @@ struct FileRowView: View {
             .accessibilityLabel("Mit Standard-App öffnen")
 
             Text(file.url.lastPathComponent)
-                .font(.callout)
+                .font(.system(size: RowMetrics.nameFontSize))
                 .fontWeight(isDateSource ? .bold : .regular)
                 .foregroundStyle(isInWindow ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 .opacity(isInWindow ? 1 : RowMetrics.outOfWindowTextOpacity)
@@ -143,7 +143,7 @@ struct FileRowView: View {
                     .interpolation(.high)
                     .frame(width: 16, height: 16)
                 Text(file.url.lastPathComponent)
-                    .font(.callout)
+                    .font(.system(size: RowMetrics.nameFontSize))
                     .lineLimit(1)
             }
             .padding(.horizontal, 8)

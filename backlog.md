@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.56 · 2026-08-11*
+*Stand: v1.19.57 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,61 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-50 · Die Dateinamen standen unter der Plattform-Norm *(v1.19.57)*
+**Aufwand:** S · **Art:** Defekt (nicht Geschmack)
+
+**Beobachtet:** *„Die Schriftgröße der Dateinamen (inkl. Datumsstempel und Größe rechts) ist mir
+zu klein – das strengt sehr an."*
+
+**⚠️ Der erste Messwert entschied die Frage, ob das Geschmack ist.** `NSFont.systemFontSize`
+ist **13 pt**. Die Dateinamen standen bei **12 pt** – also kleiner als alles, was macOS selbst
+als Inhalt setzt. Damit war es kein „mir zu klein", sondern ein Wert unter der Norm.
+`NSFont.smallSystemFontSize` ist 11 pt; die Nebenangaben lagen also genau richtig, nur eben am
+unteren Ende.
+
+**⚠️ Die zweite Messung drehte die ganze Abwägung um.** Erwartet war ein Zielkonflikt
+(größere Schrift → höhere Zeilen → weniger Einträge sichtbar). Gemessen gibt es ihn nicht:
+
+| Schrift | Zeilenhöhe der Systemschrift | Symbolblock | ``rowHeight`` |
+|---|---|---|---|
+| 12 pt | 14,1 pt | 18 pt | 22 pt |
+| 14 pt | 16,5 pt | 18 pt | **22 pt** |
+| 15 pt | 17,7 pt | 18 pt | **22 pt** |
+
+``rowHeight`` hängt am 16-pt-Ordnersymbol, nicht am Text. **Bis 15 pt wird keine Zeile höher.**
+Und waagerecht ist der Name die *flexible* Spalte. **Die Namensgröße ist also umsonst zu haben** –
+deshalb 14 pt und nicht bloß die Norm-Korrektur auf 13.
+
+**Der Preis steckt allein in den Nebenangaben**, weil deren feste Spalten aus der Textbreite
+gemessen sind (`measure-ui`, monospaced):
+
+| Nebenangabe | „Mi., 05.08.2025 14:32" | Datumsspalte | 6 Zeichen | Größenspalte | fest gesamt |
+|---|---|---|---|---|---|
+| 11 pt (bisher) | 142,8 | 146 | 40,8 | 44 | – |
+| **12 pt** | **155,8** | **159** | **44,5** | **48** | **+17 pt** |
+| 13 pt | 168,8 | 172 | 48,2 | 52 | +34 pt |
+
+Gewählt: **14 / 12**. Die Rangordnung *Inhalt größer als Nebenangabe* bleibt, und die 17 pt sind
+der ganze Preis. Mitgewandert, weil sonst grundlos: `dateColumnWidthCompact` 126 → 137 und
+`compactThreshold` 940 → **957** – die festen Bestandteile sind um 17 pt gewachsen, also muss
+die Schwelle mit, sonst bekäme der Name bei schmalem Fenster genau diese 17 pt weniger als
+vorher.
+
+**⚠️ Was die Änderung NICHT behebt:** den Kontrast. `secondaryLabel` bleibt bei 3,82:1 und damit
+unter AA (4,5:1); die Erleichterung auf 3:1 gilt erst ab 18 pt. PR-33 hatte dazu festgehalten:
+*„Wirkt es zu blass, ist der Hebel die Farbe, nicht die Größe."* Hier war die Meldung „zu
+klein", also war die Größe der richtige Hebel – die Blässe bleibt ein eigener, ungestellter
+Punkt.
+
+**Nebenbei aufgeräumt:** Die Zeilen benutzten `.headline`, `.callout` und `RowMetrics` gemischt;
+der graue Pfad stand schon bei 12 pt, Datum und Größe bei 11. Jetzt kommt jede Zeilenschrift aus
+``RowMetrics`` – `nameFontSize` oder `metaFontSize`. **Die Rangordnung war vorher eine
+Behauptung im Doc-Kommentar und ist jetzt eine im Code.**
+
+**Beleg:** Am laufenden Programm in beiden Ansichten und in beiden Layouts – volle Breite mit
+„Fr., 07.08.2026 13:21" und Größen bis „126 kB" ohne Kürzung, Kompakt-Layout mit
+„Fr. 07.08.26 13:21", Zeilenhöhe unverändert.
 
 ### ✅ UX-49 · Zwei verschiedene Ordner, eine identische Zeile *(v1.19.56)*
 **Aufwand:** S · **Art:** Defekt
@@ -942,6 +997,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.54 | Kleinigkeit | UX-46 · Hilfe verschwieg, wie man ein Wort abgrenzt |
 | v1.19.55 | Kleinigkeit | UX-47 · Pfade bei den Quellen · UX-48 · Suchfeld 273 pt |
 | v1.19.56 | Kleinigkeit | UX-49 · Voller Pfad hinter jedem Ordner (Baum und Liste) |
+| v1.19.57 | Kleinigkeit | UX-50 · Dateinamen 14 pt, Nebenangaben 12 pt |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

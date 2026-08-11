@@ -210,7 +210,7 @@ struct TreeFolderRowView: View {
                 }
 
                 Text(node.label)
-                    .font(.headline)
+                    .font(.system(size: RowMetrics.nameFontSize))
                     // Durchgangsknoten: schwaecher, damit sie nicht behaupten,
                     // hier sei gearbeitet worden. Sie tragen nur den Weg.
                     .fontWeight(node.isPassThrough ? .regular : .semibold)
@@ -228,7 +228,7 @@ struct TreeFolderRowView: View {
                 // dahinter der Pfad in Grau, bei schmalem Fenster entfaellt er.
                 if !isCompact {
                     Text(model.displayPath(of: node.folder))
-                        .font(.callout)
+                        .font(.system(size: RowMetrics.metaFontSize))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)

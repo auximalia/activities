@@ -59,12 +59,14 @@ struct FolderRowView: View {
                         .help("Angeheftet")
                 }
                 Text(entry.folder.lastPathComponent)
-                    .font(.headline)
+                    // `.headline` waere 13 pt semibold – die Groesse kommt jetzt
+                    // aus ``RowMetrics``, das Gewicht bleibt.
+                    .font(.system(size: RowMetrics.nameFontSize, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                 if !isCompact {
                     Text(model.displayPath(of: entry.folder))
-                    .font(.callout)
+                    .font(.system(size: RowMetrics.metaFontSize))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)

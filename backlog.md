@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.41 · 2026-08-11*
+*Stand: v1.19.42 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -926,15 +926,74 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.39 | Hotfix | PR-46 · Der Schnellpfad der Detailliste filterte weder Office noch Namen |
 | v1.19.40 | Hotfix | PR-47 · Update-Prüfung hing am API-Kontingent einer geteilten IP |
 | v1.19.41 | Sprint 17, AP3 | PR-36 · `bpmn`/`graph` auch in „Arbeit fortsetzen" |
+| v1.19.42 | Sprint 17, AP1 | `FileVisibility` – eine Entscheidung, im Kern, geprüft |
 
-## Sprint 17 – „Ein Filter, eine Wahrheit" *(geplant)*
+## Sprint 17 – „Ein Filter, eine Wahrheit" *(laufend)*
 
-| AP | Eintrag | Aufwand | |
+| AP | Eintrag | Aufwand | Stand |
 |---|---|---|---|
-| **AP1** | Die Sichtbarkeitsentscheidung als **ein** Typ im Kern | **M** | trägt den Release |
-| **AP2** | Dateitypen-Tabelle in den Einstellungen, mit Typschranke | **M** | gewünscht am 2026-08-11 |
-| **AP3** | `bpmn`/`graph` auch für „Arbeit fortsetzen" | S | vorgezogen |
+| **AP1** | Die Sichtbarkeitsentscheidung als **ein** Typ im Kern | **M** | ✅ **v1.19.42** |
+| **AP2** | Dateitypen-Tabelle in den Einstellungen, mit Typschranke | **M** | offen |
+| **AP3** | `bpmn`/`graph` auch für „Arbeit fortsetzen" | S | ✅ v1.19.41 |
 | *(verschoben)* | *PR-21 · Suchbegriffe merken* | *S* | *Klammer zu schwach* |
+
+### ✅ AP1, wie es ausgefallen ist *(v1.19.42)*
+
+`FileVisibility` (Kern) beantwortet die Frage jetzt allein. Die sieben Stellen der App-Schicht
+sind Weiterleitungen: `isHidden` → `!passesType`, `isVisibleDetail` → `isVisible`,
+`detailFilterIsActive` → `!filtersNothing`, `hasTypeFilter` und `typeFilterSummary` liegen im
+Kern. **`CoreChecks` von 1116 auf 1152 Zusicherungen.**
+
+**⚠️ Die Entscheidung ist geschichtet, und das Einebnen wäre der Fehler gewesen.** Die
+Oberfläche fragt an drei Punkten unterschiedlich viel, weil sie auf **zwei** Beständen
+arbeitet: Legende und Diagramm auf `relevantFiles` (bereits nach Zeitfenster *und* Name
+gefiltert, `filteredFromScan`), Ordnerliste und Baum auf allen Detaildateien, die Detailliste
+ebenso. Ein einziges `isVisible` für alle drei hätte den Namensfilter zweimal angewandt (im
+Diagramm harmlos) und das Zeitfenster zweimal (in der Ordnerliste **falsch**, weil
+`folderEntries` es über `countOnlyInWindow` bereits verantwortet). *Wer die Schichten einebnet,
+bekommt kein einfacheres Modell, sondern ein falsches.* Es sind deshalb `passesType`,
+`passesTypeAndName` und `isVisible`.
+
+**Die Prüfung, die es vorher nicht geben konnte:** `filtersNothing` ⟺ „`isVisible` ist für jede
+Datei wahr", geprüft in **beide** Richtungen und je Filter einzeln – jeder muss die
+Vorbedingung umlegen **und** an einem Prüfbestand tatsächlich etwas wegnehmen. Dazu die
+Umkehrung: Ein Plättchen für eine Endung, die gar nicht vorkommt, gilt trotzdem als Filter –
+*„nimmt zufällig nichts weg" ist etwas anderes als „kann nichts wegnehmen".*
+
+**Festlegung 3 entschieden: „Dateien außerhalb des Zeitraums zeigen" bleibt aus der
+Statuszeile draußen** (`decision-check`). Zwei Gründe: Der filternde Zustand ist die **Vorgabe**
+(`showOutOfWindowFiles = false`), eine Ansage darüber feuerte also immer und wäre Grundrauschen
+statt Hinweis – die drei Geschwister (Namens-, Typ-, Rauschfilter) sind im Ruhezustand alle
+still. Und was er durchsetzt, **steht bereits als Überschrift über dem Diagramm**
+(Entscheidung 6); ein stiller Zustand im Sinne von UX-06 kann das nicht sein. Daraus folgt:
+`filtersNothing` (technische Vorbedingung, schließt das Zeitfenster **ein**) und
+`hasTypeFilter` (Ansage, schließt es **aus**) sind zwei Fragen und dürfen sich nie einen Namen
+teilen.
+
+**Festlegung 5 gemessen statt behauptet.** `FolderRowView` und `TreeRowView` gehen jetzt über
+`visibleSortedFilesByFolder` statt über `visibleFiles(in:)`. Am signierten Bündel, zehn
+Cursorschritte:
+
+| | Aufrufe von `visibleFiles(in:)` | Zeilen-Neuzeichnungen |
+|---|---|---|
+| vorher | **243** | – |
+| nachher | **0** | **117** |
+
+**⚠️ Der zweite Zähler ist die Gegenprobe und war nötig.** „0" allein wäre auch mit *nicht
+angekommenen Tastendrücken* vereinbar gewesen – genau so entstehen Fehlbefunde (Sprint 16).
+Die 117 belegen, dass die Zeilen sehr wohl neu gezeichnet wurden, nur ohne die Rechnung.
+
+**Nebenbei erledigt: `FolderAggregator.folderEntries` nimmt `(RelevantFile) -> Bool`.** Die
+Datei lag an der Filterzeile ohnehin vollständig vor; nur die URL weiterzureichen war ein
+Verlust ohne Gegenwert. Damit ist PR-20 (Größenfilter) von M auf S gefallen.
+
+**Festlegung 7 am laufenden Programm belegt** – die Oberfläche verhält sich unverändert:
+
+| Zustand | Ergebnis |
+|---|---|
+| kein Filter | 24 Ordner · 103 Dateien, keine Ansage |
+| Office **+** „außerhalb des Zeitraums" | Legende nur `.md · .pdf · .xmind · .xlsx`, in der Liste kein `.swift`, kein `.sh` – **der PR-46-Fall hält** |
+| ⌥⌘R und Schalter zurück | wieder 24 Ordner · 103 Dateien, gleiche Legende, „Typ-Filter zurücksetzen" abgeblendet |
 
 **Der Anlass für AP1 ist gezählt, nicht gefühlt.** Die letzten Auslieferungen vor diesem
 Sprint waren drei Filter-Korrekturen in Folge: v1.19.37 (Platzierung), v1.19.38

@@ -14,16 +14,26 @@ public enum FolderAggregator {
     /// - ``countOnlyInWindow == true``: nur die Dateien im Intervall.
     ///
     /// Ergebnis absteigend nach Datum (sekundaer Pfad absteigend).
+    ///
+    /// **⚠️ ``isVisible`` bekommt die ganze ``RelevantFile``, nicht nur ihre
+    /// URL.** Bis v1.19.41 stand hier `(URL) -> Bool` – und damit war alles
+    /// unerreichbar, was nicht im Pfad steht: Groesse, Zeitstempel, spaeter
+    /// jedes weitere Feld. Die Datei liegt an der Filterzeile ohnehin
+    /// vollstaendig vor; nur die URL weiterzureichen war ein Verlust ohne
+    /// Gegenwert. *Der Backlog hatte daraus einen halben Sprint Aufwand fuer
+    /// PR-20 geschlossen ("Aenderung der Kern-Signatur und aller Aufrufer") –
+    /// tatsaechlich sind es zwei Zeilen und ein produktiver Aufrufer.*
     public static func folderEntries(
         from filesByFolder: [URL: [RelevantFile]],
         start: Date,
         end: Date,
         countOnlyInWindow: Bool = false,
-        isVisible: (URL) -> Bool
+        isVisible: (RelevantFile) -> Bool
     ) -> [FolderEntry] {
         var entries: [FolderEntry] = []
         for (folder, files) in filesByFolder {
-            let visible = files.filter { isVisible($0.url) }
+            let visible = files.filter { isVisible($0) }
+
             let inRange = visible.filter { $0.timestamp >= start && $0.timestamp < end }
             guard let newest = inRange.map(\.timestamp).max() else { continue }
             let count = countOnlyInWindow ? inRange.count : visible.count

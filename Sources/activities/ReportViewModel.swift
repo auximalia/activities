@@ -221,7 +221,11 @@ final class ReportViewModel {
     /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-Endungen (Sammel-Eintrag "Sonstige").
     var otherCount: Int = 0
     /// Sammelschluessel fuer alle Endungen ausserhalb der Top-Endungen.
-    static let otherKey = "__other__"
+    ///
+    /// Weiterleitung auf ``FileVisibility/otherKey``. Der Schluessel gehoert
+    /// dorthin, weil er nur zusammen mit der Menge der Top-Endungen deutbar ist
+    /// – und die beiden Haelften einer Bedeutung gehoeren an einen Ort.
+    static let otherKey = FileVisibility.otherKey
     /// Farbplatz je Endung (kategoriale Palette). Wird mit der Legende neu
     /// bestimmt, damit Diagramm und Chips garantiert dieselbe Farbe zeigen.
     private(set) var typeColorAssignment: [String: Int] = [:]
@@ -897,28 +901,14 @@ final class ReportViewModel {
     /// Ergebnisliste unerklaerlich unvollstaendig wirken laesst.
     var hiddenTypeCount: Int { hiddenExtensions.count }
 
-    /// Ob ueberhaupt Typen ausgeblendet sind.
+    /// Ob ueberhaupt Typen ausgeblendet sind – Grundlage der Statuszeile.
     ///
-    /// **⚠️ Der Office-Filter zaehlt dazu.** Er blendet Typen
-    /// aus, veraendert Diagramm und Legende und ist damit ein Typ-Filter – auch
-    /// wenn er anders bedient wird. Ihn hier auszunehmen hiesse, die
-    /// Statuszeile „kein Filter aktiv" sagen zu lassen, waehrend die Haelfte
-    /// des Bestandes fehlt: genau der stille Zustand, den UX-06 abgeschafft hat.
-    var hasTypeFilter: Bool { !hiddenExtensions.isEmpty || showsOnlyWorkFiles }
+    /// Die Regel liegt seit v1.19.42 in ``FileVisibility``, wo ``CoreChecks``
+    /// sie erreicht. Sie war zuvor genau die Stelle, die v1.19.37 falsch hatte.
+    var hasTypeFilter: Bool { visibility.hasTypeFilter }
 
     /// Was die Statuszeile ueber den Typ-Filter sagt.
-    ///
-    /// Liegt hier und nicht in der Ansicht, damit die beiden Haelften – Schalter
-    /// und Plaettchen – in **einer** Formulierung zusammenkommen. Zwei Stellen
-    /// waeren zwei Gelegenheiten, sie auseinanderlaufen zu lassen.
-    var typeFilterSummary: String {
-        let plaettchen = hiddenTypeCount
-        switch (showsOnlyWorkFiles, plaettchen) {
-        case (true, 0): return "Office"
-        case (true, let n): return "Office · \(n) \(n == 1 ? "Typ" : "Typen") zusätzlich ausgeblendet"
-        case (false, let n): return "\(n) \(n == 1 ? "Typ" : "Typen") ausgeblendet"
-        }
-    }
+    var typeFilterSummary: String { visibility.typeFilterSummary }
 
     /// Setzt den Typ-Filter zurueck: alle Endungen wieder einblenden.
     ///
@@ -961,16 +951,10 @@ final class ReportViewModel {
     }
 
     /// True, wenn eine Datei ueber ihre Endung (oder als "Sonstige") ausgeblendet ist.
-    func isHidden(_ url: URL) -> Bool {
-        // Der Schalter wirkt **vor** dem Typ-Filter und laesst sich nicht durch
-        // einen Klick auf die Legende aushebeln: Er sagt, was ueberhaupt
-        // Material ist, nicht welcher Chip gerade aus ist.
-        if showsOnlyWorkFiles, !WorkFileFilter.isWorkFile(url) { return true }
-        let ext = url.pathExtension.lowercased()
-        if hiddenExtensions.contains(ext) { return true }
-        if hiddenExtensions.contains(Self.otherKey) && !topExtensionSet.contains(ext) { return true }
-        return false
-    }
+    ///
+    /// Nur noch eine Umkehrung von ``FileVisibility/passesType(_:)`` – die Regel
+    /// selbst liegt im Kern.
+    func isHidden(_ url: URL) -> Bool { !visibility.passesType(url) }
 
     /// Legende (Top-Endungen + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
     private func recomputeLegend() {
@@ -1035,8 +1019,8 @@ final class ReportViewModel {
             start: w.start,
             end: w.end,
             countOnlyInWindow: !showOutOfWindowFiles
-        ) { url in
-            !self.isHidden(url) && self.nameFilter.matches(url.lastPathComponent)
+        ) { file in
+            self.visibility.passesTypeAndName(file)
         }
         var grouped = TimeBucket.group(
             entries,
@@ -1100,9 +1084,35 @@ final class ReportViewModel {
     /// eine Aenderung und der Rumpf riefe sich in Endlosschleife auf.
     @ObservationIgnored private var sortedFilesMemo = Memo<[URL: [RelevantFile]]>()
     @ObservationIgnored private var treeRowsMemo = Memo<[TreeRow]>()
-    @ObservationIgnored private var nameFilterMemo = Memo<NameFilter>()
+    @ObservationIgnored private var visibilityMemo = Memo<FileVisibility>()
 
     private func invalidateRows() { rowsGeneration &+= 1 }
+
+    /// Die **eine** Sichtbarkeitsentscheidung, gebaut aus dem aktuellen Zustand.
+    ///
+    /// **⚠️ Sie ist der einzige Ort, an dem die Frage „ist diese Datei zu
+    /// sehen?" beantwortet wird.** Bis v1.19.41 fiel sie an sieben Stellen
+    /// dieser Datei einzeln, und keine davon war von ``CoreChecks`` erreichbar –
+    /// drei Auslieferungen in Folge waren Korrekturen an genau diesen Stellen.
+    /// Wer hier eine achte Stelle danebensetzt, stellt den Zustand wieder her.
+    ///
+    /// Gepuffert über ``rowsGeneration``: Alle Eingänge tragen
+    /// `didSet { invalidateRows() }`, der Zusammenbau kostet also nur nach einer
+    /// echten Änderung. Insbesondere entsteht der ``NameFilter`` damit **einmal**
+    /// je Änderung statt je Datei – gemessen 23 % (siehe ``rowsGeneration``).
+    var visibility: FileVisibility {
+        visibilityMemo.value(at: rowsGeneration) {
+            FileVisibility(
+                hiddenExtensions: hiddenExtensions,
+                topExtensions: topExtensionSet,
+                showsOnlyWorkFiles: showsOnlyWorkFiles,
+                nameFilter: NameFilter(namePattern),
+                windowStart: cachedWindowStart,
+                windowEnd: cachedWindowEnd,
+                showsOutOfWindow: showOutOfWindowFiles
+            )
+        }
+    }
 
     /// Sichtbare, **sortierte** Detaildateien je Ordner.
     ///
@@ -1206,7 +1216,7 @@ final class ReportViewModel {
             }
             // Gleiche Sichtbarkeitsregel wie in der Liste, sonst blaettert
             // QuickLook auf Dateien, die gar nicht angezeigt werden.
-            for file in files where isVisibleDetail(file) {
+            for file in files where visibility.isVisible(file) {
                 ordered.append(file.url)
                 map[file.url] = folder
             }
@@ -1439,46 +1449,12 @@ final class ReportViewModel {
 
     /// Ob an der Detailliste ueberhaupt ein Filter zieht.
     ///
-    /// **⚠️ Jeder Teil dieser Bedingung ist das Inaktivitaets-Praedikat, das
-    /// ohnehin neben seinem Filter steht – ausdruecklich KEINE zweite Ableitung
-    /// aus dessen Eingaengen.** Genau daran ist die Vorgaengerfassung zweimal
-    /// gescheitert: Sie fragte `hiddenExtensions` und `showOutOfWindowFiles`
-    /// direkt ab, also eine **Kopie** der Eingaenge von
-    /// ``isVisibleDetail(_:)``. Als v1.10.0 den Namensfilter und v1.19.36 den
-    /// Office-Schalter hinzufuegte, wuchs das Original und die Kopie nicht mit –
-    /// beide Male unbemerkt, weil die Abkuerzung nur greift, wenn „Dateien
-    /// ausserhalb des Zeitraums zeigen" an ist. Die Liste zeigte dann Dateien,
-    /// die Diagramm, Legende und Statuszeile bereits ausgeschlossen hatten.
-    ///
-    /// Wer einen Filter ergaenzt, ergaenzt hier **kein** Feld, sondern dessen
-    /// vorhandenes Praedikat – und wenn es keines gibt, ist das der Befund.
-    /// *Die eigentliche Aufloesung ist ein Sichtbarkeitstyp im Kern, den
-    /// ``CoreChecks`` erreicht (Sprint 17); bis dahin traegt dieser Kommentar.*
-    private var detailFilterIsActive: Bool {
-        hasTypeFilter || !nameFilter.matchesEverything || !showOutOfWindowFiles
-    }
-
-    /// Ob eine Detaildatei angezeigt wird: Typ-Filter **und** – je nach
-    /// Schalter – die Zugehoerigkeit zum Zeitraum.
-    private func isVisibleDetail(_ file: RelevantFile) -> Bool {
-        if isHidden(file.url) { return false }
-        if !nameFilter.matches(file.url.lastPathComponent) { return false }
-        if !showOutOfWindowFiles && !isInWindow(file) { return false }
-        return true
-    }
-
-    /// Aktueller Namensfilter.
-    ///
-    /// **⚠️ Der Doc-Kommentar behauptete „gepuffert, damit er nicht je Datei neu
-    /// entsteht" – und das war schlicht falsch.** Als berechnete Eigenschaft
-    /// entstand hier bei **jedem** Zugriff ein neuer ``NameFilter``, und
-    /// ``isVisibleDetail(_:)`` ruft ihn je Datei auf. Gemessen bei 500.000
-    /// Dateien (`swift run -c release Bench`, „Sichtbarkeit"): 1,26 s neu
-    /// gebaut gegen 0,97 s einmal gebaut – **23 %**, die eine Zusicherung im
-    /// Fliesstext gekostet hat, die niemand nachgerechnet hatte.
-    private var nameFilter: NameFilter {
-        nameFilterMemo.value(at: rowsGeneration) { NameFilter(namePattern) }
-    }
+    /// Nur noch eine Umkehrung von ``FileVisibility/filtersNothing`` – jene
+    /// Eigenschaft leitet sich aus dem **eigenen Zustand** des Filters ab, statt
+    /// dessen Eingaenge ein zweites Mal abzufragen. Genau daran war die
+    /// Vorgaengerfassung zweimal gescheitert (PR-46), und genau das prueft
+    /// ``CoreChecks`` jetzt als Aequivalenz.
+    private var detailFilterIsActive: Bool { !visibility.filtersNothing }
 
     /// Ob ein Namensfilter gesetzt ist.
     ///
@@ -1494,15 +1470,27 @@ final class ReportViewModel {
     /// ``nil`` bedeutet "noch nicht geladen".
     func visibleFiles(in folder: URL) -> [RelevantFile]? {
         guard let files = filesByFolder[folder] else { return nil }
-        let filtered = detailFilterIsActive ? files.filter { isVisibleDetail($0) } : files
+        let filtered = detailFilterIsActive ? files.filter { visibility.isVisible($0) } : files
         guard sort != .byNewest else { return filtered }
         return RowSorting.files(filtered, by: sort)
     }
 
     /// Datum, das der Ordner "erhält" = juengste sichtbare Datei **im Zeitfenster**.
+    ///
+    /// **⚠️ Ueber den Zwischenspeicher, nicht ueber ``visibleFiles(in:)``.**
+    /// Diese Eigenschaft und ``visibleFileCount(in:)`` stehen beide im Rumpf
+    /// jeder Ordnerzeile; direkt gerufen filterten und sortierten sie den Ordner
+    /// **je Zeile und je Neuzeichnung** neu, obwohl genau dieses Ergebnis in
+    /// ``visibleSortedFilesByFolder`` bereits liegt.
+    ///
+    /// **Gemessen am signierten Buendel, zehn Cursorschritte: 243 Aufrufe von
+    /// ``visibleFiles(in:)`` vorher, 0 nachher.** Die Gegenprobe im selben Lauf
+    /// belegt, dass dabei trotzdem **117 Zeilen neu gezeichnet** wurden – ohne
+    /// sie waere „0" auch mit nicht angekommenen Tastendruecken vereinbar
+    /// gewesen, und genau so entstehen Fehlbefunde (Sprint 16).
     func newestVisibleDate(in folder: URL) -> Date? {
-        guard let files = visibleFiles(in: folder) else { return nil }
-        return files.filter { isInWindow($0) }.map(\.timestamp).max()
+        guard let files = visibleSortedFilesByFolder[folder] else { return nil }
+        return files.filter { visibility.isInWindow($0) }.map(\.timestamp).max()
     }
 
     /// Ob die Datei im aktuell gewaehlten Zeitfenster liegt. Basis fuer den
@@ -1520,8 +1508,10 @@ final class ReportViewModel {
     }
 
     /// Anzahl sichtbarer Dateien im Ordner (live, filterabhaengig).
+    ///
+    /// Ueber den Zwischenspeicher – siehe ``newestVisibleDate(in:)``.
     func visibleFileCount(in folder: URL) -> Int {
-        visibleFiles(in: folder)?.count ?? 0
+        visibleSortedFilesByFolder[folder]?.count ?? 0
     }
 
     // MARK: - Aufklappen
@@ -2203,7 +2193,7 @@ final class ReportViewModel {
 
         let scanner = self.scanner
         // Ungefiltert lesen: Der Namensfilter wird erst bei der Anzeige
-        // angewandt (``isVisibleDetail``). Sonst muessten die Ordner bei jeder
+        // angewandt (``FileVisibility/isVisible(_:)``). Sonst muessten die Ordner bei jeder
         // Filteraenderung erneut von der Platte gelesen werden.
         let filter = NameFilter("")
         let list = Array(offen)

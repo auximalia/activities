@@ -211,13 +211,13 @@ do {
     // 30 Tage, .xmind ausgeblendet: A-Restdatei (28.05) faellt aus dem Fenster,
     // B hat nur .xmind -> beide verschwinden.
     let e2 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff30, end: .distantFuture) {
-        $0.pathExtension.lowercased() != "xmind"
+        $0.url.pathExtension.lowercased() != "xmind"
     }
     expect(e2.isEmpty, "folderEntries(30d): xmind aus -> leer")
 
     // 90 Tage, .xmind ausgeblendet: A wird auf 28.05 (.py) neu datiert und bleibt.
     let e3 = FolderAggregator.folderEntries(from: filesByFolder, start: cutoff90, end: .distantFuture) {
-        $0.pathExtension.lowercased() != "xmind"
+        $0.url.pathExtension.lowercased() != "xmind"
     }
     expectEqual(e3.count, 1, "folderEntries(90d): nur A bleibt")
     expectEqual(e3[0].folder, a, "folderEntries(90d): A")
@@ -1822,6 +1822,126 @@ do {
     expect(holeOptional(1) == nil, "Memo: nil ist ein gueltiges Ergebnis")
     expect(holeOptional(1) == nil, "Memo: nil wird gehalten")
     expectEqual(optionalGebaut, 1, "Memo: nil wird nicht als „leer“ neu gebaut")
+}
+
+// MARK: - FileVisibility: die eine Entscheidung (Sprint 17, AP1)
+do {
+    func f(_ name: String, _ jahr: Int = 2026, _ monat: Int = 8, _ tag: Int = 5) -> RelevantFile {
+        var c = DateComponents()
+        c.year = jahr; c.month = monat; c.day = tag; c.hour = 12
+        let d = Calendar(identifier: .gregorian).date(from: c)!
+        return RelevantFile(url: URL(fileURLWithPath: "/t/\(name)"),
+                            folder: URL(fileURLWithPath: "/t"),
+                            timestamp: d, size: 100)
+    }
+
+    // Ein Bestand, der alle Ebenen beruehrt: Typen, Namen, Zeitfenster.
+    let bestand = [
+        f("Angebot.docx"), f("Muster.pdf"), f("Zahlen.xlsx"), f("Notiz.md"),
+        f("Skript.py"), f("Start.sh"), f("Prozess.bpmn"), f("LICENSE"),
+        f("Alt.docx", 2026, 1, 5), f("Alt.py", 2026, 1, 5)
+    ]
+    let fenster = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 8, day: 1))!
+
+    // ── Die Aequivalenz. Das ist der Grund, warum dieser Typ existiert. ──
+    //
+    // ⚠️ Faellt eine dieser Pruefungen, hat jemand einen Filter ergaenzt, ohne
+    // ihn in `filtersNothing` aufzunehmen - und damit den Schnellpfad in
+    // `visibleFiles(in:)` belogen. Genau das ist zweimal passiert (PR-46):
+    // v1.10.0 mit dem Namensfilter, v1.19.36 mit dem Office-Schalter. Beide
+    // Male unbemerkt, weil ein falsches Ergebnis richtig aussieht.
+    let leer = FileVisibility()
+    expect(leer.filtersNothing, "filtersNothing: der leere Filter filtert nichts")
+    expect(bestand.allSatisfy { leer.isVisible($0) },
+           "Aequivalenz: filtersNothing heisst, dass nichts herausfaellt")
+
+    // Jeder einzelne Filter muss die Vorbedingung umlegen - und tatsaechlich
+    // etwas wegnehmen. Beide Haelften, sonst ist es keine Aequivalenz.
+    let varianten: [(String, FileVisibility)] = [
+        ("Plaettchen", FileVisibility(hiddenExtensions: ["py"])),
+        ("Sonstige", FileVisibility(hiddenExtensions: [FileVisibility.otherKey],
+                                    topExtensions: ["docx"])),
+        ("Office", FileVisibility(showsOnlyWorkFiles: true)),
+        ("Name", FileVisibility(nameFilter: NameFilter("Angebot"))),
+        ("Zeitfenster", FileVisibility(windowStart: fenster, showsOutOfWindow: false))
+    ]
+    for (name, v) in varianten {
+        expect(!v.filtersNothing, "Aequivalenz: \(name) meldet sich als Filter")
+        expect(bestand.contains { !v.isVisible($0) },
+               "Aequivalenz: \(name) nimmt auch wirklich etwas weg")
+    }
+
+    // Die Umkehrung an einem zusammengesetzten Filter, der nichts einschraenkt:
+    // Ein Namensfilter aus lauter Leerzeichen ist keiner, und ein Plaettchen,
+    // das nicht vorkommt, ebenfalls nicht - aber `filtersNothing` darf sich
+    // davon NICHT taeuschen lassen, denn "nimmt zufaellig nichts weg" ist
+    // etwas anderes als "kann nichts wegnehmen".
+    expect(FileVisibility(nameFilter: NameFilter("   ")).filtersNothing,
+           "filtersNothing: ein Muster aus Leerzeichen ist kein Filter")
+    expect(!FileVisibility(hiddenExtensions: ["gibtsnicht"]).filtersNothing,
+           "filtersNothing: ein Plaettchen zaehlt, auch wenn es zufaellig nichts trifft")
+
+    // ── Die drei Ebenen sind geschichtet, nicht gleich. ──
+    let nurName = FileVisibility(nameFilter: NameFilter("Angebot"))
+    expect(nurName.passesType(URL(fileURLWithPath: "/t/Skript.py")),
+           "Ebenen: der Namensfilter beruehrt die Typ-Ebene nicht")
+    expect(!nurName.passesName(URL(fileURLWithPath: "/t/Skript.py")),
+           "Ebenen: er wirkt auf der Namens-Ebene")
+
+    let ausserhalb = FileVisibility(windowStart: fenster, showsOutOfWindow: false)
+    expect(ausserhalb.passesTypeAndName(f("Alt.docx", 2026, 1, 5)),
+           "Ebenen: Typ+Name kennt das Zeitfenster nicht - die Ordnerliste braucht das so")
+    expect(!ausserhalb.isVisible(f("Alt.docx", 2026, 1, 5)),
+           "Ebenen: erst isVisible zieht das Zeitfenster hinzu")
+    expect(FileVisibility(windowStart: fenster, showsOutOfWindow: true)
+            .isVisible(f("Alt.docx", 2026, 1, 5)),
+           "Ebenen: mit Schalter bleibt die Datei ausserhalb sichtbar")
+    expect(!FileVisibility(windowStart: fenster).isInWindow(f("Alt.docx", 2026, 1, 5)),
+           "Ebenen: isInWindow bleibt eine Aussage, auch wenn alles gezeigt wird")
+
+    // ── Der Office-Schalter wirkt VOR den Plaettchen. ──
+    // Wer `docx` ausblendet und Office einschaltet, sieht kein `docx` - aber
+    // auch kein `py`, obwohl dessen Plaettchen an ist.
+    let beides = FileVisibility(hiddenExtensions: ["docx"], showsOnlyWorkFiles: true)
+    expect(!beides.passesType(URL(fileURLWithPath: "/t/Angebot.docx")), "Vorrang: docx ausgeblendet")
+    expect(!beides.passesType(URL(fileURLWithPath: "/t/Skript.py")), "Vorrang: py faellt an Office")
+    expect(beides.passesType(URL(fileURLWithPath: "/t/Muster.pdf")), "Vorrang: pdf bleibt")
+
+    // ── „Sonstige" ist nur mit den Top-Endungen deutbar. ──
+    let sonstige = FileVisibility(hiddenExtensions: [FileVisibility.otherKey],
+                                  topExtensions: ["docx", "pdf"])
+    expect(sonstige.passesType(URL(fileURLWithPath: "/t/Angebot.docx")), "Sonstige: Top-Endung bleibt")
+    expect(!sonstige.passesType(URL(fileURLWithPath: "/t/Notiz.md")), "Sonstige: Rest faellt")
+    expect(!sonstige.passesType(URL(fileURLWithPath: "/t/LICENSE")),
+           "Sonstige: auch Dateien ohne Endung - ueber die Legende sonst gar nicht erreichbar")
+
+    // ── Die Ansage der Statuszeile. ──
+    //
+    // ⚠️ `hasTypeFilter` ist NICHT `!filtersNothing`. Das Zeitfenster gehoert
+    // in die Vorbedingung, aber nicht in die Ansage (Sprint 17, Festlegung 3):
+    // Sein filternder Zustand ist die Vorgabe, eine Ansage darueber feuerte
+    // also immer - und der Zeitraum steht ohnehin ueber dem Diagramm.
+    let nurFenster = FileVisibility(windowStart: fenster, showsOutOfWindow: false)
+    expect(!nurFenster.filtersNothing, "Ansage: das Zeitfenster filtert")
+    expect(!nurFenster.hasTypeFilter, "Ansage: es ist aber kein TYP-Filter und wird nicht angesagt")
+
+    // Und die Haelfte, die v1.19.37 falsch hatte: Office zaehlt mit.
+    expect(FileVisibility(showsOnlyWorkFiles: true).hasTypeFilter,
+           "Ansage: Office zaehlt als Typ-Filter (v1.19.37)")
+    expectEqual(FileVisibility(showsOnlyWorkFiles: true).typeFilterSummary, "Office",
+                "Ansage: Wortlaut fuer Office allein")
+    expectEqual(FileVisibility(hiddenExtensions: ["py"], showsOnlyWorkFiles: true).typeFilterSummary,
+                "Office · 1 Typ zusätzlich ausgeblendet", "Ansage: Office plus ein Plaettchen")
+    expectEqual(FileVisibility(hiddenExtensions: ["py", "sh"]).typeFilterSummary,
+                "2 Typen ausgeblendet", "Ansage: nur Plaettchen, Mehrzahl")
+    expectEqual(FileVisibility(hiddenExtensions: ["py"]).typeFilterSummary,
+                "1 Typ ausgeblendet", "Ansage: nur Plaettchen, Einzahl")
+
+    // ⚠️ Wer filtert, sagt es auch. Die Ansage darf nie leer sein, wenn ein
+    // Typ-Filter zieht - das war der stille Zustand aus UX-06.
+    for (_, v) in varianten where v.hasTypeFilter {
+        expect(!v.typeFilterSummary.isEmpty, "Ansage: ein wirkender Typ-Filter ist nie stumm")
+    }
 }
 
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")

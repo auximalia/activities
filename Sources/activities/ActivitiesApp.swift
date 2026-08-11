@@ -339,6 +339,45 @@ struct ActivitiesApp: App {
                 .keyboardShortcut(Shortcuts.copyPath)
                 .disabled(model.commandTargets.isEmpty)
                 Divider()
+                // **⚠️ Hier ABGEBLENDET, im Kontextmenue dagegen VERSTECKT –
+                // und das ist kein Widerspruch, sondern der Grund fuer diesen
+                // Eintrag.** Im Kontextmenue verschwindet „Arbeit fortsetzen",
+                // wenn es nichts zu oeffnen gibt: Dort fehlt keine Information,
+                // sondern eine Handlung, die an dieser Stelle keinen Sinn
+                // ergibt. In der Menueleiste gilt das Gegenteil (HIG, wie bei
+                // Undo/Redo: *disable the action instead of hiding it*) – ein
+                // Befehl, der nur erscheint, wenn er gerade geht, ist genau der,
+                // den man nie findet. Bis v1.19.49 lebte dieser hier
+                // ausschliesslich im Kontextmenue und stand in keinem Menue.
+                //
+                // **⚠️ Der Elternpunkt bleibt bedienbar, das Untermenue sagt
+                // den Grund. Das sieht nach Umweg aus und ist die vorgeschriebene
+                // Bauform.** Die Absicht war, den Eintrag abzublenden;
+                // `.disabled()` auf einem `Menu` blieb wirkungslos (am laufenden
+                // Programm gesehen: schwarz zwischen abgeblendeten Nachbarn).
+                // Der Blick in die HIG kehrte den Befund um – *„Make sure a
+                // submenu remains available even when its nested menu items are
+                // unavailable ... needs to let people open it and learn about the
+                // commands it contains."* **Nicht SwiftUI lag falsch, sondern die
+                // Absicht.** Bliebe das Untermenue leer, waere es
+                // „Ratlosigkeit in Menueform" – dieselbe Formulierung steht
+                // gleich darunter fuer den fehlenden Editor. Ein abgeblendeter
+                // Elternpunkt haette ausserdem nie gesagt, **warum**, und die
+                // beiden Gruende sind verschieden und beide behebbar.
+                Menu("Arbeit fortsetzen") {
+                    let tage = model.workDaysForCommand
+                    if tage.isEmpty {
+                        Button(model.cursor == nil
+                               ? "Erst einen Ordner auswählen"
+                               : "Keine Dokumente in diesem Ordner") { }
+                            .disabled(true)
+                    } else {
+                        ForEach(tage) { tag in
+                            Button(model.workDayLabel(tag)) { model.requestOpen(tag.files) }
+                        }
+                    }
+                }
+                Divider()
                 // Ohne eingerichteten Platz erscheint der Befehl gar nicht – ein
                 // Menuepunkt „In (nichts) oeffnen" waere Ratlosigkeit in
                 // Menueform.

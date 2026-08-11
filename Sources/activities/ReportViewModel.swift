@@ -580,6 +580,20 @@ final class ReportViewModel {
         }
     }
 
+    /// Die Arbeitstage des Ordners, auf den sich ein Menuebefehl bezieht.
+    ///
+    /// **⚠️ Abgeleitet wie bei „Ordner in Terminal oeffnen": Bei einer
+    /// Dateiauswahl gilt der umschliessende Ordner.** Ein eigener Zielbegriff
+    /// waere ein zweiter neben ``commandTargets`` – und zwei Regeln dafuer,
+    /// worauf ein Befehl wirkt, laufen frueher oder spaeter auseinander.
+    var workDaysForCommand: [WorkDay] {
+        switch cursor {
+        case .folder(let url): workDays(in: url)
+        case .file(let url): workDays(in: url.deletingLastPathComponent())
+        case nil: []
+        }
+    }
+
     /// Gepufferte Fenstergrenzen fuer ``isInWindow``. ``window`` rechnet mit
     /// ``Calendar``; pro Dateizeile neu aufgerufen waere das unnoetig teuer.
     private var cachedWindowStart: Date = .distantPast { didSet { invalidateRows() } }

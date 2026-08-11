@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.49 · 2026-08-11*
+*Stand: v1.19.50 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,47 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-45 · „Arbeit fortsetzen" war nur per Rechtsklick erreichbar *(v1.19.50)*
+**Aufwand:** S · **Art:** Defekt · *Fund aus UX-44, entschieden mit `decision-check`*
+
+**Beobachtet:** Der Befehl lebte ausschliesslich im Kontextmenü und stand in keinem Menü der
+Menüleiste – als einziger Befehl der App. Wer ihn nicht zufällig per Rechtsklick fand, erfuhr
+nie, dass es ihn gibt.
+
+**Entschieden:** Menü **Auswahl**, hinter den drei Grundbefehlen, durch Trenner abgesetzt.
+Die Geschwisterprobe klärte auch das Ziel: Alle Nachbarn leiten es aus `commandTargets` ab,
+und „Ordner in Terminal öffnen" nimmt bei einer *Datei*auswahl den umschliessenden Ordner.
+`workDaysForCommand` folgt genau dieser Regel – ein eigener Zielbegriff wäre ein zweiter
+neben `commandTargets`, und zwei Regeln dafür, worauf ein Befehl wirkt, laufen auseinander.
+
+**⚠️ Kontextmenü und Menüleiste verhalten sich verschieden, und das ist kein Widerspruch.**
+Im Kontextmenü *verschwindet* der Eintrag, wenn nichts zu öffnen ist – begründet mit
+*„Es fehlt keine Information, sondern eine Handlung, die dort keinen Sinn ergibt."* In der
+Menüleiste gilt das Gegenteil (wie bei Undo/Redo: *disable the action instead of hiding it*).
+**Beides ist richtig, und beides zusammen ist der Grund für diesen Eintrag:** Ein Befehl, der
+nur erscheint, wenn er gerade geht, ist genau der, den man nie findet.
+
+**⚠️ Die HIG kehrten den zweiten Befund um.** `.disabled()` auf einem `Menu` blieb wirkungslos –
+der Eintrag stand schwarz zwischen abgeblendeten Nachbarn (im Screenshot gesehen; die
+Bedienhilfen meldeten für *beide* Zustände „aktiviert" und waren damit als Zeuge unbrauchbar).
+Der Nachschlag ergab: *„Make sure a submenu remains available even when its nested menu items
+are unavailable ... needs to let people open it and learn about the commands it contains."*
+**Nicht SwiftUI lag falsch, sondern die Absicht.** Statt eines leeren Untermenüs – *„Ratlosigkeit
+in Menüform"*, die Formulierung stand schon eine Zeile weiter unten – nennt es jetzt den Grund,
+und die zwei Gründe sind verschieden und beide behebbar: **„Erst einen Ordner auswählen"** und
+**„Keine Dokumente in diesem Ordner"**. Ein abgeblendeter Elternpunkt hätte keinen davon gesagt.
+
+**Beleg:** Alle drei Zustände am laufenden Programm nachgewiesen – ohne Auswahl, Ordner mit nur
+`.swift` (Skripte werden nie geöffnet, die Meldung ist also wahr), und `normen_vorgaben` mit
+„Gestern (1)".
+
+**Nicht geändert:** Kein Tastenkürzel – der Eintrag öffnet ein Untermenü, seine Blätter sind
+Daten. `maxDays = 8` bleibt, obwohl die HIG-Faustregel bei fünf liegt: Die Ausnahme für
+*dynamically generated content* greift ausdrücklich, und der Wert gehört dem Kontextmenü.
+
+**⚠️ Die Hilfe-Zeile entstand im selben Commit** – die Regel, die einen Commit zuvor aus UX-44
+in `AGENTS.md` kam, bei ihrer ersten Gelegenheit angewandt.
 
 ### ✅ UX-44 · Die Hilfe war zehn Versionen alt *(v1.19.49)*
 **Aufwand:** S · **Art:** Defekt · *Durchsicht am 2026-08-11*
@@ -634,6 +675,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.47 | Kleinigkeit | UX-43 · … und dann ein Kreis mit `+`/`−`: zwei Zeichen statt eines gedrehten |
 | v1.19.48 | Kleinigkeit | UX-43 · Das Plus wiegt schwerer als das Minus |
 | v1.19.49 | Kleinigkeit | UX-44 · Hilfe berichtigt; Markdown wurde nie ausgewertet |
+| v1.19.50 | Kleinigkeit | UX-45 · „Arbeit fortsetzen" ins Menü Auswahl |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

@@ -104,7 +104,8 @@ struct HelpView: View {
                 // lebt. Gerade deshalb: Was man nicht in einem Menue findet,
                 // erfaehrt man sonst nirgends.
                 section("Arbeit fortsetzen", icon: "arrow.uturn.backward.circle", [
-                    "Rechtsklick auf einen Ordner: „Arbeit fortsetzen“ öffnet die Dateien eines Arbeitstags auf einmal." ,
+                    "Menü „Auswahl“ → „Arbeit fortsetzen“ öffnet die Dateien eines Arbeitstags auf einmal." ,
+                    "Ebenso per Rechtsklick auf einen Ordner." ,
                     "Angeboten werden die letzten Arbeitstage mit Datum und Anzahl.",
                     "Geöffnet werden nur Dokumente – Skripte, Programme und Abbilder nie, auch nicht auf Wunsch.",
                     "Ein Doppelklick auf eine **einzelne** Datei öffnet dagegen immer alles.",

@@ -32,24 +32,6 @@ wo genau das zunächst versäumt wurde.
 haben, steht unter „Entscheidungen". Offen bleiben hier nur der verkleinerte Rest von UX-40
 und die nachrangigen Punkte.
 
-### UX-40 · Der Sprung aus dem Diagramm ist nur mit der Maus möglich *(verkleinert)*
-**Aufwand:** S · **Nutzen:** gering · **Art:** Defekt · **P3**
-
-**Ursprünglich waren es drei Handgriffe** – Klick zum Springen, Ziehen für den Zeitraum,
-Überfahren für die Kurzinfo. **Zwei davon sind mit v1.19.34 erledigt:** Der Zeitraum ist
-über das Menü *Zeitraum* mit ⌘1–⌘5 und ⌘0 vollständig ohne Maus einstellbar; die Kurzinfo
-war nie die einzige Quelle ihrer Angaben.
-
-**Offen bleibt der Sprung zur Datei** (`HistoryChartView.swift:244-252`) – ein Klick auf
-einen Balken wählt die passende Datei aus. Der Erstkontakt bewirbt genau das
-(`RootView.swift:90`).
-
-**⚠️ Vor der Umsetzung zu klären, nicht zu bauen:** ob dafür überhaupt ein zweiter Weg
-nötig ist. Wer die Liste bedient, hat mit ↑/↓ und dem Namensfilter bereits einen; der
-Diagramm-Sprung ist eine Abkürzung, kein einziger Zugang. Ein Menübefehl „Zum Tag springen"
-bräuchte eine Tagesauswahl, die es ohne Diagramm nicht gibt – das wäre ein neues
-Bedienelement für eine Abkürzung.
-
 ### Nachrangig *(festgehalten, nicht eingeplant)*
 
 - **Der Fokusring der Liste ist unterdrückt** (`ReportView.swift:127`,
@@ -236,22 +218,6 @@ keine Lokalisierungsangabe). Danach ist PR-23 belastbar schätzbar; heute ist es
 **⚠️ UX-33 ist die Vorarbeit** – ohne deklarierte Basissprache gibt es keine zweite.
 
 
-### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
-**Aufwand:** L · **Nutzen:** gering, solange die Messung gilt · **P3**
-
-**⚠️ Zurückgestellt, weil die Prämisse gemessen nicht trägt.** Bei 30 Tagen ist **keine
-einzige** von 461 Zeilen zu breit für das schmalste Fenster (820 pt); im Modus „Alle" sind
-es 1,4 % bei 820 pt und 0,02 % bei 1280 pt. Verursacher sind **lange Dateinamen**, nicht
-die Schachtelung.
-
-**Wenn es doch kommt, ist es kein kleiner Zusatz:** Die Datumsspalte wird von einem `Spacer`
-rechts gehalten und verschwände beim waagerechten Bildlauf. Voraussetzung wäre eine
-eingefrorene Spalte – also der Umbau der `LazyVStack` zu einer echten Tabelle, was Zebra,
-Baumlinien, Auswahlhintergrund und Kompakt-Layout gleichzeitig berührt.
-
-**Auslöser für eine Wiedervorlage:** Ein realer Bestand, in dem mehr als ~5 % der Zeilen
-bei üblicher Fensterbreite abgeschnitten werden. Dann **neu messen, nicht schätzen**.
-
 ### PR-42 · Doppelklick auf Ordner *(zur Entscheidung)*
 **Aufwand:** S · **Nutzen:** offen · **P3**
 
@@ -261,6 +227,27 @@ wird: Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile, dann bleibt
 auf die Zeilenfläche unverzögert.
 
 ---
+
+### PR-51 · `.pkg` fällt durch die Typschranke
+**Aufwand:** XS · **Nutzen:** gering · **P3**
+
+`com.apple.installer-package-archive` gehört zu keiner der fünf verbotenen Oberklassen und
+wird **durchgelassen** – ein Doppelklick startet den Installer. Behebbar durch genau **einen**
+zusätzlichen Bezeichner in `FileTypeRules.forbiddenTypeIdentifiers`.
+
+**⚠️ Damit wird die Liste zum ersten Mal von Hand gepflegt** – aber mit *einem* Eintrag und dem
+klaren Kriterium „Installationspaket", nicht mit jeder Skriptsprache. Das ist der Unterschied
+zu der Verbotsliste, die PR-35 verworfen hat.
+
+### PR-52 · `SemanticVersion` liegt außerhalb von `CoreChecks`
+**Aufwand:** S · **Nutzen:** gering–mittel · **P3**
+
+`SemanticVersion` und das Ablesen der Marke aus der Umleitungs-URL liegen in der App-Schicht
+(`Services/UpdateChecker.swift`) und sind damit von `CoreChecks` unerreichbar – Lehre 4.
+
+**Warum das mehr ist als Ordnungsliebe:** Ein Versionsvergleich, der still falsch antwortet,
+böte entweder **nie** ein Update an oder **immer**. Beides fällt niemandem auf, der es nicht
+gezielt sucht.
 
 # Erledigt und geschlossen
 
@@ -440,6 +427,24 @@ greift **den Grund** an – nicht die Entscheidung.
 ---
 
 # Was bewusst nicht gebaut wird
+
+- **Der Sprung aus dem Diagramm ohne Maus** (früher UX-40) und **der waagerechte Bildlauf mit
+  eingefrorener Datumsspalte** (früher PR-29), gestrichen am 2026-08-11.
+
+  **UX-40:** Wer die Liste bedient, hat mit ↑/↓ und dem Namensfilter bereits einen Weg; der
+  Diagramm-Sprung ist eine **Abkürzung, kein einziger Zugang**. Ein Menübefehl „Zum Tag
+  springen" bräuchte eine Tagesauswahl, die es ohne Diagramm nicht gibt – ein neues
+  Bedienelement für eine Abkürzung.
+
+  **PR-29:** Die Prämisse ist **gemessen widerlegt**. Bei 30 Tagen ist **keine einzige** von 461
+  Zeilen zu breit für das schmalste Fenster (820 pt); im Modus „Alle" sind es 1,4 % bei 820 pt
+  und 0,02 % bei 1280 pt. Verursacher sind lange Dateinamen, nicht die Schachtelung. Der Umbau
+  wäre groß: Die Datumsspalte hängt an einem `Spacer` und verschwände beim Bildlauf – es
+  bräuchte eine echte Tabelle statt der `LazyVStack`, und das berührt Zebra, Baumlinien,
+  Auswahlhintergrund und Kompakt-Layout gleichzeitig.
+
+  *Beide Messungen bleiben hier stehen. Käme der Bildlauf je zurück, gilt: **neu messen, nicht
+  schätzen** – der Auslöser wäre ein realer Bestand mit mehr als ~5 % abgeschnittenen Zeilen.*
 
 - **Vergleich zweier Zeiträume und der Wochenrückblick** (früher PR-18 und PR-15), gestrichen
   am 2026-08-11 auf ausdrücklichen Wunsch: *„Die App ist gut, wie sie ist."*

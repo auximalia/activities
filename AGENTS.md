@@ -79,27 +79,40 @@ user's own scratch notes, goes into that commit. Check `git status` first.
 has no effect on the user and does not deserve a version number; commit and push it
 plainly. See the sprint-scope rule below.
 
-## Sprint scope: do not ship changes smaller than their own release
+## Release rhythm: sprints are over, small changes are the mode
 
-**⚠️ A change of a few lines must not get its own build-and-push cycle.** The
-release run — universal build, install, ZIP, push, GitHub release — takes longer
-than such a change itself, and each one costs a version number, a stamped document
-and an entry in the history. That is a bad trade: the ceremony outweighs the work.
+**⚠️ This section reversed on 2026-08-11, and the reason matters more than the rule.**
+It used to say: *a change of a few lines must not get its own build-and-push cycle*,
+because the release run costs a version number, a stamped document and a history
+entry, and for a two-line change the ceremony outweighs the work. **That argument was
+right and is now moot** — it assumed there is a queue of substantial work to bundle
+small changes into. There is not. The owner declared the product done in these words:
+*„Die App ist gut, wie sie ist."* The open list holds no M and no L that is not
+deliberately deferred.
 
-Therefore:
+When nothing substantial is pending, the alternative to a small release is **no
+release** — and then a fix sits on disk instead of on the user's machine. That is the
+worse trade.
 
-- A sprint carries **at least one substantial item** (M or L) that justifies the
-  release on its own.
-- Small items (S) ride along in that sprint instead of getting their own. Note them
-  in the sprint cut as *Beifahrer* with the reason, so it is visible that they were
-  deliberately bundled and not forgotten.
-- If only small items are pending, collect them until a substantial one joins —
-  unless something is broken for the user, which ships immediately.
-- The exception is a fix for a defect in the field. Correctness never waits for a
-  travel companion.
+Therefore, from v1.19.45 on:
 
-The current cut is at the end of `backlog.md` under the highest-numbered `## Sprint N`
-heading. Do not hard-code the number here — it went stale five sprints in a row.
+- **Small changes and hotfixes ship on their own.** No travel companion required, no
+  sprint to be cut, no plan to be written first.
+- **Bundle only what genuinely arrives together.** Bundling stays a courtesy to the
+  reader of the history, not an obligation to the author.
+- **⚠️ Do not manufacture work to fill a release.** The old rule guarded against
+  ceremony; the new one has to guard against the opposite — a backlog item built
+  because a release felt due. Work arrives from **practice**, not from the list. The
+  four most recent entries all came that way: `.bpmn` in Camunda Modeller, the update
+  check behind a shared IP quota, the seventy-year axis, the overlapping labels.
+- **Nothing else is relaxed.** `swift build` and `swift run CoreChecks` stay green,
+  `decision-check` still runs before a decision that would earn a `⚠️`, and
+  `ux-review` still runs before anything visible ships. **Those obligations were never
+  about size** — the label overlap was a two-line change and shipped broken because
+  the review had been skipped.
+
+If a substantial item ever returns, this section goes back to what it said. The old
+text is one commit away.
 
 ## The guideline documents
 

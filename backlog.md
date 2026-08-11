@@ -4,7 +4,7 @@
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
-(Regeln dazu in `AGENTS.md`).
+(Regeln dazu in `AGENTS.md`); erledigte Einträge wandern nach „Erledigt und geschlossen".
 
 **Prioritäten** – **P1** Nutzererwartung verletzt oder Bedienung behindert ·
 **P2** Lesbarkeit und Konsistenz · **P3** Zusatznutzen, repariert nichts.
@@ -31,43 +31,6 @@ wo genau das zunächst versäumt wurde.
 **Acht der neun sind mit v1.19.34 erledigt** (Sprint 14, siehe unten); was sie entschieden
 haben, steht unter „Entscheidungen". Offen bleiben hier nur der verkleinerte Rest von UX-40
 und die nachrangigen Punkte.
-
-### ⛔️ UX-32 · Widerlegt: „Zusammenfassung kopieren" fehle im Menü
-**Art:** Fehlbefund der Durchsicht · **geschlossen am Tag der Aufnahme**
-
-**Behauptet war:** Der Menüeintrag „Zusammenfassung kopieren" fehle im Menü Ablage und
-⌥⌘C bewirke nichts – AP1 aus Sprint 13 sei damit unerreichbar.
-
-**Tatsächlich ist beides vorhanden.** Am frisch gestarteten Programm:
-
-```
-Menü Ablage: Schließen · (Trenner) · Als CSV exportieren … · Als HTML exportieren …
-             · (Trenner) · Zusammenfassung kopieren  [⌥⌘C]
-
-Zwischenablage nach ⌥⌘C:
-  Di., 04.08.2026 – Mo., 10.08.2026 · 7 Tage · 23 Ordner · 93 Dateien
-  ActivitiesCore (21), Views (14), activities (10), … und 18 weitere
-```
-
-**⚠️ Wie der Fehlbefund entstand – das ist der eigentliche Ertrag dieses Eintrags.** Die
-Menüleiste wurde an einem **laufenden Prozess** ausgelesen, der um 09:22:42 gestartet war;
-die Binärdatei im Bündel wurde um 09:38:44 geschrieben. Der Prozess lief also noch mit
-**v1.19.32** – der Version *vor* Sprint 13, in der der Befehl es tatsächlich nicht gab.
-Als Beleg für „v1.19.33" diente die `CFBundleShortVersionString` **aus der Datei auf der
-Platte**, nicht aus dem laufenden Programm. Beides sah zusammengehörig aus und war es
-nicht.
-
-Zwei Gegenproben hatten den Fehlbefund vorher sogar noch bestärkt, statt ihn aufzudecken:
-Der Sentinel in der Zwischenablage blieb unverändert (richtig gemessen, falscher Stand),
-und eine eigens gebaute SwiftUI-Minimalanwendung zeigte, dass
-`CommandGroup(replacing: .saveItem)` einen Trenner und Einträge dahinter anstandslos
-darstellt – was damals als „also liegt es an unserem Code" gelesen wurde und in Wahrheit
-schon die Entwarnung war.
-
-**Nicht gestrichen, sondern als Fehlbefund verbucht.** Ein gelöschter Irrtum wird
-wiederholt. Siehe Lehre 2.
-
----
 
 ### UX-40 · Der Sprung aus dem Diagramm ist nur mit der Maus möglich *(verkleinert)*
 **Aufwand:** S · **Nutzen:** gering · **Art:** Defekt · **P3**
@@ -164,108 +127,6 @@ mit dem Namen: Der Pfad trägt `layoutPriority(-1)` und gibt als Erstes nach (`:
 Legendenfarben; VoiceOver liest sie als Text („3 .swift, 2 .md"); ausgeblendete Typen
 (UX-06) erscheinen nicht; die Zeilenhöhe wächst nicht.
 
-### PR-15 · Wochenrückblick
-**Aufwand:** L · **Nutzen:** hoch · **P3**
-
-Eigene Ansicht „Deine Woche": wichtigste Ordner, Verteilung nach Tagen und Typen, Vergleich
-zur Vorwoche.
-
-**⚠️ Erst nach PR-16 zu bewerten.** PR-16 (Zusammenfassung, v1.19.33) beantwortet dieselbe
-Frage als S. Ein L zu bauen, das ein S überflüssig gemacht hätte, wäre die teuerste Art,
-das herauszufinden. *Zur Wiedervorlage, sobald PR-16 eine Weile im Gebrauch war.*
-
-### PR-18 · Zwei Zeiträume vergleichen
-**Aufwand:** M–L · **Nutzen:** mittel · **P3** · *erstmals untersucht am 2026-08-11*
-
-„Diese Woche gegen letzte" – zeigt Verlagerung statt nur Bestand.
-
-**⚠️ Die alte Schätzung „M" war nie untersucht.** Zwei Zeilen im Backlog, keine Fundstelle.
-Nachgeprüft ergibt sich ein anderes Bild:
-
-**Die Rechnung ist billig.** `scannedFiles` wird **ohne Zeitgrenze** gelesen
-(`ScanSettings(start: .distantPast, end: .distantFuture)`), und `RelevantFile` trägt seinen
-Ordner. „Zähle je Ordner in Fenster A und Fenster B" ist damit **eine Faltung über den
-vorhandenen Rohbestand** – kein zweiter Suchlauf, kein Nachladen.
-
-**Teuer ist alles andere.** ⚠️ **Es gibt keinen Ort für das Ergebnis.** Das Fenster hat zwei
-Zonen: Kopfzone (Überschrift, Diagramm, Statuszeile) und Liste. Die Diagrammachse ist auf
-**einen zusammenhängenden** Zeitraum gebaut, die Zeile ist mit 284/212/292 pt voll. PR-16 hat
-sich aus genau diesem Grund für die Zwischenablage entschieden statt für eine Ansicht.
-
-**⚠️ Und die Ergebnisfelder des Modells sind sämtlich einfenstrig:** `window` ist argumentlos,
-`filteredFromScan()` ebenso, und `chartDays`, `displayBuckets`, `topExtensions`,
-`cachedWindowStart/End` sowie `visibility` tragen genau **ein** Fenster. Ein zweiter Bestand
-daneben ist der Punkt, an dem der Einheitsgewinn aus Sprint 17 wieder kippen kann.
-
-**⚠️ PR-18 ist ein Teilstück von PR-15.** Jener Eintrag führt „Vergleich zur Vorwoche"
-ausdrücklich als Bestandteil von „Deine Woche". *Ein M zu bauen, das ein L ohnehin enthält,
-ist die Umkehrung des Fehlers, vor dem PR-15 selbst warnt.* **Die Ortsfrage entscheidet
-beides und gehört vor jede Zeile Code.**
-
-### ✅ PR-19 · Mehrere Quellordner, verwaltet als Liste *(v1.19.36)*
-**Erledigt in Sprint 16.** Bestand mit Auswahl, Überlappung beim Hinzufügen abgelehnt,
-Aufklappzustand je Quelle, nur die neue Quelle wird gelesen. Der Ordner-Verlauf ist dabei
-entfallen. Einzelheiten im Sprint.
-
-*Ursprünglicher Eintrag:*
-**Aufwand:** L · **Nutzen:** hoch · **P2** · *ausdrücklich gewünscht am 2026-08-10*
-
-Heute genau ein Ordner (`ReportViewModel.rootURL:133`, ein `String` im Store,
-`SettingsStore.swift:49`). Wer in `Documents` **und** `Projekte` arbeitet, muss wechseln.
-
-**Der Wunsch ist genauer als „mehrere Wurzeln":** eine **verwaltete Liste bekannter Quellen**
-– einzeln an- und abwählbar, neue hinzufügbar, bestehende **löschbar**. Also nicht n
-gleichzeitige Wurzeln als Nebeneffekt, sondern ein Bestand, aus dem man auswählt.
-
-**⚠️ Diese Form gibt es im Programm bereits – zweimal.** „Zuletzt geöffnet" ist die Liste ohne
-Auswahl (`SettingsStore.swift:53,262-280`, Obergrenze 8), und der Rauschfilter-Reiter ist die
-Auswahl ohne Ordnerbezug: bekannte Namen + Menge der aktiven + eigene ergänzen + zurücksetzen
-(`ExclusionRules.swift:84-100`, `SettingsView.swift:144-224`, Mutatoren
-`ReportViewModel.swift:682-702`). **Das Muster ist die Vorlage, nicht der Neuentwurf.**
-Der eine echte Zuwachs ist „löschen" – „Zuletzt geöffnet" kennt heute nur Verdrängung durch
-Alter, kein Entfernen.
-
-**Das meiste ist mechanisch** (Bestandsaufnahme vor der Planung, alle Stellen belegt):
-`ScanSettings.rootURL` → Schleife in `runScan` (`ReportViewModel.swift:2055`); `FileScanner`
-ist zustandslos und braucht nur `:82`; `FolderWatcher.start(url:)` → `urls:` – FSEvents nimmt
-die Liste ohnehin (`FolderWatcher.swift:38`); `fileImporter(allowsMultipleSelection: false)`
-(`MainToolbar.swift:298`) und Drag & Drop (`RootView.swift:31-35`) werfen Mehrfachauswahl
-heute schon weg; `ReportExport.html(root:)` → `roots:`. **Ohne Sandbox keine
-Security-Scoped Bookmarks** – Pfade als Strings genügen (`SettingsStore.swift:44-46`).
-Zeitansicht, `FolderAggregator`, `TimeBucket`, `ExclusionRules`, `pinnedFolders` und
-`FolderTree.rows` sind bereits mehrwurzelfähig und bleiben unberührt.
-
-**Der Aufwand liegt nicht in der Zahl der Fundstellen, sondern in sechs Entscheidungen:**
-
-1. **⚠️ Überlappende Quellen** (`~/Documents` und `~/Documents/Projekte`).
-   `FolderTree.build` verwirft Fremdeinträge (`FolderTree.swift:174`) und steigt gegen genau
-   eine Abbruchbedingung auf (`:187`). Ein Ordner in zwei Teilbäumen bricht die Zusicherung
-   „jeder Ordner genau einmal" (`FolderTree.swift:9-11`), auf der auch
-   `ReportExport.summary` steht (`:40-43`). Deduplizieren, verschachteln oder die engere
-   Quelle unterdrücken sind **drei verschiedene Programme**. *Die billigste ehrliche Antwort:
-   Überlappung beim Hinzufügen erkennen und benennen, statt sie im Baum zu reparieren.*
-2. **Doppelt gezählte Dateien.** Überlappende Quellen liefern dieselbe Datei zweimal in
-   `scannedFiles` (`:315`); Legende (`:901`), Diagramm (`:931`) und Dateizähler (`:1902`)
-   zählten doppelt. Entdopplung nach `RelevantFile.url` **vor** allen Ableitungen.
-3. **Beschriftung der obersten Ebene.** `label: lastComponent(of: path)`
-   (`FolderTree.swift:228`) – zwei Quellen namens `src` sind im Baum nicht unterscheidbar.
-   Betrifft ebenso `relativePath(of:)` (`:1759`), Statuszeile (`RootView.swift:299`) und
-   `ReportExport.summary` (`:65`).
-4. **Aufklappzustand.** `ExpansionState.Map` ist nach *einer aktiven* Wurzel geschlüsselt
-   (`ExpansionState.swift:18,65`). Je Quelle ein Eintrag verlangt eine neue Definition von
-   „bekannt" in `pruned(_:keeping:)` (`:36`); je *Kombination* ein Eintrag lässt die Schlüssel
-   explodieren – genau der Datenmüll, den `:5-15` vermeiden wollte. Dazu `nil` ≠ `[]` (`:57-64`)
-   für eine **neu hinzugefügte** Quelle bei sonst bekannter Menge.
-5. **Verlauf.** `FolderHistory.entries: [URL]` (`:19`) ist ein Verlauf *einzelner* Ordner. Wenn
-   Quellen addierbar statt austauschbar werden, verliert Vor/Zurück seinen Sinn – das ist eine
-   Produktentscheidung, keine Signaturfrage.
-6. **Nur die neue Quelle scannen.** `guard lastScanRoot == rootURL` (`:1727`) wird ein
-   Mengenvergleich. Sonst kostet jedes Hinzuhaken einen Volldurchlauf über alles.
-
-**Akzeptanz:** Quellen an-/abwählen, hinzufügen und löschen ohne Neustart; das Hinzuhaken einer
-Quelle scannt nur diese; überlappende Quellen zählen keine Datei doppelt; zwei gleichnamige
-Quellen sind im Baum unterscheidbar.
-
 ### PR-20 · Filter nach Größe
 **Aufwand:** M · **Nutzen:** gering–mittel · **P3**
 
@@ -298,149 +159,6 @@ sind `Bench` und `CoreChecks`.
 *Nach AP1 von Sprint 17 schrumpft Posten 1 auf einen Eintrag im Sichtbarkeitstyp. Dann ist
 PR-20 ein S. Vorher bleibt es ein M – und ein M mit „gering–mittel" ist ein schlechter Tausch.*
 
-
-### ✅ PR-36 · Dateitypen für „Arbeit fortsetzen" – gelöst durch eine bessere Vorgabe *(v1.19.41)*
-**Aufwand:** S · **Nutzen:** mittel · **P3** · *AP3 aus Sprint 17, vorgezogen*
-
-**Der Eintrag hat auf genau das gewartet, was jetzt eingetreten ist:** „Wartet auf den ersten
-konkreten Fall: *welcher* Typ fehlt, in *welchem* Ordner." Gemeldet am 2026-08-11 — `.bpmn`,
-gezeichnet im Camunda Modeller, in den Dokumentationsordnern. 173 solche Dateien liegen im
-Bestand.
-
-**Und der Eintrag hat auch die Lösung vorhergesagt:** „Kommt er, ist die kleinste Lösung
-womöglich gar keine Einstellung, sondern eine bessere Vorgabe." Genau so ist es ausgefallen —
-`WorkDays.extraResumableExtensions = ["bpmn", "graph"]`, gespiegelt zu
-`WorkFileFilter.extraExtensions`. Kein Bedienelement.
-
-**⚠️ Die Prüfung des Wunsches hat mehr widerlegt als bestätigt.** Verlangt war, den
-Office-Filter verwaltbar zu machen. Am laufenden Programm zeigte sich: `.bpmn` **war bereits
-vollständig darin** (Legende `.bpmn 173` bei eingeschaltetem Office), und ein Doppelklick
-öffnete es seit jeher — `FinderService.open` kennt keine Erlaubnisliste. Die Lücke war eine
-einzige, und sie lag in der **Ausführungsliste**, nicht im Office-Filter. *Zwei Drittel des
-Wunsches waren erfüllt, bevor jemand etwas gebaut hat; das aufzudecken war der ganze Ertrag der
-Bestandsaufnahme.*
-
-**⚠️ `FileCategory.extensionMap` ist unangetastet** — `bpmn` liegt weiterhin in `other`. Sie
-zu erweitern wäre der bequemere Weg und der gefährliche: Sie speist Sichtbarkeit, Legende und
-Sortierung zugleich.
-
-**⚠️ Die alte `CoreChecks`-Zusicherung musste fallen — und das ist der heikle Teil.** Sie
-lautete „`bpmn` ist sichtbar **und nicht** ausführbar" und nagelte damit ein **Beispiel** fest,
-nicht die Regel. Ersetzt durch die schärfere, die immer dahinterstand: `extensionMap`
-unverändert **und** Ausführungsliste ⊆ Sichtbarkeitsliste in **beiden** Teilen (Kategorien
-*und* Zusatzendungen), zusätzlich an einem Dateienbestand statt nur an Mengen. *Eine
-gelockerte Zusicherung ist nur dann in Ordnung, wenn die schärfere dahinter sichtbar wird –
-sonst ist das Lockern der ganze Vorgang.* 1096 → 1116 Zusicherungen.
-
-**Am laufenden Programm belegt, mit Gegenprobe im selben Aufbau:**
-
-| Ordner | Inhalt | Kontextmenü |
-|---|---|---|
-| `PM2025/14_Prozesse` | nur `.bpmn` | **„Arbeit fortsetzen ›"** vorhanden |
-| `ba_python/BPMN_magic/src` | nur `.py` | **fehlt** – beginnt direkt mit „Im Finder öffnen" |
-
-**⚠️ `.form` bewusst nicht mitgenommen.** Camunda Modeller bedient sie, und es liegen 5 im
-Bestand — sie jetzt in die Vorgabe zu nehmen hieße, für den Anwender zu entscheiden. Dasselbe
-Argument, mit dem dieser Eintrag jahrelang gegen eine ungefragte Einstellung stand. `.form` ist
-der erste Kandidat für die Tabelle aus Sprint 17/AP2 und damit deren Nachweis, dass sie
-gebraucht wird; `CoreChecks` hält den heutigen Zustand fest.
-
-**Ausgeliefert ohne Reisebegleiter, auf ausdrücklichen Wunsch** — wie v1.19.38. Die
-Sprint-Regel aus `AGENTS.md` bleibt sonst gültig; hier stand die tägliche Arbeit des Anwenders
-gegen einen Versionssprung.
-
-### ✅ PR-48 · Die Bündelung hat keine Stufe über „Monat" *(v1.19.44)*
-**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P2** · *gemeldet am 2026-08-11*
-
-**Beobachtet:** Bei sehr großen Zeiträumen läuft die X-Achse zu einem schwarzen Streifen
-zusammen, in dem keine Beschriftung mehr lesbar ist.
-
-**⚠️ Die Bündelung ist nicht das Problem – sie hört nur zu früh auf.** `automatic(spanDays:)`
-(`ChartGranularity.swift:18-22`) kennt drei Stufen und endet bei `.month`. Gemeldeter Fall:
-
-| | |
-|---|---|
-| Spanne | 25.753 Tage = **70,5 Jahre** |
-| gewählte Bündelung | `.month` |
-| Balken | **846** |
-| Beschriftungen (`shouldLabel`, jedes Quartal, `HistoryChartView.swift:440-443`) | **282** |
-
-**⚠️ Damit ist eine zugesicherte Eigenschaft verletzt, nicht nur eine Darstellung unschön.**
-Der Doc-Kommentar sagt: „Die Grenzen sind so gesetzt, dass nie mehr als rund 130 Balken
-entstehen – darüber wird ein Balken schmaler als ein Pixel und die Darstellung sinnlos"
-(`:16-17`). Gerechnet: Die Zusage bricht **ab 3.957 Tagen (10,8 Jahren)**; im gemeldeten Fall
-wird sie um den **Faktor 6,5** überschritten.
-
-**⚠️ Und die Prüfung, die das hätte finden müssen, prüft ein Beispiel statt der Regel.**
-`CoreChecks:334-341` setzt `spanDays: 2557` – sieben Jahre, 84 Balken – und besteht deshalb.
-Sie belegt nicht die Schranke, sondern nur, dass dieser eine Wert darunter liegt. *Dasselbe
-Muster wie bei der `bpmn`-Zusicherung (PR-36): Wer ein Beispiel festnagelt, prüft die Regel
-nicht.* **Die neue Prüfung muss über eine Reihe von Spannen laufen** – dann fällt sie heute,
-und das ist der Beleg.
-
-**Vorschlag:** Zwei weitere Stufen, `.quarter` und `.year`. Gerechnet bleibt die Schranke damit
-bis 130 Jahre eingehalten:
-
-| Spanne | Stufe | Balken |
-|---|---|---|
-| ≤ 92 Tage | Tag | ≤ 92 |
-| ≤ 730 Tage | Woche | ≤ 105 |
-| ≤ ~3.950 Tage (10,8 J.) | Monat | ≤ 130 |
-| ≤ ~11.870 Tage (32,5 J.) | Quartal | ≤ 130 |
-| darüber | Jahr | 70 im gemeldeten Fall |
-
-**⚠️ Die Beschriftungsdichte gehört mitgeändert, sonst wandert der Fehler nur.** `shouldLabel`
-rechnet heute in **Kalendereinheiten** („jedes Quartal", „jede vierte Woche") und weiß nicht,
-wie viele Beschriftungen dabei herauskommen. Richtig wäre eine Regel über die **Zahl der
-gezeichneten Balken** – höchstens etwa 12 bis 15 Beschriftungen, gleichmäßig verteilt.
-
-**Akzeptanz:** Eine Prüfung belegt für eine Reihe von Spannen (bis mindestens 130 Jahre), dass
-weder die Balken- noch die Beschriftungszahl ihre Schranke überschreitet · die Achse ist im
-gemeldeten Fall lesbar.
-
-### ✅ PR-49 · Die Zeitraum-Überschrift nennt nur Tage *(v1.19.44)*
-**Aufwand:** S · **Nutzen:** mittel · **P3** · *gewünscht am 2026-08-11*
-
-**Beobachtet:** Die Überschrift lautet „Mo., 22.03.2021 – So., 23.09.2091 · **25753 Tage**".
-Eine fünfstellige Tageszahl ist keine Angabe, die jemand liest – sie ist eine, die man
-überschlägt und dabei falsch überschlägt.
-
-**Vorschlag:** Ab einer Schwelle in Jahre, Monate und Tage zerlegen („70 Jahre, 6 Monate").
-`DateFormatting.range` (`:59`) und die Pluralregel (`:159`) sind die Orte; beides liegt im
-Kern und ist damit von `CoreChecks` erreichbar.
-
-**⚠️ Vor der Umsetzung zu klären, nicht zu bauen:** ab welcher Schwelle, und ob die Tageszahl
-**zusätzlich** stehen bleibt. Für kurze Zeiträume ist „7 Tage" die bessere Angabe – wer
-„1 Woche" liest, muss zurückrechnen. Die Schwelle ist damit eine Aussage darüber, ab wann
-niemand mehr in Tagen denkt, und keine Formatfrage.
-
-### ✅ PR-50 · Ein Datum in der Zukunft zieht die Achse über Jahrzehnte *(v1.19.44)*
-**Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt · **P2** · *nicht gemeldet, im Beleg zu PR-48 gefunden*
-
-**Beobachtet:** Im gemeldeten Bild endet die Achse am **23.09.2091** – 65 Jahre in der
-Zukunft. Im Modus „Alle" spannt die Achse über den *tatsächlichen* Datenbereich
-(`ReportViewModel.window`, `ignoreTimeWindow`). **Eine einzige Datei mit kaputtem Zeitstempel
-streckt damit die Achse über 70 Jahre**, und der gesamte echte Bestand rückt in die linken
-rund 5 % der Fläche.
-
-**Warum das schwerer wiegt als PR-48:** Eine gröbere Bündelung macht die Achse lesbar – aber
-das Diagramm bliebe zu 95 % leer. *Wer nur PR-48 baut, hat einen lesbaren leeren Streifen.*
-
-**⚠️ Vor der Umsetzung zu klären – das ist eine Produktentscheidung, keine Formatfrage.** Drei
-Antworten, alle vertretbar, und sie schließen sich aus:
-
-1. **Zukünftige Zeitstempel beim Suchlauf ablehnen.** Ehrlich, aber sie verschwinden dann auch
-   aus der Liste – und ein Datum „morgen" kann eine harmlose Zeitzonen-Abweichung sein.
-2. **Die Achse auf heute begrenzen, die Datei aber zeigen.** Diagramm und Liste sagten dann
-   Verschiedenes – genau der stille Widerspruch, den UX-06 beseitigt hat.
-3. **Ausreißer benennen statt verstecken:** Achse bis heute, plus ein sichtbarer Hinweis
-   („3 Dateien liegen in der Zukunft"). Teurer, aber es verschweigt nichts.
-
-*Empfehlung: 3, weil das Programm sonst über seine eigenen Daten schweigt. Zu entscheiden vor
-dem Bau.*
-
-**Akzeptanz:** Ein Bestand mit einem Zeitstempel in ferner Zukunft ergibt ein Diagramm, in dem
-der reale Bereich die Fläche füllt · die Ausreißer bleiben auffindbar.
 
 ### PR-21 · Suchbegriffe merken
 **Aufwand:** S · **Nutzen:** mittel · **P3** · *durch PR-45 aufgewertet*
@@ -518,38 +236,6 @@ keine Lokalisierungsangabe). Danach ist PR-23 belastbar schätzbar; heute ist es
 **⚠️ UX-33 ist die Vorarbeit** – ohne deklarierte Basissprache gibt es keine zweite.
 
 
-### ✅ PR-25 · Leistung bei sehr großen Bäumen absichern *(v1.19.35)*
-**Erledigt in Sprint 15.** Messstand `Sources/Bench/`, gemessen bei 100k/250k/500k, Engstelle
-war das Neubauen der Zeilenliste je Neuzeichnung. Zahlen und Entscheidungen dort.
-
-### ✅ PR-27 AP3 · Anschlüsse im Baum *(v1.19.35 – geschlossen)*
-**Aufwand:** S · **P3**
-
-Durchsicht vor Sprint 15, Ergebnis je Zusage:
-
-| Zusage | Stand | Beleg |
-|---|---|---|
-| Diagramm-Sprung klappt **alle Vorfahren** auf | ✅ vorhanden | `ReportViewModel.swift:1449-1458` über `FolderTree.ancestors` (`FolderTree.swift:330`) |
-| Anheften wirkt im Baum | ✅ vorhanden | Markierung `TreeRowView.swift:202-207`, Kontextmenü `:140`, Ansage `:164` |
-| VoiceOver nennt die Ebene | ✅ **jetzt auch Dateizeilen** | `FileRowView.treeLevel`, gesetzt in `ReportView.swift` |
-
-**Die Restlücke, jetzt geschlossen:** Dateizeilen im Baum wurden mit 28 pt je Ebene eingerückt,
-sagten ihre Ebene aber nicht – wer die Liste hört statt sieht, erfuhr die Schachtelung für
-Ordner und verlor sie bei den Dateien darin. `FileRowView` bekommt ein optionales `treeLevel`;
-in der Zeitansicht bleibt es `nil`, dort gibt es keine Schachtelung anzusagen.
-
-**⚠️ Der Ausdruck musste aus `.accessibilityValue` heraus** in eine eigene Eigenschaft: Drei
-verkettete Teilstücke direkt am Modifikator brachten den Typprüfer zum Aufgeben („unable to
-type-check this expression in reasonable time") – und das bricht `body` als Ganzes, nicht nur
-die Zeile.
-
-**⚠️ Anheften bleibt im Baum eine Markierung, kein eigener Abschnitt** – das ist Absicht und
-dokumentiert (`ReportViewModel.swift:982-985`). Nicht als Lücke melden.
-
-
-**Akzeptanz:** Eine Dateizeile im Baum nennt ihre Ebene wie eine Ordnerzeile; danach wird
-der Eintrag geschlossen.
-
 ### PR-29 · Waagerechter Bildlauf mit eingefrorener Datumsspalte *(zurückgestellt)*
 **Aufwand:** L · **Nutzen:** gering, solange die Messung gilt · **P3**
 
@@ -574,275 +260,31 @@ das **kein Defekt** – siehe Entscheidung 2. Denkbarer Ausweg, falls der Punkt 
 wird: Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile, dann bleibt der Klick
 auf die Zeilenfläche unverzögert.
 
-### ✅ PR-44 · „Nur Arbeitsdateien" – ein Schalter unter dem Diagramm *(v1.19.36)*
-**Erledigt in Sprint 16.** Eigene Sichtbarkeitsliste (`WorkFileFilter`), Kategorie-Tabelle
-unangetastet. Der zurückgestellte Teil – benannte, selbst zusammengestellte Voreinstellungen –
-bleibt zurückgestellt; siehe unten.
+---
 
-*Ursprünglicher Eintrag:*
-**Aufwand:** S · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
+# Erledigt und geschlossen
 
-Ein Schalter in der Kopfzone, unter dem Diagramm: **an** – es erscheinen nur Dateien der
-Erlaubnisliste; **aus** – alles wie bisher.
+Die Begründungen leben in den Sprint-Abschnitten weiter und in den `⚠️`-Doc-Kommentaren
+am Quelltext; hier steht nur noch, **dass** und **wann**. Der Volltext der Einträge steht
+in der Git-Historie dieser Datei.
 
-**⚠️ Der Eintrag hieß bis zum selben Tag „Filter-Voreinstellungen, einstellbar" (M) und ist
-auf S geschrumpft, weil die Liste schon da ist.** Der Wunsch war „Office anzeigen, Rest
-ausblenden". Gegen `WorkDays.resumableCategories` (`WorkDays.swift:57-59` – Dokumente, PDF,
-Tabellen, Präsentationen) geprüft:
-
-| gewünscht zu sehen | Ergebnis |
-|---|---|
-| Tabellen, Schreibprogramme, txt, md, ppt, **xmind**, pdf | ✅ trifft ohne Zutun |
-| graph, bpmn | ❌ liegen in keiner Zuordnung |
-
-| gewünscht auszublenden | Ergebnis |
-|---|---|
-| py, json, yaml | ✅ (`code`) |
-| eml, swift, toml, **Dateien ohne Endung** | ✅ (`other`) |
-
-Sieben von neun Anzeige-Wünschen und **alle** Ausblend-Wünsche treffen sofort. Bemerkenswert
-ist der letzte: **Dateien ohne Endung sind über die Legende heute gar nicht ausblendbar**
-(`recomputeLegend` überspringt leere Endungen, `:905`). Die Erlaubnisliste erledigt das
-nebenbei, weil sie von der anderen Seite denkt.
-
-**⚠️ Die Erlaubnisliste wird NICHT wiederverwendet, sondern verdoppelt – mit Absicht.**
-Naheliegend wäre, `graph` und `bpmn` einfach nach `documents` zu schieben. Das wäre der
-gefährliche Handgriff: `FileCategory.extensionMap` speist zugleich `isResumable`
-(`WorkDays.swift:62-64`), also **was ein Klick ausführt**. Stattdessen bekommt die Sichtbarkeit
-einen **eigenen, erweiterten Schlüsselraum** – erlaubte Kategorien *plus* zusätzlich erlaubte
-Endungen –, und `extensionMap` bleibt unberührt.
-
-*Der Grund, warum es zwei Listen sein müssen und nicht eine, obwohl sie heute fast gleich
-aussehen:* Die Ausführungsliste muss **eng** bleiben, denn ihr schlimmster Fall ist „es ist
-etwas gestartet". Die Sichtbarkeitsliste darf **großzügig** wachsen, denn ihr schlimmster Fall
-ist „ich sehe zu viel". Dieselbe Asymmetrie, die `WorkDays.swift:32-38` schon für Verbots-
-gegen Erlaubnisliste beschreibt. Wer die beiden je zusammenlegt, gibt die engere Liste auf.
-
-**Wirkorte – vier davon hängen bereits an einer Stelle:** `isHidden` (`:893-898`) wird von
-Diagramm (`:929`), Ordnerliste (`:955`), Detailsichtbarkeit (`:1366`) und `visibleFiles`
-(`:1399`) benutzt. Eine Bedingung dort deckt alle vier ab.
-
-**⚠️ Die Legende braucht die einzige zusätzliche Zeile – und eine Ausnahme von ihrer eigenen
-Regel.** Sie wird bewusst aus den *ungefilterten* Dateien gebaut, „stabil über Filterwechsel"
-(`:900`), damit Chips beim Klicken nicht unter dem Mauszeiger wegspringen. Für einen Chip-Klick
-ist das richtig; für diesen Schalter nicht – sonst stünden weiter `swift`- und `py`-Chips da,
-die nichts mehr bewirken. Schalter an → die Legende zeigt nur noch erlaubte Typen.
-
-**⚠️ Seit v1.19.35 gilt für jeden neuen Eingang der Zeilenliste:** Er braucht ein
-`didSet { invalidateRows() }`, sonst zeigt die Liste ein veraltetes Ergebnis, das richtig
-aussieht (`ReportViewModel.rowsGeneration`). Der Schalter ist ein solcher Eingang.
-
-**Vorschlag zur einzigen offenen Entscheidung – Schalter merken oder nicht:** *nicht* merken.
-Der Typ-Filter wird ausdrücklich nicht gespeichert, „damit niemand mit einem vergessenen Filter
-weiterarbeitet" (`:868-872`). Ein gemerkter Schalter verschwiege eines Morgens Dateien, und der
-Hinweis darauf steht in der Kopfzone – die man einklappen kann (`headerExpanded`). Ein Klick je
-Sitzung ist der billigere Preis. *Wer ihn merken will, muss die Entscheidung von `:868-872`
-ausdrücklich widerrufen und einen Hinweis schaffen, der die eingeklappte Kopfzone überlebt.*
-
-**Akzeptanz:** Ein Schalter unter dem Diagramm; an heißt: nur erlaubte Dateien in Liste, Baum,
-Diagramm und Legende; aus heißt: unverändertes Verhalten; „Arbeit fortsetzen" ändert sein
-Verhalten **nicht**; die Erlaubnismenge ist im Kern definiert und von `CoreChecks` geprüft.
-
-**Zurückgestellt: benannte, selbst zusammengestellte Voreinstellungen.** Der ursprüngliche
-Entwurf sah einen Editor in den Einstellungen und mehrere umschaltbare Presets vor. Solange es
-**ein** Preset gibt und ein Schalter es abbildet, ist das ein Bedienelement ohne Bedarf – dasselbe
-Argument wie in PR-36. Wartet auf das zweite Preset, das jemand wirklich vermisst; dann weiß man
-auch, wonach es sich unterscheiden soll.
-
-### ✅ PR-45 · Suchfeld: mehrere Begriffe, und ODER *(v1.19.36)*
-**Erledigt in Sprint 16.** Leerzeichen = UND, `ODER`/`OR` trennt, Glob-Zweig unverändert, die
-Obermengen-Zusage ist geprüft statt behauptet.
-
-*Ursprünglicher Eintrag:*
-**Aufwand:** S · **Nutzen:** hoch · **P2** · *gewünscht am 2026-08-10*
-
-Heute kennt `NameFilter` (`NameFilter.swift:10-36`) genau **ein** Muster und zwei Zweige:
-enthält die Eingabe `*` oder `?`, gilt sie wörtlich als Glob (`:20-23`); sonst wird sie zu
-`*wort*` (`:25-28`). Ein leeres Muster passt auf alles.
-
-**⚠️ „UND ist doch schon implizit" – nein, und die Prüfung dieser Annahme hat den Eintrag
-halbiert.** `Angebot Muster` wird heute zu `*Angebot Muster*`: gesucht wird der **wörtliche
-Text samt Leerzeichen**. Zwei Begriffe in beliebiger Reihenfolge findet die App nicht.
-
-**Der Zuschnitt, der daraus folgt:** Das **Leerzeichen** wird zum UND, und **ODER** ist der
-einzige neue Operator. Kein `AND`-Schlüsselwort – es wäre nur ein zweiter Name für das, was
-das Leerzeichen dann schon sagt.
-
-**⚠️ Warum das Leerzeichen gefahrlos umgedeutet werden darf, das Schlüsselwort `AND` aber
-nicht.** Beide ändern die Bedeutung bestehender Eingaben – aber nicht in dieselbe Richtung.
-Jeder Name, der „Angebot Muster" enthält, enthält auch „Angebot" **und** „Muster": Die neue
-Auslegung ist eine **echte Obermenge**, es verliert niemand einen Treffer, es kommen welche
-dazu. Ein Schlüsselwort `AND` hätte dieselbe Eingabe stattdessen etwas **anderes** finden
-lassen. *Deshalb ist der billigere Weg hier zugleich der sicherere.*
-
-**⚠️ Die Obermenge gilt nur ohne Platzhalter – und genau daran hängt die Aufteilung.**
-Bei `*Angebot Muster*.pdf` wäre das Zerlegen am Leerzeichen **kein** Zugewinn, sondern ein
-Verlust: `*Angebot` hieße „endet auf Angebot", und „Mein Angebot Muster 2024.pdf" fiele heraus.
-Also wird **nur der Zweig ohne Platzhalter** zerlegt (`:25-28`) – der, der heute schon
-„Bequemlichkeit" heißt. Der Glob-Zweig (`:20-23`) bleibt **wörtlich und unverändert**. Wer
-Leerzeichen wörtlich sucht, schreibt sie mit Platzhalter.
-
-**Vorrang, in einem Satz:** `ODER` trennt oben, das Leerzeichen bindet enger –
-`a b ODER c` heißt `(a UND b) ODER c`. Eine Summe von Gruppen, keine Klammern, keine
-Verschachtelung. Das deckt ab, wofür man ein Suchfeld benutzt.
-
-**Beide Schreibweisen annehmen, `ODER` und `OR`.** Die Oberfläche ist deutsch, die Gewohnheit
-ist englisch. Das kostet eine Zeile und erspart die Frage „warum findet er nichts". Erkannt
-wird nur die **Großschreibung** und nur **freistehend** – „oder" im Dateinamen bleibt Text.
-
-**Was dadurch entfällt:** Ein **Fehlerzustand im Suchfeld ist nicht nötig**. Es gibt keine
-ungültige Eingabe mehr, nur unvollständige – ein hängendes `ODER` ohne zweiten Begriff wird
-schlicht übergangen. Damit bleiben `SearchField.swift` und `MainToolbar.swift:36-55`
-unberührt; die Änderung liegt vollständig in `ActivitiesCore` und ist damit von `CoreChecks`
-erreichbar.
-
-**Ein Typ deckt beide Wirkorte ab:** `NameFilter` wird im Suchlauf gebaut
-(`FileScanner.swift:68`) **und** bei der Anzeige (`isVisibleDetail`, `:1366`). Kein zweiter
-Ort muss nachziehen.
-
-**Bezahlbar – gemessen, nicht geschätzt** (500 000 Dateinamen, Release-Bau, Messstand aus
-PR-25): ein Glob-Lauf **421 ms**, zwei verundete Läufe **850 ms**. Linear in der Zahl der
-Begriffe, und ein UND bricht beim ersten Fehlschlag ohnehin ab. **Nicht gemessen und deshalb
-offen:** das Zerlegen je Tastendruck – `NameFilter` liegt seit v1.19.35 im Speicher
-(`ReportViewModel.swift:1329-1338`), aber ein Tastendruck ändert die Fassung und baut neu.
-
-**⚠️ Reguläre Ausdrücke sind ausdrücklich NICHT Teil dieses Eintrags** (Entscheidung vom
-2026-08-10, auf Wunsch gestrichen). **Die Messung dazu bleibt hier stehen, damit sie niemand
-wiederholt** – und weil sie die verbreitete Annahme umdreht: `NSRegularExpression` schafft
-dieselben 500 000 Namen in **214 ms** und ist damit **schneller als der heutige
-handgeschriebene Glob**; `localizedCaseInsensitiveContains` braucht 436 ms. Der teure ist
-ausgerechnet der moderne Swift-`Regex`-Typ mit **1514 ms**, also **siebenmal** so lang.
-*Falls reguläre Ausdrücke je zurückkommen: Leistung ist kein Argument dagegen, und die Wahl
-des Typs entscheidet alles.*
-
-**PR-21 (Suchbegriffe merken) gewinnt dadurch** – ein Ausdruck aus mehreren Begriffen ist
-teurer zu tippen als ein Wort; ihn wiederzufinden ist dann mehr wert als heute.
-
-**Akzeptanz:** Mehrere durch Leerzeichen getrennte Begriffe wirken als UND, `ODER` trennt
-Gruppen; beides greift im Suchlauf **und** in der Anzeige; **eine Prüfung in `CoreChecks`
-belegt die Obermengen-Zusage** – jede platzhalterfreie Eingabe findet mindestens alles, was
-sie heute findet; eine Eingabe **mit** Platzhalter bedeutet unverändert genau dasselbe wie
-heute; ein hängendes `ODER` liefert ein Ergebnis, keinen Fehler.
-
-### ✅ PR-46 · Der Schnellpfad filterte nicht mit *(v1.19.39)*
-**Art:** Defekt · **P1** · gefunden bei der Bestandsaufnahme vor Sprint 17
-
-**Der Befund:** War „Dateien außerhalb des Zeitraums zeigen" an und kein Plättchen
-ausgeblendet, so wirkten **Office-Schalter und Suchfeld auf die Dateiliste nicht mehr**.
-Diagramm, Legende, Ordnerzeilen und Statuszeile filterten weiter — die Liste darunter nicht.
-Über `visibleSortedFilesByFolder` betraf es ebenso Baum, Tastaturnavigation und QuickLook.
-
-Am laufenden Programm belegt, mit Gegenprobe: Office an, Legende auf `.md 6 · .pdf 5 ·
-.xmind 3 · .xlsx 2` geschrumpft, Statuszeile „Office · Zurücksetzen" — und in der Liste
-standen weiter `Package.swift`, `project.yml`, `svn_roundcheck.sh`, zwei `.html` und eine
-`.lnk`. Mit Namensfilter „swift" dasselbe: Legende und Diagramm zeigten 49 Treffer, die Liste
-zeigte `AGENTS.md`, `README.md`, `VERSION`.
-
-**⚠️ Die Ursache ist nicht der Schnellpfad, sondern dass seine Bedingung eine Kopie war.**
-`visibleFiles(in:)` überspringt `isVisibleDetail`, wenn nichts zu filtern ist — und fragte
-dafür die *Eingänge* jenes Prädikats ein zweites Mal ab, 500 Zeilen entfernt. Die Kopie ist
-dem Original zweimal nicht gefolgt:
-
-| Version | Was dazukam | Bedingung nachgezogen? |
+| Eintrag | Version | wo die Begründung steht |
 |---|---|---|
-| v1.0.12 | Schnellpfad entsteht; `hiddenExtensions` ist der einzige Filter | — |
-| v1.5.0 | „außerhalb des Zeitraums" | ✅ von Hand |
-| **v1.10.0** | **Namensfilter** (Filtern wandert in den Speicher) | ❌ vergessen |
-| **v1.19.36** | **Office** | ❌ vergessen |
+| UX-32 · Widerlegt: „Zusammenfassung kopieren" fehle im Menü | — | Lehre 2 |
+| PR-19 · Mehrere Quellordner, verwaltet als Liste | v1.19.36 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-36 · Dateitypen für „Arbeit fortsetzen" – gelöst durch eine bessere Vorgabe | v1.19.41 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-48 · Die Bündelung hat keine Stufe über „Monat" | v1.19.44 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-49 · Die Zeitraum-Überschrift nennt nur Tage | v1.19.44 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-50 · Ein Datum in der Zukunft zieht die Achse über Jahrzehnte | v1.19.44 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-25 · Leistung bei sehr großen Bäumen absichern | v1.19.35 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-27 AP3 · Anschlüsse im Baum | v1.19.35 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-44 · „Nur Arbeitsdateien" – ein Schalter unter dem Diagramm | v1.19.36 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-45 · Suchfeld: mehrere Begriffe, und ODER | v1.19.36 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-46 · Der Schnellpfad filterte nicht mit | v1.19.39 | Sprint-Abschnitt / Doc-Kommentar |
+| PR-47 · „Nach Updates suchen" meldete einen Lesefehler, der keiner war | v1.19.40 | Sprint-Abschnitt / Doc-Kommentar |
 
-Die Namensfilter-Hälfte ist damit **29 Versionen alt**, nicht neu aus Sprint 16. Unentdeckt
-blieb sie, weil beide Hälften den nicht vorgegebenen Zeitraum-Schalter voraussetzen.
-
-**Die Behebung setzt die Bedingung aus den Geschwistern zusammen, statt sie zu reparieren**
-(`decision-check`, Urteil „anzupassen"): Jeder Teil ist das Inaktivitäts-Prädikat, das ohnehin
-neben seinem Filter steht — `hasTypeFilter`, `NameFilter.matchesEverything`,
-`showOutOfWindowFiles`. Keine neue Ableitung aus Feldern.
-
-**⚠️ Der Schnellpfad wurde bewusst nicht gestrichen**, obwohl „das einzige Konstrukt, das
-nicht zurückfallen kann, ist keines" das stärkere Argument ist. Er greift im **häufigen** Fall
-(kein Filter gesetzt) und zieht über `visibleSortedFilesByFolder` den ganzen Baum; Sprint 15
-hat die Nachbarkosten bei 500 000 Dateien mit 0,97–1,26 s beziffert. Eine kostensparende
-Konstruktion **ohne Messung** zu entfernen wäre derselbe Fehler wie sie ohne Messung
-einzuführen — und ein Hotfix ist nicht der Ort zu messen. *Die strukturelle Auflösung ist AP1
-von Sprint 17: ein Sichtbarkeitstyp im Kern, den `CoreChecks` erreicht.*
-
-**Mitgenommen:** `visibleFilesByFolder` ist gelöscht. Es hatte seit v1.19.35 keinen Aufrufer
-mehr und trug **dieselbe** zurückgefallene Bedingung — eine tote Kopie eines gerade behobenen
-Fehlers ist die schlechteste Art, Code aufzuheben.
-
-**Nicht mitgenommen, gehört in Sprint 17:** `FolderRowView` ruft `visibleFiles(in:)`
-**zweimal je Rumpfauswertung** (`:20`, `:23`) und geht dabei am Zwischenspeicher vorbei; und
-`hasTypeFilter`, `typeFilterSummary`, `resetTypeFilters` sind von **keiner** Prüfung erfasst.
-
-### ✅ PR-47 · „Nach Updates suchen" meldete einen Lesefehler, der keiner war *(v1.19.40)*
-**Art:** Defekt · **P2** · *aus der Praxis gemeldet am 2026-08-11*
-
-**Der Befund:** Ein Klick auf „Nach Updates suchen …" brachte den Dialog *„Prüfung
-fehlgeschlagen — Es konnte nicht geprüft werden, ob eine neuere Version vorliegt. Die
-Versionsinformation konnte nicht gelesen werden."*
-
-**Gelesen wurde nichts — die Anfrage kam nicht durch.** Nachgemessen im selben Netz:
-`api.github.com` antwortete mit **403** und dem Klartext „API rate limit exceeded for
-195.13.40.70". Die GitHub-API begrenzt nicht angemeldete Anfragen auf **60 je Stunde und
-Internetadresse**; hinter einem Firmen-Zugang teilen sich alle Rechner eine Adresse.
-
-| | `api.github.com` (alt) | `github.com`-Release-Umleitung (neu) |
-|---|---|---|
-| Kontingent | `x-ratelimit-limit: 60` je Stunde **und IP** | keine `x-ratelimit`-Kopfzeile |
-| gemessen verbraucht | `used: 19` **von fremden Rechnern** derselben Adresse | — |
-| Körper | JSON, muss geparst werden | **0 Bytes** (`HEAD`) |
-
-Die App fragt **einmal je 24 h**. Die 19 verbrauchten Anfragen stammten also von anderen
-Rechnern hinter derselben Adresse. *Daher ist der Fehler sporadisch, schwer nachzustellen —
-und daher sucht der Anwender ihn bei sich.*
-
-**⚠️ Die Bezugsquelle war der Ausreißer, nicht die Meldung** (`decision-check`). Für „welche
-Fassung ist die neueste?" gab es **zwei** Antworten: Der Prüfer fragte die API, der Installer
-lädt seit jeher `github.com/<repo>/releases/latest/download/activities.zip`
-(`web-install.sh:19`). Zwei von drei Stellen mieden die API bereits. Jetzt liest der Prüfer
-per `HEAD` die **Ziel-URL** derselben Umleitung (`…/releases/tag/v1.19.39`) — kein HTML wird
-ausgewertet, kein Körper übertragen. *Fällt die Umleitung je weg, ist die Installation ohnehin
-kaputt; dann ist es richtig, dass die Prüfung mitbricht, statt ein Update anzubieten, das sich
-nicht laden lässt. Genau das konnte die alte Aufteilung nicht zusichern.*
-
-**Das stärkste Gegenargument, festgehalten:** Die API ist die *dokumentierte* Schnittstelle,
-eine Umleitung ist ein Implementierungsdetail. Es wiegt hier nicht auf, weil der neue Weg
-derselbe ist, auf dem die Installation beruht — und weil der dokumentierte Weg unter geteilter
-Adresse nachweislich unbenutzbar ist.
-
-**Die zweite Hälfte: ein Fehlerfall für fünf Ursachen.** `UpdateError.badResponse` deckte
-offline, Zeitüberschreitung, Kontingent, fehlendes Release und unlesbare Antwort **gleich** ab,
-und sein Satz war bei vier davon falsch. Jetzt sagt jeder Fall, was geschehen ist und was zu
-tun ist. **Und der Erklärtext wiederholt die Überschrift nicht mehr:** Auf „Prüfung
-fehlgeschlagen" folgte „Es konnte nicht geprüft werden, ob eine neuere Version vorliegt" —
-drei Zeilen für eine Aussage, und die einzige mit Inhalt stand zuunterst.
-
-**Am laufenden Programm belegt:** derselbe Menüpunkt antwortet jetzt „Keine Aktualisierung
-nötig — Du nutzt bereits die neueste Version (1.19.39)". *Ehrlich dazu: Der Erfolgslauf fiel
-in ein Zeitfenster, in dem sich das API-Kontingent bereits erholt hatte (403 um 08:36, wieder
-200 um 08:42). Er beweist also den neuen Weg, nicht die Immunität — die belegen die
-Kopfzeilen oben.* Die Statusabbildung ist einzeln gemessen: bestehendes Repo → 200 mit
-Tag-URL; erfundenes Repo → 404 → „noch keine Fassung veröffentlicht".
-
-**⚠️ Nicht behoben, gehört in Sprint 17:** `SemanticVersion` und das Ablesen der Marke aus der
-URL liegen in der App-Schicht und sind damit für `CoreChecks` unerreichbar — Lehre 4. Ein
-Vergleich, der still falsch antwortet, böte entweder nie ein Update an oder immer.
-
-### Wie die drei zusammenhingen *(Zuschnitt-Notiz zu Sprint 16, erledigt)*
-
-Aus vier Wünschen wurden drei Einträge: **PR-43 (Outlook) ist gestrichen** – die Ablage
-enthält keine wiederherstellbaren Namen, der brauchbare Rest ist ein Haken in PR-19. Von den
-verbleibenden fasst **PR-19 die Quellen** an (Store, Scan, Baum) und **PR-44/PR-45 die
-Filter** (`isHidden`, `NameFilter`) – zwei unabhängige Schichten, die sich nicht ins Gehege
-kommen.
-
-PR-44 und PR-45 sind die engere Klammer: beide berühren denselben Warnhinweis über stille
-Filterzustände (UX-06), und beide sind nach dem Zuschnitt vom 2026-08-10 **je ein S** – PR-45
-ist dabei erst durch das Nachrechnen einer Annahme („UND ist doch schon implizit") so klein
-geworden. **⚠️ Zwei S ergeben nach der Sprint-Regel in `AGENTS.md` keinen Release** – sie
-brauchen ein tragendes Stück. PR-19 ist das einzige L und trüge einen Release allein; die
-beiden Filter wären dann die Beifahrer. Das ist der naheliegende Schnitt, aber ein großer:
-PR-19 bringt sechs Entwurfsentscheidungen mit.
+**⛔️ UX-32 war ein Fehlbefund und ist deshalb nicht gelöscht.** Ein gelöschter Irrtum wird
+wiederholt; was er gelehrt hat, steht als Lehre 2.
 
 ---
 
@@ -999,6 +441,32 @@ greift **den Grund** an – nicht die Entscheidung.
 
 # Was bewusst nicht gebaut wird
 
+- **Vergleich zweier Zeiträume und der Wochenrückblick** (früher PR-18 und PR-15), gestrichen
+  am 2026-08-11 auf ausdrücklichen Wunsch: *„Die App ist gut, wie sie ist."*
+
+  **⚠️ Die Untersuchung bleibt hier stehen, damit niemand sie wiederholt.** „Vergleichen" ist
+  keine Frage, sondern drei – und der Eintrag hat nie gesagt, welche er meint. Gemessen am
+  Bestand des Anwenders, eine Woche gegen die vorige, mit den Rauschregeln der App:
+
+  | Frage | Zeilen | Ort, den es schon gibt |
+  |---|---|---|
+  | Was ist neu? | 35 | die Liste |
+  | Was ist liegengeblieben? | 24 | die Liste |
+  | Wo hat sich das Gewicht verschoben? | 18 | **keinen** |
+
+  Zwei der drei Fragen sind **Mengendifferenzen** und hätten keinen neuen Ort gebraucht.
+  Ausgerechnet die dritte – die einzige, die eine neue Ansicht verlangt hätte – ist die mit dem
+  wenigsten Inhalt, und sie ist die, die der Eintrag beim Namen nannte („Verlagerung").
+
+  **Der tiefere Grund ist eine Grenze, die dieses Backlog schon einmal gezogen hat.** Die App
+  beantwortet „wo habe ich zuletzt gearbeitet?" – sie hilft beim **Wiedereinstieg**. Ein
+  Vergleich beantwortet „wie hat sich meine Arbeit verändert?" – das ist **Auswertung**, und
+  damit dieselbe Richtung, in der auch die Zeiterfassung liegt.
+
+  *Technisch war es nicht teuer: `scannedFiles` liegt ohne Zeitgrenze im Speicher, die Rechnung
+  wäre eine Faltung darüber gewesen. Teuer war, dass jede abgeleitete Größe – Legende,
+  Ordnerdatum, Typ-Filter – heute relativ zu genau **einem** Zeitfenster definiert ist.*
+
 - **Zeiterfassung im engeren Sinn** (Stoppuhr, Projektbuchung): ein anderes Produkt mit
   anderen Wettbewerbern. PR-15/PR-16 liefern den Nutzen ohne den Anspruch.
 - **Cloud-Abgleich zwischen Geräten:** widerspricht der Stärke „liest nur lokal, sendet
@@ -1057,6 +525,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.43 | Sprint 17, AP2 | Reiter „Dateitypen" mit Typschranke; UX-42 |
 | v1.19.44 | Sprint 18 | PR-48, PR-49, PR-50 · Achse, Bündelung, Überschrift |
 | v1.19.45 | Hotfix | Nachgeholte `ux-review`: Beschriftungen überlappten am rechten Rand |
+| — | Bereinigung | Erledigtes verdichtet; Vergleichszweig gestrichen (2026-08-11) |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

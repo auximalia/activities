@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.57 · 2026-08-11*
+*Stand: v1.19.58 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,55 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-51 · Kürzel im Tooltip – und drei Stellen, die es von Hand tippten *(v1.19.58)*
+**Aufwand:** S · **Art:** Verbesserung, mit einem gefundenen Defekt
+
+**Gewünscht:** *„In den Hints über den Schaltflächen soll – wenn vorhanden – das Tastenkürzel
+mit hinein. So lernt man die keys."* Ein Tooltip ist der Ort, an dem jemand ohnehin
+nachschlägt; das Kürzel dort mitzunehmen kostet keine Fläche und keinen Klick.
+
+**⚠️ Die Umsetzung von Hand wäre der Rückfall in UX-39 gewesen.** Drei Tooltips trugen das
+Kürzel bereits – **getippt**, neben einem Katalog, der dieselbe Auskunft führt:
+
+```
+.help("Ordner neu einlesen (⌘R)")
+.help("An den Anfang der Liste springen (⌘↑)")
+.help("Alle Dateitypen wieder einblenden (⌥⌘R)")
+```
+
+Wer `Shortcuts.rescan` ändert, ändert diese Texte nicht mit. Und *ein Tooltip, der ein falsches
+Kürzel nennt, ist schlechter als keiner – dem glaubt man.* Deshalb kam die Regel in den Kern:
+`ShortcutEntry.hint(_:)` hängt `display` in Klammern an, oder lässt den Text unverändert, wenn
+es kein Kürzel gibt. Leere Klammern wären eine Auskunft über nichts.
+
+**⚠️ Geprüft über den ganzen Katalog, nicht an drei Beispielen** (1344 → 1388 Zusicherungen):
+Jeder Eintrag **mit** Kürzel hängt genau sein `display` an, jeder **ohne** lässt den Text stehen.
+Ein Beispiel hätte die Regel illustriert; die Schleife sichert sie zu.
+
+**Dabei ein echter Fehler gefunden.** `SettingsView` schrieb **„⌘⇧E"** und **„⌘⇧T"** – falsche
+Reihenfolge. macOS setzt ⌃⌥⇧⌘, und `ShortcutModifiers.display` hält das mit eigener Begründung
+fest: *„Die Reihenfolge ist keine Geschmacksfrage. Ein Kürzel, das in der Hilfe anders
+geschrieben steht als im Menü, liest sich wie ein zweites Kürzel."* Die Regel stand im Kern,
+die Anzeige daneben verstieß dagegen.
+
+**Deshalb über den Auftrag hinaus:** Auch die Hilfe-Prosa und die Einstellungs-Hinweise lesen
+ihre Kürzel jetzt aus dem Katalog – 16 Stellen. Das ist genau der Teil, von dem UX-44 sagte, er
+sei „nur zur Hälfte" abgesichert: Die **Kürzeltabelle** wurde seit v1.19.33 erzeugt und blieb
+richtig, die **Sätze daneben** blieben handgepflegt. Von denen ist jetzt keiner mehr handgepflegt,
+was ein Kürzel betrifft.
+
+**Neu mit Kürzel im Tooltip:** Suchlauf abbrechen (⌘.), alle Ordner auf-/zuklappen (⌘L),
+Kopfzone (⇧⌘D), Namensfilter entfernen (⇧⌘F). Der Umschalter `ToolbarStateToggle` nimmt das
+Kürzel als optionalen Parameter – nicht jeder Schalter hat eines, und keiner bekommt eines
+erfunden.
+
+**⚠️ Eine Ausnahme, begründet:** Das Suchfeld nennt ⌘F **nicht** über `hint(_:)`, sondern als
+eigenen Satzteil („· Feld erreichen: ⌘F"). ⌘F springt ins Feld – es tut nicht das, was der Satz
+davor über Suchsyntax sagt. Die Schreibweise kommt trotzdem aus dem Katalog.
+
+**Beleg am laufenden Programm:** „Ordner neu einlesen (⌘R)" und „Alle Ordner auf- oder
+zuklappen (⌘L) · aktuell: alle aufgeklappt" als Tooltip abgelichtet.
 
 ### ✅ UX-50 · Die Dateinamen standen unter der Plattform-Norm *(v1.19.57)*
 **Aufwand:** S · **Art:** Defekt (nicht Geschmack)
@@ -998,6 +1047,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.55 | Kleinigkeit | UX-47 · Pfade bei den Quellen · UX-48 · Suchfeld 273 pt |
 | v1.19.56 | Kleinigkeit | UX-49 · Voller Pfad hinter jedem Ordner (Baum und Liste) |
 | v1.19.57 | Kleinigkeit | UX-50 · Dateinamen 14 pt, Nebenangaben 12 pt |
+| v1.19.58 | Kleinigkeit | UX-51 · Tastenkürzel in den Tooltips, aus dem Katalog |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

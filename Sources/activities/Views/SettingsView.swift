@@ -73,14 +73,17 @@ struct SettingsView: View {
             Section {
                 appSlot(
                     title: "Editor",
-                    hint: "Erscheint als „In … öffnen“ im Kontextmenü (⌘⇧E).",
+                    // ⚠️ Stand hier als „⌘⇧E" – falsche Reihenfolge. macOS setzt ⌃⌥⇧⌘,
+                    // und ``ShortcutModifiers/display`` haelt das fest. Aus dem
+                    // Katalog gelesen kann es nicht mehr abweichen.
+                    hint: "Erscheint als „In … öffnen“ im Kontextmenü (\(Shortcuts.openInEditor.display)).",
                     current: model.editorApp,
                     candidates: ExternalAppService.editorCandidates,
                     apply: { model.setEditorApp($0) }
                 )
                 appSlot(
                     title: "Terminal",
-                    hint: "Öffnet den Ordner, bei Dateien deren Ordner (⌘⇧T).",
+                    hint: "Öffnet den Ordner, bei Dateien deren Ordner (\(Shortcuts.openInTerminal.display)).",
                     current: model.terminalApp,
                     candidates: ExternalAppService.terminalCandidates,
                     apply: { model.setTerminalApp($0) }
@@ -96,7 +99,7 @@ struct SettingsView: View {
 
             Section("Tastenkürzel") {
                 LabeledContent("Fenster nach vorn holen") {
-                    Text("⌥⌘A").font(.system(.body, design: .monospaced))
+                    Text(Shortcuts.bringToFront.display).font(.system(.body, design: .monospaced))
                 }
                 Text("Wirkt aus jedem Programm heraus – ohne zusätzliche Systemfreigabe.")
                     .font(.caption).foregroundStyle(.secondary)

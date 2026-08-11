@@ -97,6 +97,31 @@ public struct ShortcutEntry: Sendable, Hashable, Identifiable {
         guard let key else { return label }
         return modifiers.display + key.display
     }
+
+    /// Ob dieser Eintrag überhaupt ein schreibbares Kürzel hat.
+    ///
+    /// **⚠️ Nötig, weil ``display`` sonst den `label` zurückgibt.** Für die
+    /// Hilfetabelle ist das richtig – dort steht in der Kürzelspalte dann eben
+    /// der Handgriff. In einem Tooltip ergäbe es „Ordner neu einlesen (Ordner
+    /// neu einlesen)".
+    public var hasShortcut: Bool { key != nil || displayOverride != nil }
+
+    /// Der Tooltip eines Bedienelements **mit** seinem Kürzel.
+    ///
+    /// **⚠️ Damit niemand das Kürzel mehr in einen Text tippt.** Genau das stand
+    /// bis v1.19.58 an drei Stellen: `"Ordner neu einlesen (⌘R)"`,
+    /// `"An den Anfang der Liste springen (⌘↑)"` und
+    /// `"Alle Dateitypen wieder einblenden (⌥⌘R)"` – von Hand, neben einem
+    /// Katalog, der dieselbe Auskunft führt. Das ist derselbe Zerfall wie
+    /// UX-39: Wer das Kürzel im Katalog ändert, ändert den Tooltip nicht mit,
+    /// und ein Tooltip, der ein falsches Kürzel nennt, ist schlechter als
+    /// keiner – dem glaubt man.
+    ///
+    /// Ohne Kürzel bleibt der Text unverändert; leere Klammern wären eine
+    /// Auskunft über nichts.
+    public func hint(_ text: String) -> String {
+        hasShortcut ? "\(text) (\(display))" : text
+    }
 }
 
 /// Alle Tastenkürzel der App an einer Stelle.

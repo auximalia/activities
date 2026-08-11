@@ -113,7 +113,7 @@ struct ChartHeaderView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
-        .help("Kopfzone auf- oder zuklappen – eingeklappt bleibt mehr Platz für die Liste")
+        .help(Shortcuts.toggleChart.hint("Kopfzone auf- oder zuklappen – eingeklappt bleibt mehr Platz für die Liste"))
     }
 
     /// Kurzfassung der Legende für den eingeklappten Zustand.
@@ -258,7 +258,7 @@ struct ChartHeaderView: View {
             Text("Namensfilter „\(model.namePattern)“")
             Button("Löschen") { model.clearNameFilter() }
                 .buttonStyle(.link)
-                .help("Namensfilter entfernen")
+                .help(Shortcuts.clearNameFilter.hint("Namensfilter entfernen"))
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Namensfilter \(model.namePattern) ist aktiv")
@@ -278,7 +278,7 @@ struct ChartHeaderView: View {
             Text(model.typeFilterSummary)
             Button("Zurücksetzen") { model.resetTypeFilters() }
                 .buttonStyle(.link)
-                .help("Alle Dateitypen wieder einblenden (⌥⌘R)")
+                .help(Shortcuts.resetTypeFilter.hint("Alle Dateitypen wieder einblenden"))
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(model.typeFilterSummary)

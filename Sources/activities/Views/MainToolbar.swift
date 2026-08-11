@@ -68,7 +68,10 @@ struct MainToolbar: ToolbarContent {
                         .allowsHitTesting(false)
                 }
             }
-            .help("Teil des Dateinamens eingeben, dann Enter. Mehrere Wörter: alle müssen vorkommen. ODER trennt Alternativen. Platzhalter * und ? sind möglich. Ein leeres Feld hebt den Filter sofort auf.")
+            // ⚠️ Nicht ueber ``hint(_:)``: ⌘F springt ins Feld, es tut nicht das,
+            // was der Satz davor beschreibt. Die Schreibweise kommt trotzdem aus
+            // dem Katalog, damit sie nicht driften kann.
+            .help("Teil des Dateinamens eingeben, dann Enter. Mehrere Wörter: alle müssen vorkommen. ODER trennt Alternativen. Platzhalter * und ? sind möglich. Ein leeres Feld hebt den Filter sofort auf. · Feld erreichen: \(Shortcuts.focusFilter.display)")
             .accessibilityLabel("Name filtern")
             .accessibilityValue(model.nameFilterPending
                 ? "Noch nicht gesucht – Enter drücken"
@@ -147,7 +150,7 @@ struct MainToolbar: ToolbarContent {
                 Image(systemName: "arrow.clockwise")
                     .foregroundStyle(ToolbarStateToggle.idleTint)
             }
-            .help("Ordner neu einlesen (⌘R)")
+            .help(Shortcuts.rescan.hint("Ordner neu einlesen"))
             .accessibilityLabel("Ordner neu einlesen")
         }
 
@@ -199,7 +202,8 @@ struct MainToolbar: ToolbarContent {
                     ? "Dateien in allen Ordnern anzeigen"
                     : "Alle Ordner auf- oder zuklappen",
                 onState: model.viewMode == .tree ? "werden angezeigt" : "alle aufgeklappt",
-                offState: model.viewMode == .tree ? "sind ausgeblendet" : "nicht alle aufgeklappt"
+                offState: model.viewMode == .tree ? "sind ausgeblendet" : "nicht alle aufgeklappt",
+                shortcut: Shortcuts.toggleAllExpanded
             )
 
             ToolbarStateToggle(
@@ -244,7 +248,7 @@ struct MainToolbar: ToolbarContent {
                 Image(systemName: "arrow.up.to.line")
                     .foregroundStyle(ToolbarStateToggle.idleTint)
             }
-            .help("An den Anfang der Liste springen (⌘↑)")
+            .help(Shortcuts.scrollToTop.hint("An den Anfang der Liste springen"))
             .accessibilityLabel("An den Anfang der Liste springen")
         }
 
@@ -265,7 +269,7 @@ struct MainToolbar: ToolbarContent {
                         Image(systemName: "stop.circle.fill").foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
-                    .help("Suche abbrechen")
+                    .help(Shortcuts.cancelScan.hint("Suche abbrechen"))
             .accessibilityLabel("Suche abbrechen")
                 }
             }
@@ -482,6 +486,9 @@ struct ToolbarStateToggle: View {
     /// wo sich etwas Besseres sagen laesst.
     let onState: String
     let offState: String
+    /// Das Kürzel desselben Befehls – erscheint im Tooltip, damit man es lernt.
+    /// `nil` bei Schaltern, die keines haben (nicht jeder braucht eines).
+    var shortcut: ShortcutEntry? = nil
 
     /// Farbe untaetiger Titelleisten-Symbole.
     ///
@@ -511,7 +518,7 @@ struct ToolbarStateToggle: View {
                 }
         }
         .toggleStyle(.button)
-        .help("\(label) · aktuell: \(stateText)")
+        .help((shortcut?.hint(label) ?? label) + " · aktuell: \(stateText)")
         .accessibilityLabel(label)
         .accessibilityValue(stateText)
     }

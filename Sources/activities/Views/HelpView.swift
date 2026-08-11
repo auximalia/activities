@@ -22,7 +22,7 @@ struct HelpView: View {
                     "Alle Unterordner einer Quelle zählen mit.",
                     "Einen Ordner aufs Fenster ziehen fügt ihn als **weitere** Quelle hinzu.",
                     "Überlappende Quellen werden abgelehnt – sie würden jede Datei doppelt zählen.",
-                    "Hinzufügen und Entfernen: Einstellungen → Quellen (⌘,).",
+                    "Hinzufügen und Entfernen: Einstellungen → Quellen (\(Shortcuts.settings.display)).",
                 ])
 
                 section("Zeitraum festlegen", icon: "calendar", [
@@ -52,9 +52,9 @@ struct HelpView: View {
                 ])
 
                 section("Aktualisieren & Auto-Refresh", icon: "arrow.clockwise", [
-                    "Gelesen wird nur bei Start, Ordnerwechsel, ⌘R und Auto-Refresh.",
+                    "Gelesen wird nur bei Start, Ordnerwechsel, \(Shortcuts.rescan.display) und Auto-Refresh.",
                     "Zeitraum und Filter wirken sofort – ohne neuen Suchlauf.",
-                    "„Aktualisieren“ (⌘R, Symbol ↻) liest den Ordner neu von der Platte.",
+                    "„Aktualisieren“ (\(Shortcuts.rescan.display), Symbol ↻) liest den Ordner neu von der Platte.",
                     "Die Statuszeile nennt unter „Stand“ den Zeitpunkt dieses Lesevorgangs – "
                         + "sie färbt sich orange, sobald er über eine Stunde zurückliegt.",
                     "Roter Stopp-Knopf bricht einen laufenden Suchlauf ab.",
@@ -74,7 +74,7 @@ struct HelpView: View {
                     "Ganz links das Plättchen „Office“: zeigt nur Arbeitsdateien (Dokumente, PDF, Tabellen, Präsentationen, bpmn, graph).",
                     "Legende: jeder Eintrag ist ein Knopf – Klick blendet den Typ aus/ein.",
                     "Doppelklick = nur diesen Typ; erneuter Doppelklick = wieder alle.",
-                    "Sind Typen ausgeblendet, erscheint ein Hinweis mit „Zurücksetzen“ (⌥⌘R).",
+                    "Sind Typen ausgeblendet, erscheint ein Hinweis mit „Zurücksetzen“ (\(Shortcuts.resetTypeFilter.display)).",
                 ])
 
                 section("Liste & Ordnerdetails", icon: "list.bullet.rectangle", [
@@ -93,15 +93,15 @@ struct HelpView: View {
                     "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",
                     "Der Uhr-Schalter oben zeigt sie bei Bedarf (grau/gedimmt, Uhr-Symbol).",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",
-                    "Sortieren nach Datum, Name, Typ oder Größe (⇅-Menü, ⌥⌘1/2/3/4).",
+                    "Sortieren nach Datum, Name, Typ oder Größe (⇅-Menü, \(Shortcuts.sortByDate.display) bis \(Shortcuts.sortBySize.display)).",
                     "Dateien lassen sich in andere Programme ziehen.",
                 ])
 
                 section("In anderen Programmen öffnen", icon: "arrow.up.forward.app", [
-                    "Kontextmenü: „In <Editor> öffnen“ (⇧⌘E) und „In <Terminal> öffnen“ (⇧⌘T).",
+                    "Kontextmenü: „In <Editor> öffnen“ (\(Shortcuts.openInEditor.display)) und „In <Terminal> öffnen“ (\(Shortcuts.openInTerminal.display)).",
                     "Bei Dateien öffnet der Editor die Dateien, das Terminal deren Ordner.",
                     "Vorbelegt wird, was tatsächlich installiert ist – sonst fehlt der Eintrag.",
-                    "Änderbar unter Einstellungen → Allgemein → Programme (⌘,).",
+                    "Änderbar unter Einstellungen → Allgemein → Programme (\(Shortcuts.settings.display)).",
                 ])
 
                 // ⚠️ Eigener Abschnitt, obwohl der Befehl nur im Kontextmenue
@@ -117,7 +117,7 @@ struct HelpView: View {
                 ])
 
                 section("Dateitypen", icon: "doc.badge.gearshape", [
-                    "Einstellungen → Dateitypen (⌘,): je Endung Anzahl, Standardprogramm und zwei Häkchen.",
+                    "Einstellungen → Dateitypen (\(Shortcuts.settings.display)): je Endung Anzahl, Standardprogramm und zwei Häkchen.",
                     "„Office“ bestimmt, was der Office-Filter zeigt." ,
                     "„Arbeit fortsetzen“ bestimmt, was ein Klick öffnen darf – nur setzbar, wenn „Office“ gesetzt ist." ,
                     "Skripte, Programme und Abbilder lassen sich nicht freigeben; der Grund steht in der Zeile.",
@@ -127,12 +127,12 @@ struct HelpView: View {
                     "Pfeile ↑/↓ bewegen die Auswahl, ←/→ klappt Ordner zu/auf.",
                     "Im Baum springt ← auf einem bereits zugeklappten Ordner zum übergeordneten.",
                     "Enter öffnet die Auswahl, Leertaste zeigt die QuickLook-Vorschau.",
-                    "⌘↑ (oder der Pfeil-hoch-Knopf) springt an den Listenanfang.",
+                    "\(Shortcuts.scrollToTop.display) (oder der Pfeil-hoch-Knopf) springt an den Listenanfang.",
                 ])
 
                 section("Weitergeben", icon: "square.and.arrow.up", [
-                    "Menü „Ablage“: als CSV (⌘E) oder als HTML-Bericht (⌥⌘E).",
-                    "⌥⌘C legt eine Zusammenfassung in die Zwischenablage – für Standup oder Zeiterfassung.",
+                    "Menü „Ablage“: als CSV (\(Shortcuts.exportCSV.display)) oder als HTML-Bericht (\(Shortcuts.exportHTML.display)).",
+                    "\(Shortcuts.copySummary.display) legt eine Zusammenfassung in die Zwischenablage – für Standup oder Zeiterfassung.",
                     "Der HTML-Bericht enthält Zeitraum, Diagramm und Tabelle und ist eine einzelne Datei.",
                     "Weitergegeben wird genau das, was gerade angezeigt wird.",
                 ])
@@ -141,12 +141,12 @@ struct HelpView: View {
                     "Erzeugnisse von Werkzeugen (node_modules, .build …) werden übersprungen.",
                     "App-Bündel zählen als eine Datei, nicht als Ordner voller Dateien.",
                     "Kontextmenü: Ordner anheften oder dauerhaft ausblenden.",
-                    "Was übersprungen wurde, steht über der Liste – Einstellungen mit ⌘,.",
+                    "Was übersprungen wurde, steht über der Liste – Einstellungen mit \(Shortcuts.settings.display).",
                 ])
 
                 section("Immer griffbereit", icon: "menubar.arrow.up.rectangle", [
                     "Das Symbol in der Menüleiste zeigt die fünf zuletzt bearbeiteten Ordner.",
-                    "⌥⌘A holt das Fenster aus jedem Programm nach vorn.",
+                    "\(Shortcuts.bringToFront.display) holt das Fenster aus jedem Programm nach vorn.",
                     "In den Einstellungen: Dock-Symbol ausblenden, beim Anmelden starten.",
                 ])
 

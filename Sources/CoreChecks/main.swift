@@ -884,6 +884,28 @@ do {
     expectEqual(einzelner["/nur/eine"], "eine", "eine Quelle: nur der Name")
 }
 
+// MARK: - ShortcutEntry.hint (Kuerzel im Tooltip)
+do {
+    expectEqual(Shortcuts.rescan.hint("Ordner neu einlesen"), "Ordner neu einlesen (⌘R)",
+                "Tooltip traegt das Kuerzel")
+    expectEqual(Shortcuts.scrollToTop.hint("An den Anfang der Liste springen"),
+                "An den Anfang der Liste springen (⌘↑)", "auch mit Sondertaste")
+    expectEqual(Shortcuts.resetTypeFilter.hint("Alle Dateitypen wieder einblenden"),
+                "Alle Dateitypen wieder einblenden (⌥⌘R)", "auch mit zwei Umschalttasten")
+
+    // ⚠️ Ueber den ganzen Katalog geprueft, nicht an drei Beispielen: Jeder
+    // Eintrag MIT Kuerzel haengt genau sein `display` in Klammern an, jeder
+    // ohne laesst den Text unveraendert. Ein Beispiel haette die Regel nur
+    // illustriert.
+    for e in Shortcuts.catalogue {
+        if e.hasShortcut {
+            expectEqual(e.hint("X"), "X (\(e.display))", "hint fuer \(e.id)")
+        } else {
+            expectEqual(e.hint("X"), "X", "hint ohne Kuerzel fuer \(e.id)")
+        }
+    }
+}
+
 // MARK: - PathFormatting (Pfade kuerzen)
 do {
     let heim = "/Users/mtri"

@@ -870,6 +870,29 @@ do {
 
     expectEqual(liste.add(docs), .alreadyKnown, "dieselbe Quelle zweimal")
     expectEqual(liste.known.count, 1, "und weiterhin nur einmal im Bestand")
+    expect(liste.isActive(docs), "und bleibt dabei ausgewaehlt")
+
+    // ⚠️ Festlegung 1a: „bereits bekannt" ist nur dann eine Ablehnung, wenn die
+    // Quelle auch schon ANGEHAKT ist. Ist sie abgehakt, wird sie angehakt –
+    // wer sie im Dateidialog waehlt, will sie sehen, nicht eintragen. Vor
+    // v1.19.51 geschah hier nichts, und die leere Ansicht blieb leer.
+    var abgehakt = SourceList()
+    abgehakt.add(docs)
+    abgehakt.setActive(docs, false)
+    expect(!abgehakt.isActive(docs), "Ausgangslage: bekannt, aber abgehakt")
+    expect(abgehakt.add(docs) == nil, "erneutes Hinzufuegen wird nicht abgelehnt")
+    expect(abgehakt.isActive(docs), "sondern hakt die Quelle an")
+    expectEqual(abgehakt.known.count, 1, "ohne sie ein zweites Mal einzutragen")
+
+    // Die echten Widersprueche bleiben Ablehnungen – auch bei abgehakter Quelle.
+    // Sonst braeche die Zusicherung „jeder Ordner kommt genau einmal vor".
+    expectEqual(abgehakt.add(proj), .containedIn(docs), "Unterordner bleibt abgelehnt, auch abgehakt")
+    expectEqual(abgehakt.known.count, 1, "und kommt nicht in den Bestand")
+
+    var abgehaktUmgekehrt = SourceList()
+    abgehaktUmgekehrt.add(proj)
+    abgehaktUmgekehrt.setActive(proj, false)
+    expectEqual(abgehaktUmgekehrt.add(docs), .contains(proj), "Oberordner bleibt abgelehnt, auch abgehakt")
 
     // Auch andersherum: die neue Quelle enthaelt eine bekannte.
     var umgekehrt = SourceList()

@@ -154,7 +154,8 @@ struct RootView: View {
                     : "Es sind \(known) Ordner bekannt, aber keiner ist angehakt. "
                       + "Wähle im Ordner-Menü mindestens eine Quelle aus.",
                 actionTitle: "Quelle hinzufügen …",
-                action: { model.folderPickerToken += 1 }
+                action: { model.folderPickerToken += 1 },
+                notice: model.sourceNotice
             )
         }
     }

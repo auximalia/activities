@@ -1923,11 +1923,17 @@ final class ReportViewModel {
     func addSources(_ urls: [URL]) {
         var abgelehnt: [String] = []
         for url in urls where url.hasDirectoryPath {
-            guard let grund = sources.rejectionReason(forAdding: url) else {
-                sources.add(url)
-                continue
+            // **⚠️ Der Rueckgabewert von ``SourceList/add(_:)`` entscheidet –
+            // NICHT ein eigener Aufruf von ``rejectionReason(forAdding:)``.**
+            // Genau so stand es hier bis v1.19.51, und damit traf die App die
+            // Entscheidung ein zweites Mal und ueberstimmte den Kern: Als
+            // ``add`` lernte, eine bekannte, aber abgehakte Quelle anzuhaken,
+            // erreichte es diesen Fall nie – die Vorpruefung fing ihn ab und
+            // machte eine Ablehnung daraus. Die Regel lag im Kern, die
+            // Wirkung nicht.
+            if let grund = sources.add(url) {
+                abgelehnt.append(Self.rejectionText(url, grund))
             }
-            abgelehnt.append(Self.rejectionText(url, grund))
         }
         applySourceChange()
         sourceNotice = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: " ")
@@ -1941,7 +1947,11 @@ final class ReportViewModel {
         let name = url.lastPathComponent
         switch grund {
         case .alreadyKnown:
-            return "\u{201E}\(name)\u{201C} ist bereits als Quelle eingetragen."
+            // ⚠️ Erreicht nur noch den Fall „bekannt UND schon angehakt" – eine
+            // abgehakte Quelle wird angehakt statt abgelehnt (siehe
+            // ``SourceList/add(_:)``). Darum „wird bereits angezeigt": Das ist
+            // die Aussage, die der Anwender pruefen kann.
+            return "\u{201E}\(name)\u{201C} ist bereits als Quelle eingetragen und wird bereits angezeigt."
         case .containedIn(let aeusserer):
             return "\u{201E}\(name)\u{201C} liegt in \u{201E}\(aeusserer.lastPathComponent)\u{201C} und würde doppelt gezählt."
         case .contains(let innerer):

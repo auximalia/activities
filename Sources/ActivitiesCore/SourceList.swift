@@ -68,10 +68,31 @@ public struct SourceList: Sendable, Equatable {
 
     /// Nimmt eine Quelle auf und waehlt sie aus.
     ///
+    /// **⚠️ Eine bereits bekannte, aber abgehakte Quelle wird ANGEHAKT statt
+    /// abgelehnt – die drei Ablehnungsgruende sind nicht gleichwertig.**
+    /// ``containedIn`` und ``contains`` sind echte Widersprueche: Sie braechen
+    /// die Zusicherung „jeder Ordner kommt genau einmal vor", auf der Baum und
+    /// Zusammenfassung stehen. ``alreadyKnown`` ist keiner – der Zustand, den
+    /// der Anwender will, ist erreichbar und harmlos. Wer im Dateidialog einen
+    /// Ordner waehlt, sagt *„diesen will ich sehen"*, nicht *„diesen will ich
+    /// eintragen"*; die Unterscheidung zwischen beidem ist Buchhaltung des
+    /// Programms, nicht Absicht des Anwenders.
+    ///
+    /// Bis v1.19.50 geschah in diesem Fall **nichts**: Wer alle Haken entfernte
+    /// und den Ordner dann ueber „Quelle hinzufuegen …" erneut waehlte, bekam
+    /// eine unveraenderte leere Ansicht – und die Begruendung war dort nicht
+    /// sichtbar.
+    ///
     /// - Returns: der Grund, falls sie abgelehnt wurde; sonst ``nil``.
+    ///   ``alreadyKnown`` bedeutet jetzt genau einen Fall: **bekannt und bereits
+    ///   angehakt** – der einzige, in dem tatsaechlich nichts geschieht.
     @discardableResult
     public mutating func add(_ url: URL) -> RejectionReason? {
-        if let reason = rejectionReason(forAdding: url) { return reason }
+        if let reason = rejectionReason(forAdding: url) {
+            guard case .alreadyKnown = reason, !isActive(url) else { return reason }
+            setActive(url, true)
+            return nil
+        }
         known.append(url)
         active.insert(url)
         return nil

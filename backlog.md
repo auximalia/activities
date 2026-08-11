@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.50 · 2026-08-11*
+*Stand: v1.19.51 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,49 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-53 · Eine Quelle hinzufügen tat nichts, wenn sie schon bekannt war *(v1.19.51)*
+**Aufwand:** S · **Art:** Defekt · *Gemeldet vom Anwender mit Bildschirmfoto*
+
+**Beobachtet:** Zwei Quellen, beide Haken entfernt. Über „Quelle hinzufügen …" einen Ordner
+gewählt – Meldung: *„Es sind 3 Ordner bekannt, aber keiner ist angehakt."* Nichts geschah,
+und **nichts erklärte, warum**.
+
+**⚠️ Die erste Erklärung war falsch, und das Nachstellen hat sie widerlegt.** `SourceList.add`
+hakt eine neue Quelle seit Sprint 16 an – der Kern tat also längst das Gewünschte, und der
+Bericht schien der Fassung zu widersprechen. Nachgestellt wurde deshalb der **Zustand**, nicht
+die Vermutung: Bestand auf 3 gesetzt, Auswahl geleert, denselben Ordner erneut über den Dialog
+gewählt. Das Bild war Zeile für Zeile das des Anwenders. **Der gewählte Ordner war bereits
+bekannt, nur abgehakt** – `rejectionReason` meldete `.alreadyKnown`, und damit geschah nichts.
+
+**Zwei Fehler, und der zweite ist der lehrreiche:**
+
+1. **`.alreadyKnown` war gar keine Ablehnung.** Die drei Gründe sind nicht gleichwertig:
+   `containedIn` und `contains` sind echte Widersprüche – sie brächen die Zusicherung „jeder
+   Ordner kommt genau einmal vor", auf der Baum und Zusammenfassung stehen. `alreadyKnown` ist
+   keiner: Der gewünschte Zustand ist erreichbar und harmlos. **Wer im Dateidialog einen Ordner
+   wählt, sagt „diesen will ich sehen", nicht „diesen will ich eintragen"** – die Unterscheidung
+   war Buchhaltung des Programms, nicht Absicht des Anwenders. `add` hakt jetzt an; der Grund
+   `alreadyKnown` bedeutet nur noch **bekannt und bereits angehakt**, den einzigen Fall, in dem
+   wirklich nichts geschieht.
+
+2. **⚠️ Die Behebung im Kern blieb wirkungslos – und das fiel erst am laufenden Programm auf.**
+   `addSources` rief `rejectionReason(forAdding:)` **selbst** und `add` nur, wenn die Antwort
+   `nil` war. Die App entschied damit ein zweites Mal, was der Kern entscheidet, und überstimmte
+   ihn: Die neue Regel lag im Kern, die Wirkung nicht. Acht grüne Zusicherungen bewiesen eine
+   Regel, die die Oberfläche nie erreichte. *Die Vorprüfung, die eine Entscheidung nur
+   „vorwegnimmt", ist eine zweite Entscheidung.* Jetzt entscheidet allein der Rückgabewert von
+   `add`.
+
+3. **Die Ablehnung war unsichtbar.** `sourceNotice` hing allein in `ChartHeaderView` – die im
+   Leerzustand nicht im Baum ist. Die Begründung fehlte genau auf dem Bildschirm, auf dem der
+   Anwender sie ausgelöst hatte. `EmptyStateView` nimmt jetzt einen `notice`, getrennt vom
+   `message`-Text: Der eine erklärt den Zustand, der andere beantwortet eine Handlung.
+
+**Beleg:** Vorher-Zustand exakt nachgestellt (Bildschirmfoto deckungsgleich mit dem gemeldeten);
+nachher Bestand unverändert bei 2, `activeSources = ["/Users/mtri/Downloads"]`, Fenster mit
+53 Dateien. 8 neue Zusicherungen (1316 → 1324), darunter die Gegenprobe, dass `containedIn`
+und `contains` **auch bei abgehakter Quelle** Ablehnungen bleiben.
 
 ### ✅ UX-45 · „Arbeit fortsetzen" war nur per Rechtsklick erreichbar *(v1.19.50)*
 **Aufwand:** S · **Art:** Defekt · *Fund aus UX-44, entschieden mit `decision-check`*
@@ -676,6 +719,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.48 | Kleinigkeit | UX-43 · Das Plus wiegt schwerer als das Minus |
 | v1.19.49 | Kleinigkeit | UX-44 · Hilfe berichtigt; Markdown wurde nie ausgewertet |
 | v1.19.50 | Kleinigkeit | UX-45 · „Arbeit fortsetzen" ins Menü Auswahl |
+| v1.19.51 | Kleinigkeit | PR-53 · Bekannte, abgehakte Quelle wird angehakt statt abgelehnt |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

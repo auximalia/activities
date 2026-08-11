@@ -897,116 +897,254 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | AP | Eintrag | Aufwand | |
 |---|---|---|---|
 | **AP1** | Die Sichtbarkeitsentscheidung als **ein** Typ im Kern | **M** | trägt den Release |
-| **AP2** | PR-21 · Suchbegriffe merken | S | Beifahrer |
-| *(vorab)* | *PR-46 · Schnellpfad-Defekt* | *S* | *als Hotfix v1.19.39 ausgeliefert* |
+| **AP2** | Dateitypen-Tabelle in den Einstellungen, mit Typschranke | **M** | gewünscht am 2026-08-11 |
+| **AP3** | `bpmn`/`graph` auch für „Arbeit fortsetzen" | S | vorgezogen |
+| *(verschoben)* | *PR-21 · Suchbegriffe merken* | *S* | *Klammer zu schwach* |
 
-**Der Anlass ist gezählt, nicht gefühlt.** Die letzten **drei** Auslieferungen waren
-Filter-Korrekturen: v1.19.37 (Platzierung), v1.19.38 (Beschriftung), v1.19.39 (der
-Schnellpfad, PR-46). Das ist kein Zufall, sondern die Bauform: Die Entscheidung *ist diese
-Datei sichtbar* fällt an **sieben** Stellen in der App-Schicht, und `hasTypeFilter`,
-`typeFilterSummary`, `resetTypeFilters` und `isHidden` sind von **keiner** Prüfung erfasst –
-weder `CoreChecks` noch `Tests/`. Das ist Lehre 4 im Wortlaut: *Was `CoreChecks` nicht
-erreicht, driftet unbemerkt.*
+**Der Anlass für AP1 ist gezählt, nicht gefühlt.** Die letzten Auslieferungen vor diesem
+Sprint waren drei Filter-Korrekturen in Folge: v1.19.37 (Platzierung), v1.19.38
+(Beschriftung), v1.19.39 (Schnellpfad, PR-46). Die Ursache ist die Bauform: Die Entscheidung
+*ist diese Datei sichtbar* fällt an **sieben** Stellen in der App-Schicht, und `hasTypeFilter`,
+`typeFilterSummary`, `resetTypeFilters` und `isHidden` sind von **keiner** Prüfung erfasst.
+Lehre 4 im Wortlaut.
+
+**AP2 kam aus der Praxis** (2026-08-11): „Ich arbeite ab heute mit `.bpmn` im Camunda
+Modeller, ich möchte den Office-Filter selbst verwalten." Die Prüfung des Wunsches hat mehr
+widerlegt als bestätigt — siehe die Bestandsaufnahme unten.
+
+### Die Bestandsaufnahme, die den Zuschnitt bestimmt hat
+
+**⚠️ Der Wunsch war zu zwei Dritteln schon erfüllt.** Am laufenden Programm belegt (Office an,
+Zeitraum „Alle"): Die Legende zeigt `.bpmn 173` — genau die Zahl, die auch das Dateisystem
+liefert.
+
+| Handgriff | `.bpmn` vor diesem Sprint |
+|---|---|
+| Office-Filter, sichtbar | ✅ `WorkFileFilter.extraExtensions` (Sprint 16) |
+| Klick/Doppelklick auf eine Datei → Camunda Modeller | ✅ `FinderService.open`, **ohne** Erlaubnisliste |
+| „Arbeit fortsetzen" | ❌ `isResumable` → `.other` |
+
+Die Lücke war **eine**, und sie lag nicht im Office-Filter, sondern in der Ausführungsliste.
+Daraus wurde AP3.
+
+**⚠️ Die vorgeschlagene dreiwertige Spalte „Rauschfilter | Office | ohne Zuordnung" ist
+zurückgewiesen.** Die beiden Mengen sind nicht disjunkt — die Frage lässt sich gar nicht
+stellen, weil sie **verschiedene Schlüsselräume** haben:
+
+| | Rauschfilter (`ExclusionRules`) | Office (`WorkFileFilter`) |
+|---|---|---|
+| Schlüssel | **Ordnernamen**, Pfade, Dateinamensmuster | **Dateiendungen** |
+| Wirkt | im **Suchlauf** (`skipDescendants`) – die Datei entsteht nie | bei der **Anzeige** |
+| ohne Neulesen umkehrbar | nein | ja |
+
+Die Statuszeile sagt es selbst: „47 **Ordner** samt Inhalt übersprungen". Wer beides in einen
+Wertebereich presst, lässt den ersten Nutzer vergeblich nach `.git` in der Endungstabelle
+suchen.
 
 ### AP1 · Ein Sichtbarkeitstyp im Kern
 
-Ein Typ in `ActivitiesCore`, der alles zusammenfasst, was heute an sieben Stellen einzeln
-gefragt wird: ausgeblendete Endungen samt „Sonstige", Office-Schalter, Namensfilter,
-Zeitfenster. Er beantwortet **zwei** Fragen und sonst nichts:
+Ein Typ in `ActivitiesCore`, der zusammenfasst, was heute an sieben Stellen einzeln gefragt
+wird: ausgeblendete Endungen samt „Sonstige", Office-Schalter, Namensfilter, Zeitfenster. Er
+beantwortet **zwei** Fragen:
 
 - `isVisible(_ file: RelevantFile) -> Bool` – die eine Entscheidung.
 - `filtersNothing: Bool` – abgeleitet **aus seinem eigenen Zustand**, nach der Bauform von
-  `NameFilter.matchesEverything` (`NameFilter.swift:113`).
+  `NameFilter.matchesEverything`.
 
 **Die entscheidende Prüfung, die es heute nicht geben kann:** Über einem Prüfbestand gilt
-`filtersNothing` ⟺ `isVisible` ist für **jede** Datei wahr. Fällt sie, hat jemand einen
-Filter ergänzt, ohne ihn in die Vorbedingung aufzunehmen – also genau PR-46 ein drittes Mal.
-*Das ist der ganze Zweck des Sprints: die Vorbedingung strukturell an das Prädikat zu binden,
-statt sie durch einen Doc-Kommentar zu bewachen.*
+`filtersNothing` ⟺ `isVisible` ist für **jede** Datei wahr. Fällt sie, hat jemand einen Filter
+ergänzt, ohne ihn in die Vorbedingung aufzunehmen – also PR-46 ein drittes Mal.
+
+### AP2 · Eine Tabelle, zwei Spalten – und eine Schranke, die kein Häkchen aufhebt
+
+Ein eigener Einstellungs-Reiter „Dateitypen": je Endung eine Zeile mit Anzahl,
+**Standardprogramm dieses Rechners**, und zwei Häkchen – *Office* und *Arbeit fortsetzen*.
+
+**⚠️ Warum zwei Spalten und nicht eine Liste.** Nach AP3 sind Sichtbarkeits- und
+Ausführungsliste **inhaltlich identisch**; die Trennung sieht dann wie Zeremonie aus. Sie ist
+das Gegenteil: **AP2 selbst ist es, was die Gleichheit bricht, und zwar in die gefährliche
+Richtung.** Heute sind beide Listen von uns kuratiert – dass sie gleich sind, ist eine sichere
+Zufälligkeit. Sobald die Sichtbarkeitsliste dem Anwender gehört, hört sie auf, sicher zu sein.
+Gemessen am Bestand des Anwenders, mit den Standardprogrammen seines Rechners:
+
+| Endung | Dateien | Standardprogramm | was ein Klick täte |
+|---|---|---|---|
+| `.jar` | 1.763 | JavaLauncher | **führt aus** |
+| `.py` | 1.287 | IDLE | öffnet im Editor |
+| `.command` | 50 | Terminal | **führt aus** |
+| `.sh` | 72 | Visual Studio Code | öffnet – *auf diesem Rechner* |
+
+Wer „Code" ins Office aufnimmt, um seine Python-Arbeit zu **sehen** – ein vernünftiger Wunsch
+–, bekäme bei verschmolzenen Listen ein „Arbeit fortsetzen", das 1.763 Dateien an den
+JavaLauncher reicht.
+
+**⚠️ Und deshalb kann auch die Spalte „Standardprogramm" die Entscheidung nicht absichern:**
+`.sh` öffnet hier in VS Code, auf dem Rechner eines Kollegen in Terminal. Der Handler ist
+**Maschinenzustand, keine Eigenschaft der Endung**, und er kann sich nach der Entscheidung
+ändern. Die Spalte *erklärt*, sie *schützt* nicht.
+
+#### Die drei Netze
+
+**Netz 1 – Erlaubnisliste, unverändert.** Auslieferungszustand exakt wie heute. Einstellungen
+liegen je Rechner; es reist keine Konfiguration mit. Wer die Einstellungen nie öffnet, hat das
+heutige Verhalten.
+
+**Netz 2 – Ablehnung am Rand, beim Setzen des Hakens.** Gemessen an Apples Typhierarchie,
+allein aus der Endung, ohne dass eine Datei existiert:
+
+| Endung | UTType | Urteil |
+|---|---|---|
+| `sh`, `command`, `py`, `scpt`, **`rb`**, **`pl`** | `public.*-script` | **abgelehnt** → `public.script` |
+| `jar`, `app` | `com.sun.java-archive`, `com.apple.application-file` | **abgelehnt** → `public.executable` |
+| `dmg` | `com.apple.disk-image-udif` | **abgelehnt** → `public.disk-image` |
+| `bpmn`, `graph`, `form`, `dmn`, `docx`, `xlsx`, `pdf`, `xmind`, `md` | – | durchgelassen |
+
+**⚠️ Das ist nicht die Verbotsliste, die PR-35 verworfen hat.** Jene hätte jede Skriptsprache
+aufzählen müssen; hier sind es **drei Oberklassen**, und Ruby und Perl ordnen sich selbst
+darunter ein, ohne dass wir von ihnen wissen. Zwölf harmlose Typen, null Fehlalarme.
+
+**⚠️ „Alle Archive sperren" ist gemessen widerlegt:** `org.xmind.openformat.xmind` conform zu
+`public.archive` – die Regel hätte 314 der wichtigsten Arbeitsdateien des Anwenders gesperrt.
+`public.disk-image` ist dagegen trennscharf.
+
+**Netz 3 – Prüfung der Datei zur Handlungszeit**, weil eine Endung nicht alles über eine Datei
+sagt: POSIX-Ausführungsbit (fängt ein `.txt` mit `+x` und endungslose Programme) und
+**aufgelöste Verweise** (ein Alias auf ein Skript wäre sonst der Umweg um alles). Läuft **nur
+auf den ausgewählten Dateien**, nie im Suchlauf.
+
+Netz 2 und 3 sind **nicht abschaltbar**. Damit gilt: Egal was jemand ankreuzt und egal welches
+Standardprogramm auf seinem Rechner eingetragen ist – „Arbeit fortsetzen" startet kein Skript.
+
+#### ⚠️ Wo die Schranke NICHT greift – und das ist eine Festlegung, keine Lücke
+
+> **Ein Handgriff auf einer benannten Datei kennt keine Erlaubnisliste.** Doppelklick,
+> Symbolklick, Enter auf einer Zeile öffnen **jede** Datei, immer, ohne Typprüfung.
+
+Das ist das Kriterium, nach dem PR-35 in Wahrheit entschieden hat, ohne dass es jemand
+aufgeschrieben hätte: *„ein Menüpunkt, der **ungefragt** fremden Code startet"*. **Ungefragt
+heißt: Der Anwender hat die Datei nie benannt.** Genau dort gehört die Schranke hin und
+sonst nirgends – ausdrücklich gewünscht am 2026-08-11 („sonst verliert das Tool zu viel an
+Funktionalität"). Wer sie je auf den Doppelklick ausdehnt, nimmt dem Programm seinen Zweck.
+
+| Weg | Wer stellt die Menge zusammen? | Schranke |
+|---|---|---|
+| Symbolklick, Doppelklick auf den Namen, VoiceOver-Aktion | **der Anwender**, genau diese Datei | **nie** |
+| Doppelklick/Enter bei Mehrfachauswahl, ⌘A + Enter | der Anwender, aber ungesehen | Rückfrage ab 10, **die jetzt auch die Art nennt** |
+| „Arbeit fortsetzen" | **das Programm** | Netze 1–3 |
+
+**Beifahrer in AP2:** `⌘A` + Enter geht über `run(_:)` – laut eigenem Kommentar „der einzige
+Weg, auf dem mehrere Objekte losgelassen werden" – und hat keine Typprüfung. In einem Ordner
+mit 50 `.command`-Dateien öffnet das 50 Terminal-Fenster, die die Skripte ausführen. **Kein
+Grund, die Auswahl zu beschränken** – sie wurde markiert. Aber die Rückfrage kann sagen, was
+sie weiß; ihr eigener Doc-Kommentar liefert das Argument („Ohne die Zahl wäre der Dialog nur
+eine Verzögerung"), und er gilt eine Stufe weiter: *„Darunter 12 Skripte und 1 Programm, die
+dabei ausgeführt werden."* Informieren statt blockieren.
+
+### AP3 · `bpmn` und `graph` auch fortsetzen
+
+Kein Bedienelement, eine bessere **Vorgabe** – genau der Ausgang, den PR-36 vorhergesagt hat
+(„die kleinste Lösung ist womöglich gar keine Einstellung"). `WorkDays` bekommt seinerseits
+`extraResumableExtensions`, gespiegelt zu `WorkFileFilter.extraExtensions`.
+
+**⚠️ `FileCategory.extensionMap` bleibt unangetastet** – `bpmn` liegt weiterhin in `other`.
+Das war und bleibt der eigentliche Schutz: Wer die Kategorientabelle erweitert, entscheidet
+ungewollt mit, was ein Klick ausführt.
+
+**⚠️ Die `CoreChecks`-Zusicherung muss umgeschrieben werden, und das ist der heikle Teil.**
+Sie lautet heute „`bpmn` ist sichtbar **und nicht** ausführbar" – sie nagelt also ein
+**Beispiel** fest, nicht die Regel. Die Regel ist: `extensionMap` unverändert **und**
+Ausführungsliste ⊆ Sichtbarkeitsliste, in **beiden** Teilen (Kategorien und Zusatzendungen).
+*Wer eine Zusicherung lockert, muss sie durch die schärfere ersetzen, die dahinterstand – sonst
+ist das Lockern der ganze Vorgang.*
+
+**Nicht mitgenommen: `.form`.** Der Anwender hat 5 davon, Camunda Modeller bedient sie. Sie
+jetzt in die Vorgabe zu nehmen, hieße für ihn zu entscheiden – dasselbe Argument, mit dem
+PR-36 gegen eine ungefragte Einstellung steht. `.form` ist der erste Kandidat für die Tabelle
+aus AP2 und damit deren Nachweis, dass sie gebraucht wird.
 
 ### Festlegungen vor der Umsetzung
 
-1. **`FolderAggregator.folderEntries` bekommt `isVisible: (RelevantFile) -> Bool`.**
-   Es hält die Datei an `FolderAggregator.swift:26` bereits als `RelevantFile` und wirft nur
-   `.url` weg. Zwei Zeilen im Kern, **ein** produktiver Aufrufer (`ReportViewModel:1033-1040`),
-   der Rest `Bench` und `CoreChecks`. Ohne diesen Schritt kann der neue Typ nicht die einzige
-   Quelle sein – die Ordnerliste und der Baum blieben bei `URL` und damit blind für alles,
-   was nicht aus dem Pfad ablesbar ist.
+1. **`FolderAggregator.folderEntries` bekommt `isVisible: (RelevantFile) -> Bool`.** Es hält
+   die Datei bereits als `RelevantFile` und wirft nur `.url` weg. Zwei Zeilen im Kern, **ein**
+   produktiver Aufrufer. Ohne das kann der neue Typ nicht die einzige Quelle sein.
 2. **⚠️ „Sonstige" geht mit, obwohl es an der Legende hängt.** `isHidden` ist nur mit
-   `topExtensionSet` vollständig (`ReportViewModel.swift:971`), also mit den zehn häufigsten
-   Endungen. Das ist **kein Kreisbezug** – die Legende wird aus `relevantFiles` gebaut und
-   liest `hiddenExtensions` nicht –, aber der Typ muss die Menge **hereingereicht** bekommen
-   und darf sie nicht selbst bestimmen. *Wer sie selbst berechnen lässt, baut den Kreis, den
-   es heute nicht gibt.*
-3. **⚠️ Zu entscheiden, nicht zu bauen: Zählt „Dateien außerhalb des Zeitraums zeigen" als
-   Filter?** Er filtert (er blendet aus), steht aber **nicht** in der Statuszeile
-   (`ChartHeaderView.swift:162` kennt nur Namens-, Typ- und Rauschfilter). Damit fallen
-   `filtersNothing` und „die Statuszeile sagt es" heute auseinander, und die schöne
-   Äquivalenz aus der Prüfung oben gilt nur für die Teilmenge. **Zwei ehrliche Antworten,
-   beide vertretbar:** ihn in die Statuszeile aufnehmen (dann ist UX-06 vollständig, aber die
-   Zeile wird länger und meldet einen Zustand, den die Werkzeugleiste schon zeigt) – oder ihn
-   ausdrücklich als *Darstellungsschalter* führen und die Prüfung entsprechend zweiteilen.
-   *`decision-check` vor der Umsetzung; die Entscheidung ist der einzige Teil von AP1, der
-   nach außen sichtbar wird.*
+   `topExtensionSet` vollständig. Das ist **kein** Kreisbezug – die Legende liest
+   `hiddenExtensions` nicht –, aber der Typ muss die Menge **hereingereicht** bekommen und darf
+   sie nicht selbst bestimmen. Wer sie selbst berechnen lässt, baut den Kreis, den es nicht
+   gibt.
+3. **⚠️ Zu entscheiden: Zählt „Dateien außerhalb des Zeitraums zeigen" als Filter?** Er
+   filtert, steht aber nicht in der Statuszeile. Damit fallen `filtersNothing` und „die
+   Statuszeile sagt es" auseinander, und die Äquivalenz aus AP1 gilt nur für die Teilmenge.
 4. **`hasTypeFilter` und `typeFilterSummary` ziehen mit in den Kern.** Sonst wandert die
-   Entscheidung dorthin, wo sie geprüft werden kann, und ihre **Ansage** bleibt dort, wo sie
-   es nicht kann – und genau die Ansage war in v1.19.37 falsch. Beide sind reine
-   Zeichenketten- und Mengenarbeit, Foundation genügt.
-5. **`FolderRowView` und `TreeRowView` gehen über den Zwischenspeicher.** Sie rufen heute
-   `visibleFiles(in:)` zwei- bzw. dreimal je Rumpfauswertung (`FolderRowView.swift:20,23`,
-   `TreeRowView.swift:102,108,182`) und gehen dabei an `visibleSortedFilesByFolder` vorbei.
-   Die Bedeutung ist identisch – jener Speicher wird aus derselben Funktion gebaut.
-   **⚠️ Gemessen wird vorher und nachher**, sonst ist es eine Behauptung; `Bench` erreicht
-   diese Zeilen nicht, die Messung muss also am Modell ansetzen.
-6. **Der Schnellpfad bleibt.** PR-46 hat entschieden, warum: Ihn ohne Messung zu streichen
-   wäre derselbe Fehler wie ihn ohne Messung einzuführen. Nach AP1 ist er ungefährlich, weil
-   seine Bedingung nicht mehr von Hand gepflegt wird.
-7. **Nichts an der Oberfläche ändert sich durch AP1.** Wenn doch etwas anders aussieht, ist
-   das ein Fehler und keine Verbesserung. *Diese Festlegung ist die Abnahmebedingung, nicht
-   eine Absichtserklärung.*
-8. **AP2 speichert seine Liste, der Filter selbst bleibt ungespeichert.** Begründung in
-   PR-21: Eine Vorschlagsliste ist kein aktiver Zustand.
+   Entscheidung dorthin, wo sie geprüft werden kann, und ihre **Ansage** bleibt dort, wo sie es
+   nicht kann – und genau die war in v1.19.37 falsch.
+5. **`FolderRowView` und `TreeRowView` gehen über den Zwischenspeicher.** Sie rufen
+   `visibleFiles(in:)` zwei- bzw. dreimal je Rumpfauswertung und gehen an
+   `visibleSortedFilesByFolder` vorbei. **Vorher und nachher messen**, sonst ist es Behauptung.
+6. **Der Schnellpfad bleibt** (Begründung in PR-46). Nach AP1 ist er ungefährlich, weil seine
+   Bedingung nicht mehr von Hand gepflegt wird.
+7. **Nichts an der Oberfläche ändert sich durch AP1.** Sieht etwas anders aus, ist das ein
+   Fehler und keine Verbesserung. Das ist die Abnahmebedingung, nicht eine Absichtserklärung.
+8. **Die Typschranke liegt zur Hälfte im Kern.** `UniformTypeIdentifiers` ist nicht
+   Foundation; der Kern hält die Erlaubnisliste **und die verbotenen Bezeichner als
+   Zeichenketten**, die App-Schicht fragt `UTType` und prüft Konformität. Präzedenzfall:
+   `ExclusionRules.packageExtensions` ist genau so ein Rückfall für `isPackageKey`.
+9. **Die Tabelle listet die Endungen des eigenen Bestands**, nach Anzahl absteigend – gemessen
+   198 verschiedene, 86 davon mit ≥ 5 Dateien, 65 mit genau einer. Eigene Endungen lassen sich
+   ergänzen (Vorbild: Rauschfilter-Reiter), damit `.dmn` nicht auf ein Release wartet.
 
 ### Sprint-Akzeptanz
 
 **AP1:** Genau **eine** Stelle entscheidet über Sichtbarkeit, und sie liegt in
-`ActivitiesCore` · `CoreChecks` belegt die Äquivalenz `filtersNothing` ⟺ „nichts fällt
-heraus" · `CoreChecks` belegt die Ansage der Statuszeile gegen den Filterzustand · die
-Oberfläche verhält sich in allen Kombinationen aus Plättchen, Office, Suchfeld und
-Zeitraum-Schalter **unverändert**, am laufenden Programm gegengeprüft · die Zeilenkosten sind
-vorher und nachher gemessen.
+`ActivitiesCore` · `CoreChecks` belegt `filtersNothing` ⟺ „nichts fällt heraus" · `CoreChecks`
+belegt die Ansage der Statuszeile gegen den Filterzustand · die Oberfläche verhält sich in
+allen Kombinationen aus Plättchen, Office, Suchfeld und Zeitraum-Schalter **unverändert** ·
+die Zeilenkosten sind vorher und nachher gemessen.
 
-**AP2:** Zuletzt verwendete Ausdrücke sind im Suchfeld erreichbar und überleben einen
-Neustart · sie ändern nichts, bis man sie wählt · die Liste ist begrenzt und einzeln löschbar.
+**AP2:** Ein Reiter „Dateitypen" mit Anzahl, Standardprogramm und zwei Häkchen · das zweite
+Häkchen ist nur setzbar, wenn das erste gesetzt ist · ein Skript-, Programm- oder
+Abbild-Typ lässt sich **nicht** freigeben und nennt den Grund · eine freigegebene Datei mit
+`+x` wird zur Handlungszeit trotzdem abgelehnt · **Doppelklick und Symbolklick öffnen
+weiterhin jede Datei ohne Prüfung** · die Rückfrage bei Mengen nennt Skripte und Programme ·
+alle Regeln, die ohne `UTType` auskommen, sind in `CoreChecks` geprüft.
+
+**AP3:** `bpmn` und `graph` erscheinen in „Arbeit fortsetzen" · `FileCategory.extensionMap`
+ist unverändert · die alte Zusicherung ist durch die schärfere ersetzt, nicht gestrichen.
 
 **Gemeinsam:** `swift build` und `swift run CoreChecks` grün · am laufenden Programm
 gegengeprüft, mit Kontrollversuch je fehlgeschlagenem Versuch.
 
 ### Bewusst nicht in diesem Sprint
 
-- **PR-20 (Größenfilter)** – wird durch AP1 von M auf S schrumpfen. Genau deshalb **nicht
-  jetzt**: Ihn währenddessen zu bauen hieße, den Gewinn an der Verdrahtungsfläche zu
-  verspielen, den AP1 erst erzeugt. *Kandidat für Sprint 18, dann als S.*
-- **PR-13** – wäre eine dritte ungepufferte Rechnung je Zeile und braucht zuerst eine
-  Datenquelle im Kern. Nach AP1 ist der Weg dorthin kürzer.
-- **PR-23** – XL, und die Entwurfsfrage „Texte im Foundation-only-Kern" ist ungeklärt.
-- **PR-15, PR-18** – kein Platz neben einem M plus S.
-- **PR-36, PR-42** – warten weiter auf einen Fall, nicht auf Zeit.
-- **`SemanticVersion` in den Kern holen** (aus PR-47) – wäre eine falsche Klammer: AP1 fasst
-  die Sichtbarkeit an, nicht die Update-Prüfung. „Beides gehört in den Kern" ist ein Thema,
-  kein gemeinsamer Code (Lehre 3). *Eigener Kandidat, S.*
+- **PR-21 (Suchbegriffe merken)** – die Klammer war zu schwach (Lehre 3): gemeinsamer Code nur
+  am Namensfilter. AP2 dagegen ist ein Feld genau des Typs, den AP1 baut.
+- **PR-20 (Größenfilter)** – schrumpft durch AP1 von M auf S. Ihn währenddessen zu bauen,
+  verspielte den Gewinn. Kandidat für Sprint 18.
+- **PR-13** – braucht zuerst eine Datenquelle im Kern; nach AP1 ist der Weg kürzer.
+- **`.pkg` als vierter verbotener Bezeichner** – siehe Restlücken. Ein Eintrag, ein klares
+  Kriterium; er gehört in AP2, sobald die Schranke steht.
+- **`SemanticVersion` in den Kern** (aus PR-47) – falsche Klammer, eigener Kandidat.
 
+### Restlücken, offen benannt
+
+1. **`.pkg`** → `com.apple.installer-package-archive` conform zu keiner der drei Oberklassen
+   und wird **durchgelassen**; ein Doppelklick startet den Installer. Behebbar durch genau
+   einen zusätzlichen Bezeichner – dann tatsächlich eine gepflegte Liste, aber mit **einem**
+   Eintrag und dem Kriterium „Installationspaket", nicht mit jeder Skriptsprache.
+2. **Typen ohne deklarierten UTI** (`.ps1` auf einem Mac ohne PowerShell) sind für Netz 2
+   unsichtbar. Das ist die harte Grenze: Die Hierarchie kann **verweigern**, nie **erlauben** –
+   deshalb bleibt Netz 1 das erste und wird nicht ersetzt.
 
 ### Risiko, offen benannt
 
-**Der Sprint hat nach außen fast nichts vorzuweisen.** AP1 ist per Festlegung 7 unsichtbar;
-sichtbar wird allein AP2 (S) und, je nach Entscheidung aus Festlegung 3, eine Zeile mehr in
-der Statuszeile. Das ist der Preis dafür, die Ursache statt des dritten Symptoms zu
-behandeln – aber er gehört benannt und nicht schöngeredet.
+**Zwei M in einem Sprint sind die Obergrenze.** Wächst AP1 über Festlegung 2 hinaus in die
+Legende hinein, wird es ein L, und dann muss AP2 fallen – nicht beides halb. Der Schnitt, der
+AP1 klein hält, ist die hereingereichte Endungsmenge.
 
-**Das zweite Risiko ist Festlegung 2.** Wächst der Sichtbarkeitstyp über „Sonstige" hinaus in
-die Legende hinein, zieht AP1 `recomputeLegend` mit und wird ein L. Der Schnitt, der das
-verhindert, ist die hereingereichte Endungsmenge; fällt er, verdoppelt sich AP1.
+**Das zweite Risiko liegt in AP2 und ist keins der Umsetzung, sondern der Erwartung.** Eine
+Tabelle mit 198 Zeilen sieht nach Verwaltung aus, wo der Anwender eine Antwort sucht. Sortierung
+nach Anzahl und ein Vorrat, der nur den **eigenen** Bestand zeigt, sind die einzigen beiden
+Mittel dagegen, die ohne neues Bedienelement auskommen.
 
 ---
 ## Sprint 16 – „Mehrere Quellen, gezielter Blick" *(v1.19.36)*

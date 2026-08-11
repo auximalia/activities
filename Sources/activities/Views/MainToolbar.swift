@@ -201,8 +201,17 @@ struct MainToolbar: ToolbarContent {
                 label: model.viewMode == .tree
                     ? "Dateien in allen Ordnern anzeigen"
                     : "Alle Ordner auf- oder zuklappen",
-                onState: model.viewMode == .tree ? "werden angezeigt" : "alle aufgeklappt",
-                offState: model.viewMode == .tree ? "sind ausgeblendet" : "nicht alle aufgeklappt",
+                // **⚠️ Der Aus-Zustand nennt den GRUND, weil es zwei gibt.** Seit
+                // v1.19.59 gilt der Schalter im Baum nur dann als „ein", wenn
+                // die Dateien sichtbar sind **und** alle Knoten offen stehen.
+                // „sind ausgeblendet" waere dann bei einem einzigen
+                // zugeklappten Ordner unwahr – die Dateien der offenen Ordner
+                // stehen ja da. Ein Zustandstext, der neben der Anzeige liegt,
+                // ist schlimmer als keiner.
+                onState: model.viewMode == .tree ? "alle Ordner offen, Dateien sichtbar" : "alle aufgeklappt",
+                offState: model.viewMode == .tree
+                    ? (model.treeShowsFiles ? "nicht alle Ordner offen" : "Dateien ausgeblendet")
+                    : "nicht alle aufgeklappt",
                 shortcut: Shortcuts.toggleAllExpanded
             )
 

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.58 · 2026-08-11*
+*Stand: v1.19.59 · 2026-08-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,53 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-57 · „Dateien in allen Ordnern anzeigen" zeigte nicht alle *(v1.19.59)*
+**Aufwand:** S · **Art:** Defekt · *Gemeldet mit Bildschirmfoto, drei Quellen*
+
+**Beobachtet:** Der Schalter stand auf **ein**, und trotzdem blieben Kind-Ordner zugeklappt.
+Im Bild besonders deutlich: `Testkonzepte · 3` offen, das Geschwister `Testberichte · 2` im
+selben Elternordner zu.
+
+**Ursache – zwei getrennte Zustände, von denen der Schalter nur einen anfasste:**
+
+- `setAllExpanded` setzte im Baum **nur** `treeShowsFiles`.
+- `FolderTree.rows` bekommt aber `expanded: expandedFolders`. **Ein zugeklappter Knoten zeigt
+  weder Kinder noch Dateien** – die Zusage der Beschriftung endete an jedem geschlossenen Knoten.
+- `allExpanded` gab im Baum ebenfalls nur `treeShowsFiles` zurück. **Der Schalter meldete also
+  einen Zustand, den die Ansicht nicht hatte** – und das ist der Teil, der aus einem Ärgernis
+  einen Vertrauensverlust macht.
+
+**⚠️ Dass es ein Versehen war und keine Absicht, steht drei Zeilen darüber.**
+`displayedFolders()` trägt den Kommentar: *„Im Baum sind das **auch die Durchgangsknoten** – sie
+… müssen deshalb im Zustandsabgleich mitzählen."* **Die Funktion wurde für genau diesen Abgleich
+geschrieben, und der Baum-Zweig hat sie nie aufgerufen.** Die Zeitansicht tat es die ganze Zeit.
+
+**Behoben:** Der Baum-Zweig spiegelt jetzt die Zeitansicht. „Ein" heißt: Dateien sichtbar
+**und** alle Knoten offen. Einschalten klappt alle Knoten auf.
+
+**⚠️ Die Unsymmetrie beim Ausschalten bleibt, und sie ist Absicht.** Ausschalten blendet die
+Dateien aus und **lässt das Ordnergerüst stehen**. „Nur die Struktur sehen" ist ein nützlicher
+Zustand und der eigentliche Zweck der Baumansicht; alles zuzuklappen würde ihn zerstören, statt
+die Dateien auszublenden.
+
+**⚠️ Ohne `ensureLoaded`, anders als in der Zeitansicht.** Ordner mit Dateien sind nach
+`loadDetails(for:)` bereits geladen, Durchgangsknoten haben nichts zu laden. Ein Aufruf je Knoten
+startete bei 903 Ordnern hunderte Aufgaben, die nichts finden.
+
+**⚠️ Die Behebung erzwang eine Textänderung, und das ist der lehrreiche Teil.** Sobald „ein" auch
+die Knoten meint, wird „aktuell: sind ausgeblendet" bei einem einzigen zugeklappten Ordner
+**unwahr** – die Dateien der offenen Ordner stehen ja da. Der Aus-Zustand nennt jetzt den Grund:
+**„nicht alle Ordner offen"** oder **„Dateien ausgeblendet"**. *Ein Zustandstext, der neben der
+Anzeige liegt, ist schlimmer als keiner.*
+
+**Beleg am laufenden Programm:** Knoten zugeklappt → Schalter fällt auf „aus" mit
+„nicht alle Ordner offen" (vorher blieb er auf „ein"); ⌘L → alle Knoten offen, Dateien sichtbar.
+
+**Ohne neue Zusicherung, und das ist eine Schwäche:** Die Regel lebt im Sichtmodell neben der
+gleichartigen Regel der Zeitansicht, nicht im Kern – `CoreChecks` erreicht sie nicht. Sie dorthin
+zu ziehen hieße, den Ansichtszustand in den Kern zu heben; das ist ein eigener Schnitt und keine
+Beifahrer-Änderung.
 
 ### ✅ UX-51 · Kürzel im Tooltip – und drei Stellen, die es von Hand tippten *(v1.19.58)*
 **Aufwand:** S · **Art:** Verbesserung, mit einem gefundenen Defekt
@@ -1048,6 +1095,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.56 | Kleinigkeit | UX-49 · Voller Pfad hinter jedem Ordner (Baum und Liste) |
 | v1.19.57 | Kleinigkeit | UX-50 · Dateinamen 14 pt, Nebenangaben 12 pt |
 | v1.19.58 | Kleinigkeit | UX-51 · Tastenkürzel in den Tooltips, aus dem Katalog |
+| v1.19.59 | Kleinigkeit | PR-57 · „Dateien in allen Ordnern" ließ Knoten zu |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

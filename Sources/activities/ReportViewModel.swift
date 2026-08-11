@@ -1680,13 +1680,26 @@ final class ReportViewModel {
     }
 
     /// Ob der Schalter „alles auf/zu" als *ein* gilt.
+    ///
+    /// **⚠️ Im Baum genuegt ``treeShowsFiles`` NICHT – das war der Fehler.** Bis
+    /// v1.19.59 stand hier im Baum-Zweig nur `treeShowsFiles`. Der Schalter
+    /// meldete „ein", waehrend zugeklappte Ordnerknoten ihre Dateien weiterhin
+    /// verschwiegen: `FolderTree.rows` bekommt `expanded: expandedFolders`, ein
+    /// zugeklappter Knoten zeigt also weder Kinder noch Dateien. **Die
+    /// Beschriftung „Dateien in allen Ordnern anzeigen" war damit unwahr,
+    /// sobald irgendein Knoten zu war** – gemeldet aus der Praxis mit drei
+    /// Quellen: Geschwister im selben Elternordner, einer offen, einer zu.
+    ///
+    /// Der Abgleich ist derselbe wie in der Zeitansicht, und ``displayedFolders()``
+    /// war dafuer bereits gebaut – sein Doc-Kommentar sagt ausdruecklich, die
+    /// Durchgangsknoten muessten „im Zustandsabgleich mitzaehlen". *Die Funktion
+    /// gab es, der Baum-Zweig hat sie nur nie aufgerufen.*
     var allExpanded: Bool {
+        let alle = Set(displayedFolders())
+        guard !alle.isEmpty else { return false }
         switch viewMode {
-        case .tree:
-            return treeShowsFiles
-        case .time:
-            let all = Set(displayedFolders())
-            return !all.isEmpty && all.isSubset(of: expandedFolders)
+        case .tree: return treeShowsFiles && alle.isSubset(of: expandedFolders)
+        case .time: return alle.isSubset(of: expandedFolders)
         }
     }
 
@@ -1701,6 +1714,24 @@ final class ReportViewModel {
         case .tree:
             treeShowsFiles = expand
             store.saveTreeShowsFiles(expand)
+            // **⚠️ Beim Einschalten muessen auch die Knoten auf.** Sonst bleibt
+            // die Zusage der Beschriftung („in ALLEN Ordnern") an jedem
+            // zugeklappten Knoten haengen.
+            //
+            // **⚠️ Beim Ausschalten bleibt das Ordnergeruest stehen – das ist
+            // Absicht und keine vergessene Haelfte.** „Nur die Struktur sehen"
+            // ist ein nuetzlicher Zustand und der eigentliche Zweck der
+            // Baumansicht; alles zuzuklappen wuerde ihn zerstoeren statt die
+            // Dateien auszublenden.
+            //
+            // **⚠️ Ohne ``ensureLoaded``, anders als in der Zeitansicht.** Ordner
+            // mit Dateien sind nach ``loadDetails(for:)`` bereits geladen, und
+            // Durchgangsknoten haben nichts zu laden. Ein Aufruf je Knoten
+            // startete hier hunderte Aufgaben, die nichts finden.
+            if expand {
+                expandedFolders.formUnion(displayedFolders())
+                persistExpansion()
+            }
         case .time:
             if expand {
                 for folder in displayedFolders() {

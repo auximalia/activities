@@ -315,6 +315,99 @@ gebraucht wird; `CoreChecks` hält den heutigen Zustand fest.
 Sprint-Regel aus `AGENTS.md` bleibt sonst gültig; hier stand die tägliche Arbeit des Anwenders
 gegen einen Versionssprung.
 
+### PR-48 · Die Bündelung hat keine Stufe über „Monat"
+**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt · **P2** · *gemeldet am 2026-08-11*
+
+**Beobachtet:** Bei sehr großen Zeiträumen läuft die X-Achse zu einem schwarzen Streifen
+zusammen, in dem keine Beschriftung mehr lesbar ist.
+
+**⚠️ Die Bündelung ist nicht das Problem – sie hört nur zu früh auf.** `automatic(spanDays:)`
+(`ChartGranularity.swift:18-22`) kennt drei Stufen und endet bei `.month`. Gemeldeter Fall:
+
+| | |
+|---|---|
+| Spanne | 25.753 Tage = **70,5 Jahre** |
+| gewählte Bündelung | `.month` |
+| Balken | **846** |
+| Beschriftungen (`shouldLabel`, jedes Quartal, `HistoryChartView.swift:440-443`) | **282** |
+
+**⚠️ Damit ist eine zugesicherte Eigenschaft verletzt, nicht nur eine Darstellung unschön.**
+Der Doc-Kommentar sagt: „Die Grenzen sind so gesetzt, dass nie mehr als rund 130 Balken
+entstehen – darüber wird ein Balken schmaler als ein Pixel und die Darstellung sinnlos"
+(`:16-17`). Gerechnet: Die Zusage bricht **ab 3.957 Tagen (10,8 Jahren)**; im gemeldeten Fall
+wird sie um den **Faktor 6,5** überschritten.
+
+**⚠️ Und die Prüfung, die das hätte finden müssen, prüft ein Beispiel statt der Regel.**
+`CoreChecks:334-341` setzt `spanDays: 2557` – sieben Jahre, 84 Balken – und besteht deshalb.
+Sie belegt nicht die Schranke, sondern nur, dass dieser eine Wert darunter liegt. *Dasselbe
+Muster wie bei der `bpmn`-Zusicherung (PR-36): Wer ein Beispiel festnagelt, prüft die Regel
+nicht.* **Die neue Prüfung muss über eine Reihe von Spannen laufen** – dann fällt sie heute,
+und das ist der Beleg.
+
+**Vorschlag:** Zwei weitere Stufen, `.quarter` und `.year`. Gerechnet bleibt die Schranke damit
+bis 130 Jahre eingehalten:
+
+| Spanne | Stufe | Balken |
+|---|---|---|
+| ≤ 92 Tage | Tag | ≤ 92 |
+| ≤ 730 Tage | Woche | ≤ 105 |
+| ≤ ~3.950 Tage (10,8 J.) | Monat | ≤ 130 |
+| ≤ ~11.870 Tage (32,5 J.) | Quartal | ≤ 130 |
+| darüber | Jahr | 70 im gemeldeten Fall |
+
+**⚠️ Die Beschriftungsdichte gehört mitgeändert, sonst wandert der Fehler nur.** `shouldLabel`
+rechnet heute in **Kalendereinheiten** („jedes Quartal", „jede vierte Woche") und weiß nicht,
+wie viele Beschriftungen dabei herauskommen. Richtig wäre eine Regel über die **Zahl der
+gezeichneten Balken** – höchstens etwa 12 bis 15 Beschriftungen, gleichmäßig verteilt.
+
+**Akzeptanz:** Eine Prüfung belegt für eine Reihe von Spannen (bis mindestens 130 Jahre), dass
+weder die Balken- noch die Beschriftungszahl ihre Schranke überschreitet · die Achse ist im
+gemeldeten Fall lesbar.
+
+### PR-49 · Die Zeitraum-Überschrift nennt nur Tage
+**Aufwand:** S · **Nutzen:** mittel · **P3** · *gewünscht am 2026-08-11*
+
+**Beobachtet:** Die Überschrift lautet „Mo., 22.03.2021 – So., 23.09.2091 · **25753 Tage**".
+Eine fünfstellige Tageszahl ist keine Angabe, die jemand liest – sie ist eine, die man
+überschlägt und dabei falsch überschlägt.
+
+**Vorschlag:** Ab einer Schwelle in Jahre, Monate und Tage zerlegen („70 Jahre, 6 Monate").
+`DateFormatting.range` (`:59`) und die Pluralregel (`:159`) sind die Orte; beides liegt im
+Kern und ist damit von `CoreChecks` erreichbar.
+
+**⚠️ Vor der Umsetzung zu klären, nicht zu bauen:** ab welcher Schwelle, und ob die Tageszahl
+**zusätzlich** stehen bleibt. Für kurze Zeiträume ist „7 Tage" die bessere Angabe – wer
+„1 Woche" liest, muss zurückrechnen. Die Schwelle ist damit eine Aussage darüber, ab wann
+niemand mehr in Tagen denkt, und keine Formatfrage.
+
+### PR-50 · Ein Datum in der Zukunft zieht die Achse über Jahrzehnte
+**Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt · **P2** · *nicht gemeldet, im Beleg zu PR-48 gefunden*
+
+**Beobachtet:** Im gemeldeten Bild endet die Achse am **23.09.2091** – 65 Jahre in der
+Zukunft. Im Modus „Alle" spannt die Achse über den *tatsächlichen* Datenbereich
+(`ReportViewModel.window`, `ignoreTimeWindow`). **Eine einzige Datei mit kaputtem Zeitstempel
+streckt damit die Achse über 70 Jahre**, und der gesamte echte Bestand rückt in die linken
+rund 5 % der Fläche.
+
+**Warum das schwerer wiegt als PR-48:** Eine gröbere Bündelung macht die Achse lesbar – aber
+das Diagramm bliebe zu 95 % leer. *Wer nur PR-48 baut, hat einen lesbaren leeren Streifen.*
+
+**⚠️ Vor der Umsetzung zu klären – das ist eine Produktentscheidung, keine Formatfrage.** Drei
+Antworten, alle vertretbar, und sie schließen sich aus:
+
+1. **Zukünftige Zeitstempel beim Suchlauf ablehnen.** Ehrlich, aber sie verschwinden dann auch
+   aus der Liste – und ein Datum „morgen" kann eine harmlose Zeitzonen-Abweichung sein.
+2. **Die Achse auf heute begrenzen, die Datei aber zeigen.** Diagramm und Liste sagten dann
+   Verschiedenes – genau der stille Widerspruch, den UX-06 beseitigt hat.
+3. **Ausreißer benennen statt verstecken:** Achse bis heute, plus ein sichtbarer Hinweis
+   („3 Dateien liegen in der Zukunft"). Teurer, aber es verschweigt nichts.
+
+*Empfehlung: 3, weil das Programm sonst über seine eigenen Daten schweigt. Zu entscheiden vor
+dem Bau.*
+
+**Akzeptanz:** Ein Bestand mit einem Zeitstempel in ferner Zukunft ergibt ein Diagramm, in dem
+der reale Bereich die Fläche füllt · die Ausreißer bleiben auffindbar.
+
 ### PR-21 · Suchbegriffe merken
 **Aufwand:** S · **Nutzen:** mittel · **P3** · *durch PR-45 aufgewertet*
 

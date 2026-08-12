@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.61 · 2026-08-12*
+*Stand: v1.19.62 · 2026-08-12*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,39 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-54 · Zwei Trennstriche, die verschieden aussahen – und ein Knopf, der die Leiste verschob *(v1.19.62)*
+**Aufwand:** S · **Art:** Defekt · *Beides aus der Praxis gemeldet*
+
+**1. Trennstriche uneinheitlich.** Nach „Alle" stand ein senkrechter Strich, vor „neu einlesen"
+ein Querstrich – beide `Divider()`, beide dasselbe gemeint.
+
+**⚠️ `Divider()` nimmt seine Richtung aus dem Umfeld.** In einem `HStack` zeichnet es senkrecht,
+in einem `ToolbarItemGroup` **waagerecht**. Derselbe Aufruf, zwei Ergebnisse – und im Quelltext
+sieht man den Unterschied nicht, weil beide Zeilen gleich aussehen. Ersetzt durch
+`ToolbarSeparator`: ein Rechteck mit festen Maßen (1 × 16) in `separatorColor`. *Ein Bauteil,
+das seine Erscheinung vom Ort abhängig macht, gehört nicht in eine Leiste, in der es an zwei
+verschiedenen Orten vorkommt.*
+
+**2. Die Knöpfe rechts sprangen beim Umschalten.** Nachgemessen an den Symbolen selbst:
+
+| Schalter | Symbol „ein" | Symbol „aus" | Unterschied |
+|---|---|---|---|
+| Dateien in allen Ordnern | `list.bullet.indent` **19,0 pt** | `list.bullet` **16,0 pt** | **3,0 pt** |
+| Außerhalb des Zeitraums | `clock.badge.checkmark` 18,0 | `clock.badge.xmark` 18,0 | 0 |
+| Auto-Refresh | `antenna…` 16,0 | `antenna….slash` 16,0 | 0 |
+
+**⚠️ Nur ein einziger Schalter war betroffen – deshalb war der Fehler so leicht zu übersehen.**
+Zwei der drei Paare sind zufällig gleich breit; wer die Bauform prüft, prüft meist eines davon
+und findet nichts. Das Symbol bekommt jetzt die feste Breite **19 pt** (das gemessene Maximum).
+Nebenwirkung, die keine ist: Alle Zustandsschalter sind damit gleich groß.
+
+**3. Uneinheitliche Aktiv-Kennzeichnung – untersucht, NICHT gebaut.** Siehe „Offen".
+`.tint(.accentColor)` auf die Segmentwahl bleibt wirkungslos (am laufenden Programm geprüft und
+wieder entfernt – ein Modifikator, der nichts tut, behauptet, er täte etwas).
+
+**Beleg:** Bildvergleich vor/nach dem Umschalten – Uhr, Trennstrich, „neu einlesen" und Antenne
+stehen pixelgenau gleich.
 
 ### ✅ UX-53 · Was zusammengehört, steht jetzt nebeneinander *(v1.19.61)*
 **Aufwand:** S · **Art:** Verbesserung · *Gesetz der Nähe, aus der Praxis gemeldet*
@@ -1199,6 +1232,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.59 | Kleinigkeit | PR-57 · „Dateien in allen Ordnern" ließ Knoten zu |
 | v1.19.60 | Klein | UX-52 · Schriftgröße einstellbar: klein / mittel / groß |
 | v1.19.61 | Kleinigkeit | UX-53 · Werkzeugleiste nach Themen gruppiert |
+| v1.19.62 | Kleinigkeit | UX-54 · Gleiche Trennstriche, keine springenden Knöpfe |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

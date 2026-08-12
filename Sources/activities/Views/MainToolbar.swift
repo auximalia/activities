@@ -102,7 +102,7 @@ struct MainToolbar: ToolbarContent {
         ToolbarItem(placement: .navigation) {
             HStack(spacing: 8) {
                 timeRangeControls
-                Divider().frame(height: 16)
+                ToolbarSeparator()
             }
         }
 
@@ -252,7 +252,7 @@ struct MainToolbar: ToolbarContent {
         // Auto-Refresh standardmaessig an). Von Hand neu einlesen ist der
         // Notnagel, nicht der Normalfall.
         ToolbarItemGroup(placement: .navigation) {
-            Divider().frame(height: 16)
+            ToolbarSeparator()
 
             Button {
                 model.rescan()
@@ -525,6 +525,26 @@ struct MainToolbar: ToolbarContent {
 ///
 /// Zusaetzlich melden Tooltip und Bedienhilfen denselben Zustand im Klartext –
 /// ein Symbol, das man deuten muss, ist keine Auskunft.
+/// Senkrechter Trenner zwischen zwei Themengruppen der Werkzeugleiste.
+///
+/// **⚠️ Eigene Ansicht statt `Divider()`, weil `Divider()` seine Richtung aus
+/// dem Umfeld nimmt.** In einem `HStack` zeichnet es senkrecht, in einem
+/// `ToolbarItemGroup` **waagerecht** – in der Leiste standen dadurch ein
+/// senkrechter Strich und ein Querstrich nebeneinander, obwohl beide dasselbe
+/// bedeuten. Gemeldet aus der Praxis. Ein Rechteck mit festen Massen kennt
+/// diese Mehrdeutigkeit nicht.
+///
+/// Die Farbe bleibt die des Systems (`separatorColor`), damit der Trenner sich
+/// wie ein Trenner verhaelt und nicht wie ein Strich, den jemand gezogen hat.
+struct ToolbarSeparator: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color(nsColor: .separatorColor))
+            .frame(width: 1, height: 16)
+            .accessibilityHidden(true)
+    }
+}
+
 struct ToolbarStateToggle: View {
     @Binding var isOn: Bool
     /// Symbol im Zustand „ein" bzw. „aus" – bewusst **zwei verschiedene** Formen.
@@ -551,6 +571,16 @@ struct ToolbarStateToggle: View {
     var body: some View {
         Toggle(isOn: $isOn) {
             Image(systemName: isOn ? onSymbol : offSymbol)
+                // **⚠️ Feste Breite, sonst wandern die Nachbarn beim Schalten.**
+                // Gemeldet aus der Praxis und nachgemessen: `list.bullet.indent`
+                // misst **19,0 pt**, `list.bullet` nur **16,0 pt** – drei Punkt
+                // Unterschied, und die ganze rechte Haelfte der Leiste ruckte
+                // bei jedem Klick. (Die beiden anderen Paare sind zufaellig
+                // gleich breit: Uhr 18,0/18,0, Antenne 16,0/16,0 – der Fehler
+                // lag also nur an einem Schalter und war deshalb leicht zu
+                // uebersehen.) 19 pt ist das gemessene Maximum; die feste
+                // Breite macht ausserdem alle Schalter gleich gross.
+                .frame(width: 19)
                 // **Gefuellt, nicht nur getoent.** Der Systemhintergrund eines
                 // eingeschalteten Knopfes ist ein Hauch dunkleres Grau – auf der
                 // getoenten Titelleiste kaum zu sehen und im Hintergrundfenster

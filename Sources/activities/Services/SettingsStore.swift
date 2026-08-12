@@ -38,6 +38,8 @@ struct StoredSettings {
     var viewMode: ViewMode
     /// Ob im Baum die Dateizeilen erscheinen.
     var treeShowsFiles: Bool
+    /// Schriftgröße der Liste (UX-52).
+    var rowSize: RowSize
 }
 
 /// Persistiert die Einstellungen in ``UserDefaults``.
@@ -78,6 +80,7 @@ final class SettingsStore {
     private let expandedByRootKey = "expandedFoldersByRoot"
     private let viewModeKey = "viewMode"
     private let treeFilesKey = "treeShowsFiles"
+    private let rowSizeKey = "rowSize"
     private let editorKey = "editorBundleID"
     private let terminalKey = "terminalBundleID"
     /// Zeitpunkt der letzten **stillen** Update-Suche (PR-34).
@@ -145,7 +148,10 @@ final class SettingsStore {
             // Liste verschweigt diese Verwandtschaft. Die Zeitansicht bleibt
             // gleichrangig erreichbar.
             viewMode: (defaults.string(forKey: viewModeKey)).flatMap(ViewMode.init(rawValue:)) ?? .tree,
-            treeShowsFiles: defaults.object(forKey: treeFilesKey) as? Bool ?? true
+            treeShowsFiles: defaults.object(forKey: treeFilesKey) as? Bool ?? true,
+            // ⚠️ Vorgabe „mittel" = der Zustand vor der Einstellung. Ein
+            // Regler darf beim ersten Start nichts veraendern.
+            rowSize: (defaults.string(forKey: rowSizeKey)).flatMap(RowSize.init(rawValue:)) ?? .medium
         )
     }
 
@@ -155,6 +161,10 @@ final class SettingsStore {
 
     func saveTreeShowsFiles(_ shows: Bool) {
         defaults.set(shows, forKey: treeFilesKey)
+    }
+
+    func saveRowSize(_ size: RowSize) {
+        defaults.set(size.rawValue, forKey: rowSizeKey)
     }
 
     func saveEditorBundleID(_ id: String) {

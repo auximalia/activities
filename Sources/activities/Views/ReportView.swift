@@ -69,7 +69,7 @@ struct ReportView: View {
     /// wurde, erreichte die Zeilen nicht zuverlaessig.
     @ViewBuilder
     private func content(width: CGFloat) -> some View {
-        let isCompact = width < RowMetrics.compactThreshold
+        let isCompact = width < model.rowSize.compactThreshold
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: RowMetrics.rowSpacing, pinnedViews: [.sectionHeaders]) {

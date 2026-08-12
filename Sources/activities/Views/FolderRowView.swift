@@ -61,12 +61,12 @@ struct FolderRowView: View {
                 Text(entry.folder.lastPathComponent)
                     // `.headline` waere 13 pt semibold – die Groesse kommt jetzt
                     // aus ``RowMetrics``, das Gewicht bleibt.
-                    .font(.system(size: RowMetrics.nameFontSize, weight: .semibold))
+                    .font(.system(size: model.rowSize.nameFontSize, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                 if !isCompact {
                     Text(model.displayPath(of: entry.folder))
-                    .font(.system(size: RowMetrics.metaFontSize))
+                    .font(.system(size: model.rowSize.metaFontSize))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -80,14 +80,14 @@ struct FolderRowView: View {
 
             // Feste Datumsspalte: haelt den Zeitstempel nah am Inhalt.
             // Die Dateianzahl steht im Zeitabschnitts-Kopf (spart hier Platz).
-            DateStampView(date: displayDate, isCompact: isCompact)
+            DateStampView(date: displayDate, isCompact: isCompact, size: model.rowSize)
             // Ordner tragen keine Groesse – der Platz wird trotzdem
             // freigehalten, damit die Datumskante zu den Dateizeilen passt.
-            if !isCompact { SizeStampPlaceholder() }
+            if !isCompact { SizeStampPlaceholder(size: model.rowSize) }
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)
-        .columnRule(isVisible: !isCompact)
+        .columnRule(isVisible: !isCompact, size: model.rowSize)
         .background(SelectionBackground(isActive: isSelected))
         // Gleiche Grundfarbe wie eine gerade Dateizeile: Ohne sie stuende
         // die Ordnerzeile als graue Bank zwischen weissen Dateizeilen.

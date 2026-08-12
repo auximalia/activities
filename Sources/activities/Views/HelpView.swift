@@ -85,6 +85,7 @@ struct HelpView: View {
                     "Zeit: nach „Heute“, „Gestern“ … gruppiert, mit angehefteten Ordnern oben.",
                     "Nach Zeitabschnitten gruppiert; Kopf zeigt Ordner- und Dateizahl.",
                     "Hinter jedem Ordner steht sein vollständiger Pfad in Grau, `~` steht für dein Benutzerverzeichnis; Datum relativ („Heute, 14:32“).",
+                    "Schriftgröße: Einstellungen → Allgemein → Darstellung, klein/mittel/groß. Die Zeilenhöhe bleibt gleich, es passen also gleich viele Zeilen ins Fenster.",
                     "Bei schmalem Fenster entfällt der Pfad – er bleibt im Tooltip.",
                     "Diagramm und Legende bleiben oben stehen; „Diagramm ausblenden“ schafft Platz.",
                     "Über dem Diagramm steht der angezeigte Zeitraum als Überschrift.",

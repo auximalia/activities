@@ -1,9 +1,18 @@
 import SwiftUI
+import ActivitiesCore
 
 /// Zentrale Masse fuer die Zeilendarstellung (Ordner-/Dateizeilen und Baumlinien).
 ///
 /// Die Werte sind bewusst an einer Stelle gebuendelt, damit Einrueckung,
 /// Konnektor-Rinne und Datumsspalte zueinander passen.
+///
+/// **⚠️ Was hier NICHT mehr steht: alles, was von der Schriftgroesse abhaengt.**
+/// Schriftgroessen, Spaltenbreiten und die Umschaltschwelle sind seit UX-52
+/// einstellbar und liegen in ``RowSize`` im Kern – dort kann ``CoreChecks``
+/// zusichern, dass jede Stufe ihre Kette einhaelt (Spalte breiter als der
+/// gemessene Text, Inhalt groesser als Nebenangabe, Name hoechstens 15 pt).
+/// Hier bleibt die **Geometrie**, die von der Schrift unabhaengig ist:
+/// Symbolgroesse, Zeilenhoehe, Einrueckung, Baumlinien.
 enum RowMetrics {
     /// Waagerechter Innenabstand einer Zeile (links wie rechts).
     static let horizontalPadding: CGFloat = 8
@@ -157,39 +166,6 @@ enum RowMetrics {
     /// unter dem Ordnersymbol sitzt.
     static var fileIndent: CGFloat { max(connectorX - connectorWidth / 2, 0) }
 
-    /// Feste Breite der Datumsspalte. Verhindert, dass der Zeitstempel bei
-    /// breitem Fenster weit vom Namen abrueckt (Gesetz der Naehe).
-    ///
-    /// **⚠️ Aus der laengsten Angabe gemessen, nicht geschaetzt.** In
-    /// monospaced **12 pt** misst „Mi., 05.08.2025 14:32" **155,8 pt**; mit
-    /// gut 3 pt Luft ergibt das 159.
-    ///
-    /// Die Werte sind **dreimal** gewandert und jedes Mal aus demselben Grund:
-    /// Eine Maßangabe, die zu ihrer Zeit stimmte, und eine Änderung, die ihr
-    /// die Grundlage entzog. 150 pt galten, solange das Jahr im laufenden Jahr
-    /// entfiel (PR-32 → 158), 158 pt galten bei 12 pt Schrift (PR-38 → 146),
-    /// 146 pt galten bei 11 pt Nebenangaben (UX-50 → 159).
-    static let dateColumnWidth: CGFloat = 159
-    /// Schmalere Datumsspalte im Kompakt-Layout.
-    ///
-    /// Ebenso gemessen: „Mi. 05.08.25 14:32" misst bei 12 pt 133,5 pt.
-    static let dateColumnWidthCompact: CGFloat = 137
-
-    /// Feste Breite der Groessenspalte (PR-37, verschmaelert in PR-39).
-    ///
-    /// **⚠️ Hier bestimmt die Spalte die Formatierung, nicht umgekehrt.** Die
-    /// Vorgabe lautet sechs Zeichen; ``SizeFormatting`` richtet sich danach und
-    /// rundet, wo es sonst nicht passt. Gemessen bei 11 pt monospaced sind
-    /// sechs Zeichen **40,8 pt**, plus gut 3 pt Luft.
-    ///
-    /// Die vorherige Fassung (58 pt) stammte aus der umgekehrten Richtung: Dort
-    /// gab die Systemformatierung die Breite vor, und die laengste Ausgabe
-    /// („999,9 MB") bestimmte die Spalte. Am rechten Rand ist eine ruhige,
-    /// schmale Kante mehr wert als die zweite Nachkommastelle.
-    ///
-    /// Bei 12 pt (UX-50) messen sechs Zeichen **44,5 pt** → 48.
-    static let sizeColumnWidth: CGFloat = 48
-
     /// Farbe des senkrechten Trenners zwischen Datums- und Groessenspalte.
     ///
     /// **⚠️ Gemessen, nicht gewaehlt.** ΔE an den gezeichneten Pixeln: **7,1**
@@ -204,74 +180,8 @@ enum RowMetrics {
     ///
     /// Genau die Mitte zwischen Datums- und Groessenspalte: Innenabstand der
     /// Zeile + Spaltenbreite + halber Elementabstand.
-    static var columnRuleInset: CGFloat {
-        horizontalPadding + sizeColumnWidth + itemSpacing / 2
-    }
-
-    /// Schriftgroesse des **Inhalts** einer Zeile – Datei- und Ordnername.
-    ///
-    /// **⚠️ 12 pt lagen UNTER der Plattform-Norm.** `NSFont.systemFontSize` ist
-    /// **13 pt**; die Namen standen also kleiner als alles, was macOS selbst
-    /// als Inhalt setzt. Gemeldet als „strengt sehr an" – und der Anwender hatte
-    /// nicht einen Geschmack, sondern einen Messwert auf seiner Seite.
-    ///
-    /// **⚠️ Diese Groesse ist umsonst zu haben, und das ist der Grund fuer 14
-    /// statt 13.** Gemessen:
-    ///
-    /// - **Senkrecht:** ``rowHeight`` haengt am 16-pt-Symbol (18 pt Block). Die
-    ///   Systemschrift misst 14,1 pt Zeilenhoehe bei 12 pt, 16,5 bei 14 pt und
-    ///   17,7 bei 15 pt – **alle unter 18**. Die Zeile wird nicht hoeher, die
-    ///   Liste zeigt gleich viele Eintraege.
-    /// - **Waagerecht:** Der Name ist die *flexible* Spalte. Er nimmt, was
-    ///   uebrig ist, und kostet keine feste Breite.
-    ///
-    /// Der Preis der Aenderung steckt allein in ``metaFontSize``. Wer den Namen
-    /// weiter vergroessern will, hat bis 15 pt freie Bahn; darueber muss
-    /// ``rowHeight`` mit.
-    static let nameFontSize: CGFloat = 14
-
-    /// Schriftgroesse aller **Nebenangaben** in einer Zeile (Datum, Groesse, Pfad).
-    ///
-    /// **⚠️ 12 pt ist die Regel, nicht der Einzelfall.** Statuszeile,
-    /// Filterhinweis, Pfad, Datum und Groesse teilen sich diese Groesse; der
-    /// Inhalt steht bei ``nameFontSize``. Damit bleibt die Rangordnung
-    /// **Inhalt 14 pt, Nebenangabe 12 pt.**
-    ///
-    /// **⚠️ Diese Zahl ist die teure.** Sie bestimmt ueber die gemessene
-    /// Textbreite die festen Spalten, und die gehen dem Dateinamen ab:
-    ///
-    /// | Nebenangabe | Datumsspalte | Groessenspalte | fest gesamt |
-    /// |---|---|---|---|
-    /// | 11 pt (bis UX-50) | 146 | 44 | – |
-    /// | **12 pt** | **159** | **48** | **+17 pt** |
-    /// | 13 pt | 172 | 52 | +34 pt |
-    ///
-    /// **⚠️ Nach unten ist bei 11 pt der Boden**, nicht Luft: In PR-33 wurde die
-    /// Statuszeile von 10 auf 11 pt *angehoben*, weil `secondary` nur 3,82:1
-    /// erreicht (hell) und dann nicht auch noch die kleinste Schrift tragen
-    /// darf. Die Erhoehung auf 12 folgt derselben Richtung.
-    ///
-    /// **⚠️ Am Kontrast aendert die Groesse nichts.** `secondaryLabel` bleibt
-    /// bei 3,82:1 und damit unter AA (4,5:1); die Erleichterung auf 3:1 gilt
-    /// erst ab 18 pt. Wirkt es zu **blass**, ist der Hebel die Farbe.
-    static let metaFontSize: CGFloat = 12
-
-    /// Ab welcher Fensterbreite auf das Kompakt-Layout umgeschaltet wird.
-    ///
-    /// Darunter kostet die Zeile zu viel an feste Bestandteile (Datumsspalte,
-    /// Einrueckung, Pfad) und fuer den Dateinamen bleibt kaum Platz. Statt alles
-    /// zu quetschen, entfaellt dann der Pfad (bleibt im Tooltip) und die
-    /// Datumsspalte wird kuerzer.
-    ///
-    /// **⚠️ Mitgewandert von 940 auf 957 (UX-50).** Die festen Bestandteile sind
-    /// mit ``metaFontSize`` um 17 pt gewachsen; bliebe die Schwelle stehen,
-    /// bekaeme der Dateiname bei schmalem Fenster genau diese 17 pt weniger als
-    /// vorher – die Schwelle waere dann eine Zahl ohne Bezug.
-    static let compactThreshold: CGFloat = 957
-
-    /// Datumsspaltenbreite je Layout.
-    static func dateColumnWidth(compact: Bool) -> CGFloat {
-        compact ? dateColumnWidthCompact : dateColumnWidth
+    static func columnRuleInset(_ size: RowSize) -> CGFloat {
+        horizontalPadding + size.sizeColumnWidth + itemSpacing / 2
     }
 
     /// Farbe der Baumlinien.

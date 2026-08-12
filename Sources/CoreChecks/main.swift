@@ -884,6 +884,54 @@ do {
     expectEqual(einzelner["/nur/eine"], "eine", "eine Quelle: nur der Name")
 }
 
+// MARK: - RowSize (einstellbare Schriftgroesse)
+do {
+    expectEqual(RowSize.allCases.count, 3, "drei Stufen")
+    expectEqual(RowSize.medium.nameFontSize, 14, "mittel ist der bisherige Zustand (Name)")
+    expectEqual(RowSize.medium.metaFontSize, 12, "mittel ist der bisherige Zustand (Nebenangabe)")
+
+    // Die Werte der mittleren Stufe muessen die frueher fest verdrahteten sein –
+    // sonst aendert das Einfuehren des Reglers stillschweigend das Aussehen.
+    expectEqual(RowSize.medium.dateColumnWidth, 159, "Datumsspalte mittel wie bisher")
+    expectEqual(RowSize.medium.dateColumnWidthCompact, 137, "Kompakt-Datumsspalte wie bisher")
+    expectEqual(RowSize.medium.sizeColumnWidth, 48, "Groessenspalte wie bisher")
+    expectEqual(RowSize.medium.compactThreshold, 957, "Umschaltschwelle wie bisher")
+    expectEqual(RowSize.small.compactThreshold, 940, "kleinste Stufe = gemessener Ausgangspunkt")
+
+    var vorher: RowSize? = nil
+    for stufe in RowSize.allCases {
+        // ⚠️ Die Rangordnung „Inhalt groesser als Nebenangabe" muss auf JEDER
+        // Stufe gelten, nicht nur auf der mittleren. Ein Regler, der sie auf
+        // einer Stufe aufhebt, macht aus einer Gestaltung einen Zufall.
+        expect(stufe.nameFontSize > stufe.metaFontSize, "Inhalt > Nebenangabe (\(stufe.rawValue))")
+
+        // ⚠️ Der Boden aus PR-33: unter 11 pt traegt `secondaryLabel` mit
+        // 3,82:1 die kleinste Schrift nicht mehr.
+        expect(stufe.metaFontSize >= 11, "Nebenangabe nicht unter 11 pt (\(stufe.rawValue))")
+
+        // ⚠️ Die gemessene Obergrenze: ab 16 pt ueberschreitet die Textzeile
+        // (18,8 pt) den 18-pt-Symbolblock, und dann muesste `rowHeight` mit –
+        // samt Symbolgroesse, Einrueckung und Baumgeometrie. Wer hier eine
+        // groessere Stufe eintraegt, bricht diese Pruefung, statt still ein
+        // Layout zu zerlegen.
+        expect(stufe.nameFontSize <= 15, "Name hoechstens 15 pt, sonst muss die Zeilenhoehe mit (\(stufe.rawValue))")
+
+        // Jede feste Spalte muss breiter sein als ihr gemessener Inhalt.
+        expect(stufe.dateColumnWidth > stufe.measuredDateWidth, "Datumsspalte traegt ihren Text (\(stufe.rawValue))")
+        expect(stufe.dateColumnWidthCompact > stufe.measuredDateWidthCompact, "Kompaktspalte traegt ihren Text (\(stufe.rawValue))")
+        expect(stufe.sizeColumnWidth > stufe.measuredSizeWidth, "Groessenspalte traegt ihren Text (\(stufe.rawValue))")
+        expect(stufe.dateColumnWidth > stufe.dateColumnWidthCompact, "Kompaktspalte ist die schmalere (\(stufe.rawValue))")
+
+        if let v = vorher {
+            expect(stufe.nameFontSize > v.nameFontSize, "Stufen wachsen (Name, \(stufe.rawValue))")
+            expect(stufe.metaFontSize > v.metaFontSize, "Stufen wachsen (Nebenangabe, \(stufe.rawValue))")
+            expect(stufe.dateColumnWidth > v.dateColumnWidth, "Stufen wachsen (Datumsspalte, \(stufe.rawValue))")
+            expect(stufe.compactThreshold > v.compactThreshold, "Stufen wachsen (Schwelle, \(stufe.rawValue))")
+        }
+        vorher = stufe
+    }
+}
+
 // MARK: - ShortcutEntry.hint (Kuerzel im Tooltip)
 do {
     expectEqual(Shortcuts.rescan.hint("Ordner neu einlesen"), "Ordner neu einlesen (⌘R)",

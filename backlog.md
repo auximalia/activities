@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.59 · 2026-08-11*
+*Stand: v1.19.60 · 2026-08-12*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,55 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-52 · Schriftgröße einstellbar *(v1.19.60)*
+**Aufwand:** S · **Art:** Verbesserung · *Nachfolger von UX-50*
+
+**Gewünscht:** klein / mittel / groß, benannt nach den Nebenangaben **11 / 12 / 13 pt**; die
+Namen wandern mit auf **13 / 14 / 15 pt**. „Mittel" ist der Zustand aus UX-50.
+
+**⚠️ Zuerst geprüft, ob der Regler überhaupt einer sein darf.** Punkt 16 der Liste „bewusst
+nicht gebaut" formuliert den Prüfstein: *„Ein Regler für etwas, dessen Wirkung niemand
+beobachten kann, ist Beschäftigung, keine Einstellung."* Eine Schriftgröße besteht ihn – ihre
+Wirkung steht sofort auf dem Bildschirm. Eine Gegenentscheidung stand nicht in der Akte.
+
+**⚠️ ``RowSize`` liegt im Kern, nicht als drei Zahlen in der Ansicht.** Jede Stufe schleppt fünf
+abhängige Werte mit, und vier davon sind **gemessen** (die festen Spalten kommen aus der
+Textbreite der längsten Angabe). Wer später „nur mal eben" eine Stufe hinzufügt, muss diese
+Kette einhalten – im Kern kann `CoreChecks` das zusichern, in der Ansicht niemand. 37 neue
+Zusicherungen (1388 → 1425), und die wichtigsten prüfen **jede** Stufe, nicht die mittlere:
+
+- **Die mittlere Stufe liefert exakt die bisher verdrahteten Werte** (159 / 137 / 48 / 957).
+  *Das Einführen des Reglers darf das Aussehen nicht heimlich ändern* – diese vier Zeilen sind
+  der Beweis.
+- **Name > Nebenangabe auf jeder Stufe.** Ein Regler, der die Rangordnung auf einer Stufe
+  aufhebt, macht aus einer Gestaltung einen Zufall.
+- **Nebenangabe nie unter 11 pt** – der Boden aus PR-33 (`secondaryLabel` erreicht 3,82:1).
+- **⚠️ Name höchstens 15 pt**, und diese Zusicherung ist die eigentliche Absicherung: Bei 16 pt
+  misst die Textzeile **18,8 pt** und überschreitet den 18-pt-Symbolblock, an dem `rowHeight`
+  hängt. Dann müssten Zeilenhöhe, Symbolgröße, Einrückung und die Baumgeometrie mit. *Wer eine
+  größere Stufe einträgt, bricht eine Prüfung, statt still ein Layout zu zerlegen.*
+- Jede feste Spalte ist breiter als ihr gemessener Text; die Stufen wachsen monoton.
+
+**Die Umschaltschwelle wird gerechnet, nicht je Stufe gesetzt:** Sie steigt genau um das, was
+Datums- und Größenspalte gegenüber der kleinsten Stufe an fester Breite binden. So bleibt dem
+Dateinamen auf jeder Stufe gleich viel.
+
+**⚠️ Durchgereicht statt global.** Ein statischer „aktuell gewählter" Wert in `RowMetrics` wäre
+billiger gewesen und unzuverlässig: `DateStampView` beobachtet das Modell **nicht**, und eine
+Ansicht, deren gespeicherte Werte sich nicht ändern, zeichnet SwiftUI nicht zwingend neu. Die
+Größe geht deshalb als Wert in die Ansicht – dann ist die Neuzeichnung keine Hoffnung.
+
+**Aufgeräumt:** Schriftgrößen, Spaltenbreiten und Schwelle sind aus `RowMetrics` verschwunden;
+dort bleibt die von der Schrift **unabhängige** Geometrie (Symbolgröße, Zeilenhöhe, Einrückung,
+Baumlinien).
+
+**Was der Regler NICHT ist:** eine Lösung für „zu blass". `secondaryLabel` bleibt auf jeder Stufe
+bei 3,82:1 und damit unter AA – die Erleichterung auf 3:1 gilt erst ab 18 pt, und dorthin reicht
+diese Aufzählung bewusst nicht.
+
+**Beleg am laufenden Programm:** alle drei Stufen; „Groß" mit 15/13 und der mitrechnenden
+Bildunterschrift, „Klein" ohne abgeschnittenes Datum, Zeilenhöhe in allen Stufen gleich.
 
 ### ✅ PR-57 · „Dateien in allen Ordnern anzeigen" zeigte nicht alle *(v1.19.59)*
 **Aufwand:** S · **Art:** Defekt · *Gemeldet mit Bildschirmfoto, drei Quellen*
@@ -1096,6 +1145,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.57 | Kleinigkeit | UX-50 · Dateinamen 14 pt, Nebenangaben 12 pt |
 | v1.19.58 | Kleinigkeit | UX-51 · Tastenkürzel in den Tooltips, aus dem Katalog |
 | v1.19.59 | Kleinigkeit | PR-57 · „Dateien in allen Ordnern" ließ Knoten zu |
+| v1.19.60 | Klein | UX-52 · Schriftgröße einstellbar: klein / mittel / groß |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

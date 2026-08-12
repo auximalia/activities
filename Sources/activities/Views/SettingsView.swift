@@ -71,6 +71,29 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Schriftgröße der Liste", selection: Binding(
+                    get: { model.rowSize },
+                    set: { model.setRowSize($0) }
+                )) {
+                    ForEach(RowSize.allCases) { stufe in
+                        Text(stufe.label).tag(stufe)
+                    }
+                }
+                .pickerStyle(.segmented)
+                // ⚠️ Nennt die Zahlen, statt „klein/mittel/groß" raten zu lassen.
+                // Wer die Wahl trifft, soll wissen, worin sie besteht – und die
+                // Zahlen sind gemessen, nicht gegriffen.
+                Text("Dateinamen \(Int(model.rowSize.nameFontSize)) pt, Datum und Größe "
+                     + "\(Int(model.rowSize.metaFontSize)) pt. Die Zeilenhöhe bleibt in allen "
+                     + "Stufen gleich – die Liste zeigt also gleich viele Einträge.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } header: {
+                Text("Darstellung")
+            }
+
+            Section {
                 appSlot(
                     title: "Editor",
                     // ⚠️ Stand hier als „⌘⇧E" – falsche Reihenfolge. macOS setzt ⌃⌥⇧⌘,

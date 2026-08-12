@@ -55,6 +55,9 @@ struct FileRowView: View {
     }
 
     var body: some View {
+        // Einmal lesen statt viermal – und der Uebersetzer schafft den Ausdruck
+        // sonst nicht in vertretbarer Zeit.
+        let groesse = model.rowSize
         HStack(spacing: 8) {
             Button {
                 model.select(.file(file.url))
@@ -76,7 +79,7 @@ struct FileRowView: View {
             .accessibilityLabel("Mit Standard-App öffnen")
 
             Text(file.url.lastPathComponent)
-                .font(.system(size: RowMetrics.nameFontSize))
+                .font(.system(size: groesse.nameFontSize))
                 .fontWeight(isDateSource ? .bold : .regular)
                 .foregroundStyle(isInWindow ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 .opacity(isInWindow ? 1 : RowMetrics.outOfWindowTextOpacity)
@@ -92,16 +95,16 @@ struct FileRowView: View {
             }
 
             Spacer(minLength: RowMetrics.itemSpacing)
-            DateStampView(date: file.timestamp, isCompact: isCompact, isDimmed: !isInWindow)
+            DateStampView(date: file.timestamp, isCompact: isCompact, size: groesse, isDimmed: !isInWindow)
             // Größe ganz rechts, feste schmale Spalte – im schmalen Fenster
             // entfällt sie (PR-37/PR-39).
             if !isCompact {
-                SizeStampView(bytes: file.size, isDimmed: !isInWindow)
+                SizeStampView(bytes: file.size, size: groesse, isDimmed: !isInWindow)
             }
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)
-        .columnRule(isVisible: !isCompact)
+        .columnRule(isVisible: !isCompact, size: groesse)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         // Cursor ohne Auswahl: nur ein feiner Rahmen – sonst waere nicht
         // erkennbar, worauf eine Aktion wirkt.
@@ -143,7 +146,7 @@ struct FileRowView: View {
                     .interpolation(.high)
                     .frame(width: 16, height: 16)
                 Text(file.url.lastPathComponent)
-                    .font(.system(size: RowMetrics.nameFontSize))
+                    .font(.system(size: groesse.nameFontSize))
                     .lineLimit(1)
             }
             .padding(.horizontal, 8)

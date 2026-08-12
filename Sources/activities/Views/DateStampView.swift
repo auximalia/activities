@@ -35,6 +35,13 @@ struct DateStampView: View {
     let date: Date
     /// Kompakt-Layout (schmales Fenster): kuerzere Form, schmalere Spalte.
     let isCompact: Bool
+    /// Schriftgroesse der Liste – **durchgereicht**, nicht global gelesen.
+    ///
+    /// **⚠️ Sonst zeichnet SwiftUI nicht neu.** Diese Ansicht beobachtet das
+    /// Modell nicht; laege die Groesse als statischer Wert in ``RowMetrics``,
+    /// aenderte sich beim Umschalten kein gespeicherter Wert dieser Ansicht –
+    /// und ob sie neu gezeichnet wird, waere Glueckssache.
+    let size: RowSize
     /// Gedaempft darstellen – fuer Eintraege **ausserhalb** des Zeitraums.
     ///
     /// Das ist ein Zustand, keine Formatierung: Deshalb bleibt er als
@@ -45,11 +52,11 @@ struct DateStampView: View {
         Text(isCompact
              ? DateFormatting.dateTimeCompact(date)
              : DateFormatting.dateTime(date))
-            .font(.system(size: RowMetrics.metaFontSize, design: .monospaced))
+            .font(.system(size: size.metaFontSize, design: .monospaced))
             .foregroundStyle(.secondary)
             .opacity(isDimmed ? RowMetrics.outOfWindowTextOpacity : 1)
             .lineLimit(1)
-            .frame(width: RowMetrics.dateColumnWidth(compact: isCompact), alignment: .trailing)
+            .frame(width: size.dateColumnWidth(compact: isCompact), alignment: .trailing)
     }
 }
 
@@ -79,16 +86,18 @@ struct DateStampView: View {
 struct SizeStampView: View {
     /// Groesse in Bytes; `nil` = nicht lesbar, dann bleibt die Spalte leer.
     let bytes: Int?
+    /// Schriftgroesse der Liste (siehe ``DateStampView/size``).
+    let size: RowSize
     /// Gedaempft darstellen – fuer Eintraege ausserhalb des Zeitraums.
     var isDimmed: Bool = false
 
     var body: some View {
         Text(SizeFormatting.short(bytes))
-            .font(.system(size: RowMetrics.metaFontSize, design: .monospaced))
+            .font(.system(size: size.metaFontSize, design: .monospaced))
             .foregroundStyle(.secondary)
             .opacity(isDimmed ? RowMetrics.outOfWindowTextOpacity : 1)
             .lineLimit(1)
-            .frame(width: RowMetrics.sizeColumnWidth, alignment: .trailing)
+            .frame(width: size.sizeColumnWidth, alignment: .trailing)
     }
 }
 
@@ -104,9 +113,12 @@ struct SizeStampView: View {
 /// Der Platzhalter ist deshalb kein Schoenheitsmittel, sondern die Bedingung
 /// dafuer, dass die Groesse ueberhaupt nach rechts wandern durfte.
 struct SizeStampPlaceholder: View {
+    /// Schriftgroesse der Liste – die Spaltenbreite haengt daran.
+    let size: RowSize
+
     var body: some View {
         Color.clear
-            .frame(width: RowMetrics.sizeColumnWidth)
+            .frame(width: size.sizeColumnWidth)
             .accessibilityHidden(true)
     }
 }
@@ -140,6 +152,9 @@ struct SizeStampPlaceholder: View {
 private struct ColumnRule: ViewModifier {
     /// Im Kompakt-Layout gibt es keine Groessenspalte – dann auch keinen Trenner.
     let isVisible: Bool
+    /// Schriftgroesse – die Groessenspalte und damit die Lage des Trenners
+    /// haengen daran.
+    let size: RowSize
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .trailing) {
@@ -147,7 +162,7 @@ private struct ColumnRule: ViewModifier {
                 Rectangle()
                     .fill(RowMetrics.columnRuleColor)
                     .frame(width: 1)
-                    .offset(x: -RowMetrics.columnRuleInset)
+                    .offset(x: -RowMetrics.columnRuleInset(size))
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
@@ -160,7 +175,7 @@ extension View {
     ///
     /// **Muss nach dem Innenabstand der Zeile stehen**, damit der Abstand zum
     /// rechten Rand derselbe ist wie der der Groessenspalte.
-    func columnRule(isVisible: Bool) -> some View {
-        modifier(ColumnRule(isVisible: isVisible))
+    func columnRule(isVisible: Bool, size: RowSize) -> some View {
+        modifier(ColumnRule(isVisible: isVisible, size: size))
     }
 }

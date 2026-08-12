@@ -189,6 +189,16 @@ final class ReportViewModel {
     /// stehen. In der Zeitansicht faellt beides zusammen (ein Ordner enthaelt
     /// dort nur Dateien), im Baum nicht.
     private(set) var treeShowsFiles: Bool { didSet { invalidateRows() } }
+
+    /// Schriftgröße der Liste – klein, mittel, groß (UX-52).
+    ///
+    /// **⚠️ Liegt im Sichtmodell und nicht als globaler Wert in ``RowMetrics``.**
+    /// Ein statischer „aktuell gewählter" Wert wäre billiger gewesen und
+    /// unzuverlässig: ``DateStampView`` beobachtet das Modell nicht, und eine
+    /// Ansicht, deren gespeicherte Werte sich nicht ändern, zeichnet SwiftUI
+    /// nicht neu. Die Größe wird deshalb **durchgereicht** – dann ändert sich
+    /// der Wert der Ansicht, und die Neuzeichnung ist keine Hoffnung.
+    private(set) var rowSize: RowSize { didSet { invalidateRows() } }
     /// Buendelung der Diagramm-Achse (automatisch nach Laenge des Zeitraums).
     private(set) var chartGranularity: ChartGranularity = .day
     /// Tageszaehlungen je Endung (Diagramm), nur sichtbare Endungen.
@@ -436,6 +446,7 @@ final class ReportViewModel {
         self.rangeEnd = saved.rangeEnd
         self.viewMode = saved.viewMode
         self.treeShowsFiles = saved.treeShowsFiles
+        self.rowSize = saved.rowSize
         // **Erkennen statt fragen.** Beim ersten Start ist nichts gewaehlt; dann
         // wird genommen, was tatsaechlich installiert ist. Wer nichts einstellt,
         // hat die Eintraege trotzdem – und wer nichts Passendes installiert hat,
@@ -1709,6 +1720,13 @@ final class ReportViewModel {
     /// Dateizeilen entfallen. In der **Zeitansicht** ist das Zuklappen der
     /// Ordner derselbe Vorgang: Dort haengen unter einem Ordner ausschliesslich
     /// Dateien.
+    /// Setzt die Schriftgröße der Liste.
+    func setRowSize(_ size: RowSize) {
+        guard size != rowSize else { return }
+        rowSize = size
+        store.saveRowSize(size)
+    }
+
     func setAllExpanded(_ expand: Bool) {
         switch viewMode {
         case .tree:

@@ -210,7 +210,7 @@ struct TreeFolderRowView: View {
                 }
 
                 Text(node.label)
-                    .font(.system(size: RowMetrics.nameFontSize))
+                    .font(.system(size: model.rowSize.nameFontSize))
                     // Durchgangsknoten: schwaecher, damit sie nicht behaupten,
                     // hier sei gearbeitet worden. Sie tragen nur den Weg.
                     .fontWeight(node.isPassThrough ? .regular : .semibold)
@@ -228,7 +228,7 @@ struct TreeFolderRowView: View {
                 // dahinter der Pfad in Grau, bei schmalem Fenster entfaellt er.
                 if !isCompact {
                     Text(model.displayPath(of: node.folder))
-                        .font(.system(size: RowMetrics.metaFontSize))
+                        .font(.system(size: model.rowSize.metaFontSize))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -237,21 +237,21 @@ struct TreeFolderRowView: View {
 
                 Text(countLabel)
                     // Nebenangabe wie Datum und Groesse (PR-38): 11 pt.
-                    .font(.system(size: RowMetrics.metaFontSize))
+                    .font(.system(size: model.rowSize.metaFontSize))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .layoutPriority(-1)
 
                 Spacer(minLength: RowMetrics.itemSpacing)
 
-                DateStampView(date: displayDate, isCompact: isCompact)
-                if !isCompact { SizeStampPlaceholder() }
+                DateStampView(date: displayDate, isCompact: isCompact, size: model.rowSize)
+                if !isCompact { SizeStampPlaceholder(size: model.rowSize) }
             }
             .padding(.leading, RowMetrics.itemSpacing)
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.trailing, RowMetrics.horizontalPadding)
-        .columnRule(isVisible: !isCompact)
+        .columnRule(isVisible: !isCompact, size: model.rowSize)
     }
 
     /// Zahlenangabe der Zeile – bei Durchgangsknoten ausdruecklich als Teilbaum.

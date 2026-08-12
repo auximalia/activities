@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.63 · 2026-08-12*
+*Stand: v1.19.64 · 2026-08-12*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,36 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-56 · Die Grundentscheidung der Ansicht hatte kein Kürzel *(v1.19.64)*
+**Aufwand:** XS · **Art:** Lücke · *Fund aus UX-55, dann angefordert*
+
+Die Gliederung (Baum ↔ Zeit) war nur mit der Maus oder über zwei Menüebenen erreichbar –
+ausgerechnet die, die der Quelltext selbst „die Grundentscheidung der Ansicht" nennt.
+
+**⚠️ ⌥⌘G, nicht ⌘G und nicht ⇧⌘G. Beide naheliegenderen Tasten sind besetzt – nur nicht in
+diesem Programm, und das ist die gefährlichere Sorte Kollision:** `Shortcuts.collisions` hätte
+keine von beiden gemeldet.
+
+- **⌘G** heißt auf macOS **„Weitersuchen"**. Dieses Programm hat ein Suchfeld (⌘F); die Taste
+  daneben mit etwas anderem zu belegen weckt eine Erwartung, die es nicht erfüllt.
+- **⇧⌘G** heißt **„Gehe zum Ordner" im Dateidialog** – und dieses Programm öffnet Dateidialoge
+  („Quelle hinzufügen …"). Ein Menükürzel darauf kann dem Dialog seine eigene Taste nehmen.
+
+**⚠️ Ein Kürzel zum *Wechseln*, nicht zwei zum *Wählen*.** Bei genau zwei Zuständen ist
+Umschalten die kürzere Bedienung, und zwei Tasten aus einem schon vollen Vorrat wären teuer
+bezahlt. Im Menü stehen beide Formen nebeneinander und widersprechen sich nicht: **„Gliederung ▸"**
+(Auswahl, zeigt mit Haken, *welche* gilt) und **„Gliederung wechseln" ⌥⌘G** (Befehl, wechselt).
+*Der Picker zeigt, der Befehl handelt.*
+
+`toggleViewMode()` läuft über `ViewMode.allCases` und nicht über ein `if`: Käme je eine dritte
+Gliederung dazu, wäre ein `if` still falsch, während das hier weiterreicht.
+
+**Beleg:** ⌥⌘G schaltet `viewMode` von `tree` auf `time` und zurück; Menü zeigt „Gliederung
+wechseln ⌥⌘G"; Tooltip der Segmentwahl nennt es mit. 1428 → 1431 Zusicherungen.
+
+**Weiterhin bewusst ohne Kürzel:** der Auto-Refresh-Schalter. Man schaltet ihn selten, und ein
+Kürzel für jede Kleinigkeit macht den Vorrat wertlos für die Handgriffe, die ihn brauchen.
 
 ### ✅ UX-55 · „Dateien außerhalb des Zeitraums" hatte kein Kürzel *(v1.19.63)*
 **Aufwand:** XS · **Art:** Lücke
@@ -1261,6 +1291,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.61 | Kleinigkeit | UX-53 · Werkzeugleiste nach Themen gruppiert |
 | v1.19.62 | Kleinigkeit | UX-54 · Gleiche Trennstriche, keine springenden Knöpfe |
 | v1.19.63 | Kleinigkeit | UX-55 · ⇧⌘L für „Dateien außerhalb des Zeitraums" |
+| v1.19.64 | Kleinigkeit | UX-56 · ⌥⌘G wechselt die Gliederung |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

@@ -155,6 +155,11 @@ struct ActivitiesApp: App {
                         Text(mode.longLabel).tag(mode)
                     }
                 }
+                // Der Picker darueber zeigt, **welche** Gliederung gilt; dieser
+                // Befehl **wechselt** sie. Das Kuerzel haengt am Wechsel, weil
+                // eines fuer zwei Zustaende genuegt (siehe ``Shortcuts/toggleViewMode``).
+                Button(Shortcuts.toggleViewMode.label) { model.toggleViewMode() }
+                    .keyboardShortcut(Shortcuts.toggleViewMode)
                 Divider()
                 Button(Shortcuts.sortByDate.label) { model.setSortField(.date) }
                     .keyboardShortcut(Shortcuts.sortByDate)

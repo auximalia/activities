@@ -890,6 +890,17 @@ final class ReportViewModel {
     /// Rechnet **nicht** neu von der Platte – beide Ansichten stehen bereits
     /// nebeneinander bereit. Der Aufklappzustand bleibt erhalten, soweit die
     /// Ordner in der Zielansicht vorkommen.
+    /// Wechselt zwischen Baum und Zeit (⌥⌘G).
+    ///
+    /// Ueber ``ViewMode/allCases`` und nicht mit einem `if`: Kaeme je eine
+    /// dritte Gliederung dazu, waere ein `if` still falsch, waehrend das hier
+    /// weiterreicht.
+    func toggleViewMode() {
+        let alle = ViewMode.allCases
+        guard let i = alle.firstIndex(of: viewMode) else { return }
+        setViewMode(alle[(i + 1) % alle.count])
+    }
+
     func setViewMode(_ mode: ViewMode) {
         guard mode != viewMode else { return }
         viewMode = mode

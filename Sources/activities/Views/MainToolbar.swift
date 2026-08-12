@@ -146,7 +146,8 @@ struct MainToolbar: ToolbarContent {
             }
             .pickerStyle(.segmented)
             .fixedSize()
-            .help("Gliederung: \(ViewMode.tree.longLabel) oder \(ViewMode.time.longLabel) · aktuell: \(model.viewMode.label)")
+            .help(Shortcuts.toggleViewMode.hint("Gliederung: \(ViewMode.tree.longLabel) oder \(ViewMode.time.longLabel)")
+                  + " · aktuell: \(model.viewMode.label)")
             .accessibilityLabel("Gliederung")
             .accessibilityValue(model.viewMode.longLabel)
         }

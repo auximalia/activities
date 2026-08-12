@@ -213,6 +213,25 @@ public enum Shortcuts {
     public static let scrollToTop = ShortcutEntry(
         id: "scrollToTop", key: .upArrow, modifiers: .command, label: "An den Anfang der Liste"
     )
+    /// **⚠️ ⌥⌘G, nicht ⌘G und nicht ⇧⌘G – beide naheliegenderen Tasten sind
+    /// besetzt, nur nicht in diesem Programm.**
+    ///
+    /// - `⌘G` heisst auf macOS **„Weitersuchen"**. Dieses Programm hat ein
+    ///   Suchfeld (⌘F); die Taste daneben mit etwas anderem zu belegen weckt
+    ///   eine Erwartung, die es nicht erfuellt.
+    /// - `⇧⌘G` heisst **„Gehe zum Ordner" im Dateidialog** – und dieses
+    ///   Programm oeffnet Dateidialoge („Quelle hinzufuegen …"). Ein
+    ///   Menuekuerzel darauf kann dem Dialog seine eigene Taste nehmen.
+    ///
+    /// **Ein Kuerzel zum *Wechseln*, nicht zwei zum *Waehlen*.** Bei genau zwei
+    /// Zustaenden ist Umschalten die kuerzere Bedienung, und zwei Tasten aus
+    /// einem schon vollen Vorrat waeren teuer bezahlt. Die Auswahl, *welche*
+    /// Gliederung gilt, bleibt daneben im Menue sichtbar – der Befehl wechselt,
+    /// der Picker zeigt.
+    public static let toggleViewMode = ShortcutEntry(
+        id: "toggleViewMode", key: .character("g"), modifiers: [.command, .option],
+        label: "Gliederung wechseln"
+    )
     public static let toggleAllExpanded = ShortcutEntry(
         id: "toggleAllExpanded", key: .character("l"), modifiers: .command,
         label: "Dateien in allen Ordnern anzeigen"
@@ -326,7 +345,7 @@ public enum Shortcuts {
         openInEditor, openInTerminal, revealInFinder, copyPath, quickLook,
         periodToday, period3, period7, period30, period90, periodAll,
         focusFilter, clearNameFilter, resetTypeFilter, scrollToTop,
-        toggleAllExpanded, showOutOfWindow, toggleChart,
+        toggleViewMode, toggleAllExpanded, showOutOfWindow, toggleChart,
         sortByDate, sortByName, sortByType, sortBySize,
         exportCSV, exportHTML, copySummary,
         selectAll, clearSelection, closeWindow, settings, help, bringToFront,

@@ -106,17 +106,26 @@ struct MainToolbar: ToolbarContent {
             }
         }
 
-        // 4. Anpassungen – **Reihenfolge = Wichtigkeit**.
+        // 4. Anpassungen – **Gruppen nach Thema, Gruppen-Reihenfolge nach Rang**.
         //
-        // ⚠️ Nicht nach Art gruppiert, sondern nach Rang. macOS schiebt bei zu
-        // schmalem Fenster die **hinteren** Elemente in das Ueberlaufmenue „»".
-        // Damit entscheidet die Reihenfolge, was zuerst unsichtbar wird. Als der
-        // Gliederungs-Umschalter noch weiter hinten stand, war er nicht mehr
-        // auffindbar (gemeldet) – dieselbe Falle wie ein Menuepunkt ohne Symbol.
+        // **⚠️ Bis v1.19.61 stand hier „nicht nach Art gruppiert, sondern nach
+        // Rang" – als Entweder-oder. Es war keins.** Der Rang muss nur die
+        // **Reihenfolge der Gruppen** bestimmen; innerhalb einer Gruppe steht,
+        // was zusammengehoert. Damit gilt weiterhin, was der Rang schuetzen
+        // sollte, und das Gesetz der Naehe dazu.
         //
-        // Vorne bleibt, was die Ansicht bestimmt (Gliederung, neu einlesen,
-        // Sortierung); nach hinten wandern die Zustandsschalter und der Sprung
-        // an den Listenanfang, der ohnehin ⌘↑ hat.
+        // Der Grund fuer den Rang bleibt richtig: macOS schiebt bei schmalem
+        // Fenster die **hinteren** Elemente ins Ueberlaufmenue „»" (gemessen in
+        // UX-48: unterhalb ~1358 pt). Seine Folge ist aber schwaecher geworden –
+        // jedes Element hier hat inzwischen einen Menuepunkt und ein Kuerzel,
+        // und der Tooltip nennt es (v1.19.58). Ein Element im Ueberlauf ist
+        // umstaendlich, nicht mehr unauffindbar.
+        //
+        // Die Gruppen, von vorn nach hinten:
+        //   Auswahl (Quellen, Suche, Zeitraum) – bestimmt, WAS gezaehlt wird
+        //   Darstellung (Gliederung, Sortierung, Aufklappen, Ausserhalb)
+        //   Aktualitaet (neu einlesen, Auto-Refresh, Suchlauf-Anzeige)
+        //   Navigation (Sprung an den Anfang) – ganz rechts, am entbehrlichsten
 
         // 4a. Anpassungen: Gliederung
         //
@@ -142,18 +151,6 @@ struct MainToolbar: ToolbarContent {
             .accessibilityValue(model.viewMode.longLabel)
         }
 
-        // 4b. Neu einlesen – die wichtigste Aktion, deshalb weit vorn.
-        ToolbarItem(placement: .navigation) {
-            Button {
-                model.rescan()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(ToolbarStateToggle.idleTint)
-            }
-            .help(Shortcuts.rescan.hint("Ordner neu einlesen"))
-            .accessibilityLabel("Ordner neu einlesen")
-        }
-
         // 4a. Anpassungen: Sortierung (Menue statt Dauer-Element – die Toolbar ist voll)
         ToolbarItem(placement: .navigation) {
             Menu {
@@ -177,16 +174,17 @@ struct MainToolbar: ToolbarContent {
             .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
         }
 
-        // 4a. Anpassungen: Zustände (ändern die Darstellung, nicht die Datenmenge)
-        // Als Gruppe: SwiftUI erlaubt hoechstens zehn ToolbarItems je Builder.
+        // 4b. Weiter Darstellung: die beiden Zustandsschalter.
         //
-        // Zweite Zaesur: Davor stehen **Aktionen** (etwas geschieht auf Zuruf),
-        // danach **Zustaende** (etwas bleibt ein- oder ausgeschaltet). Diese
-        // beiden Arten zu mischen war der Grund, warum ein Anwender den
-        // Auto-Refresh-Schalter fuer den Knopf „neu einlesen" hielt (v1.19.5).
+        // **⚠️ Hier stand ein Trennstrich, und er ist mit v1.19.61 entfallen.**
+        // Er trennte „Aktionen" von „Zustaenden" – eine Einteilung, die quer zur
+        // Sache lag: Gliederung, Sortierung, Aufklappen und „ausserhalb des
+        // Zeitraums" beantworten alle dieselbe Frage (*wie* wird gezeigt), und
+        // ein Strich mittendrin behauptete eine Grenze, wo keine ist. Die
+        // Trennstriche markieren jetzt **Themenwechsel**, und nur die.
+        //
+        // Als Gruppe: SwiftUI erlaubt hoechstens zehn ToolbarItems je Builder.
         ToolbarItemGroup(placement: .navigation) {
-            Divider().frame(height: 16)
-
             ToolbarStateToggle(
                 isOn: Binding(
                     get: { model.allExpanded },
@@ -226,14 +224,53 @@ struct MainToolbar: ToolbarContent {
                 onState: "werden angezeigt",
                 offState: "sind ausgeblendet"
             )
+        }
+
+        // 4c. **Aktualität** – woher die Anzeige ihren Stand hat.
+        //
+        // **⚠️ Hier lag „neu einlesen" NICHT, und die Umstellung dreht zwei
+        // dokumentierte Entscheidungen zurück. Beide Gruende sind geprueft und
+        // tragen nicht mehr:**
+        //
+        // 1. *„Reihenfolge = Wichtigkeit, nicht Art"* – weil macOS die hinteren
+        //    Elemente ins Ueberlaufmenue schiebt und ein verborgenes Element
+        //    unauffindbar sei. Der Ueberlauf ist real (UX-48: unterhalb ~1358 pt
+        //    Fensterbreite), die Folge nicht mehr: **Jedes** Element dieser
+        //    Leiste hat heute einen Menuepunkt **und** ein Kuerzel, und seit
+        //    v1.19.58 nennt der Tooltip das Kuerzel. Der Rang bleibt trotzdem
+        //    gewahrt – er ordnet jetzt die **Gruppen**, nicht die Einzelstuecke.
+        // 2. *„Aktionen vor Zustaenden, sonst haelt jemand den Schalter fuer den
+        //    Knopf"* – der gemeldete Vorfall (v1.19.5) hatte aber eine andere
+        //    Ursache: Der Schalter trug `arrow.triangle.2.circlepath`, also
+        //    einen **zweiten Kreispfeil** neben `arrow.clockwise`. Verwechselt
+        //    wurden Formen, nicht Nachbarschaft; behoben wurde es durch das
+        //    Antennensymbol. Genau so steht es im Backlog unter „bewusst nicht
+        //    gebaut", Punkt 15 – die Begruendung hier war die schwaechere.
+        //
+        // Und der Satz „die wichtigste Aktion, deshalb weit vorn" stimmte
+        // ohnehin nicht mehr: Das Programm **beobachtet** die Ordner (FSEvents,
+        // Auto-Refresh standardmaessig an). Von Hand neu einlesen ist der
+        // Notnagel, nicht der Normalfall.
+        ToolbarItemGroup(placement: .navigation) {
+            Divider().frame(height: 16)
+
+            Button {
+                model.rescan()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(ToolbarStateToggle.idleTint)
+            }
+            .help(Shortcuts.rescan.hint("Ordner neu einlesen"))
+            .accessibilityLabel("Ordner neu einlesen")
 
             // **Kein zweiter Kreispfeil.** Bis v1.19.5 trug dieser Schalter
-            // `arrow.triangle.2.circlepath` und stand drei Symbole neben dem
-            // Knopf „Ordner neu einlesen" (`arrow.clockwise`) – gemessen an
-            // einem echten Missgriff: Der Anwender hielt den Schalter fuer den
-            // Knopf und wunderte sich, dass nichts neu eingelesen wurde. Die
-            // Antenne zeigt, was hier wirklich passiert: Der Ordner wird
-            // **beobachtet** (FSEvents), nicht auf Zuruf gelesen.
+            // `arrow.triangle.2.circlepath` und stand neben dem Knopf „Ordner
+            // neu einlesen" (`arrow.clockwise`) – ein echter Missgriff: Der
+            // Anwender hielt den Schalter fuer den Knopf. Die Antenne zeigt,
+            // was hier wirklich passiert: Der Ordner wird **beobachtet**
+            // (FSEvents), nicht auf Zuruf gelesen. *Dass beide jetzt wieder
+            // nebeneinander stehen, ist deshalb unbedenklich – die Formen sind
+            // nicht mehr verwechselbar, und sie gehoeren zur selben Frage.*
             ToolbarStateToggle(
                 isOn: Binding(
                     get: { model.autoRefresh },
@@ -261,7 +298,11 @@ struct MainToolbar: ToolbarContent {
             .accessibilityLabel("An den Anfang der Liste springen")
         }
 
-        // --- Status ---
+        // --- Status --- gehoert zur Gruppe **Aktualitaet** und steht deshalb
+        // direkt hinter Antenne und „neu einlesen": Fortschritt und Abbruch
+        // beantworten dieselbe Frage wie die beiden – woher die Anzeige gerade
+        // ihren Stand bekommt.
+        //
         // Fester Platz: Der Block ist immer vorhanden und nur waehrend einer
         // Suche sichtbar. Sonst wuerden die Nachbarelemente beim Ein- und
         // Ausblenden hin- und herspringen.

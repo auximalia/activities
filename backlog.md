@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.60 · 2026-08-12*
+*Stand: v1.19.61 · 2026-08-12*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,58 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-53 · Was zusammengehört, steht jetzt nebeneinander *(v1.19.61)*
+**Aufwand:** S · **Art:** Verbesserung · *Gesetz der Nähe, aus der Praxis gemeldet*
+
+**Gewünscht:** „Ordner neu einlesen" (↻) neben „Automatisch aktualisieren" (Antenne) – beide
+beantworten dieselbe Frage: *woher hat die Anzeige ihren Stand?*
+
+**⚠️ Der Wunsch drehte ZWEI dokumentierte Entscheidungen zurück. Beide Gründe wurden geprüft,
+und beide tragen nicht mehr:**
+
+**1. „Nicht nach Art gruppiert, sondern nach Rang."** Begründet damit, dass macOS die hinteren
+Elemente ins Überlaufmenü schiebt und ein verborgenes Element unauffindbar sei. *Der erste Teil
+stimmt weiterhin* – in UX-48 gemessen: unterhalb ~1358 pt Fensterbreite läuft die Leiste über.
+**Der zweite Teil ist verfallen:** Jedes Element dieser Leiste hat inzwischen einen Menüpunkt
+**und** ein Kürzel, und seit v1.19.58 nennt der Tooltip das Kürzel. Ein Element im Überlauf ist
+umständlich, nicht mehr unauffindbar.
+
+*Vor allem war es nie ein Entweder-oder.* Der Rang muss nur die **Reihenfolge der Gruppen**
+bestimmen; innerhalb einer Gruppe steht, was zusammengehört. Beides gilt jetzt.
+
+**2. „Aktionen vor Zuständen – sie zu mischen war der Grund, warum ein Anwender den
+Auto-Refresh-Schalter für den Knopf ‚neu einlesen' hielt (v1.19.5)."**
+
+**⚠️ Hier widersprach die Akte sich selbst, und die andere Fassung ist die besser belegte.**
+Punkt 15 unter „bewusst nicht gebaut" nennt für **denselben** Vorfall eine andere Ursache: Der
+Schalter trug `arrow.triangle.2.circlepath` – einen **zweiten Kreispfeil** neben
+`arrow.clockwise`. Behoben wurde er durch das Antennensymbol, nicht durch Trennung. *Verwechselt
+wurden Formen, nicht Nachbarschaft.* Die Begründung in der Werkzeugleiste war die nachträgliche
+und schwächere; sie hat die beiden Bedienelemente elf Versionen lang auseinandergehalten, ohne
+dass das je jemandem genützt hätte.
+
+**⚠️ Und ein dritter Satz stimmte schon vorher nicht mehr:** „Neu einlesen – die wichtigste
+Aktion, deshalb weit vorn." Das Programm **beobachtet** die Ordner (FSEvents, Auto-Refresh
+standardmäßig an). Von Hand neu einlesen ist der Notnagel, nicht der Normalfall. *Eine
+Begründung, die sich auf Wichtigkeit beruft, veraltet, sobald sich die Wichtigkeit ändert –
+und niemand prüft sie nach.*
+
+**Die neue Ordnung** – Gruppen nach Thema, Gruppen-Reihenfolge nach Rang:
+
+| Gruppe | Inhalt | beantwortet |
+|---|---|---|
+| Auswahl | Quellen, Suche, Zeitraum | **was** wird gezählt |
+| Darstellung | Gliederung, Sortierung, Aufklappen, „außerhalb" | **wie** wird gezeigt |
+| Aktualität | neu einlesen, Auto-Refresh, Suchlauf-Anzeige | **woher** kommt der Stand |
+| Navigation | Sprung an den Anfang | – ganz rechts, am entbehrlichsten |
+
+**Nebenbefund, mitbehoben:** Ein Trennstrich zerschnitt die Darstellungs-Gruppe – der Rest der
+alten „Aktionen/Zustände"-Zäsur. Er behauptete eine Grenze zwischen Sortierung und
+Aufklapp-Schalter, wo keine ist. **Trennstriche markieren jetzt Themenwechsel, und nur die.**
+
+Die Suchlauf-Anzeige mit ihrem Abbruch-Knopf stand schon immer direkt hinter der Antenne; sie
+gehört fachlich zur Aktualität und hat ihren Platz damit ohne Änderung behalten.
 
 ### ✅ UX-52 · Schriftgröße einstellbar *(v1.19.60)*
 **Aufwand:** S · **Art:** Verbesserung · *Nachfolger von UX-50*
@@ -1146,6 +1198,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.58 | Kleinigkeit | UX-51 · Tastenkürzel in den Tooltips, aus dem Katalog |
 | v1.19.59 | Kleinigkeit | PR-57 · „Dateien in allen Ordnern" ließ Knoten zu |
 | v1.19.60 | Klein | UX-52 · Schriftgröße einstellbar: klein / mittel / groß |
+| v1.19.61 | Kleinigkeit | UX-53 · Werkzeugleiste nach Themen gruppiert |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

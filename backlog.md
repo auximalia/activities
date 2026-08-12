@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.62 · 2026-08-12*
+*Stand: v1.19.63 · 2026-08-12*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,33 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-55 · „Dateien außerhalb des Zeitraums" hatte kein Kürzel *(v1.19.63)*
+**Aufwand:** XS · **Art:** Lücke
+
+**Gewählt: ⇧⌘L**, und der Grund ist die Nachbarschaft. Im Menü „Darstellung" steht der Eintrag
+**direkt unter** „Dateien in allen Ordnern anzeigen" (⌘L). Beide blenden **mehr Dateien** ein –
+das eine in der Tiefe (Unterordner), das andere in der Zeit (vor dem Zeitraum). *Wer zwei
+benachbarte Menüpunkte derselben Art mit unverwandten Kürzeln belegt, macht aus einem Paar zwei
+Einzelfälle, die man beide auswendig lernen muss.*
+
+**Nicht genommen: die ⌘Z-Familie** (Z wie Zeitraum). ⌘Z und ⇧⌘Z gehören dem System
+(Widerrufen/Wiederholen), auch wenn dieses Programm sie abgeblendet führt. Ein Kürzel, das
+anderswo etwas Gefährliches tut, gehört nicht auf einen Anzeigeschalter.
+
+**Der Katalog erledigt den Rest:** Menüpunkt, Hilfetabelle und Tooltip lesen aus derselben
+Quelle (v1.19.58), es war also **eine** Eintragung. `Shortcuts.collisions` hätte einen
+Fehlgriff abgefangen; 1425 → 1428 Zusicherungen.
+
+**Beleg:** Menü zeigt ⌘L und ⇧⌘L untereinander; ⇧⌘L schaltet `showOutOfWindowFiles` von 0 auf 1;
+Tooltip: „Dateien außerhalb des Zeitraums anzeigen (⇧⌘L) · aktuell: werden angezeigt".
+
+**⚠️ Zwei weitere Lücken gefunden, bewusst NICHT gefüllt** – sie stehen unter „Offen":
+Der Auto-Refresh-Schalter und die Gliederung (Baum/Zeit) haben ebenfalls kein Kürzel. Beim
+Auto-Refresh ist das vertretbar (man schaltet ihn selten). **Bei der Gliederung ist es eine
+echte Lücke** – der Quelltext nennt sie „die Grundentscheidung der Ansicht", und genau die ist
+nur mit der Maus oder über zwei Menüebenen erreichbar. Das ist eine eigene Entscheidung
+(welche Taste?) und keine Beifahrer-Änderung.
 
 ### ✅ UX-54 · Zwei Trennstriche, die verschieden aussahen – und ein Knopf, der die Leiste verschob *(v1.19.62)*
 **Aufwand:** S · **Art:** Defekt · *Beides aus der Praxis gemeldet*
@@ -1233,6 +1260,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.60 | Klein | UX-52 · Schriftgröße einstellbar: klein / mittel / groß |
 | v1.19.61 | Kleinigkeit | UX-53 · Werkzeugleiste nach Themen gruppiert |
 | v1.19.62 | Kleinigkeit | UX-54 · Gleiche Trennstriche, keine springenden Knöpfe |
+| v1.19.63 | Kleinigkeit | UX-55 · ⇧⌘L für „Dateien außerhalb des Zeitraums" |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

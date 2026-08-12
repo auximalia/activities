@@ -180,10 +180,11 @@ struct ActivitiesApp: App {
                     set: { model.setAllExpanded($0) }
                 ))
                 .keyboardShortcut(Shortcuts.toggleAllExpanded)
-                Toggle("Dateien außerhalb des Zeitraums zeigen", isOn: Binding(
+                Toggle(Shortcuts.showOutOfWindow.label, isOn: Binding(
                     get: { model.showOutOfWindowFiles },
                     set: { model.setShowOutOfWindowFiles($0) }
                 ))
+                .keyboardShortcut(Shortcuts.showOutOfWindow)
                 Toggle("Diagramm einblenden", isOn: Binding(
                     get: { model.headerExpanded },
                     set: { model.setHeaderExpanded($0) }

@@ -222,7 +222,8 @@ struct MainToolbar: ToolbarContent {
                 offSymbol: "clock.badge.xmark",
                 label: "Dateien außerhalb des Zeitraums anzeigen",
                 onState: "werden angezeigt",
-                offState: "sind ausgeblendet"
+                offState: "sind ausgeblendet",
+                shortcut: Shortcuts.showOutOfWindow
             )
         }
 

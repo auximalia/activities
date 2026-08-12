@@ -217,6 +217,22 @@ public enum Shortcuts {
         id: "toggleAllExpanded", key: .character("l"), modifiers: .command,
         label: "Dateien in allen Ordnern anzeigen"
     )
+    /// **⚠️ ⇧⌘L als Geschwister von ⌘L, und das ist der ganze Grund.** Im Menü
+    /// „Darstellung" steht dieser Eintrag direkt unter „Dateien in allen Ordnern
+    /// anzeigen" (⌘L). Beide blenden **mehr Dateien** ein – das eine in der
+    /// Tiefe (Unterordner), das andere in der Zeit (vor dem Zeitraum). Wer zwei
+    /// benachbarte Menüpunkte derselben Art mit unverwandten Kürzeln belegt,
+    /// macht aus einem Paar zwei Einzelfälle, die man beide auswendig lernen
+    /// muss.
+    ///
+    /// Nicht genommen: ⌘Z-Familie (Z wie Zeitraum) – ⌘Z und ⇧⌘Z gehören dem
+    /// System (Widerrufen/Wiederholen), auch wenn dieses Programm sie
+    /// abgeblendet führt. Ein Kürzel, das anderswo etwas Gefährliches tut,
+    /// gehört nicht auf einen Anzeigeschalter.
+    public static let showOutOfWindow = ShortcutEntry(
+        id: "showOutOfWindow", key: .character("l"), modifiers: [.command, .shift],
+        label: "Dateien außerhalb des Zeitraums zeigen"
+    )
     public static let toggleChart = ShortcutEntry(
         id: "toggleChart", key: .character("d"), modifiers: [.command, .shift],
         label: "Diagramm ein- oder ausblenden"
@@ -310,7 +326,7 @@ public enum Shortcuts {
         openInEditor, openInTerminal, revealInFinder, copyPath, quickLook,
         periodToday, period3, period7, period30, period90, periodAll,
         focusFilter, clearNameFilter, resetTypeFilter, scrollToTop,
-        toggleAllExpanded, toggleChart,
+        toggleAllExpanded, showOutOfWindow, toggleChart,
         sortByDate, sortByName, sortByType, sortBySize,
         exportCSV, exportHTML, copySummary,
         selectAll, clearSelection, closeWindow, settings, help, bringToFront,

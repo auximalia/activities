@@ -2,8 +2,39 @@
 
 *Stand: v1.19.35 · 2026-08-10*
 
-Diese Datei ist die **maßgebliche Spezifikation** der App **activities**. Sie
-beschreibt das final umgesetzte Verhalten so, dass die App auch auf einer anderen
+> ## ⚠️ Schnappschuss, keine gültige Spezifikation
+>
+> **Dieses Dokument beschreibt den Stand v1.19.35 und wird nicht mehr nachgezogen.**
+> Es ist bis dahin richtig; alles danach fehlt oder widerspricht dem Programm. Wo es
+> dem Code widerspricht, **gilt der Code**.
+>
+> Bekannte Abweichungen (Auswahl, Stand v1.19.67):
+>
+> - **Es kennt keine Quellen.** Durchgehend ist von *einem* „Wurzelordner" die Rede.
+>   Seit PR-19 (v1.19.36) verwaltet die App eine **Liste von Quellen** mit einzeln
+>   an- und abhakbarer Auswahl, lehnt Überlappungen ab und bietet dafür eine
+>   Rückfrage an (PR-58). Besonders irreführend: Abschnitt 4.1 behauptet, ein aufs
+>   Fenster gezogener Ordner werde zum *neuen Wurzelordner* – er kommt seither
+>   **hinzu**, siehe `RootView.swift` (⚠️-Kommentar am `dropDestination`).
+> - **Der Namensfilter wirkt nicht mehr beim Tippen**, sondern auf Enter (PR-55).
+> - **Statuszeile und Rauschfilter-Verweis** heißen und zählen anders (UX-57):
+>   „… · davon N von dir ausgeblendet" und „Rauschfilter öffnen" statt
+>   „Einstellungen …"; `SettingsLink` ist durch `openSettings` ersetzt, weil es
+>   keinen Reiter ansteuern kann.
+> - `isHidden` heißt jetzt `isTypeHidden` – „ausgeblendet" bedeutet in dieser App
+>   drei verschiedene Dinge.
+>
+> **Die Akte des Projekts ist `backlog.md`**: was entschieden wurde, warum, und was
+> bewusst *nicht* gebaut wird. Die Begründungen zu einzelnen Festlegungen stehen als
+> `⚠️`-Doc-Kommentare am Code selbst.
+>
+> *Warum nicht einfach nachgezogen?* Der erklärte Zweck dieses Dokuments ist der
+> originalgetreue Nachbau auf einer anderen Plattform. Den plant niemand. Ein
+> Dokument, das Autorität beansprucht und dabei dem Code widerspricht, richtet mehr
+> Schaden an als eines, das seinen Geltungsbereich nennt.
+
+Diese Datei war die **maßgebliche Spezifikation** der App **activities**. Sie
+beschreibt das bis v1.19.35 umgesetzte Verhalten so, dass die App auch auf einer anderen
 Plattform (Windows/Linux/Web) originalgetreu nachgebaut werden kann.
 
 - **Teil A (Fachlogik & Oberfläche)** ist *plattformunabhängig*.

@@ -14,20 +14,26 @@ frei – **ohne** Xcode oder Entwickler-Werkzeuge:
 curl -fsSL https://raw.githubusercontent.com/auximalia/activities/main/Packaging/web-install.sh | bash
 ```
 
-Die App prueft beim Start selbst auf Aktualisierungen; ein Hinweis oben rechts installiert
-sie auf Klick. Weitere Wege siehe `TEST_INSTALL.md`.
+Die App sucht selbst nach Aktualisierungen – **hoechstens einmal alle 24 Stunden**, nicht
+bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege siehe
+`TEST_INSTALL.md`.
 
 ## Was die App kann
 
 **Suchen und Eingrenzen**
-- **Ordner waehlen** ueber das Menue links oben; zuletzt genutzte Ordner sind hinterlegt.
-  Ein Ordner laesst sich auch **auf das Fenster ziehen**.
-- **Namensfilter**, der **beim Tippen** wirkt. Ein Wort genuegt (`studium`); Platzhalter
-  `*` und `?` sind zusaetzlich moeglich.
+- **Quellen** statt eines einzigen Ordners: Das Menue links oben fuehrt alle bekannten
+  Ordner und hakt sie einzeln an oder ab – jede angehakte Quelle erscheint als eigener
+  Wurzelknoten. Ein Ordner laesst sich auch **auf das Fenster ziehen**; er kommt dann als
+  **weitere** Quelle hinzu und loest die vorhandenen nicht ab.
+  Ueberlappende Quellen werden abgelehnt (sie wuerden jede Datei doppelt zaehlen); die App
+  fragt dann, ob die vorhandene Quelle angehakt oder ersetzt werden soll.
+- **Namensfilter**, ausgeloest mit **Enter** – beim Tippen rechnet das Programm bewusst
+  nicht. Ein Wort genuegt (`studium`); Platzhalter `*` und `?` sind zusaetzlich moeglich.
 - **Zeitraum** in drei Modi: **Tage** (7/30/90 oder frei), **Spanne** (von–bis) oder
   **Alle** – letzteres macht das Werkzeug zur reinen Suche ueber den Gesamtbestand.
-- **Gescannt wird sparsam**: nur bei Programmstart, Ordnerwechsel, ⌘R und Auto-Refresh.
-  Zeitraum und Filter arbeiten auf den bereits eingelesenen Daten.
+- **Gescannt wird sparsam**: bei Programmstart, beim Anhaken einer neuen Quelle, mit ⌘R und
+  wenn sich in einer Quelle etwas aendert (FSEvents). Zeitraum und Filter arbeiten auf den
+  bereits eingelesenen Daten.
 
 **Verlaufsdiagramm**
 - Gestapelte Balken je Zeitpunkt, nach Dateiendung eingefaerbt – mit einer festen Palette,
@@ -61,16 +67,20 @@ swift run CoreChecks            # Pruefungen der Fachlogik (ohne Xcode)
 ```
 
 Mit vollem Xcode zusaetzlich `swift test`. Der Ablauf fuer Freigaben steht in
-`CONTRIBUTING.md`, die vollstaendige Spezifikation in `umsetzungskonzept-macos-app.md`,
-die Vorhabenliste in `backlog.md`.
+`CONTRIBUTING.md`; **die Akte des Projekts – was entschieden wurde und warum – ist
+`backlog.md`.**
+
+> ⚠️ `umsetzungskonzept-macos-app.md` beschreibt den Stand **v1.19.35** und ist seither
+> nicht nachgezogen worden. Es ist ein Schnappschuss, keine gueltige Spezifikation; wo es
+> dem Code widerspricht, gilt der Code.
 
 ## Aufbau
 
 | Ziel | Inhalt |
 |---|---|
-| `ActivitiesCore` | Gesamte Fachlogik – **nur `Foundation`**, damit sie plattformunabhaengig bleibt (Fernziel Windows, siehe Konzept 10.2). |
+| `ActivitiesCore` | Gesamte Fachlogik – **nur `Foundation`**, damit sie plattformunabhaengig bleibt (Fernziel Windows). |
 | `activities` | Die Oberflaeche (SwiftUI/AppKit, nur macOS). |
-| `CoreChecks` | 139 Pruefungen der Fachlogik, laufen ohne Apple-Frameworks. |
+| `CoreChecks` | Zusicherungen der Fachlogik (derzeit ueber 1500), laufen ohne Apple-Frameworks. |
 
 > ---
 

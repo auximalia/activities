@@ -50,6 +50,49 @@ und die nachrangigen Punkte.
 
 ## Aus der Produkt-Roadmap
 
+### ✅ PR-60 · Die Hilfe war aktuell, das übrige Geschriebene nicht *(Dokumentation)*
+**Aufwand:** S · **Art:** Defekt in der Dokumentation · *Ausgelöst durch die Frage „Ist auch die Dokumentation aktualisiert?"*
+
+**Beobachtet:** Nein. Die In-App-Hilfe schon – sie war in denselben Commits nachgezogen
+worden, wie es `AGENTS.md` verlangt. `README.md` und das Umsetzungskonzept nicht.
+
+**⚠️ Die Regel wurde befolgt und trotzdem falsche Prosa ausgeliefert – das ist der
+eigentliche Befund.** `AGENTS.md` nannte für „ein sichtbares Feature bekommt seine Hilfezeile
+im selben Commit" genau **eine** Datei: `HelpView.swift`. *Eine Regel, die eine Datei nennt,
+verschafft allen anderen ein Alibi.* Sie gilt jetzt für jede Prosa, die Verhalten beschreibt.
+
+**Falsch im `README.md` – nicht fehlend, sondern falsch:**
+
+| stand dort | seit |
+|---|---|
+| „Namensfilter, der **beim Tippen** wirkt" | PR-55 (Enter) |
+| „zuletzt genutzte Ordner sind hinterlegt" | PR-19 (Quellen) |
+| „**139** Pruefungen der Fachlogik" | laufend – tatsächlich 1508 |
+| „prueft **beim Start** auf Aktualisierungen" | PR-34 (höchstens alle 24 h) |
+| „die **vollstaendige Spezifikation** in `umsetzungskonzept-macos-app.md`" | v1.19.36 |
+
+Ergänzt wurde nur, was zum Richtigstellen nötig war: der Quellen-Mechanismus samt
+Überlappungsregel. Fehlende Kapitel (Rauschfilter, Anheften, „Arbeit fortsetzen") bleiben
+Lücken – *ein falscher Satz ist schlimmer als ein fehlender, dem falschen glaubt man* (UX-39).
+
+**Das Umsetzungskonzept wird zurückgestuft, nicht nachgezogen.** Es lag 32 Versionen zurück
+und nannte sich in Zeile 5 „die **maßgebliche Spezifikation**". Es trägt jetzt einen Kopf, der
+sagt: Schnappschuss v1.19.35, wo es dem Code widerspricht, gilt der Code – mit einer Liste der
+bekannten Abweichungen.
+
+⚠️ **Bewusst nicht nachgezogen.** Sein erklärter Zweck ist der originalgetreue Nachbau auf
+einer anderen Plattform; den plant niemand. 1077 Zeilen fortzuschreiben wäre Fleißarbeit für
+einen Leser, den es nicht gibt. *Ein Dokument, das Autorität beansprucht und dabei dem Code
+widerspricht, richtet mehr Schaden an als eines, das seinen Geltungsbereich nennt.*
+
+⚠️ **Derselbe Fehler, zweite Fundstelle, ein Jahr überlebt:** Der Satz „ein aufs Fenster
+gezogener Ordner wird zum **neuen Wurzelordner**" ist genau der, den `AGENTS.md` als Lehre aus
+v1.19.48 festhält. Damals wurde er in der In-App-Hilfe korrigiert – im Konzept blieb er stehen,
+weil niemand dort nachsah. Genau deshalb steht die Reichweite der Regel jetzt geschrieben.
+
+**Kein `release.sh`:** reine Dokumentationsänderung, keine Wirkung auf den Anwender, keine
+Versionsnummer – committet und gepusht (siehe „Build, check, release").
+
 ### ✅ PR-59 · Die Abnahme zerstörte den Zustand, den sie prüfen sollte *(v1.19.67)*
 **Aufwand:** S · **Art:** Defekt im **Vorgehen** · *Ausgelöst vom Anwender: „Wir verlieren sehr, sehr viel Zeit bei den ux-tests"*
 

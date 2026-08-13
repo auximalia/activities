@@ -153,6 +153,23 @@ Therefore, from v1.19.45 on:
   it did not mention the Office filter, the file-type tab or "Arbeit fortsetzen" at
   all. Prose cannot be generated, so this rule is the guard, and it is weaker than a
   check on purpose — a check that cannot exist is no argument against the weaker one.
+
+  **⚠️ The rule named only `HelpView.swift`, and that was too narrow.** On 2026-08-13
+  the owner asked whether the documentation was current. The in-app help was — it had
+  been updated in the same commit, exactly as this rule demands. `README.md` was not:
+  it still promised a name filter that *"works while typing"* (Enter since PR-55),
+  *"recently used folders"* (replaced by sources in PR-19) and *"139 assertions"*
+  (1508). **Following the rule to the letter and still shipping wrong prose is the
+  finding** — a rule that names one file gives the other files an alibi. The rule
+  therefore covers **every** prose that describes behaviour: the in-app help,
+  `README.md`, and the concept document.
+
+  Except that the concept document is now **out of scope by decision, not by
+  neglect**: it was 32 versions behind and called itself the *authoritative
+  specification*, and its stated purpose — rebuilding the app on another platform —
+  serves nobody. It carries a header saying it is a v1.19.35 snapshot and that the
+  code wins. *A document that claims authority while contradicting the code does more
+  damage than one that states its own limits.* `backlog.md` is the record.
 - **Nothing else is relaxed.** `swift build` and `swift run CoreChecks` stay green,
   `decision-check` still runs before a decision that would earn a `⚠️`, and
   `ux-review` still runs before anything visible ships. **Those obligations were never

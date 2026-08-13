@@ -219,7 +219,8 @@ struct SettingsView: View {
             } footer: {
                 Text("Abgewählte Quellen bleiben in der Liste – nur ihre Dateien zählen nicht. "
                      + "Ein Ordner, der bereits in einer Quelle liegt, wird abgelehnt: Er würde "
-                     + "jede Datei doppelt zählen.")
+                     + "jede Datei doppelt zählen. Die App fragt dann, ob die vorhandene Quelle "
+                     + "angehakt oder durch den neuen Ordner ersetzt werden soll.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

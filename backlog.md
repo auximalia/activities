@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.64 · 2026-08-12*
+*Stand: v1.19.65 · 2026-08-13*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,77 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-58 · Eine abgelehnte Quelle nannte die Regel und ließ den Weg offen *(v1.19.65)*
+**Aufwand:** M · **Art:** Defekt · *Gemeldet vom Anwender mit Bildschirmfoto, entschieden mit `decision-check`*
+
+**Beobachtet:** Zwei Quellen, `~/Documents` und `~/Downloads`, letztere abgehakt. Über
+„Quelle hinzufügen …" den Ordner `~/Downloads/Telegram Desktop` gewählt – der Dateidialog
+schloss sich, „ohne Kommentar und Hinweis". Der Anwender musste selbst herausfinden, dass
+`~/Downloads` erst **entfernt** werden muss, damit der Unterordner allein zur Quelle wird.
+
+**⚠️ Die Meldung stimmte, die Diagnose nicht – und der Unterschied hat den Entwurf
+bestimmt.** Geschwiegen wurde nicht: `sourceNotice` sagte seit PR-53 „‚Telegram Desktop'
+liegt in ‚Downloads' und würde doppelt gezählt", sichtbar als Streifen in der Kopfzone. Wäre
+das der Befund gewesen, hieße die Lösung „den Streifen auffälliger machen". Der Streifen ist
+aber **nicht das Problem, sondern seine Grenze**: Er nennt eine Regel und lässt die Reparatur
+als Hausaufgabe zurück. Selbst ein Streifen, den man garantiert liest, hätte diesen Anwender
+genau so weit gebracht wie der, den er übersah. *Ein Sichtbarkeitsproblem und ein
+Handlungsproblem sehen am Bildschirm gleich aus – es passiert nichts.*
+
+**Gebaut:** Eine **Rückfrage** mit benannten Wegen (`SourceConflict.swift`, neu), gestellt
+über `confirmationDialog` (`RootView.swift`, `SourceConflictDialog`). Welcher Weg in welcher
+Lage offensteht, ist eine Regel über Quellen und liegt deshalb im Kern:
+
+| Lage | Angebot |
+|---|---|
+| liegt in `X`, `X` abgehakt | `X` anhaken · durch den neuen Ordner ersetzen · Abbrechen |
+| liegt in `X`, `X` angehakt | durch den neuen Ordner ersetzen · Abbrechen |
+| enthält `Y` (auch mehrere) | durch den neuen Ordner ersetzen · Abbrechen |
+
+**⚠️ Die Ablehnung selbst wurde NICHT weicher.** `SourceList.add` lehnt unverändert ab, der
+Bestand ist zu **jedem** Zeitpunkt überlappungsfrei, und `resolve` führt nur aus, was
+`options` auch angeboten hat. Der Reiz, `add` gleich „richtig" reagieren zu lassen, wurde
+verworfen: Anhaken und Ersetzen führen zu **verschieden aussehenden Ergebnissen** – den
+ganzen Oberordner sehen oder nur den einen darin –, und diese Wahl kann das Programm nicht
+treffen. Genau deshalb wird gefragt statt repariert.
+
+**⚠️ `conflict(forAdding:)` sammelt ALLE überlappenden Quellen, `rejectionReason` nur die
+erste.** Für ein Ja/Nein genügt die erste; für eine Reparatur nicht: `~/Downloads` schluckt
+`Telegram Desktop` **und** `Zoom`. „Ersetzen" hätte eine entfernt und wäre danach immer noch
+abgelehnt worden – ein Knopf, der das Problem verkleinert, statt es zu lösen, ist schlimmer
+als keiner.
+
+**Bewusst nicht gebaut:**
+- **Knöpfe im Streifen statt einer Rückfrage.** Der Streifen hat zwei Anzeigeorte
+  (`ChartHeaderView`, `EmptyStateView`), die laut PR-53 bereits einmal auseinandergelaufen
+  sind; und ein Knopf, der eine Quelle entfernt, gehört nicht als `.link` in eine Statuszeile,
+  wo ein Klick genügt. Der Streifen **bleibt** für alles bereits Entschiedene: „schon
+  eingetragen und angehakt", „nicht gefunden", „kein Ordner".
+- **Eine Rückfrage je abgelehntem Ordner.** Mehrfachwahl und Drag & Drop laufen durch
+  dieselbe Funktion; drei Blätter nacheinander werden durchgeklickt, nicht gelesen. Ab zwei
+  Ablehnungen bleibt es beim Streifen.
+- **„Im Baum zeigen", wenn die äußere Quelle angehakt ist.** Reizvoll – der Ordner ist dann
+  bereits sichtbar –, aber ein zweiter Mechanismus für einen Randfall.
+- **Zwei aufeinanderfolgende Dialoge mit `[Ja|Nein|Abbrechen]`**, wie ursprünglich
+  vorgeschlagen. „Nein" und „Abbrechen" wären dasselbe gewesen, und wer im ersten Dialog
+  „Nein" sagt, bekäme einen zweiten – das liest sich wie ein Verhör.
+
+**⚠️ Ein `⚠️` in diesem Eintrag stand zuerst falsch da und wurde am laufenden Programm
+widerlegt.** Die Reihenfolge der Knöpfe war damit begründet, der erste sei der Vorgabeknopf
+und werde von Return ausgelöst; deshalb stehe der harmlose oben. Gemessen: Ein
+`confirmationDialog` vergibt **keinen** Vorgabeknopf, Return tut nichts, nur Esc bricht ab.
+Die Reihenfolge bleibt – aber ihr Grund ist die Lesestelle, nicht die Taste. *Eine
+Begründung, die plausibel klingt und niemand nachgemessen hat, hätte hier drei Versionen
+überlebt.*
+
+**Beleg:** Alle drei Lagen am laufenden Programm über die Bedienhilfen-Schnittstelle
+durchgespielt (frisch gestarteter Prozess, eigener Quellenbestand im Temp-Verzeichnis):
+Wortlaut, Knopfzahl (3/2/2), Esc, und bei beiden Wegen der Bestand danach – „anhaken" trägt
+den Kandidaten **nicht** ein, „ersetzen" entfernt die äußere Quelle und hakt die neue an.
+Dabei fiel auf, dass ein Umweg über den nächsten Durchlauf, gegen eine vermutete Kollision
+zweier Blätter eingebaut, **nicht nötig** ist – er wurde wieder entfernt, statt als
+begründete Vorsichtsmaßnahme stehen zu bleiben. 43 neue Zusicherungen (1431 → 1474).
 
 ### ✅ UX-56 · Die Grundentscheidung der Ansicht hatte kein Kürzel *(v1.19.64)*
 **Aufwand:** XS · **Art:** Lücke · *Fund aus UX-55, dann angefordert*
@@ -1292,6 +1363,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.62 | Kleinigkeit | UX-54 · Gleiche Trennstriche, keine springenden Knöpfe |
 | v1.19.63 | Kleinigkeit | UX-55 · ⇧⌘L für „Dateien außerhalb des Zeitraums" |
 | v1.19.64 | Kleinigkeit | UX-56 · ⌥⌘G wechselt die Gliederung |
+| v1.19.65 | Klein | PR-58 · Abgelehnte Quelle fragt nach: anhaken oder ersetzen |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

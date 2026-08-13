@@ -22,6 +22,7 @@ struct HelpView: View {
                     "Alle Unterordner einer Quelle zählen mit.",
                     "Einen Ordner aufs Fenster ziehen fügt ihn als **weitere** Quelle hinzu.",
                     "Überlappende Quellen werden abgelehnt – sie würden jede Datei doppelt zählen.",
+                    "Liegt der gewählte Ordner in einer bekannten Quelle (oder umgekehrt), fragt die App nach: die vorhandene Quelle anhaken oder durch den neuen Ordner ersetzen.",
                     "Hinzufügen und Entfernen: Einstellungen → Quellen (\(Shortcuts.settings.display)).",
                 ])
 

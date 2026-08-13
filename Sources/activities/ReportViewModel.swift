@@ -310,6 +310,20 @@ final class ReportViewModel {
     /// Verwirft den Hinweis.
     func clearSourceNotice() { sourceNotice = nil }
 
+    /// Wartet eine abgelehnte Quelle auf die Entscheidung des Anwenders?
+    ///
+    /// **⚠️ Eine Rueckfrage, kein Hinweis – und das ist kein Widerspruch zu
+    /// ``sourceNotice`` darueber.** Der Streifen bleibt richtig fuer alles,
+    /// was bereits **entschieden** ist: „schon eingetragen und angehakt",
+    /// „nicht gefunden", „kein Ordner". Eine Ueberlappung ist etwas anderes –
+    /// dort ist die Handlung des Anwenders **nicht abgeschlossen**, und es gibt
+    /// zwei Ergebnisse, die verschieden aussehen (den ganzen Oberordner sehen
+    /// oder nur den einen darin). Die Wahl dazwischen kann das Programm nicht
+    /// treffen, und ein Streifen kann sie nicht anbieten: Ein Knopf, der eine
+    /// vorhandene Quelle entfernt, gehoert nicht als `.link` in eine
+    /// Statuszeile, wo ein Klick genuegt und kein Rueckweg vorgesehen ist.
+    private(set) var pendingSourceConflict: SourceConflict?
+
     /// Zaehler, um die Fokussierung des Filterfeldes anzustossen (Menue ⌘F).
     var filterFocusToken = 0
     /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
@@ -2015,8 +2029,16 @@ final class ReportViewModel {
     /// **⚠️ Teilerfolg ist der Normalfall und kein Fehler.** Wer drei Ordner
     /// waehlt, von denen einer in einem anderen liegt, soll die zwei bekommen –
     /// und erfahren, warum der dritte fehlt.
+    ///
+    /// **⚠️ Die Rueckfrage kommt nur bei GENAU EINER Ablehnung.** Mehrfachwahl
+    /// und Drag & Drop laufen durch dieselbe Funktion; wer fuenf Ordner aufs
+    /// Fenster zieht, von denen drei ueberlappen, bekaeme sonst drei Dialoge
+    /// nacheinander. Eine Kette von Rueckfragen wird durchgeklickt, nicht
+    /// gelesen – dann waere die Rueckfrage schaedlicher als der Streifen, den
+    /// sie ersetzt. Bei mehreren bleibt es deshalb beim Hinweis wie bisher.
     func addSources(_ urls: [URL]) {
         var abgelehnt: [String] = []
+        var konflikte: [SourceConflict] = []
         for url in urls {
             // **⚠️ Gefragt wird die Platte, nicht die Zeichenkette.** Hier stand
             // `where url.hasDirectoryPath` – und das ist eine Eigenschaft der
@@ -2043,12 +2065,39 @@ final class ReportViewModel {
             // erreichte es diesen Fall nie – die Vorpruefung fing ihn ab und
             // machte eine Ablehnung daraus. Die Regel lag im Kern, die
             // Wirkung nicht.
+            //
+            // ⚠️ Aus demselben Grund wird ``conflict(forAdding:)`` erst
+            // **danach** gefragt und nur, wenn ``add`` abgelehnt hat: Es
+            // beschreibt die Ablehnung, es faellt sie nicht.
             if let grund = sources.add(url) {
                 abgelehnt.append(Self.rejectionText(url, grund))
+                if let konflikt = sources.conflict(forAdding: url) { konflikte.append(konflikt) }
             }
         }
         applySourceChange()
-        sourceNotice = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: " ")
+        if abgelehnt.count == 1, let konflikt = konflikte.first {
+            pendingSourceConflict = konflikt
+        } else {
+            sourceNotice = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: " ")
+        }
+    }
+
+    /// Fuehrt den vom Anwender gewaehlten Ausweg aus.
+    func resolveSourceConflict(with option: SourceConflict.Option) {
+        guard let konflikt = pendingSourceConflict else { return }
+        pendingSourceConflict = nil
+        // Der gemerkte Aufklappzustand gehoert zur Quelle, nicht zum Ordner –
+        // wer sie entfernt, soll ihn nicht als Altlast zurueckbehalten.
+        if option == .replaceExisting {
+            for alt in konflikt.existing { store.forgetExpansion(of: alt) }
+        }
+        sources.resolve(konflikt, with: option)
+        applySourceChange()
+    }
+
+    /// Verwirft die Rueckfrage – der Bestand bleibt, wie er war.
+    func cancelSourceConflict() {
+        pendingSourceConflict = nil
     }
 
     /// Meldet, dass der Dateidialog selbst gescheitert ist.

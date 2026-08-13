@@ -55,6 +55,10 @@ public struct SourceList: Sendable, Equatable {
     /// Die Reparatur im Baum (deduplizieren? verschachteln? die engere Quelle
     /// unterdruecken?) waeren drei verschiedene Programme; die Pruefung hier
     /// sind fuenf Zeilen.
+    ///
+    /// **Das bleibt so, auch seit es ``conflict(forAdding:)`` gibt.** Der
+    /// Ausweg, den die App dort anbietet, repariert nichts im Baum – er
+    /// veraendert den **Bestand**, und zwar nur, wenn der Anwender es sagt.
     public func rejectionReason(forAdding url: URL) -> RejectionReason? {
         let neu = Self.key(url)
         for vorhanden in known {
@@ -96,6 +100,66 @@ public struct SourceList: Sendable, Equatable {
         known.append(url)
         active.insert(url)
         return nil
+    }
+
+    /// Die abgelehnte Quelle samt der Wege, die aus der Ablehnung herausführen.
+    ///
+    /// **⚠️ Sammelt ALLE überlappenden Quellen, nicht nur die erste.**
+    /// ``rejectionReason(forAdding:)`` bricht beim ersten Treffer ab – das
+    /// genügt für ein Ja/Nein und ist für eine Reparatur zu wenig: Ein weiter
+    /// Ordner kann mehrere enge schlucken (`~/Downloads` über
+    /// `Telegram Desktop` **und** `Zoom`). „Ersetzen" hätte dann eine entfernt
+    /// und wäre danach immer noch abgelehnt worden – ein Knopf, der das
+    /// Problem verkleinert, statt es zu lösen, ist schlimmer als keiner.
+    ///
+    /// **⚠️ ``RejectionReason/alreadyKnown`` ergibt hier bewusst ``nil``.** Das
+    /// ist kein Widerspruch, sondern der harmlose Fall (siehe ``add(_:)``): Es
+    /// gibt nichts zu entscheiden und deshalb nichts zu fragen.
+    public func conflict(forAdding url: URL) -> SourceConflict? {
+        let neu = Self.key(url)
+        var aeussere: URL?
+        var innere: [URL] = []
+        for vorhanden in known {
+            let alt = Self.key(vorhanden)
+            if alt == neu { return nil }
+            if FolderTree.isRootOrBelow(neu, root: alt) {
+                aeussere = vorhanden
+            } else if FolderTree.isRootOrBelow(alt, root: neu) {
+                innere.append(vorhanden)
+            }
+        }
+        if let aeussere {
+            return SourceConflict(
+                candidate: url,
+                existing: [aeussere],
+                kind: .inside(existingIsActive: isActive(aeussere))
+            )
+        }
+        guard !innere.isEmpty else { return nil }
+        return SourceConflict(candidate: url, existing: innere, kind: .around)
+    }
+
+    /// Führt den vom Anwender gewählten Ausweg aus.
+    ///
+    /// **⚠️ Nur eine Möglichkeit, die ``SourceConflict/options`` auch angeboten
+    /// hat, wird ausgeführt.** Sonst gäbe es zwei Stellen, die entscheiden, was
+    /// erlaubt ist – die Liste der Knöpfe und diese Funktion –, und sie liefen
+    /// auseinander, sobald sich eine Regel ändert. Genau dieser Fehler wurde in
+    /// PR-53 teuer bezahlt: Die Regel lag im Kern, die Wirkung nicht.
+    ///
+    /// Der Bestand bleibt dabei zu **jedem** Zeitpunkt überlappungsfrei: Beim
+    /// Ersetzen fallen erst alle beteiligten Quellen weg, dann kommt die neue
+    /// hinzu – und ``add(_:)`` prüft weiterhin selbst.
+    public mutating func resolve(_ conflict: SourceConflict, with option: SourceConflict.Option) {
+        guard conflict.options.contains(option) else { return }
+        switch option {
+        case .activateExisting:
+            guard let aeussere = conflict.existing.first else { return }
+            setActive(aeussere, true)
+        case .replaceExisting:
+            for alt in conflict.existing { remove(alt) }
+            add(conflict.candidate)
+        }
     }
 
     /// Entfernt eine Quelle aus dem Bestand – samt Auswahl.

@@ -204,6 +204,7 @@ private struct DialogsModifier: ViewModifier {
             .modifier(ActionErrorAlert(model: model))
             .modifier(UpdateAlert(updates: updates))
             .modifier(BulkActionConfirmation(model: model))
+            .modifier(SourceConflictDialog(model: model))
     }
 }
 
@@ -286,6 +287,54 @@ private struct BulkActionConfirmation: ViewModifier {
             Button("Abbrechen", role: .cancel) { model.cancelPendingBulkAction() }
         } message: { action in
             Text(action.explanation)
+        }
+    }
+}
+
+/// **Die zweite Rueckfrage der App** – die erste, die einen **Weg** anbietet
+/// statt einer Bestaetigung.
+///
+/// ``BulkActionConfirmation`` haelt etwas an, das der Anwender ausgeloest hat.
+/// Diese hier steht vor einer Handlung, die das Programm **abgelehnt** hat –
+/// und die Ablehnung ist richtig (siehe ``SourceList``), nur half sie bis
+/// v1.19.64 niemandem weiter: Der Streifen nannte die Regel und liess die
+/// Reparatur als Hausaufgabe zurueck.
+///
+/// **⚠️ Die Knoepfe kommen aus ``SourceConflict/options``, nicht aus einem `if`
+/// ueber ``SourceConflict/Kind``.** Welcher Weg in welcher Lage offensteht, ist
+/// eine Regel ueber Quellen und keine ueber Ansichten – stuende sie hier,
+/// koennte ``CoreChecks`` sie nicht pruefen, und sie liefe von
+/// ``SourceList/resolve(_:with:)`` weg, sobald sich eine der beiden Seiten
+/// aendert. Die Moeglichkeiten werden einzeln ausgeschrieben statt ueber eine
+/// `ForEach` gebildet: Ein macOS-Blatt liest seine Knoepfe aus dem Baum aus,
+/// und was es dabei nicht findet, fehlt **wortlos** – bei zwei Faellen ist das
+/// Risiko den Verzicht auf die Schleife nicht wert.
+private struct SourceConflictDialog: ViewModifier {
+    @Bindable var model: ReportViewModel
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            model.pendingSourceConflict?.question ?? "",
+            isPresented: Binding(
+                get: { model.pendingSourceConflict != nil },
+                set: { if !$0 { model.cancelSourceConflict() } }
+            ),
+            titleVisibility: .visible,
+            presenting: model.pendingSourceConflict
+        ) { konflikt in
+            if konflikt.options.contains(.activateExisting) {
+                Button(konflikt.label(for: .activateExisting)) {
+                    model.resolveSourceConflict(with: .activateExisting)
+                }
+            }
+            if konflikt.options.contains(.replaceExisting) {
+                Button(konflikt.label(for: .replaceExisting)) {
+                    model.resolveSourceConflict(with: .replaceExisting)
+                }
+            }
+            Button("Abbrechen", role: .cancel) { model.cancelSourceConflict() }
+        } message: { konflikt in
+            Text(konflikt.explanation)
         }
     }
 }

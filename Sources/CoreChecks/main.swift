@@ -1063,6 +1063,144 @@ do {
     expectEqual(bereinigt.activeInOrder, [docs], "und aus der Auswahl mit")
 }
 
+// MARK: - SourceConflict (der Ausweg aus einer abgelehnten Quelle)
+do {
+    let downloads = URL(fileURLWithPath: "/u/Downloads", isDirectory: true)
+    let telegram = URL(fileURLWithPath: "/u/Downloads/Telegram Desktop", isDirectory: true)
+    let zoom = URL(fileURLWithPath: "/u/Downloads/Zoom", isDirectory: true)
+    let docs = URL(fileURLWithPath: "/u/Documents", isDirectory: true)
+
+    // Ohne Ueberlappung gibt es nichts zu fragen.
+    var frei = SourceList()
+    frei.add(docs)
+    expect(frei.conflict(forAdding: downloads) == nil, "keine Ueberlappung, keine Rueckfrage")
+
+    // ⚠️ „schon bekannt" ist kein Widerspruch – und damit auch keine Rueckfrage.
+    expect(frei.conflict(forAdding: docs) == nil, "bereits bekannte Quelle stellt keine Frage")
+    var abgehakt = SourceList()
+    abgehakt.add(docs)
+    abgehakt.setActive(docs, false)
+    expect(abgehakt.conflict(forAdding: docs) == nil, "auch abgehakt nicht – ``add`` hakt sie an")
+
+    // Fall 1: Der Kandidat liegt in einer bekannten, ABGEHAKTEN Quelle.
+    // Beide Wege stehen offen, denn beide fuehren zu einem anderen Ergebnis.
+    var innen = SourceList()
+    innen.add(docs)
+    innen.add(downloads)
+    innen.setActive(downloads, false)
+    guard let k1 = innen.conflict(forAdding: telegram) else {
+        fatalError("Unterordner muss einen Konflikt melden")
+    }
+    expectEqual(k1.kind, .inside(existingIsActive: false), "liegt in einer abgehakten Quelle")
+    expectEqual(k1.existing, [downloads], "und nennt genau die aeussere")
+    expectEqual(k1.options, [.activateExisting, .replaceExisting], "beide Wege stehen offen")
+
+    // Fall 2: dieselbe Lage, aber die aeussere Quelle ist angehakt. „Anhaken"
+    // waere ein Knopf, der nichts tut – er entfaellt.
+    var innenAktiv = SourceList()
+    innenAktiv.add(downloads)
+    guard let k2 = innenAktiv.conflict(forAdding: telegram) else {
+        fatalError("Unterordner muss auch bei angehakter Quelle einen Konflikt melden")
+    }
+    expectEqual(k2.kind, .inside(existingIsActive: true), "liegt in einer angehakten Quelle")
+    expectEqual(k2.options, [.replaceExisting], "nur noch ersetzen")
+
+    // Fall 3: Der Kandidat enthaelt bekannte Quellen. „Anhaken" der engeren
+    // gaebe dem Anwender WENIGER, als er verlangt hat – es wird nicht angeboten.
+    var umgekehrt = SourceList()
+    umgekehrt.add(telegram)
+    umgekehrt.add(zoom)
+    umgekehrt.setActive(zoom, false)
+    guard let k3 = umgekehrt.conflict(forAdding: downloads) else {
+        fatalError("Oberordner muss einen Konflikt melden")
+    }
+    expectEqual(k3.kind, .around, "enthaelt bekannte Quellen")
+    expectEqual(k3.options, [.replaceExisting], "auch bei abgehakter enger Quelle nur ersetzen")
+
+    // ⚠️ Der Kern dieses Typs: ALLE ueberlappenden, nicht nur die erste.
+    // Sonst entfernte „Ersetzen" eine und waere danach immer noch abgelehnt.
+    expectEqual(k3.existing, [telegram, zoom], "beide betroffenen Quellen, in Bestandsreihenfolge")
+
+    // Aufloesung 1: anhaken. Der Kandidat kommt NICHT in den Bestand.
+    var a = innen
+    a.resolve(k1, with: .activateExisting)
+    expect(a.isActive(downloads), "die aeussere Quelle ist jetzt angehakt")
+    expectEqual(a.known.count, 2, "und der Kandidat wurde nicht eingetragen")
+    expect(a.rejectionReason(forAdding: telegram) != nil, "die Ueberlappungsregel gilt unveraendert")
+
+    // Aufloesung 2: ersetzen. Die aeussere weicht, der Kandidat kommt und ist angehakt.
+    var b = innen
+    b.resolve(k1, with: .replaceExisting)
+    expect(!b.known.contains(downloads), "die aeussere Quelle ist weg")
+    expect(b.isActive(telegram), "der Kandidat ist eingetragen und angehakt")
+    expectEqual(b.known, [docs, telegram], "die unbeteiligte Quelle bleibt unberuehrt")
+
+    // Aufloesung 2 mit mehreren Betroffenen – genau der Fall, an dem eine
+    // Aufloesung „nur die erste" scheitern wuerde.
+    var c = umgekehrt
+    c.resolve(k3, with: .replaceExisting)
+    expectEqual(c.known, [downloads], "beide engen Quellen sind weg, die weite steht")
+    expect(c.isActive(downloads), "und ist angehakt")
+
+    // ⚠️ Die eigentliche Zusicherung: Der Bestand ist NACH jeder Aufloesung
+    // wieder ueberlappungsfrei. Genau darauf steht „jeder Ordner kommt genau
+    // einmal vor" – wer sie bricht, zaehlt jede Datei doppelt.
+    for liste in [a, b, c] {
+        for quelle in liste.known {
+            var ohne = liste
+            ohne.remove(quelle)
+            expect(ohne.rejectionReason(forAdding: quelle) == nil,
+                   "nach der Aufloesung ueberlappt nichts mehr")
+        }
+    }
+
+    // ⚠️ Nur ein angebotener Weg wird ausgefuehrt. Sonst gaebe es zwei Stellen,
+    // die entscheiden, was erlaubt ist – und sie liefen auseinander.
+    var d = innenAktiv
+    d.resolve(k2, with: .activateExisting)
+    expectEqual(d.known, [downloads], "ein nicht angebotener Weg tut nichts")
+    var e = umgekehrt
+    e.resolve(k3, with: .activateExisting)
+    expectEqual(e.known, [telegram, zoom], "auch bei ``around`` nicht")
+
+    // Der Wortlaut nennt beide beteiligten Ordner – „geht nicht" liesse raten.
+    expect(k1.question.contains("Telegram Desktop") && k1.question.contains("Downloads"),
+           "die Frage nennt beide Ordner")
+    expect(k1.explanation.contains("doppelt"), "und den Grund")
+    expect(k1.explanation.contains("nicht angehakt"), "und den Zustand, der die Wahl erklaert")
+    expect(k2.explanation.contains("bereits mit angezeigt"),
+           "bei angehakter Quelle steht da, dass der Ordner schon zu sehen ist")
+    expect(k3.question.contains("2 vorhandene Quellen"), "mehrere werden gezaehlt, nicht aufgezaehlt")
+    expect(k3.explanation.contains("Telegram Desktop") && k3.explanation.contains("Zoom"),
+           "aufgezaehlt werden sie in der Erklaerung")
+
+    // ⚠️ Die Erklaerung bleibt bei hoechstens drei Saetzen – ein Blatt, das
+    // gescrollt werden muss, wird weggeklickt statt gelesen.
+    for konflikt in [k1, k2, k3] {
+        expect(konflikt.explanation.count(where: { $0 == "." }) <= 3,
+               "die Erklaerung bleibt bei hoechstens drei Saetzen")
+        expect(konflikt.question.hasSuffix("."), "die Ueberschrift ist ein ganzer Satz")
+    }
+
+    // ⚠️ „Ersetzen" nennt den NEUEN Ordner – wodurch ersetzt wird, ist die
+    // Frage, die der Knopf beantworten muss.
+    expectEqual(k1.label(for: .activateExisting), "\u{201E}Downloads\u{201C} anhaken", "Knopf 1")
+    expectEqual(k1.label(for: .replaceExisting),
+                "Durch \u{201E}Telegram Desktop\u{201C} ersetzen", "Knopf 2")
+    expectEqual(k3.label(for: .replaceExisting),
+                "Durch \u{201E}Downloads\u{201C} ersetzen", "auch bei mehreren Betroffenen")
+
+    // ⚠️ Der erste Knopf steht im Stapel oben und wird zuerst gelesen. Wo es
+    // eine Wahl gibt, darf dort nicht der stehen, der eine Quelle entfernt.
+    expectEqual(k1.options.first, .activateExisting, "oben steht der Weg, der nichts entfernt")
+
+    // ⚠️ `/a/bc` faengt mit `/a/b` an, liegt aber nicht darunter – auch hier.
+    var praefix = SourceList()
+    praefix.add(URL(fileURLWithPath: "/a/b", isDirectory: true))
+    expect(praefix.conflict(forAdding: URL(fileURLWithPath: "/a/bc", isDirectory: true)) == nil,
+           "Namenspraefix ist auch hier keine Ueberlappung")
+}
+
 // MARK: - FolderTree.rows (sichtbare Zeilenfolge)
 do {
     let root = URL(fileURLWithPath: "/r", isDirectory: true)

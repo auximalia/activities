@@ -383,6 +383,20 @@ struct StatusBarView: View {
                 .textSelection(.enabled)
                 .help(BuildInfo.details)
                 .layoutPriority(1)
+
+            // ⚠️ Laeuft die App auf einem eigenen Ablagebereich (Abnahme), muss
+            // das **dastehen**. Sonst ist es der stille Zustand, den UX-06
+            // abgeschafft hat – in seiner unangenehmsten Form: Wer die
+            // Umgebungsvariable gesetzt hat, ohne es zu merken, sieht leere
+            // Einstellungen und haelt seine eigenen fuer verloren.
+            if let bereich = SettingsStore.scratchSuiteName {
+                Divider().frame(height: 10)
+                Label("Abnahme", systemImage: "flask")
+                    .foregroundStyle(.orange)
+                    .help("Eigener Ablagebereich \u{201E}\(bereich)\u{201C} – die normalen "
+                          + "Einstellungen sind unberührt.")
+                    .layoutPriority(1)
+            }
         }
         // ⚠️ `.subheadline` (11 pt) statt `.caption` (10 pt). Die Zeile traegt
         // Zahlen, den Wurzelpfad und die Warnung „Daten veraltet" – sie war die

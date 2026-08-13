@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Stand: v1.19.49 · 2026-08-11*
+*Stand: v1.19.67 · 2026-08-13*
 
 ## What this repo is
 
@@ -58,6 +58,43 @@ placement or a responsibility makes some *other* part break its own documented r
 that is evidence the decision is wrong. The `⚠️` convention protects good decisions
 from being "fixed" back — it also makes bad ones look considered. Writing a
 justification is not the same as testing one.
+
+## Acceptance: the agent reads, the owner clicks
+
+`ux-review` has two halves, and only one of them belongs to the agent. **Reading the
+interface** — HIG, wording, accessibility, evidence at `file:line` — is agent work.
+**Operating it** is not, and the attempt cost more than the change it was checking:
+roughly 60 % of one session went into making clicks work at all, 25 % into
+screenshots, 15 % into the actual observation.
+
+**⚠️ Do not automate clicks in SwiftUI views.** They expose no accessibility titles,
+so every click becomes a screen coordinate computed from a screenshot, and every
+layout change invalidates it. AppleScript has no right-click either. What a human
+answers in two seconds costs the agent twenty minutes and is wrong more often.
+
+**⚠️ Never run an acceptance against the owner's own settings.** On 2026-08-13 a
+cleanup after such a run deleted two folders the owner had hidden. A check that can
+damage what it checks is not a check. Launch with a scratch store instead:
+
+```
+ACTIVITIES_DEFAULTS_SUITE=ux open -n dist/activities.app   # writes to …abnahme.ux
+defaults write com.mtri.activities.abnahme.ux <key> …      # set up state
+defaults delete com.mtri.activities.abnahme.ux             # clean up
+```
+
+The running app shows an orange **Abnahme** marker in the status bar while it does —
+a scratch store must never be a silent state (`SettingsStore.scratchVariable`).
+
+**The runbook stays short because most of it must not be in it.** Anything a
+`CoreChecks` assertion can reach belongs there, not in a list a human works through:
+wording, numbers, which options are offered, what a rule does. The runbook holds only
+what no assertion can see — *does it appear, does it open, does it change*. Three to
+five yes/no lines per change. If the list grows past that, the answer is usually a
+missing assertion, not a longer list.
+
+Format: preparation (⚠️ quit **all** running instances first — driving the old one is
+the most common false result), then numbered observations, each answerable with `ok`
+or `nein: <what instead>`.
 
 ## Build, check, release
 

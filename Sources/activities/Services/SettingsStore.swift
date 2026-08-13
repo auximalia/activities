@@ -86,9 +86,53 @@ final class SettingsStore {
     /// Zeitpunkt der letzten **stillen** Update-Suche (PR-34).
     private let lastUpdateCheckKey = "lastUpdateCheck"
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = SettingsStore.runDefaults) {
         self.defaults = defaults
     }
+
+    // MARK: - Ablage für Abnahmen
+
+    /// Umgebungsvariable, mit der die App auf einen **eigenen** Ablagebereich
+    /// gelegt wird.
+    ///
+    /// **⚠️ Es gibt sie, weil eine Abnahme den Zustand zerstört hat, den sie
+    /// prüfen sollte.** Am 2026-08-13 wurde die Rauschfilter-Änderung am
+    /// laufenden Programm geprüft – gegen die **echten** Einstellungen des
+    /// Anwenders. Beim Aufräumen gingen dabei seine zwei ausgeblendeten Ordner
+    /// verloren. Eine Prüfung, die den Gegenstand der Prüfung beschädigen kann,
+    /// ist keine Prüfung, sondern ein Risiko mit Bericht.
+    static let scratchVariable = "ACTIVITIES_DEFAULTS_SUITE"
+
+    /// **⚠️ Absichtlich NICHT hinter `#if DEBUG`.** Der Reiz ist groß, einen
+    /// Prüf-Zugang aus der ausgelieferten Fassung herauszuhalten – aber dann
+    /// liefe die Abnahme auf einem **anderen Programm** als dem, das ankommt,
+    /// und genau das soll sie ausschließen. Der Zugang öffnet nichts: Er wählt
+    /// eine Ablage, die ohnehin dem angemeldeten Benutzer gehört.
+    ///
+    /// **⚠️ Der Name wird vorangestellt, nicht übernommen.**
+    /// `UserDefaults(suiteName:)` liefert `nil`, wenn der Name die eigene
+    /// Kennung oder die globale Domäne ist – und der stille Rückfall wäre dann
+    /// ausgerechnet der echte Speicher des Anwenders. Mit fester Vorsilbe kann
+    /// dieser Fall nicht eintreten.
+    static let scratchSuiteName: String? = {
+        let roh = ProcessInfo.processInfo.environment[scratchVariable]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let roh, !roh.isEmpty else { return nil }
+        let sauber = roh.replacingOccurrences(of: "/", with: "-")
+        return "\(Bundle.main.bundleIdentifier ?? "activities").abnahme.\(sauber)"
+    }()
+
+    /// Die Ablage, auf der dieser Programmlauf arbeitet.
+    static let runDefaults: UserDefaults = {
+        guard let name = scratchSuiteName else { return .standard }
+        guard let eigene = UserDefaults(suiteName: name) else {
+            // Kann mit der Vorsilbe oben nicht eintreten. Wenn doch, ist der
+            // Rückfall auf ``standard`` das Einzige, was hier nicht passieren
+            // darf – dann lieber laut stehenbleiben.
+            fatalError("Ablagebereich \(name) liess sich nicht oeffnen.")
+        }
+        return eigene
+    }()
 
     func load() -> StoredSettings {
         let days = defaults.object(forKey: daysKey) as? Int ?? 30

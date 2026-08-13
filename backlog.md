@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.66 · 2026-08-13*
+*Stand: v1.19.67 · 2026-08-13*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,49 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-59 · Die Abnahme zerstörte den Zustand, den sie prüfen sollte *(v1.19.67)*
+**Aufwand:** S · **Art:** Defekt im **Vorgehen** · *Ausgelöst vom Anwender: „Wir verlieren sehr, sehr viel Zeit bei den ux-tests"*
+
+**Beobachtet:** Die Abnahme zu UX-57 lief gegen die **echten** Einstellungen des Anwenders.
+Beim Aufräumen wurden seine zwei ausgeblendeten Ordner gelöscht – die Sicherung stammte aus
+einer früheren Sitzung, als die Liste noch leer war. Nicht wiederherstellbar.
+
+**⚠️ Der gemeldete Mangel war die Dauer, der gefundene die Gefahr.** Gemessen an einer Sitzung:
+rund 60 % der Zeit gingen dafür drauf, das Klicken überhaupt zum Laufen zu bringen (AppleScript
+kennt keinen Rechtsklick → eigenes Swift-Programm; SwiftUI-Ansichten geben ihre Beschriftungen
+den Bedienhilfen nicht preis → Klicken nach Bildschirmkoordinaten, aus Fotos ausgerechnet),
+25 % in Bildschirmfotos, 15 % in die eigentliche Beobachtung. **Die Automatisierung war der
+Kostenträger, nicht die Prüfung.**
+
+**Gebaut:** `ACTIVITIES_DEFAULTS_SUITE=<name>` legt den Programmlauf auf einen eigenen
+Ablagebereich (`…abnahme.<name>`). Die echten Einstellungen bleiben unberührt, das Aufräumen ist
+ein `defaults delete` auf eine fremde Domäne.
+
+**⚠️ Nicht hinter `#if DEBUG`.** Der Reiz war groß – aber dann liefe die Abnahme auf einem
+**anderen Programm** als dem, das ankommt, und genau das soll sie ausschließen. Der Zugang
+öffnet nichts: Er wählt eine Ablage, die ohnehin dem angemeldeten Benutzer gehört.
+
+**⚠️ Der Name wird vorangestellt, nicht übernommen.** `UserDefaults(suiteName:)` liefert `nil`
+für die eigene Kennung und die globale Domäne – und der stille Rückfall wäre dann ausgerechnet
+der echte Speicher. Mit fester Vorsilbe kann der Fall nicht eintreten; träte er doch ein, bleibt
+das Programm laut stehen, statt auf `standard` auszuweichen.
+
+**⚠️ Ein Prüf-Speicher darf kein stiller Zustand sein** (UX-06, in seiner unangenehmsten Form:
+Wer die Variable gesetzt hat, ohne es zu merken, sieht leere Einstellungen und hält seine
+eigenen für verloren). Die Statuszeile trägt deshalb einen orangen Marker **Abnahme** samt
+Bereichsnamen im Tooltip.
+
+**Dazu in `AGENTS.md`:** Die Arbeitsteilung steht jetzt geschrieben – *der Agent liest die
+Oberfläche, der Eigentümer bedient sie*. Mit zwei Verboten (keine Klick-Automatik in
+SwiftUI-Ansichten, keine Abnahme gegen die echten Einstellungen) und einer Größenregel: **Was
+eine `CoreChecks`-Zusicherung erreichen kann, gehört nicht in die Handliste.** Wortlaut, Zahlen,
+angebotene Möglichkeiten – alles prüfbar. Für den Menschen bleibt, was keine Zusicherung sehen
+kann: *erscheint es, öffnet es, wechselt es.* Drei bis fünf Ja/Nein-Zeilen; wird die Liste
+länger, fehlt meist eine Zusicherung, nicht Platz auf der Liste.
+
+**Beleg:** `ACTIVITIES_DEFAULTS_SUITE=probe` gestartet, eigener Quellenbestand sichtbar, oranger
+Marker in der Statuszeile, `defaults read com.mtri.activities` danach unverändert.
 
 ### ✅ UX-57 · „Einstellungen …" führte irgendwohin, und der Rückweg fehlte, wo man hinsieht *(v1.19.66)*
 **Aufwand:** M · **Art:** Defekt · *Gemeldet vom Anwender mit Bildschirmfoto, entschieden mit `decision-check`*
@@ -1448,6 +1491,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.64 | Kleinigkeit | UX-56 · ⌥⌘G wechselt die Gliederung |
 | v1.19.65 | Klein | PR-58 · Abgelehnte Quelle fragt nach: anhaken oder ersetzen |
 | v1.19.66 | Klein | UX-57 · Verweis trifft den Rauschfilter, Kontextmenü kennt den Rückweg |
+| v1.19.67 | Kleinigkeit | PR-59 · Abnahmen laufen auf eigenem Ablagebereich |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

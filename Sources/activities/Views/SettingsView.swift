@@ -1,6 +1,21 @@
 import SwiftUI
 import ActivitiesCore
 
+/// Welcher Reiter des Einstellungsfensters gezeigt wird.
+///
+/// **⚠️ Es gibt ihn, weil ein Verweis sein Ziel nennen koennen muss.** Bis
+/// v1.19.65 fuehrte „Einstellungen …" in der Kopfzone ueber ein nacktes
+/// `SettingsLink` – und das ist ein Knopf **ohne Ziel**: Er oeffnet den Reiter,
+/// der zuletzt zu tun hatte. Wer auf einen Hinweis ueber uebersprungene Ordner
+/// klickte, landete je nach Vorgeschichte bei „Quellen" oder „Dateitypen". Ein
+/// Verweis, dessen Ziel von der Vergangenheit abhaengt, ist eine Lotterie.
+enum SettingsTab: Hashable {
+    case general
+    case sources
+    case noise
+    case fileTypes
+}
+
 /// Einstellungen (⌘,) – **alle** Regeln des Rauschfilters an einer Stelle.
 ///
 /// **Entwurfsgrundsatz:** Aus Anwendersicht darf es nur *eine* Antwort auf die
@@ -21,18 +36,22 @@ struct SettingsView: View {
     @State private var showSourceImporter = false
 
     var body: some View {
-        TabView {
+        TabView(selection: $model.settingsTab) {
             generalTab
                 .tabItem { Label("Allgemein", systemImage: "gearshape") }
+                .tag(SettingsTab.general)
             sourcesTab
                 .tabItem { Label("Quellen", systemImage: "folder") }
+                .tag(SettingsTab.sources)
             noiseTab
                 .tabItem { Label("Rauschfilter", systemImage: "eye.slash") }
+                .tag(SettingsTab.noise)
             // Eigener Reiter, kein Abschnitt im Rauschfilter: andere Schluessel
             // (Endungen statt Ordnernamen), anderer Zeitpunkt (Anzeige statt
             // Suchlauf). Begruendung in ``FileTypesSettingsView``.
             FileTypesSettingsView(model: model)
                 .tabItem { Label("Dateitypen", systemImage: "doc.badge.gearshape") }
+                .tag(SettingsTab.fileTypes)
         }
         .frame(width: 620, height: 520)
     }

@@ -614,6 +614,17 @@ do {
     ).scan(settings: settings)
     expect(gefiltert.files.isEmpty, "Pfad-Ausschluss: Ordner samt Inhalt verschwindet")
 
+    // ⚠️ Die beiden Gruende werden GETRENNT gezaehlt. Bis v1.19.65 liefen sie
+    // auf einen Zaehler, und die Kopfzone stellte zwei Zahlen nebeneinander,
+    // von denen die eine die andere enthielt.
+    expectEqual(gefiltert.skippedByHiddenPath, 1, "eigene Ausblendung wird als solche gezaehlt")
+    expect(gefiltert.skippedByRule == 0, "und nicht als Namensregel")
+    expectEqual(gefiltert.skippedFolders,
+                gefiltert.skippedByRule + gefiltert.skippedByHiddenPath,
+                "die Summe bleibt die Summe")
+    expect(standard.skippedByRule > 0, "Namensregeln zaehlen auf den anderen Zaehler")
+    expectEqual(standard.skippedByHiddenPath, 0, "ohne eigene Ausblendungen bleibt der zweite leer")
+
     // „Auge": Ausgeblendetes voruebergehend zeigen – Ordnerregeln ausgesetzt,
     // Dateimuster und Buendel-Behandlung bleiben.
     let enthuellt = FileScanner(
@@ -629,6 +640,34 @@ do {
     expect(!enthuelltNamen.contains("CodeResources"),
            "Enthuellen: Buendel bleiben Einheit – das ist keine Ausblendung, sondern richtige Wertung")
     expectEqual(enthuellt.skippedFolders, 0, "Enthuellen: nichts mehr uebersprungen")
+
+    // MARK: Wortlaut der Offenlegung
+    //
+    // ⚠️ Die Zeile hat keinen anderen Zweck, als eine Zahl auszuweisen. Ist die
+    // mehrdeutig, ist die Zeile wertlos – deshalb steht ihr Wortlaut hier und
+    // nicht in der Ansicht.
+    expect(ExclusionRules.skippedSummary(byRule: 0, byHiddenPath: 0) == nil,
+           "nichts uebersprungen: kein Satz, und damit auch keine Zeile")
+    expectEqual(ExclusionRules.skippedSummary(byRule: 33, byHiddenPath: 2),
+                "35 Ordner samt Inhalt übersprungen · davon 2 von dir ausgeblendet",
+                "die erste Zahl ist die SUMME, die zweite eine Teilmenge – „davon\" sagt es")
+    expectEqual(ExclusionRules.skippedSummary(byRule: 35, byHiddenPath: 0),
+                "35 Ordner samt Inhalt übersprungen",
+                "ohne eigene Ausblendungen kein Zusatz")
+    expectEqual(ExclusionRules.skippedSummary(byRule: 0, byHiddenPath: 2),
+                "2 von dir ausgeblendete Ordner samt Inhalt übersprungen",
+                "sind alle vom Anwender, waere „davon 2 von 2\" Buchhaltung")
+    expectEqual(ExclusionRules.skippedSummary(byRule: 0, byHiddenPath: 1),
+                "1 von dir ausgeblendeter Ordner samt Inhalt übersprungen",
+                "und die Einzahl wird gebeugt")
+    // Die Summe muss stimmen, sonst zaehlt der Anwender nach und findet es.
+    for regel in 0...4 {
+        for eigene in 0...4 where regel + eigene > 0 {
+            let satz = ExclusionRules.skippedSummary(byRule: regel, byHiddenPath: eigene) ?? ""
+            expect(satz.contains("\(regel + eigene)") || regel == 0,
+                   "der Satz nennt die Summe \(regel + eigene)")
+        }
+    }
 
     // Eine einzige Liste steuert die Ordnerregeln – auch das Abwaehlen einer
     // sonst empfohlenen Regel muss wirken.

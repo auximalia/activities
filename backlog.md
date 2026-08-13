@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.65 · 2026-08-13*
+*Stand: v1.19.66 · 2026-08-13*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,89 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-57 · „Einstellungen …" führte irgendwohin, und der Rückweg fehlte, wo man hinsieht *(v1.19.66)*
+**Aufwand:** M · **Art:** Defekt · *Gemeldet vom Anwender mit Bildschirmfoto, entschieden mit `decision-check`*
+
+**Beobachtet:** In der Statuszeile stand „35 Ordner samt Inhalt übersprungen · 2 von dir
+ausgeblendet" und daneben der Verweis „Einstellungen …". Der Klick öffnete den Reiter
+**„Quellen"**. Erwartet und gesucht wurden die eigenen Ausblendungen.
+
+**Drei Befunde, zwei davon nicht gemeldet.**
+
+**1 · Der Verweis konnte gar kein Ziel nennen.** `SettingsLink` ist ein Knopf **ohne Ziel** –
+er zeigt den Reiter, der zuletzt zu tun hatte. Derselbe Klick führt bei jedem Anwender
+woanders hin. Was gesucht wurde, gab es längst (`SettingsView.swift`, Abschnitt „Von dir
+ausgeblendete Ordner" mit „Wieder zeigen" je Eintrag): **Der Inhalt stimmte, der Weg nicht.**
+Jetzt `@Environment(\.openSettings)` plus `TabView(selection:)`, und der Verweis heißt nach
+seinem Ziel: **„Rauschfilter öffnen"**.
+
+⚠️ Umbenennen **ohne** Zielsteuerung wäre schlechter als vorher gewesen – ein Name, der einen
+Ort verspricht, den er nicht erreicht, wird häufiger enttäuscht als ein vager.
+
+**2 · Rückgängig ging nur im Einstellungsfenster.** Das Auge blendet die versteckten Ordner
+wieder ein, aber das Kontextmenü bot weiter „Diesen Ordner nicht mehr zeigen" an – also genau
+das, was schon geschehen war. **Eine Zeile darüber machte es das Programm richtig:** „Anheften"
+wechselt seine Beschriftung seit jeher. Zwei Nachbarn, dieselbe Form, nur eine Antwort – das
+war das Argument, nicht Geschmack. Der Eintrag wechselt jetzt ebenso.
+
+⚠️ `isFolderHidden` prüft **genau diesen Pfad**, nicht „liegt unter einem ausgeblendeten".
+Mit der weiten Fassung trüge ein Unterordner „Wieder zeigen", und der Klick täte **nichts** –
+`showFolderAgain` entfernt nur genaue Einträge. Am laufenden Programm gegengeprüft: Was man
+anklicken kann, um auszublenden, kann man anklicken, um es zurückzunehmen – es ist dieselbe
+Ordner-Identität, auch bei zusammengefalteten Zeilen wie `a/b`.
+
+**3 · Die beiden Zahlen waren nicht derselben Art.** Die 35 zählten übersprungene Ordner
+**einschließlich** der eigenen (`FileScanner` erhöhte für beide Gründe denselben Zähler), die 2
+zählten dagegen **Regeln** (`excludedPaths.count`). Wer das las, konnte nicht wissen, ob es 35
+oder 37 sind – und die Zeile hat keinen anderen Zweck als diese Auskunft. Jetzt zählt der
+Suchlauf getrennt (`skippedByRule`, `skippedByHiddenPath`), und der Satz nennt das Verhältnis:
+**„35 Ordner samt Inhalt übersprungen · davon 2 von dir ausgeblendet"**.
+
+⚠️ Der Wortlaut liegt im Kern (`ExclusionRules.skippedSummary`), **nicht** in der Ansicht: Ein
+Verhältnis lässt sich nicht aus zwei Bausteinen zusammensetzen, die es nicht kennen – genau so
+war die alte Zeile gebaut. Sichtbarkeit **und** Text der Zeile kommen jetzt aus derselben
+Quelle; vorher fragte die Sichtbarkeit die *Einrichtung* und der Text den *Suchlauf*, sodass
+eine Ausblendung außerhalb der gewählten Quellen die Zeile erscheinen und leer bleiben ließ.
+
+⚠️ **Bedeutungswechsel, bewusst:** Die zweite Zahl meint jetzt „in diesem Suchlauf
+übersprungen", nicht „so viele Einträge bestehen". Kopfzone und Rauschfilter-Reiter können
+damit verschiedene Zahlen zeigen – und das ist richtig: Die Kopfzone berichtet über **diesen
+Bericht**, die Einstellungen über die **Einrichtung**. Ein ausgeblendeter Ordner, den es nicht
+mehr gibt, nimmt diesem Bericht nichts weg.
+
+**Nebenbefund aus der Umsetzung:** `isHidden` gab es bereits – für Dateien, die über ihre
+**Endung** ausgeblendet sind. Beim Ergänzen der Ordner-Fassung griff der Aufruf prompt auf die
+falsche. „Ausgeblendet" bedeutet in diesem Programm drei Dinge (Dateityp, Ordnerregel,
+einzelner Ordner); ein Name, der nur „versteckt" sagt, gehört keinem davon. Beide heißen jetzt
+nach ihrem Gegenstand: `isTypeHidden`, `isFolderHidden`.
+
+**Bewusst nicht gebaut:**
+- **Ein Popover an der Statuszeile** mit der Liste der Ausblendungen – wäre der direkteste Weg,
+  aber ein vierter Mechanismus für etwas, das im Rauschfilter-Reiter vollständig steht.
+- **Ausgeblendete Ordner beim Aufdecken markieren.** Sie sehen aus wie alle anderen. Eigener
+  Entwurf (welcher Träger, wie im Baum, wie bei VoiceOver); mit dem Kontextmenü ist der
+  Leidensdruck kleiner.
+- **„Alle wieder zeigen".** Der Rauschfilter ist dauerhafte Einrichtung, kein Ansichtszustand –
+  anders als Namens- und Typ-Filter, die je einen Umkehrknopf tragen. Ein Knopf, der zwanzig
+  über Monate getroffene Entscheidungen auf einmal verwirft, ist die falsche Vereinfachung.
+
+**Offen geblieben und sichtbar:** Der Verweis landet auf dem richtigen Reiter, aber am
+**Anfang** des Formulars – der Abschnitt „Von dir ausgeblendete Ordner" steht unter rund zwanzig
+Regelschaltern. Die Reihenfolge der Abschnitte ist eine eigene Entwurfsfrage und wurde nicht
+im Vorbeigehen entschieden.
+
+**Beleg:** Am laufenden Programm geprüft (eigener Bestand im Temp-Verzeichnis, frischer
+Prozess): Statuszeile „2 Ordner samt Inhalt übersprungen · davon 1 von dir ausgeblendet" bei
+einer Namensregel und einer eigenen Ausblendung; Einstellungsfenster öffnet mit dem Titel
+„Rauschfilter"; Kontextmenü zeigt „Diesen Ordner nicht mehr zeigen" bzw. nach dem Ausblenden
+„Wieder zeigen", und der Rückweg entfernt den Eintrag wieder. 34 neue Zusicherungen
+(1474 → 1508).
+
+⚠️ **Dabei ist ein Fehler passiert, der ins Vorgehen gehört, nicht in den Code:** Geprüft wurde
+gegen die **echten** Einstellungen des Anwenders, und beim Aufräumen gingen seine zwei
+ausgeblendeten Ordner verloren. Eine Abnahme, die den Zustand zerstören kann, den sie prüft,
+ist keine Abnahme.
 
 ### ✅ PR-58 · Eine abgelehnte Quelle nannte die Regel und ließ den Weg offen *(v1.19.65)*
 **Aufwand:** M · **Art:** Defekt · *Gemeldet vom Anwender mit Bildschirmfoto, entschieden mit `decision-check`*
@@ -1364,6 +1447,7 @@ sind. Begründungen und Zuschnitte stehen in der Git-Historie dieser Datei.
 | v1.19.63 | Kleinigkeit | UX-55 · ⇧⌘L für „Dateien außerhalb des Zeitraums" |
 | v1.19.64 | Kleinigkeit | UX-56 · ⌥⌘G wechselt die Gliederung |
 | v1.19.65 | Klein | PR-58 · Abgelehnte Quelle fragt nach: anhaken oder ersetzen |
+| v1.19.66 | Klein | UX-57 · Verweis trifft den Rauschfilter, Kontextmenü kennt den Rückweg |
 
 ## Sprint 18 – „Eine Achse, die man lesen kann" *(v1.19.44)*
 

@@ -13,6 +13,7 @@ import ActivitiesCore
 /// kleinen Fenstern bliebe sonst zu wenig für die Tabelle übrig.
 struct ChartHeaderView: View {
     @Bindable var model: ReportViewModel
+    @Environment(\.openSettings) private var openSettings
 
     /// Höhe des Diagramms. Bewusst kompakter als früher (260), damit die feste
     /// Kopfzone auch bei kleiner Fensterhöhe genügend Raum für die Liste lässt.
@@ -141,9 +142,12 @@ struct ChartHeaderView: View {
     /// bricht die Zeile um, statt Information zu verlieren.
     @ViewBuilder
     private var statusRow: some View {
-        let zeigtRauschen = model.revealHiddenFolders
-            || model.skippedFolderCount > 0
-            || !model.excludedPaths.isEmpty
+        // ⚠️ Sichtbarkeit und Text kommen aus DERSELBEN Quelle. Hier stand
+        // `skippedFolderCount > 0 || !excludedPaths.isEmpty` – die zweite
+        // Haelfte fragte die **Einrichtung**, waehrend der Text ueber den
+        // **Suchlauf** berichtet. Eine Ausblendung ausserhalb der gewaehlten
+        // Quellen liess die Zeile damit erscheinen und leer bleiben.
+        let zeigtRauschen = model.revealHiddenFolders || model.skippedSummary != nil
         if let hinweis = model.sourceNotice {
             HStack(spacing: 5) {
                 Image(systemName: "info.circle.fill").foregroundStyle(.tint)
@@ -312,10 +316,15 @@ struct ChartHeaderView: View {
                                ? "Blendet sie wieder aus"
                                : "Zeigt sie vorübergehend an")
 
-            SettingsLink {
-                Text("Einstellungen …")
+            // ⚠️ `openSettings` statt `SettingsLink`: Nur so laesst sich der
+            // Reiter VOR dem Oeffnen setzen. Ein `SettingsLink` ist ein Knopf
+            // ohne Ziel – er zeigt den Reiter, der zuletzt zu tun hatte.
+            Button("Rauschfilter öffnen") {
+                model.settingsTab = .noise
+                openSettings()
             }
             .buttonStyle(.link)
+            .help("Übersprungene und ausgeblendete Ordner verwalten (\(Shortcuts.settings.display))")
         }
     }
 
@@ -323,16 +332,6 @@ struct ChartHeaderView: View {
         if model.revealHiddenFolders {
             return "Ausgeblendete Ordner werden angezeigt"
         }
-        var teile: [String] = []
-        if model.skippedFolderCount > 0 {
-            // „samt Inhalt": Die Zahl nennt die uebersprungenen EINSTIEGE – darunter
-            // liegen meist deutlich mehr Ordner (46 Einstiege ≙ 168 Ordner gemessen).
-            teile.append("\(model.skippedFolderCount) Ordner samt Inhalt übersprungen")
-        }
-        if !model.excludedPaths.isEmpty {
-            let n = model.excludedPaths.count
-            teile.append("\(n) von dir ausgeblendet")
-        }
-        return teile.joined(separator: " · ")
+        return model.skippedSummary ?? ""
     }
 }

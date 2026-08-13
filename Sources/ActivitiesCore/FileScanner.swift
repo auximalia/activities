@@ -6,13 +6,28 @@ import os
 /// Ergebnis eines Suchlaufs.
 public struct ScanOutcome: Sendable {
     public let files: [RelevantFile]
-    /// Wie viele Ordner wegen einer Ausschlussregel uebersprungen wurden.
-    /// Grundlage dafuer, die Ausblendung offenzulegen statt sie zu verschweigen.
-    public let skippedFolders: Int
+    /// Ordner, die wegen einer **Namensregel** uebersprungen wurden
+    /// (`node_modules`, `.build` …).
+    public let skippedByRule: Int
+    /// Ordner, die der Anwender **selbst** ausgeblendet hat und die dieser
+    /// Suchlauf deshalb nicht betreten hat.
+    ///
+    /// **⚠️ Getrennt gezaehlt, seit die Kopfzone beide Zahlen nebeneinander
+    /// nennt.** Bis v1.19.65 lief beides auf einen Zaehler, und die Kopfzone
+    /// schrieb „35 Ordner samt Inhalt uebersprungen · 2 von dir ausgeblendet" –
+    /// die 2 steckten in den 35, und die zweite Zahl kam ausserdem aus einer
+    /// ganz anderen Quelle (der Anzahl der **Regeln**, nicht der Ordner). Zwei
+    /// Zahlen nebeneinander, von denen eine die andere enthaelt, kann niemand
+    /// lesen. Jetzt sind sie disjunkt und von derselben Art.
+    public let skippedByHiddenPath: Int
 
-    public init(files: [RelevantFile], skippedFolders: Int = 0) {
+    /// Alle uebersprungenen Ordner zusammen.
+    public var skippedFolders: Int { skippedByRule + skippedByHiddenPath }
+
+    public init(files: [RelevantFile], skippedByRule: Int = 0, skippedByHiddenPath: Int = 0) {
         self.files = files
-        self.skippedFolders = skippedFolders
+        self.skippedByRule = skippedByRule
+        self.skippedByHiddenPath = skippedByHiddenPath
     }
 }
 
@@ -112,7 +127,10 @@ public struct FileScanner: Sendable {
         var examined = 0
         // Zaehlt uebersprungene Ordner, damit die App offenlegen kann, wie viel
         // sie ausblendet – Ausschluesse duerfen kein stiller Zustand sein.
-        var skippedFolders = 0
+        // Getrennt nach Grund, weil die Kopfzone beide Zahlen nebeneinander
+        // nennt und sie sich dann nicht ueberschneiden duerfen.
+        var skippedByRule = 0
+        var skippedByHiddenPath = 0
         for case let fileURL as URL in enumerator {
             if shouldCancel() { break }
             examined += 1
@@ -130,12 +148,12 @@ public struct FileScanner: Sendable {
             if values.isDirectory == true {
                 // Ausgeschlossene Ordner und ausgeblendete Pfade nicht betreten.
                 if exclusions.isExcludedFolder(name) {
-                    skippedFolders += 1
+                    skippedByRule += 1
                     enumerator.skipDescendants()
                     continue
                 }
                 if exclusions.isExcludedPath(fileURL.path) {
-                    skippedFolders += 1
+                    skippedByHiddenPath += 1
                     enumerator.skipDescendants()
                     continue
                 }
@@ -188,7 +206,11 @@ public struct FileScanner: Sendable {
             }
         }
         onProgress(examined)
-        return ScanOutcome(files: results, skippedFolders: skippedFolders)
+        return ScanOutcome(
+            files: results,
+            skippedByRule: skippedByRule,
+            skippedByHiddenPath: skippedByHiddenPath
+        )
     }
 
     /// Listet die Dateien direkt im Ordner - ohne Zeitraumgrenze, aber mit

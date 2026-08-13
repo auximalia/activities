@@ -143,7 +143,8 @@ struct HelpView: View {
                     "Erzeugnisse von Werkzeugen (node_modules, .build …) werden übersprungen.",
                     "App-Bündel zählen als eine Datei, nicht als Ordner voller Dateien.",
                     "Kontextmenü: Ordner anheften oder dauerhaft ausblenden.",
-                    "Was übersprungen wurde, steht über der Liste – Einstellungen mit \(Shortcuts.settings.display).",
+                    "Was übersprungen wurde, steht über der Liste; das Auge davor zeigt es vorübergehend an.",
+                    "Rückgängig: im Kontextmenü des wieder eingeblendeten Ordners „Wieder zeigen“ – oder gesammelt unter „Rauschfilter öffnen“ (\(Shortcuts.settings.display)).",
                 ])
 
                 section("Immer griffbereit", icon: "menubar.arrow.up.rectangle", [

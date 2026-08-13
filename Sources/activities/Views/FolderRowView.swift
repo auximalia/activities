@@ -175,7 +175,13 @@ struct FolderContextMenu: View {
         Button(model.isPinned(folder) ? "Nicht mehr anheften" : "Anheften") {
             model.togglePinned(folder)
         }
-        Button("Diesen Ordner nicht mehr zeigen") { model.hideFolder(folder) }
+        // Wechselt die Beschriftung wie „Anheften" eine Zeile darueber. Der
+        // Rueckweg wirkt sichtbar nur, solange das Auge in der Kopfzone an ist –
+        // sonst waere die Zeile gar nicht da, auf die man klickt. Das ist kein
+        // Mangel, sondern der Zweck des Auges.
+        Button(model.isFolderHidden(folder) ? "Wieder zeigen" : "Diesen Ordner nicht mehr zeigen") {
+            model.toggleFolderHidden(folder)
+        }
     }
 
     /// „Arbeit fortsetzen" – oeffnet alle Dateien **eines Kalendertags**.

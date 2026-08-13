@@ -328,6 +328,16 @@ final class ReportViewModel {
     var filterFocusToken = 0
     /// Zaehler, um die Liste an den Anfang zu scrollen (Menue ⌘↑ / Button).
     var scrollToTopToken = 0
+    /// Welcher Reiter im Einstellungsfenster gezeigt wird.
+    ///
+    /// **⚠️ Liegt im Modell, damit ein Verweis ihn VOR dem Oeffnen setzen kann.**
+    /// Als reiner `@State` von ``SettingsView`` waere er von aussen nicht
+    /// erreichbar, und genau das ist der Zweck: „Rauschfilter oeffnen" in der
+    /// Kopfzone soll dort landen, wo es hinzeigt. Bewusst **nicht gespeichert** –
+    /// welcher Reiter zuletzt offen war, ist keine Einstellung, sondern eine
+    /// Erinnerung, und die darf beim Neustart verfallen.
+    var settingsTab: SettingsTab = .general
+
     /// Zaehler, um die Ordnerauswahl zu oeffnen (Menue ⇧⌘O).
     ///
     /// **Warum ein Zaehler und kein Aufruf.** Der Dateiauswahl-Dialog haengt
@@ -394,10 +404,30 @@ final class ReportViewModel {
     /// Angeheftete Ordner – erscheinen in einem eigenen Abschnitt, unabhaengig
     /// vom Zeitraum („was ist mir wichtig" statt „was war zuletzt").
     private(set) var pinnedFolders: [URL] = []
-    /// Wie viele Ordner der letzte Suchlauf wegen einer Ausschlussregel
+    /// Wie viele Ordner der letzte Suchlauf wegen einer **Namensregel**
     /// uebersprungen hat. Wird offengelegt (siehe Kopfzone), damit die
     /// Ausblendung kein stiller Zustand ist.
-    private(set) var skippedFolderCount = 0
+    private(set) var skippedByRuleCount = 0
+    /// Wie viele **selbst ausgeblendete** Ordner der letzte Suchlauf nicht
+    /// betreten hat.
+    ///
+    /// **⚠️ Das ist NICHT ``excludedPaths.count``, und der Unterschied ist
+    /// Absicht.** Die Kopfzone berichtet ueber **diesen Bericht**: was fehlt
+    /// hier gerade? Ein ausgeblendeter Ordner, den es nicht mehr gibt oder der
+    /// ausserhalb der gewaehlten Quellen liegt, nimmt diesem Bericht nichts weg
+    /// und wird deshalb nicht mitgezaehlt. Die Einrichtung – wie viele Eintraege
+    /// bestehen – steht im Rauschfilter-Reiter, und dort gehoert sie hin.
+    private(set) var skippedByHiddenPathCount = 0
+
+    /// Was der letzte Suchlauf uebersprungen hat, in einem Satz – oder ``nil``.
+    /// Steuert **Text und Sichtbarkeit** der Rauschfilter-Zeile in der Kopfzone;
+    /// zwei Quellen dafuer waeren zwei Gelegenheiten, auseinanderzulaufen.
+    var skippedSummary: String? {
+        ExclusionRules.skippedSummary(
+            byRule: skippedByRuleCount,
+            byHiddenPath: skippedByHiddenPathCount
+        )
+    }
     /// Rohergebnis des letzten Suchlaufs – **das gesamte gescannte Fenster**.
     /// Grundlage dafuer, eine Verkleinerung des Zeitraums ohne neuen Scan zu bedienen.
     /// Rohbestand des Suchlaufs, **je Quelle getrennt gehalten**.
@@ -877,6 +907,34 @@ final class ReportViewModel {
         rescan()
     }
 
+    /// Ob **genau dieser** Ordner ausgeblendet wurde.
+    ///
+    /// **⚠️ Absichtlich NICHT ``ExclusionRules/isExcludedPath(_:)``.** Das
+    /// beantwortet die Frage des Suchlaufs („wird hier abgebogen?") und ist fuer
+    /// jeden Unterordner eines ausgeblendeten ebenfalls wahr. Hier wird die
+    /// Frage der Bedienung gestellt: „gibt es fuer diesen Ordner einen Eintrag,
+    /// den ich zuruecknehmen kann?" Mit der weiten Fassung truege ein
+    /// Unterordner die Beschriftung „Wieder zeigen", und der Klick taete
+    /// **nichts** – ``showFolderAgain(_:)`` entfernt nur genaue Eintraege.
+    func isFolderHidden(_ url: URL) -> Bool {
+        excludedPaths.contains(ExclusionRules.normalize(url.path))
+    }
+
+    /// Blendet einen Ordner aus oder wieder ein.
+    ///
+    /// Dieselbe Form wie ``togglePinned(_:)`` – und aus demselben Grund: Der
+    /// Kontextmenue-Eintrag darueber wechselt seit jeher seine Beschriftung,
+    /// dieser hier hiess bis v1.19.65 immer „Diesen Ordner nicht mehr zeigen",
+    /// auch wenn der Ordner laengst ausgeblendet war. Ein Rueckweg fehlte damit
+    /// genau dort, wo man hinsieht: Er stand nur im Einstellungsfenster.
+    func toggleFolderHidden(_ url: URL) {
+        if isFolderHidden(url) {
+            showFolderAgain(ExclusionRules.normalize(url.path))
+        } else {
+            hideFolder(url)
+        }
+    }
+
     // MARK: - Favoriten
 
     func isPinned(_ url: URL) -> Bool {
@@ -1113,7 +1171,15 @@ final class ReportViewModel {
     ///
     /// Nur noch eine Umkehrung von ``FileVisibility/passesType(_:)`` – die Regel
     /// selbst liegt im Kern.
-    func isHidden(_ url: URL) -> Bool { !visibility.passesType(url) }
+    ///
+    /// **⚠️ Hiess bis v1.19.65 schlicht ``isHidden``, und das war zu weit
+    /// gegriffen.** „Ausgeblendet" bedeutet in diesem Programm drei
+    /// verschiedene Dinge: ein Dateityp ueber die Legende, ein Ordnername ueber
+    /// eine Rauschfilter-Regel, ein einzelner Ordner ueber „Diesen Ordner nicht
+    /// mehr zeigen". Ein Name, der nur „versteckt" sagt, gehoert keinem davon –
+    /// beim Ergaenzen der dritten Fassung griff der Aufruf prompt auf die
+    /// erste. Jeder Name nennt jetzt seinen Gegenstand.
+    func isTypeHidden(_ url: URL) -> Bool { !visibility.passesType(url) }
 
     /// Legende (Top-Endungen + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
     private func recomputeLegend() {
@@ -1153,7 +1219,7 @@ final class ReportViewModel {
         // Statt das Diagramm bei langen Zeitraeumen leer zu lassen (bis v1.11.0),
         // wird jetzt nach Woche bzw. Monat gebuendelt.
         chartGranularity = ChartGranularity.automatic(spanDays: windowSpanDays)
-        let visible = relevantFiles.filter { !isHidden($0.url) }
+        let visible = relevantFiles.filter { !isTypeHidden($0.url) }
         let showOther = otherCount > 0 && !hiddenExtensions.contains(Self.otherKey)
         chartDays = FolderAggregator.countFilesPerDayByType(
             visible,
@@ -1849,7 +1915,7 @@ final class ReportViewModel {
         let (from, to) = chartBucketRange(containing: day)
         return relevantFiles
             .filter { file in
-                !isHidden(file.url)
+                !isTypeHidden(file.url)
                     && file.timestamp >= from && file.timestamp < to
                     && matchesExtensionBucket(file.url, ext: ext)
             }
@@ -2423,7 +2489,8 @@ final class ReportViewModel {
 
         scanTask = Task { [weak self] in
             var ergebnis: [URL: [RelevantFile]] = [:]
-            var uebersprungen = 0
+            var nachRegel = 0
+            var eigene = 0
             var bisher = 0
             for quelle in list {
                 let settings = ScanSettings(
@@ -2435,14 +2502,16 @@ final class ReportViewModel {
                 }
                 if Task.isCancelled { return }
                 ergebnis[quelle] = result.files
-                uebersprungen += result.skippedFolders
+                nachRegel += result.skippedByRule
+                eigene += result.skippedByHiddenPath
                 bisher += result.files.count
             }
             guard let self else { return }
             if replacingAll { self.scannedFilesBySource = [:] }
             for (quelle, dateien) in ergebnis { self.scannedFilesBySource[quelle] = dateien }
             self.rebuildScannedFiles()
-            self.skippedFolderCount = replacingAll ? uebersprungen : self.skippedFolderCount + uebersprungen
+            self.skippedByRuleCount = replacingAll ? nachRegel : self.skippedByRuleCount + nachRegel
+            self.skippedByHiddenPathCount = replacingAll ? eigene : self.skippedByHiddenPathCount + eigene
             self.relevantFiles = self.filteredFromScan()
             self.scannedFileCount = self.relevantFiles.count
             let finished = Date()
@@ -2628,7 +2697,8 @@ final class ReportViewModel {
 
     private struct ScanResult: Sendable {
         let files: [RelevantFile]
-        let skippedFolders: Int
+        let skippedByRule: Int
+        let skippedByHiddenPath: Int
     }
 
     nonisolated private static func runScan(
@@ -2637,6 +2707,10 @@ final class ReportViewModel {
         onProgress: (Int) -> Void
     ) async -> ScanResult {
         let outcome = scanner.scan(settings: settings, shouldCancel: { Task.isCancelled }, onProgress: onProgress)
-        return ScanResult(files: outcome.files, skippedFolders: outcome.skippedFolders)
+        return ScanResult(
+            files: outcome.files,
+            skippedByRule: outcome.skippedByRule,
+            skippedByHiddenPath: outcome.skippedByHiddenPath
+        )
     }
 }

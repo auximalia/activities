@@ -127,4 +127,35 @@ public struct ExclusionRules: Sendable, Equatable {
         }
         return false
     }
+
+    /// Was der Suchlauf uebersprungen hat, in einem Satz – oder ``nil``, wenn
+    /// nichts uebersprungen wurde.
+    ///
+    /// **⚠️ „davon" ist der ganze Zweck dieser Funktion.** Bis v1.19.65 stand in
+    /// der Kopfzone „35 Ordner samt Inhalt uebersprungen · 2 von dir
+    /// ausgeblendet", und beide Zahlen kamen aus verschiedenen Welten: Die erste
+    /// zaehlte uebersprungene Ordner **einschliesslich** der eigenen, die zweite
+    /// zaehlte **Regeln**. Wer das las, konnte nicht wissen, ob es 35 oder 37
+    /// sind – und die Zeile hat keinen anderen Zweck als diese Auskunft. Jetzt
+    /// ist die erste Zahl die Summe, die zweite eine Teilmenge davon, und das
+    /// Wort „davon" sagt es.
+    ///
+    /// **⚠️ Es wird in EINEM Satz gerechnet, nicht in zwei Bausteinen.** Zwei
+    /// Teile, mit „·" zusammengesetzt, waren genau die alte Bauweise: Jeder Teil
+    /// fuer sich richtig, das Ganze mehrdeutig. Ein Verhaeltnis laesst sich nicht
+    /// aus Teilen zusammensetzen, die es nicht kennen.
+    public static func skippedSummary(byRule: Int, byHiddenPath: Int) -> String? {
+        let gesamt = byRule + byHiddenPath
+        guard gesamt > 0 else { return nil }
+        // Nur eigene Ausblendungen: Ein „davon 2 von 2" waere Buchhaltung.
+        if byRule == 0 {
+            let wort = byHiddenPath == 1 ? "ausgeblendeter Ordner" : "ausgeblendete Ordner"
+            return "\(byHiddenPath) von dir \(wort) samt Inhalt übersprungen"
+        }
+        // „samt Inhalt": Die Zahl nennt die uebersprungenen EINSTIEGE – darunter
+        // liegen meist deutlich mehr Ordner (46 Einstiege ≙ 168 Ordner gemessen).
+        let kopf = "\(gesamt) Ordner samt Inhalt übersprungen"
+        guard byHiddenPath > 0 else { return kopf }
+        return kopf + " · davon \(byHiddenPath) von dir ausgeblendet"
+    }
 }

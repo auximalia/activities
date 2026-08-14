@@ -349,6 +349,35 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            // ⚠️ **Die Urheberangabe stand bis v1.19.67 ausdruecklich nicht
+            // hier** – zwoelf Zeilen tiefer begruendete der Kommentar zur
+            // Versionsnummer, warum die Statuszeile nur Statusinformation
+            // traegt und der Credit ins „Ueber"-Fenster gehoert. Diese
+            // Entscheidung wurde am 2026-08-14 vom Eigentuemer umgekehrt; der
+            // alte Kommentar wurde mitgeaendert, damit der Quelltext nicht das
+            // Gegenteil dessen behauptet, was er tut.
+            //
+            // **Links aussen, nicht rechts.** Rechts konkurriert alles mit dem
+            // Quellpfad, der schon heute mittig gekuerzt wird. Links steht die
+            // Zeile vor Angaben mit fester Breite (Zahlen, Zeitstempel) und
+            // nimmt niemandem Platz weg.
+            //
+            // **`.secondary`, nicht `.tertiary`** – obwohl die Nebenfenster den
+            // Credit in `.tertiary` setzen. Gemessen erreicht `.tertiary` auf
+            // dem Fenstergrund **1,86:1 hell / 2,19:1 dunkel**, exakt der Wert,
+            // der in dieser Zeile schon einmal verworfen wurde (siehe unten).
+            // Zwei Antworten auf dieselbe Frage in einer Zeile waeren schlimmer
+            // als die zu laute Signatur.
+            //
+            // **`layoutPriority(-1)`** nach dem Muster des Pfades in
+            // `FolderRowView`: Schmueckendes weicht Auskunft, nicht umgekehrt.
+            Text(Branding.creditShort)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .layoutPriority(-1)
+                .accessibilityLabel("Gestaltet von \(Branding.author)")
+            Divider().frame(height: 10)
+
             Image(systemName: "folder")
                 .foregroundStyle(.secondary)
             Text("\(folderCount) Ordner · \(model.scannedFileCount) Dateien")
@@ -371,7 +400,9 @@ struct StatusBarView: View {
 
             // Versionsnummer gehoert als **Statusinformation** hierher (nicht in
             // die Arbeitsflaeche): Sie wird bei Rueckfragen und Fehlermeldungen
-            // gebraucht. Der Credit-Text dagegen steht im „Ueber"-Fenster.
+            // gebraucht. Die Urheberangabe steht seit v1.19.68 links aussen in
+            // derselben Zeile – siehe den Kommentar dort, warum diese
+            // Entscheidung umgekehrt wurde.
             //
             // ⚠️ Frueher `.tertiary` – gemessen **1,86:1** im hellen Modus
             // (WCAG AA verlangt 4,5:1). Eine Angabe, die man am Telefon

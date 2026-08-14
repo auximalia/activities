@@ -526,7 +526,7 @@ struct AboutView: View {
                 .textSelection(.enabled)
             Button("Version kopieren") { ClipboardService.copy(BuildInfo.details) }
                 .padding(.top, 2)
-            Text("designed by matthias.riedel.dresden")
+            Text(Branding.credit)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .padding(.top, 4)

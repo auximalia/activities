@@ -2536,6 +2536,30 @@ do {
     expect(!text.contains("1969 Tage"), "Ueberschrift: und nicht mehr in Tagen")
 }
 
+// MARK: - Branding: eine Urheberangabe, drei Anzeigeorte (v1.19.68)
+do {
+    // ⚠️ Die eigentliche Zusicherung ist nicht der Wortlaut, sondern die
+    // **Ableitung**: Beide Anzeigeformen muessen denselben Namen enthalten.
+    // Vorher standen drei Zeichenketten nebeneinander, und eine Umbenennung an
+    // einer Stelle liess die anderen still falsch stehen.
+    expect(!Branding.author.isEmpty, "Urheber: ist gesetzt")
+    expect(Branding.credit.contains(Branding.author), "Urheber: die lange Form nennt ihn")
+    expect(Branding.creditShort.contains(Branding.author), "Urheber: die kurze Form nennt ihn")
+
+    // Der alte Name darf nirgends mehr auftauchen – die Umbenennung war der
+    // Anlass, und ein Rest davon waere genau der Fehler, den dieser Kern
+    // verhindern soll.
+    for form in [Branding.author, Branding.credit, Branding.creditShort] {
+        expect(!form.contains("matthias.riedel.dresden"), "Urheber: der alte Name ist fort (\(form))")
+    }
+
+    // ⚠️ Die kurze Form ist die fuer die Statuszeile – sie muss kuerzer sein
+    // als die lange, sonst hat die Unterscheidung keinen Zweck (gemessen
+    // 134,9 pt gegen 186,3 pt bei 11 pt).
+    expect(Branding.creditShort.count < Branding.credit.count,
+           "Urheber: die Statuszeilen-Form ist die kuerzere")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

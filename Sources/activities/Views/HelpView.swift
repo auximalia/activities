@@ -175,7 +175,7 @@ struct HelpView: View {
 
                 shortcuts
 
-                Text("designed by matthias.riedel.dresden · \(BuildInfo.short)")
+                Text("\(Branding.credit) · \(BuildInfo.short)")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .textSelection(.enabled)

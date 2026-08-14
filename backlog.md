@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.67 · 2026-08-13*
+*Stand: v1.19.68 · 2026-08-14*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,53 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-58 · Die Urheberangabe war dreimal getippt und im Hauptfenster gar nicht *(v1.19.68)*
+**Aufwand:** S · **Art:** Wunsch des Eigentümers + Defektanlage · *Ausgelöst durch „der Kenner
+soll oben rechts – oder unten in der Fußzeile stehen"*
+
+**Beobachtet:** Der Credit stand in zwei Nebenfenstern (`AboutView`, `HelpView`) als
+**wörtlich getippte Zeichenkette** – zweimal derselbe Satz, von keiner Zusicherung erfasst.
+Im Hauptfenster stand er nicht.
+
+**Warum das eine Anlage ist, kein Schönheitsfehler:** Genau die Umbenennung, die hier
+verlangt wurde (`matthias.riedel.dresden` → `walther.matthias.riedel`), hätte eine der beiden
+Stellen treffen und die andere stehenlassen können. Das Ergebnis wäre ein Programm, das
+**zwei verschiedene Urheber nennt**, ohne dass irgendetwas rot wird – Lehre 4 in ihrer
+einfachsten Form. Die Kürzeltabelle (UX-39) ist der Beleg, dass die Lehre auch für Prosa gilt.
+
+**Gemacht:** `Branding` im Kern (`Sources/ActivitiesCore/Branding.swift`) als einzige
+Wahrheit – `author` und zwei daraus abgeleitete Formen. Alle drei Anzeigeorte greifen darauf
+zu; vier Zusicherungen in `CoreChecks` (1508 → 1515). Der Credit steht jetzt **links außen**
+in der Statuszeile.
+
+**⚠️ Das kehrt eine dokumentierte Entscheidung um.** `RootView.swift:372-374` begründete bis
+v1.19.67, warum die Statuszeile **nur Statusinformation** trägt und der Credit ins
+„Über"-Fenster gehört. Der `decision-check` hat der Begründung recht gegeben: Alle sechs
+übrigen Elemente der Zeile beantworten „in welchem Zustand bin ich gerade?", die
+Urheberangabe beantwortet nichts und ändert sich nie. Der Eigentümer hat trotzdem so
+entschieden – das ist seine Entscheidung, nicht die des Entwurfs. **Der alte Kommentar wurde
+mitgeschrieben statt stehengelassen:** Ein Quelltext, der das Gegenteil dessen behauptet, was
+er tut, ist schlimmer als einer ohne Begründung.
+
+**Was der `decision-check` vor der Umsetzung geändert hat – zwei Messungen:**
+
+| Frage | Gemessen | Folge |
+|---|---|---|
+| lange oder kurze Form? | `designed by …` **186,3 pt**, `by …` **134,9 pt** (11 pt) | kurze Form in der Statuszeile |
+| rechts oder links? | rechts kürzt bereits `statusSourceText` mittig | **links außen**, wo nur Angaben fester Breite stehen |
+| `.tertiary` wie in den Nebenfenstern? | **1,86:1 hell / 2,19:1 dunkel** – genau der Wert, den `RootView.swift:376-378` in derselben Zeile schon einmal verworfen hat | `.secondary`, wie der Rest der Zeile |
+
+**Bewusst nicht gemacht:** *oben rechts* – dort stehen ausschließlich Aktionen
+(Nach-oben-Knopf `MainToolbar.swift:292`, Update-Marke `:331`); nicht anklickbarer Text
+zwischen zwei Knöpfen ist gegen das Muster des Fensters. Keine Hilfezeile – ein Credit ist
+kein Bedienelement, über das die Hilfe Auskunft geben müsste. Kein `README.md` – kein
+Verhalten hat sich geändert.
+
+**Restrisiko, offen benannt:** Bei Fenster-Mindestbreite (820 pt) verliert der Quellpfad rund
+135 pt. Er kürzt mittig und zeigt weiterhin Anfang und Ende; der Credit trägt
+`layoutPriority(-1)` und weicht als Erstes – Schmückendes weicht Auskunft. **Am laufenden
+Programm nicht gegengeprüft** (siehe `AGENTS.md`: der Eigentümer klickt).
 
 ### ✅ PR-60 · Die Hilfe war aktuell, das übrige Geschriebene nicht *(Dokumentation)*
 **Aufwand:** S · **Art:** Defekt in der Dokumentation · *Ausgelöst durch die Frage „Ist auch die Dokumentation aktualisiert?"*

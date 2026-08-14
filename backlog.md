@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.68 · 2026-08-14*
+*Stand: v1.19.69 · 2026-08-14*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,65 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-51 · Ein Installationspaket ist in Apples Hierarchie kein Programm *(v1.19.69)*
+**Aufwand:** XS · **Art:** Defekt · **der einzige offene Eintrag mit Sicherheitsbezug**
+
+**Beobachtet:** `.pkg` und `.mpkg` melden `com.apple.installer-package-archive` und conform
+allein zu `public.archive`, `public.data`, `public.item` — **gemessen am 2026-08-14**. Damit
+fielen sie durch alle fünf verbotenen Oberklassen der Typschranke, während ein Doppelklick den
+Installer startet.
+
+**Warum ausgerechnet dieser Fall:** „Arbeit fortsetzen" öffnet Dateien **als Menge**. Die
+Schranke wurde gegen Skripte und Programme gebaut — das Installationspaket ist die
+folgenreichste Handlung von allen und war die einzige, die die Hierarchie nicht mitträgt.
+
+**Gemacht:** Ein Bezeichner mehr in `FileTypeRules.forbiddenTypeIdentifiers` (5 → 6), ein
+eigener Ablehnungsgrund („Installationspaket – würde beim Öffnen den Installer starten"),
+vier Zusicherungen.
+
+**⚠️ Der sechste Eintrag ist kein Oberbegriff, sondern ein konkreter Typ** — das ist die
+Aussage des Eintrags und der Grund, warum eine `⚠️`-Notiz an der Liste steht. Er deckt `.pkg`
+und `.mpkg` gemeinsam ab, weil beide auf denselben Typ abbilden. **Und deshalb ist die
+Listenlänge zugesichert:** `expectEqual(…count, 6)`. Wer sie hebt, muss begründen — wächst
+die Zeile je zu einer Liste, ist das der Beleg, dass PR-35 recht hatte und die Schranke am
+falschen Ort ansetzt.
+
+**Gegenprobe, ohne die es kein Befund wäre:** Ein konkreter Typ darf keinen zweiten
+mithineinziehen. Gemessen conform `xmind`, `docx`, `xlsx`, `pdf`, `bpmn`, `md`, `zip`,
+`graph`, `txt`, `key`, `pptx` **nicht** zum Installertyp; der `xmind`-Fall steht als
+Zusicherung im Kern, weil „alle Archive sperren" schon einmal 314 Arbeitsdateien des
+Anwenders getroffen hätte.
+
+### ✅ PR-52 · Der Versionsvergleich lag außerhalb jeder Prüfung *(v1.19.69)*
+**Aufwand:** S · **Art:** Anlage für einen stillen Fehler · *Lehre 4*
+
+**Beobachtet:** `SemanticVersion` und das Ablesen der Marke aus der Umleitungs-URL lagen in
+`Services/UpdateChecker.swift` — App-Schicht, für `CoreChecks` unerreichbar. Das Ablesen stand
+sogar **mitten im `URLSession`-Aufruf** und war damit nur mit einer echten Netzanfrage prüfbar,
+also gar nicht.
+
+**Warum das mehr ist als Ordnungsliebe:** Beide Fehlerarten sind still. Ein Vergleich, der
+falsch antwortet, bietet **nie** ein Update an oder **immer** — niemand bemerkt ein Update,
+das nicht angeboten wird, und wer täglich „Update verfügbar" auf die eigene Version sieht,
+hält irgendwann das Programm für kaputt. Ein abgestürztes Programm hätte sich längst gemeldet;
+dieser Zustand kann Monate bestehen.
+
+**Gemacht:** `Sources/ActivitiesCore/SemanticVersion.swift` mit dem Typ, dem Ablesen
+(`fromReleaseRedirect`) und **beiden Entscheidungen**, die still falsch sein konnten:
+`isPlaceholder` (der 0.0.0-Bau ohne Bündel — der Zweig „immer ein Update") und
+`offersUpdate(current:latest:)` (der Zweig „nie"). `UpdateChecker` behält nur noch, was ohne
+Netz und Bündel nicht zu beantworten ist. 22 Zusicherungen, darunter `1.3.10 > 1.3.9` — der
+Fall, der als Zeichenkette falsch herauskommt und der App **unmittelbar bevorsteht**, weil der
+Patch-Stand zweistellig ist und dreistellig wird.
+
+**⚠️ „echt größer", nicht „ungleich":** Unmittelbar nach `release.sh` läuft die neuere Fassung
+lokal, bevor das Release sichtbar ist. „Ungleich" böte dort ein Herabstufen an — als
+Zusicherung festgehalten.
+
+**Bewusst nicht mitgezogen:** Die manuelle Suche vergleicht weiter ohne die
+Platzhalter-Ausnahme. Sie beantwortet eine **gestellte Frage**; die Unterdrückung gilt der
+stillen Marke in der Werkzeugleiste, nicht einer Antwort, um die jemand gebeten hat.
 
 ### ✅ UX-58 · Die Urheberangabe war dreimal getippt und im Hauptfenster gar nicht *(v1.19.68)*
 **Aufwand:** S · **Art:** Wunsch des Eigentümers + Defektanlage · *Ausgelöst durch „der Kenner
@@ -1256,27 +1315,6 @@ wird: Doppelklick auf den **Ordnernamen** statt auf die ganze Zeile, dann bleibt
 auf die Zeilenfläche unverzögert.
 
 ---
-
-### PR-51 · `.pkg` fällt durch die Typschranke
-**Aufwand:** XS · **Nutzen:** gering · **P3**
-
-`com.apple.installer-package-archive` gehört zu keiner der fünf verbotenen Oberklassen und
-wird **durchgelassen** – ein Doppelklick startet den Installer. Behebbar durch genau **einen**
-zusätzlichen Bezeichner in `FileTypeRules.forbiddenTypeIdentifiers`.
-
-**⚠️ Damit wird die Liste zum ersten Mal von Hand gepflegt** – aber mit *einem* Eintrag und dem
-klaren Kriterium „Installationspaket", nicht mit jeder Skriptsprache. Das ist der Unterschied
-zu der Verbotsliste, die PR-35 verworfen hat.
-
-### PR-52 · `SemanticVersion` liegt außerhalb von `CoreChecks`
-**Aufwand:** S · **Nutzen:** gering–mittel · **P3**
-
-`SemanticVersion` und das Ablesen der Marke aus der Umleitungs-URL liegen in der App-Schicht
-(`Services/UpdateChecker.swift`) und sind damit von `CoreChecks` unerreichbar – Lehre 4.
-
-**Warum das mehr ist als Ordnungsliebe:** Ein Versionsvergleich, der still falsch antwortet,
-böte entweder **nie** ein Update an oder **immer**. Beides fällt niemandem auf, der es nicht
-gezielt sucht.
 
 # Erledigt und geschlossen
 

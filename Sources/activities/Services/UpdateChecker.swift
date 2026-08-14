@@ -3,32 +3,6 @@ import ActivitiesCore
 import AppKit
 import Observation
 
-/// Semantische Version (Major.Minor.Patch) mit korrektem **numerischem**
-/// Vergleich – ein reiner Zeichenketten-Vergleich waere falsch
-/// (z. B. "1.3.10" < "1.3.9" als Text, aber groesser als Version).
-struct SemanticVersion: Comparable, CustomStringConvertible {
-    let major: Int
-    let minor: Int
-    let patch: Int
-
-    /// Liest "1.3.2" oder "v1.3.2"; fehlende Stellen zaehlen als 0.
-    init?(_ raw: String) {
-        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.hasPrefix("v") || text.hasPrefix("V") { text.removeFirst() }
-        let parts = text.split(separator: ".").map { Int($0.prefix(while: \.isNumber)) }
-        guard let first = parts.first, let major = first else { return nil }
-        self.major = major
-        self.minor = parts.count > 1 ? (parts[1] ?? 0) : 0
-        self.patch = parts.count > 2 ? (parts[2] ?? 0) : 0
-    }
-
-    var description: String { "\(major).\(minor).\(patch)" }
-
-    static func < (lhs: SemanticVersion, rhs: SemanticVersion) -> Bool {
-        (lhs.major, lhs.minor, lhs.patch) < (rhs.major, rhs.minor, rhs.patch)
-    }
-}
-
 /// Fehler bei der Update-Pruefung.
 ///
 /// **⚠️ Es gab hier einmal genau einen Fall (`badResponse`) fuer fuenf
@@ -133,20 +107,16 @@ final class UpdateChecker {
     /// Ergebnis der letzten **manuell** ausgeloesten Pruefung (fuer den Dialog).
     var manualResult: UpdateCheckResult?
 
-    /// Ob ein Update angeboten werden soll.
-    var isUpdateAvailable: Bool {
-        guard let latest = latestVersion, let current = currentVersion else { return false }
-        return latest > current
-    }
-
-    /// Beim Entwickeln (``swift run`` ohne Bundle) ist die Version "0.0.0";
-    /// dann waere immer ein "Update" verfuegbar – daher unterdruecken.
-    private var isDevelopmentBuild: Bool {
-        currentVersion.map { $0.major == 0 && $0.minor == 0 && $0.patch == 0 } ?? true
-    }
-
     /// Ob der Hinweis in der Oberflaeche erscheinen soll.
-    var showsUpdateBadge: Bool { isUpdateAvailable && !isDevelopmentBuild }
+    ///
+    /// **Die Regel steht im Kern** (``SemanticVersion/offersUpdate(current:latest:)``),
+    /// weil ihre beiden Fehlerarten still sind: nie anbieten oder immer. Hier
+    /// bleibt nur, was ohne Netz und Buendel nicht zu beantworten ist – ob
+    /// ueberhaupt schon zwei Versionen vorliegen.
+    var showsUpdateBadge: Bool {
+        guard let latest = latestVersion, let current = currentVersion else { return false }
+        return SemanticVersion.offersUpdate(current: current, latest: latest)
+    }
 
     init() {
         currentVersion = SemanticVersion(BuildInfo.marketingVersion)
@@ -305,11 +275,12 @@ final class UpdateChecker {
         }
 
         // Die letzte Wegmarke der Ziel-URL ist die Marke: `.../tag/v1.19.39`.
-        // Hat das Repo noch kein Release, endet die Umleitung auf `/releases` –
-        // daraus laesst sich keine Version lesen, und genau das ist die Aussage.
+        // **Das Ablesen liegt im Kern** (PR-52) – hier steht nur noch, woher
+        // die URL kommt. Hat das Repo noch kein Release, endet die Umleitung
+        // auf `/releases`, und dann ist `nil` die Aussage, nicht der Fehler.
         guard
             let final = http.url,
-            let version = SemanticVersion(final.lastPathComponent)
+            let version = SemanticVersion.fromReleaseRedirect(final)
         else {
             throw UpdateError.noRelease
         }

@@ -83,12 +83,33 @@ public struct FileTypeRules: Sendable, Equatable, Codable {
     /// dynamischen Bezeichner und conform zu nichts – aus „nicht verboten"
     /// folgt also kein „erlaubt". Deshalb bleibt die Erlaubnisliste das erste
     /// Netz und wird durch diese Schranke nicht ersetzt, sondern abgesichert.
+    ///
+    /// **⚠️ Der sechste Eintrag ist keine Oberklasse, sondern ein konkreter
+    /// Typ – und das ist die eigentliche Aussage von PR-51.** Ein
+    /// Installationspaket ist in Apples Hierarchie **kein** Programm: `.pkg`
+    /// meldet `com.apple.installer-package-archive` und conform allein zu
+    /// `public.archive`, `public.data`, `public.item` (gemessen am
+    /// 2026-08-14). Es fiel damit durch alle fünf Oberklassen, während ein
+    /// Doppelklick den Installer startet – die folgenreichste Handlung, die
+    /// „Arbeit fortsetzen" auslösen konnte.
+    ///
+    /// **Warum das trotzdem nicht die Verbotsliste aus PR-35 ist:** Jene hätte
+    /// jede gefährliche *Endung* aufzählen müssen. Hier steht **ein**
+    /// Bezeichner mit einem geschlossenen Kriterium („Installationspaket"), und
+    /// er deckt `.pkg` und `.mpkg` gemeinsam ab, weil beide auf denselben Typ
+    /// abbilden. *Wächst diese Zeile je zu einer Liste, ist das der Beleg, dass
+    /// PR-35 recht hatte und die Schranke am falschen Ort ansetzt.*
+    ///
+    /// **⚠️ „Alle Archive sperren" bleibt widerlegt** – siehe oben, `xmind`
+    /// conform zu `public.archive`. Gegengeprüft am 2026-08-14: `xmind`,
+    /// `docx`, `zip`, `bpmn`, `pdf`, `md` conform **nicht** zum Installertyp.
     public static let forbiddenTypeIdentifiers: [String] = [
         "public.executable",
         "public.script",
         "public.unix-executable",
         "com.apple.application",
-        "public.disk-image"
+        "public.disk-image",
+        "com.apple.installer-package-archive"
     ]
 
     /// Warum eine Freigabe abgelehnt wird – ``nil`` heißt: erlaubt.
@@ -109,6 +130,12 @@ public struct FileTypeRules: Sendable, Equatable, Codable {
         }
         if bezeichner.contains("public.disk-image") {
             return "Abbild – würde beim Öffnen eingebunden."
+        }
+        // ⚠️ Eigener Zweig statt Anhaengsel an „Programm": Ein Installationspaket
+        // wird nicht *gestartet*, es **installiert** – und wer das liest, soll
+        // die Folge kennen, nicht die Kategorie.
+        if bezeichner.contains("com.apple.installer-package-archive") {
+            return "Installationspaket – würde beim Öffnen den Installer starten."
         }
         return nil
     }

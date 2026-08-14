@@ -2427,6 +2427,33 @@ do {
     expect(!FileTypeRules.forbiddenTypeIdentifiers.contains("public.archive"),
            "Schranke: public.archive steht bewusst nicht auf der Liste")
 
+    // ── PR-51: das Installationspaket, das durch alle fuenf Oberklassen fiel. ──
+    //
+    // ⚠️ `.pkg` und `.mpkg` melden beide `com.apple.installer-package-archive`
+    // und conform allein zu public.archive/data/item - gemessen am 2026-08-14.
+    // Sie waren damit die folgenreichste Luecke der Schranke: Ein Doppelklick
+    // startet den Installer.
+    expect(!FileTypeRules.mayBeResumed(conformingTo: ["com.apple.installer-package-archive",
+                                                     "public.archive", "public.data"]),
+           "Schranke: ein Installationspaket wird abgelehnt")
+    expect(FileTypeRules.resumeRejection(conformingTo: ["com.apple.installer-package-archive"])?
+            .contains("Installationspaket") == true,
+           "Schranke: und der Grund nennt es beim Namen")
+
+    // ⚠️ Die Gegenprobe ist die eigentliche Zusicherung: Der neue Eintrag ist
+    // ein KONKRETER Typ, kein Oberbegriff - er darf keinen zweiten Typ mit
+    // hineinziehen. Gemessen conform xmind, docx, zip, bpmn, pdf, md NICHT
+    // dazu; hier steht der Fall, der es beweisen muss.
+    expect(FileTypeRules.mayBeResumed(conformingTo: ["org.xmind.openformat.xmind",
+                                                    "public.archive", "public.data"]),
+           "Schranke: xmind bleibt erlaubt, obwohl auch es ein Archiv ist")
+
+    // ⚠️ Ein Eintrag mehr ist ein Eintrag, eine Liste waere der Rueckfall in
+    // die Verbotsliste, die PR-35 verworfen hat. Diese Zahl ist die Bremse:
+    // Wer sie hebt, soll begruenden, warum die Schranke am richtigen Ort sitzt.
+    expectEqual(FileTypeRules.forbiddenTypeIdentifiers.count, 6,
+                "Schranke: fuenf Oberklassen und genau EIN konkreter Typ")
+
     // ── Die Erlaubnisliste bleibt das erste Netz. ──
     //
     // ⚠️ Die Typhierarchie kann VERWEIGERN, nie ERLAUBEN: `bpmn` hat einen
@@ -2558,6 +2585,63 @@ do {
     // 134,9 pt gegen 186,3 pt bei 11 pt).
     expect(Branding.creditShort.count < Branding.credit.count,
            "Urheber: die Statuszeilen-Form ist die kuerzere")
+}
+
+// MARK: - SemanticVersion: der Vergleich, dessen Fehler beide still sind (PR-52)
+do {
+    func v(_ s: String) -> SemanticVersion { SemanticVersion(s)! }
+
+    // ⚠️ Der Grund, warum es diesen Typ gibt: Als Zeichenkette steht "1.3.10"
+    // VOR "1.3.9", als Version dahinter. Genau dieser Uebergang steht der App
+    // bevor - der Patch-Stand ist zweistellig und wird dreistellig.
+    expect(v("1.3.10") > v("1.3.9"), "Version: 1.3.10 ist neuer als 1.3.9")
+    expect(v("1.19.68") > v("1.9.99"), "Version: die Minor-Stelle zaehlt numerisch")
+    expect(v("2.0.0") > v("1.999.999"), "Version: Major schlaegt alles")
+    expect(!(v("1.19.68") > v("1.19.68")), "Version: gleich ist nicht neuer")
+
+    // Das „v" der Marke gehoert nicht zur Zahl, in beiden Schreibweisen.
+    expectEqual(v("v1.19.68").description, "1.19.68", "Version: fuehrendes v faellt weg")
+    expectEqual(v("V1.19.68").description, "1.19.68", "Version: auch als Grossbuchstabe")
+    expect(v("v1.19.68") == v("1.19.68"), "Version: mit und ohne Marke ist dasselbe")
+
+    // Fehlende Stellen sind 0, nachlaufender Text wird abgeschnitten.
+    expectEqual(v("2").description, "2.0.0", "Version: fehlende Stellen zaehlen als 0")
+    expectEqual(v("2.5").description, "2.5.0", "Version: auch die Patch-Stelle")
+    expectEqual(v("1.19.68-beta").description, "1.19.68", "Version: ein Zusatz legt nichts still")
+
+    // ⚠️ Was KEINE Version ist, muss nil ergeben - sonst liest die Pruefung
+    // eine Zahl aus einer Wegmarke, die keine ist.
+    expect(SemanticVersion("releases") == nil, "Version: „releases\u{201C} ist keine")
+    expect(SemanticVersion("latest") == nil, "Version: „latest\u{201C} auch nicht")
+    expect(SemanticVersion("") == nil, "Version: die leere Zeichenkette auch nicht")
+
+    // ── Die Marke aus der Umleitung (frueher mitten im URLSession-Aufruf). ──
+    let mitRelease = URL(string: "https://github.com/auximalia/activities/releases/tag/v1.19.68")!
+    expectEqual(SemanticVersion.fromReleaseRedirect(mitRelease)?.description, "1.19.68",
+                "Umleitung: die letzte Wegmarke ist die Marke")
+    let ohneRelease = URL(string: "https://github.com/auximalia/activities/releases")!
+    expect(SemanticVersion.fromReleaseRedirect(ohneRelease) == nil,
+           "Umleitung: ohne Release gibt es keine Version zu lesen")
+
+    // ── Die beiden stillen Fehlerarten. ──
+    //
+    // ⚠️ „immer ein Update": Ohne Buendel meldet BuildInfo 0.0.0, und das ist
+    // kleiner als jede veroeffentlichte Fassung.
+    expect(v("0.0.0").isPlaceholder, "Platzhalter: 0.0.0 ist der Bau ohne Buendel")
+    expect(!v("0.0.1").isPlaceholder, "Platzhalter: 0.0.1 ist eine echte Fassung")
+    expect(!SemanticVersion.offersUpdate(current: v("0.0.0"), latest: v("1.19.68")),
+           "Angebot: ein Entwicklungsbau bekommt kein Update auf sich selbst")
+
+    // ⚠️ „nie ein Update": der Normalfall muss durchkommen.
+    expect(SemanticVersion.offersUpdate(current: v("1.19.67"), latest: v("1.19.68")),
+           "Angebot: eine neuere Fassung wird angeboten")
+    expect(!SemanticVersion.offersUpdate(current: v("1.19.68"), latest: v("1.19.68")),
+           "Angebot: die gleiche nicht")
+    // ⚠️ Unmittelbar nach release.sh laeuft die neuere Fassung lokal, bevor das
+    // Release sichtbar ist - „ungleich" statt „groesser" boete hier ein
+    // Herabstufen an.
+    expect(!SemanticVersion.offersUpdate(current: v("1.19.69"), latest: v("1.19.68")),
+           "Angebot: und eine aeltere erst recht nicht")
 }
 
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")

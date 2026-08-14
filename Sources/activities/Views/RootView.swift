@@ -386,10 +386,6 @@ struct StatusBarView: View {
             scanAge
 
             Spacer()
-            if model.autoRefresh {
-                Label("Auto", systemImage: "antenna.radiowaves.left.and.right")
-                    .foregroundStyle(.secondary)
-            }
             // Bei mehreren Quellen der gemeinsame Kurztext; die vollen Pfade
             // stehen im Tooltip, sonst waere die Statuszeile drei Zeilen hoch.
             Text(model.statusSourceText)
@@ -439,13 +435,28 @@ struct StatusBarView: View {
         .padding(.vertical, 4)
     }
 
-    /// Wann zuletzt **von der Platte** gelesen wurde.
+    /// Wann zuletzt **von der Platte** gelesen wurde – und ob man dem Gezeigten
+    /// glauben darf.
     ///
     /// **Sichtbar statt im Tooltip.** Hier stand frueher nur die Scan-*Dauer*,
     /// und die auch nur als Kurzhinweis – sie beantwortet die einzige Frage,
     /// auf die es ankommt („darf ich dem Gezeigten glauben?"), gerade nicht.
     /// Zeitraum-Ueberschrift und Abschnittsnamen sagen „heute", der Bestand
     /// kann aber von gestern sein (siehe ``ReportViewModel/lastScanAt``).
+    ///
+    /// **⚠️ Die Bedingung liegt in ``ScanFreshness`` im Kern, nicht hier.** Der
+    /// Fehler einer Warnbedingung ist die unsichtbarste Art von Fehler: Eine
+    /// Warnung, die nicht mehr erscheint, meldet sich nicht. Bis v1.19.69 stand
+    /// die Bedingung als `if` an dieser Stelle und war ueberwiegend **falsch** –
+    /// „veraltet" hing allein am Alter der letzten Lesung, obwohl ein laufender
+    /// Beobachter jede Aenderung von selbst gemeldet haette. Die Zeile behauptete
+    /// dann gleichzeitig „Auto" und „veraltet".
+    ///
+    /// **⚠️ Die Marke „Auto" ist deshalb entfallen.** Ihre Aussage steht jetzt
+    /// hier, an der Stelle, an der die Frage gestellt wird – zwei Elemente
+    /// derselben Zeile, die dasselbe sagen, sind kein Nachdruck, sondern eine
+    /// Einladung, beide zu ueberlesen. Geschaltet wird der Beobachter weiterhin
+    /// im Umschalter der Werkzeugleiste; **dort** bleibt die Antenne.
     @ViewBuilder
     private var scanAge: some View {
         if let readAt = model.lastScanAt {
@@ -453,33 +464,92 @@ struct StatusBarView: View {
             // niemand etwas tut – ein unberuehrtes Fenster zeichnet sonst nie
             // neu und bliebe ewig unauffaellig gruen.
             TimelineView(.periodic(from: readAt, by: 60)) { context in
-                let age = context.date.timeIntervalSince(readAt)
-                let isStale = age >= ReportViewModel.stalenessLimit
-                HStack(spacing: 4) {
-                    Image(systemName: isStale ? "exclamationmark.triangle.fill" : "clock.arrow.circlepath")
-                    // **⚠️ Das Wort „veraltet" steht im Text, nicht nur in der
-                    // Farbe.** Vorher war der Text in beiden Zustaenden
-                    // wortgleich („Stand: …") und der Unterschied allein
-                    // farblich – fuer Farbfehlsichtige und fuer
-                    // Vorleseprogramme also gar nicht vorhanden (UX-34).
-                    Text(isStale ? "Stand: \(DateFormatting.dateTime(readAt)) · veraltet"
-                                 : "Stand: \(DateFormatting.dateTime(readAt))")
+                let stand = ScanFreshness.state(lastScanAt: readAt,
+                                                isWatching: model.isWatching,
+                                                now: context.date)
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: symbol(for: stand))
+                        // **⚠️ Das Wort steht im Text, nicht nur in der Farbe.**
+                        // Vorher war der Text in beiden Zustaenden wortgleich
+                        // („Stand: …") und der Unterschied allein farblich – fuer
+                        // Farbfehlsichtige und fuer Vorleseprogramme also gar nicht
+                        // vorhanden (UX-34). Der Zusatz kommt aus dem Kern.
+                        Text(stand.suffix.map { "Stand: \(DateFormatting.dateTime(readAt)) · \($0)" }
+                             ?? "Stand: \(DateFormatting.dateTime(readAt))")
+                            // ⚠️ `.semibold`, nicht `.bold`: Das ist die Emphase des
+                            // Hauses (EmptyStateView, Abschnittskoepfe, Hinweisband);
+                            // `.bold` traegt hier nur der Titel im Ueber-Fenster.
+                            // Gemessen +7,1 pt Breite (154,0 → 161,1 bei 11 pt) –
+                            // die Zeile hat einen `Spacer`, es ruckt nichts.
+                            //
+                            // **Der Fettdruck kam erst, als die Meldung wahr wurde.**
+                            // Eine haeufig falsche Warnung lauter zu stellen, macht
+                            // die App nicht wachsamer, sondern erzieht dazu, auch
+                            // die richtige zu ueberlesen.
+                            .fontWeight(stand.isWarning ? .semibold : .regular)
+                    }
+                    .foregroundStyle(stand.isWarning ? Color(nsColor: Self.staleWarning) : Color.secondary)
+                    .help(tooltip(for: stand, readAt: readAt))
+                    .accessibilityLabel(voiceOver(for: stand, readAt: readAt))
+
+                    // **⚠️ Der Weg zurueck steht da, statt im Tooltip zu stehen.**
+                    // Er stand dort – „⌘R liest den Ordner neu ein" –, und ein
+                    // Tooltip existiert fuer Vorleseprogramme nicht. Damit hatte die
+                    // Meldung fuer VoiceOver ueberhaupt keinen Ausweg. Dieselbe
+                    // Bauform wie „Rauschfilter oeffnen" neben dem Rauschtext
+                    // (`ChartHeaderView.noiseSegment`) – benannt nach der Handlung,
+                    // nicht mit „OK". Vorlage sind UX-57 und PR-58: Eine Meldung,
+                    // die das Problem nennt und die Reparatur verschweigt, ist der
+                    // Defekt, den dieses Haus zweimal aufgeschrieben hat.
+                    if stand.offersRescan {
+                        Button("Jetzt neu einlesen") { model.rescan() }
+                            .buttonStyle(.link)
+                            .help(Shortcuts.rescan.hint("Ordner jetzt neu einlesen"))
+                    }
                 }
-                .foregroundStyle(isStale ? Color(nsColor: Self.staleWarning) : Color.secondary)
-                .help(isStale
-                      ? "Zuletzt eingelesen \(DateFormatting.relative(readAt)) – seitdem kann sich einiges geändert haben. ⌘R liest den Ordner neu ein."
-                      : String(
-                          format: "Zuletzt eingelesen: %@ (Suchlauf %.2f s). ⌘R liest den Ordner neu ein.",
-                          DateFormatting.dateTime(readAt),
-                          model.lastScanDuration
-                      ))
-                .accessibilityLabel(isStale
-                    ? "Achtung, die Daten sind veraltet. Zuletzt eingelesen \(DateFormatting.relative(readAt))."
-                    : "Zuletzt eingelesen: \(DateFormatting.dateTime(readAt))")
             }
         } else {
             Text("Noch nicht eingelesen")
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private func symbol(for stand: ScanFreshness) -> String {
+        switch stand {
+        case .stale: "exclamationmark.triangle.fill"
+        // ⚠️ Kein zweites Antennen-Symbol. Die Antenne gehoert dem **Schalter**
+        // in der Werkzeugleiste; hier wird nichts geschaltet, hier steht der
+        // Stand. Der Kreispfeil-mit-Uhr sagt „liest von selbst nach" und ist
+        // derselbe wie im ruhigen Fall – der Unterschied steht im Wort.
+        case .watched, .idle, .never: "clock.arrow.circlepath"
+        }
+    }
+
+    private func tooltip(for stand: ScanFreshness, readAt: Date) -> String {
+        switch stand {
+        case .stale:
+            "Zuletzt eingelesen \(DateFormatting.relative(readAt)) – seitdem kann sich einiges "
+                + "geändert haben, denn die Ordner werden gerade nicht beobachtet. "
+                + "\(Shortcuts.rescan.display) liest sie neu ein."
+        case .watched:
+            "Die Ordner werden beobachtet – Änderungen erscheinen von selbst. Zuletzt "
+                + "eingelesen: \(DateFormatting.dateTime(readAt)) "
+                + String(format: "(Suchlauf %.2f s).", model.lastScanDuration)
+        case .idle, .never:
+            String(format: "Zuletzt eingelesen: %@ (Suchlauf %.2f s). %@ liest den Ordner neu ein.",
+                   DateFormatting.dateTime(readAt), model.lastScanDuration, Shortcuts.rescan.display)
+        }
+    }
+
+    private func voiceOver(for stand: ScanFreshness, readAt: Date) -> String {
+        switch stand {
+        case .stale:
+            "Achtung, die Daten sind veraltet. Zuletzt eingelesen \(DateFormatting.relative(readAt))."
+        case .watched:
+            "Die Ordner werden beobachtet. Zuletzt eingelesen: \(DateFormatting.dateTime(readAt))."
+        case .idle, .never:
+            "Zuletzt eingelesen: \(DateFormatting.dateTime(readAt))."
         }
     }
 

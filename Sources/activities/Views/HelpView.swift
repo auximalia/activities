@@ -56,11 +56,15 @@ struct HelpView: View {
                     "Gelesen wird nur bei Start, Ordnerwechsel, \(Shortcuts.rescan.display) und Auto-Refresh.",
                     "Zeitraum und Filter wirken sofort – ohne neuen Suchlauf.",
                     "„Aktualisieren“ (\(Shortcuts.rescan.display), Symbol ↻) liest den Ordner neu von der Platte.",
-                    "Die Statuszeile nennt unter „Stand“ den Zeitpunkt dieses Lesevorgangs – "
-                        + "sie färbt sich orange, sobald er über eine Stunde zurückliegt.",
+                    "Die Statuszeile nennt unter „Stand“ den Zeitpunkt dieses Lesevorgangs.",
+                    "Läuft Auto-Refresh, steht dort „wird überwacht“ – dann altert die Angabe nicht, "
+                        + "weil Änderungen von selbst ankommen.",
+                    "Ohne Auto-Refresh färbt sie sich orange und sagt „veraltet“, sobald der "
+                        + "Lesevorgang über eine Stunde zurückliegt; daneben steht dann "
+                        + "„Jetzt neu einlesen“.",
                     "Roter Stopp-Knopf bricht einen laufenden Suchlauf ab.",
-                    "Auto-Refresh (Antennensymbol) lädt automatisch neu, wenn sich der Ordner ändert; "
-                        + "durchgestrichen bedeutet: aus.",
+                    "Auto-Refresh (Antennensymbol in der Werkzeugleiste) lädt automatisch neu, wenn "
+                        + "sich der Ordner ändert; durchgestrichen bedeutet: aus.",
                 ])
 
                 section("Diagramm & Legende", icon: "chart.bar.xaxis", [

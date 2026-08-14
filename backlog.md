@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.69 · 2026-08-14*
+*Stand: v1.19.70 · 2026-08-14*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,82 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-59 · „Auto" und „veraltet" standen nebeneinander in derselben Zeile *(v1.19.70)*
+**Aufwand:** M · **Art:** Defekt · *aus der Praxis gemeldet, mit Bild* · **P1**
+
+**Gemeldet wurde etwas anderes,** und das ist der interessante Teil: „die Meldung deutlicher,
+z. B. fetter" und „direkt daneben die Lösung mit einem Klick". Beides berechtigt. Die
+Nachprüfung ergab aber, dass die Meldung im Bild **wahrscheinlich falsch war**.
+
+**Beobachtet:** `isStale` hing allein an der Wanduhr — letzte Plattenlesung älter als eine
+Stunde. `lastScanAt` rückt jedoch nur bei einem **echten Suchlauf** vor
+(`ReportViewModel.swift`, eine einzige Zuweisung), und der `FolderWatcher` löst
+**ausschließlich bei einer Dateisystem-Änderung** aus — im ganzen Programm gibt es keinen
+Takt, der ohne Anlass nachliest (geprüft: `FolderWatcher.swift` hat 67 Zeilen und keinen
+Timer). **Ändert sich eine Stunde lang nichts, meldete die App „veraltet", obwohl die Anzeige
+byteweise stimmte.** Und sie tat es, während zwei Zentimeter weiter rechts die Marke „Auto"
+stand: *Das Programm behauptete gleichzeitig, es beobachte die Ordner, und es wisse nicht,
+was darin steht.*
+
+**⚠️ Der Fettdruck war deshalb der zweite Schritt, nicht der erste.** Eine Warnung lauter zu
+stellen, die häufiger falsch als richtig ist, macht die App nicht wachsamer — sie erzieht
+dazu, auch die richtige zu überlesen. *Die Frage „wie mache ich das auffälliger" war die
+falsche; die tragfähige lautete „unter welcher Bedingung ist es überhaupt wahr".*
+
+**Gemacht — vier Dinge, in dieser Reihenfolge:**
+
+1. **`ScanFreshness` im Kern** (`Sources/ActivitiesCore/ScanFreshness.swift`): vier Zustände
+   (`never`, `watched`, `idle`, `stale`), die Bedingung, das Wort dazu und die Kopplung von
+   Warnung und Reparaturweg. 17 Zusicherungen. **⚠️ Der Fehler einer Warnbedingung ist die
+   unsichtbarste Art von Fehler: Eine Warnung, die nicht mehr erscheint, meldet sich nicht.**
+   Als `if` in einem `TimelineView` konnte sie jahrelang falsch sein — und war es.
+2. **Zwei Aussagen statt einer Schwelle.** Läuft ein Beobachter, sagt die Zeile „· wird
+   überwacht" und altert nicht; ohne Beobachter bleibt es bei der Stundenfrist und „·
+   veraltet". Bei aktivem Beobachter ist „aktuell" keine Vermutung über das Alter, sondern
+   eine Zusicherung des Systems.
+3. **Der Weg zurück steht da, statt im Tooltip zu stehen** — Link „Jetzt neu einlesen" neben
+   der Warnung, nach dem Muster von `ChartHeaderView.noiseSegment`. **Er stand vorher nur im
+   Tooltip** („⌘R liest den Ordner neu ein"), und ein Tooltip existiert für Vorleseprogramme
+   nicht: Für VoiceOver gab es bis hierher **überhaupt keinen Ausweg**. Das ist derselbe
+   Defekt wie UX-57 und PR-58, zum dritten Mal.
+4. **`.semibold` im Warnzustand** — jetzt, wo die Meldung wahr ist. Die Emphase des Hauses
+   (`EmptyStateView`, Abschnittsköpfe, Hinweisband); `.bold` trägt hier nur der Titel im
+   Über-Fenster.
+
+**⚠️ Die Marke „Auto" ist entfallen.** Ihre Aussage steht jetzt links, an der Stelle, an der
+die Frage gestellt wird. Zwei Elemente derselben Zeile, die dasselbe sagen, sind kein
+Nachdruck, sondern eine Einladung, beide zu überlesen. **Geschaltet** wird der Beobachter
+weiter im Umschalter der Werkzeugleiste — *und dort bleibt die Antenne*: Der gemeldete Einwand
+gegen das Symbol trifft zu, aber die Begründung von v1.19.5 trägt weiter (der Vorgänger
+`arrow.triangle.2.circlepath` wurde mit dem Knopf „neu einlesen" verwechselt), und `eye` ist
+als Ersatz vergeben — es gehört dem Rauschfilter. Ohne belastbaren Dritten bleibt es.
+
+**⚠️ Der Beobachter wird beim Aufwachen erneuert** (`NSWorkspace.didWakeNotification`, zweiter
+Haken dieser Art nach `UpdateChecker`). **Ohne ihn stirbt die neue Zusicherung im Schlaf:**
+„Bei Beobachtung nie warnen" ist nur zu verantworten, wenn der Beobachter auch wirklich läuft,
+und ein FSEvent-Strom übersteht den Ruhezustand nicht zuverlässig. Erneuern **und** einmal
+lesen — der neue Strom nimmt Änderungen ab dem Neustart entgegen, was *während* des Schlafs
+geschah, hat niemand gesehen.
+
+**⚠️ `isWatching` ist nicht `autoRefresh`.** Der Schalter ist der **Wunsch** und wird
+gespeichert; das neue Feld ist die **Tatsache**. Ohne ausgewählte Quelle gibt es nichts zu
+beobachten — die Zeile dürfte dann nicht „wird überwacht" sagen, obwohl der Schalter an ist.
+*Genau diese Verwechslung von Absicht und Zustand war der ganze Befund, eine Ebene tiefer.*
+
+**Gemessen** (11 pt, längster Fall mit vollem Datum):
+
+| | vorher | nachher |
+|---|---|---|
+| linkes Segment | 201,6 pt | 242,6 pt |
+| Marke „Auto" rechts | ~50 pt | entfällt |
+| **Zeile gesamt** | | **−9 pt** |
+
+Fettdruck kostet 7,1 pt (154,0 → 161,1); die Zeile hat einen `Spacer`, es ruckt nichts.
+
+**Bewusst nicht gemacht:** Die Stundenfrist bleibt bei einer Stunde — geändert hat sich nur,
+*wann sie überhaupt gilt*. Und kein Takt, der ohne Anlass nachliest: Das wäre die dritte
+Antwort auf dieselbe Frage neben Beobachter und ⌘R.
 
 ### ✅ PR-51 · Ein Installationspaket ist in Apples Hierarchie kein Programm *(v1.19.69)*
 **Aufwand:** XS · **Art:** Defekt · **der einzige offene Eintrag mit Sicherheitsbezug**

@@ -227,11 +227,6 @@ final class ReportViewModel {
     /// Ueberschrift des heutigen Tages. Ohne diesen Zeitpunkt waere das Alter
     /// der Daten ein stiller Zustand, dem man auch noch glaubt.
     private(set) var lastScanAt: Date?
-    /// Ab wann ein Bestand als „alt" gilt und die Statuszeile warnt.
-    ///
-    /// Eine Stunde: kurz genug, um einen vergessenen Suchlauf aufzudecken, lang
-    /// genug, um bei normaler Arbeit nicht dauernd zu mahnen.
-    static let stalenessLimit: TimeInterval = 3600
     /// Ausgeblendete Dateiendungen (klickbare Legende). Kann auch ``otherKey`` enthalten.
     var hiddenExtensions: Set<String> = [] { didSet { invalidateRows() } }
     /// Der Filter, der in der Oberflaeche **„Office"** heisst (PR-44).
@@ -467,6 +462,8 @@ final class ReportViewModel {
     private var scanner: FileScanner { FileScanner(exclusions: currentExclusions) }
     private let store = SettingsStore()
     private let watcher = FolderWatcher()
+    /// Haken auf `NSWorkspace.didWakeNotification` – siehe ``startWakeObserver()``.
+    private var wakeObserver: NSObjectProtocol?
 
     init() {
         let saved = store.load()
@@ -2005,12 +2002,54 @@ final class ReportViewModel {
     }
 
     func updateWatcher() {
-        if autoRefresh {
+        if autoRefresh, !activeSources.isEmpty {
             watcher.start(urls: activeSources) { [weak self] in
                 Task { @MainActor in self?.scheduleLiveRefresh() }
             }
+            isWatching = true
         } else {
             watcher.stop()
+            isWatching = false
+        }
+    }
+
+    /// Läuft gerade ein Beobachter über den aktiven Quellen?
+    ///
+    /// **⚠️ Nicht dasselbe wie ``autoRefresh``, und der Unterschied ist der
+    /// Grund für dieses Feld.** `autoRefresh` ist der **Wunsch** des Anwenders
+    /// und wird gespeichert; dies ist die **Tatsache**. Ohne ausgewählte Quelle
+    /// gibt es nichts zu beobachten – die Statuszeile dürfte dann nicht „wird
+    /// überwacht" sagen, obwohl der Schalter an ist. *Genau diese Verwechslung
+    /// von Absicht und Zustand war der Fehler, den ``ScanFreshness`` behebt.*
+    private(set) var isWatching = false
+
+    /// **⚠️ Ohne diesen Haken stirbt die Zusicherung im Schlaf.** Seit
+    /// v1.19.70 warnt die Statuszeile nicht mehr über das Alter, **solange ein
+    /// Beobachter läuft** – das ist nur zu verantworten, wenn der Beobachter
+    /// auch wirklich läuft. Ein FSEvent-Strom übersteht den Ruhezustand nicht
+    /// zuverlässig; ohne Erneuerung zeigte die App danach still veraltete Daten
+    /// **ohne jeden Hinweis**, weil die alte Warnung ja abgeschaltet ist.
+    ///
+    /// Zweiter Beobachter dieser Art nach ``UpdateChecker`` – dieselbe
+    /// Begründung, derselbe Notification-Name, und aus demselben Grund kein
+    /// Abmelden: Das Objekt lebt so lange wie der Prozess.
+    ///
+    /// **Erneuern *und* einmal lesen.** Der Strom nimmt Änderungen ab dem
+    /// Neustart entgegen; was **während** des Schlafs geschah, hat niemand
+    /// gesehen. Ein Neuaufsetzen ohne Lesen ließe genau diese Lücke offen.
+    func startWakeObserver() {
+        guard wakeObserver == nil else { return }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.autoRefresh else { return }
+                self.watcher.stop()
+                self.updateWatcher()
+                if self.isWatching { self.rescan(preservingState: true) }
+            }
         }
     }
 
@@ -2029,6 +2068,7 @@ final class ReportViewModel {
         guard !didInitialScan else { return }
         didInitialScan = true
         updateWatcher()
+        startWakeObserver()
         rescan()
     }
 

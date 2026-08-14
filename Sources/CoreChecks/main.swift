@@ -2644,6 +2644,61 @@ do {
            "Angebot: und eine aeltere erst recht nicht")
 }
 
+// MARK: - ScanFreshness: die Warnung, die ueberwiegend falsch war (UX-59)
+do {
+    let gelesen = Date(timeIntervalSince1970: 1_000_000)
+    func spaeter(_ sekunden: TimeInterval) -> Date { gelesen.addingTimeInterval(sekunden) }
+
+    // ⚠️ DER Fall, der den Eintrag ausgeloest hat: Beobachter laeuft, seit
+    // Stunden hat sich nichts geaendert - und die App sagte "veraltet", obwohl
+    // die Anzeige stimmte. `lastScanAt` rueckt nur bei einem echten Suchlauf
+    // vor, und der Beobachter loest nur bei einer Aenderung aus; es gibt
+    // nirgends einen Takt, der ohne Anlass nachliest.
+    expectEqual(ScanFreshness.state(lastScanAt: gelesen, isWatching: true, now: spaeter(50 * 3600)),
+                .watched, "Stand: ein laufender Beobachter altert nicht")
+    expect(!ScanFreshness.state(lastScanAt: gelesen, isWatching: true, now: spaeter(50 * 3600)).isWarning,
+           "Stand: und warnt deshalb auch nach zwei Tagen nicht")
+
+    // Ohne Beobachter ist das Alter die einzige Auskunft, die es gibt.
+    expectEqual(ScanFreshness.state(lastScanAt: gelesen, isWatching: false, now: spaeter(60)),
+                .idle, "Stand: frisch gelesen, kein Beobachter")
+    expectEqual(ScanFreshness.state(lastScanAt: gelesen, isWatching: false, now: spaeter(3600)),
+                .stale, "Stand: die Schwelle liegt bei genau einer Stunde")
+    expectEqual(ScanFreshness.state(lastScanAt: gelesen, isWatching: false, now: spaeter(3599)),
+                .idle, "Stand: eine Sekunde davor noch nicht")
+
+    // Noch nie gelesen ist ein eigener Zustand, keine Warnung.
+    expectEqual(ScanFreshness.state(lastScanAt: nil, isWatching: false, now: gelesen),
+                .never, "Stand: noch nie eingelesen")
+    expect(!ScanFreshness.state(lastScanAt: nil, isWatching: false, now: gelesen).isWarning,
+           "Stand: und das ist keine Warnung")
+
+    // ⚠️ Genau EIN Zustand warnt. Waere es mehr als einer, warnte die Zeile
+    // wieder haeufiger als noetig - und das war der Befund.
+    let alle: [ScanFreshness] = [.never, .watched, .idle, .stale]
+    expectEqual(alle.filter(\.isWarning).count, 1, "Stand: genau ein warnender Zustand")
+
+    // ⚠️ Der Weg zurueck haengt am selben Zustand wie die Warnung. Eine
+    // Meldung, die das Problem nennt und die Reparatur verschweigt, ist der
+    // Defekt aus UX-57 und PR-58 - bis v1.19.69 stand der Ausweg nur im
+    // Tooltip, und ein Tooltip existiert fuer Vorleseprogramme nicht.
+    for zustand in alle {
+        expectEqual(zustand.offersRescan, zustand.isWarning,
+                    "Stand: wer warnt, bietet den Weg zurueck (\(zustand))")
+    }
+
+    // ⚠️ Die Aussage steht im WORT, nicht nur in der Farbe (UX-34). Beide
+    // besonderen Zustaende tragen einen Zusatz, die ruhigen keinen.
+    expectEqual(ScanFreshness.stale.suffix, "veraltet", "Stand: das Wort zur Warnung")
+    expectEqual(ScanFreshness.watched.suffix, "wird überwacht", "Stand: das Wort zur Beobachtung")
+    expect(ScanFreshness.idle.suffix == nil, "Stand: der ruhige Fall braucht kein Wort")
+    expect(ScanFreshness.never.suffix == nil, "Stand: und der ungelesene auch nicht")
+
+    // Die beiden sichtbaren Zusaetze duerfen sich nicht gleichen.
+    expect(ScanFreshness.stale.suffix != ScanFreshness.watched.suffix,
+           "Stand: die beiden Aussagen sind unterscheidbar")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

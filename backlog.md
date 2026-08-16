@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.71 · 2026-08-16*
+*Stand: v1.19.72 · 2026-08-16*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,71 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-60 · Das Rad drehte sich in eine Sackgasse *(v1.19.72)*
+**Aufwand:** S · **Art:** Defekt · *aus der Praxis, einen Tag nach PR-61, mit Bild* · **P1**
+
+Zwei Meldungen zu PR-61: *„ist noch ein wenig ruckelig, die Ruhefrist sollte ggf. länger
+sein"* und *„wenn keine Dateien mehr in den Zeitraum existieren verschwindet das Diagramm und
+man kommt nicht zurück"*.
+
+## Die Sackgasse
+
+**⚠️ Der zweite Punkt ist ein Defekt, den PR-61 selbst erzeugt hat.** `RootView` blendete die
+Kopfzone aus, sobald `relevantFiles` leer ist — und damit **die einzige Fläche, auf der das
+Rad wirkt**. Wer von 30 Tagen herunterdreht und bei 5 ins Leere läuft, hatte nur noch „Auf 90
+Tage erweitern": einen Sprung, keinen Rückweg auf 6.
+
+*Die Bedingung stand seit v1.8.0 und war bis gestern harmlos. Ein neues Bedienelement kann
+eine alte Bedingung zum Defekt machen, ohne sie anzufassen — dieser Fall stand in keiner der
+Prüfungen, weil er vorher keiner war.*
+
+**⚠️ Der Fall, in dem der Zeitraum die Ursache ist, ist der Fall, in dem man den Zeitraum am
+dringendsten sehen und ändern muss.** Die Kopfzone bleibt jetzt stehen, sobald der Bestand
+Dateien hat und nur das Fenster leer ist; das Diagramm zeigt eine leere Achse, und das ist die
+richtige Auskunft. Die Regel liegt als `showsChartHeader` im Modell, nicht als Bedingung in
+der `View` — sie ist eine Aussage über den Zustand.
+
+Nebenbei behoben: Auch bei einem Namensfilter ohne Treffer verschwand die Kopfzone. Dieselbe
+Falle, gleicher Grund, gleiche Antwort.
+
+**Abgesichert, was dadurch zum Normalfall wird:** `axisDomain` und `maxTotal` fingen den
+leeren Fall schon ab, `accessibilitySummary` sagt bereits „Keine Daten im gewählten Zeitraum".
+Offen war allein `chartForegroundStyleScale` mit **leerem** Wertebereich — ein Grenzfall, den
+Swift Charts nicht zusichert. Ein einzelner Eintrag, den keine Marke benutzt, schließt ihn
+aus. *Vorsichtsmaßnahme, kein gemessener Befund — so steht es auch im Quelltext.*
+
+## Das Ruckeln
+
+**⚠️ Nicht das Rechnen war das Problem, sondern das Rechnen zur falschen Zeit.** Die Ruhefrist
+von 180 ms lag über dem Rastenabstand beim *Dauerdrehen* — und darunter, sobald jemand
+**bedächtig** dreht. Dann griff sie mitten in der Bewegung, die Neurechnung belegte den
+Hauptstrang (gemessen 0,6 s bei 100.000 Dateien), die folgenden Rasten stauten sich und kamen
+im Block an. Jetzt **500 ms**.
+
+Zweite Ursache, kleiner: `pending` wurde bei **jedem** Ereignis zugewiesen, auch wenn sich die
+angezeigte Zahl nicht änderte — `@Observable` vergleicht nicht, es meldet jede Zuweisung. Am
+Trackpad liegen viele Ereignisse unter einem Tag und veränderten nur den aufgehobenen Rest.
+Der Arbeitsstand liegt jetzt getrennt und unbeobachtet daneben.
+
+**Offen benannt:** Beide Zahlen — 500 ms und `pointsPerDay` — sind weiterhin nur unter den
+Fingern zu beurteilen.
+
+## Zur Abnahme, ehrlich
+
+**Am laufenden Programm nicht geprüft, und der Versuch war ein Fehler.** Ich habe versucht,
+den leeren Zustand mit einem eigenen Ablagebereich nachzustellen, und dabei per AppleScript
+die **laufende Installation** des Anwenders erwischt statt meines Testbaus — zwei Prozesse,
+und der vorderste war seiner. Fenstergröße und -position wurden verändert und **exakt
+wiederhergestellt** (`{-239, -1114}`, `1920×1029`); an Einstellungen und Daten wurde nichts
+angefasst, der Ablagebereich war von Anfang an ein eigener.
+
+*`AGENTS.md` sagt beides, was hier zu lernen war, schon seit v1.19.67: Klicks in SwiftUI nicht
+automatisieren, und eine Abnahme nie gegen die eigenen Einstellungen des Anwenders laufen
+lassen. Der eigene Ablagebereich war richtig gewählt und hat nichts genützt, weil die
+Prozessauswahl daneben lag — **ein Schutz, der die falsche Stelle absichert, ist keiner.***
+
+Abgebrochen nach dem zweiten Fehlversuch. Die Sichtprüfung steht in der Abnahme.
 
 ### ✅ PR-61 · Zeitraum am Mausrad *(v1.19.71)*
 **Aufwand:** M · **Art:** Wunsch aus der Praxis · *„durch das Drehen des Mausrades die Tage von 0 bis maximal zurück einstellen"*

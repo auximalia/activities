@@ -1068,6 +1068,34 @@ final class ReportViewModel {
 
     /// True, wenn der Scan In-Zeitraum-Dateien gefunden hat.
     var hasScanResults: Bool { !relevantFiles.isEmpty }
+
+    /// Ob die Kopfzone – Zeitraum-Überschrift, Diagramm, Legende – dasteht.
+    ///
+    /// **⚠️ Nicht dasselbe wie ``hasScanResults``, und der Unterschied war eine
+    /// Sackgasse.** Bis v1.19.71 hing die Kopfzone allein daran, dass im
+    /// Zeitfenster etwas liegt. Dreht man den Zeitraum so weit herunter, dass
+    /// nichts mehr übrig ist, verschwand sie – **mitsamt der einzigen Fläche,
+    /// auf der das Mausrad wirkt**. Zurück ging es nur noch über „Auf 90 Tage
+    /// erweitern": ein Sprung, kein Rückweg. Wer von 30 kam und bei 5 ins Leere
+    /// lief, konnte nicht auf 6.
+    ///
+    /// **Der Fall, in dem gerade der Zeitraum die Ursache ist, ist der Fall, in
+    /// dem man den Zeitraum am dringendsten sehen und ändern muss.** Die
+    /// Kopfzone bleibt deshalb stehen, wenn der Bestand Dateien hat und nur das
+    /// Fenster leer ist; das Diagramm zeigt dann eine leere Achse, und das ist
+    /// die richtige Auskunft.
+    ///
+    /// *Bei `.nameFilter` bleibt sie ebenfalls stehen – dort ist der Bestand im
+    /// Zeitfenster nicht leer, nur der Filter blendet ihn aus. Bei
+    /// `.emptyFolder` und `.noSource` gibt es nichts zu zeigen.*
+    var showsChartHeader: Bool {
+        guard errorMessage == nil else { return false }
+        if hasScanResults { return true }
+        switch emptyReason {
+        case .timeWindow, .nameFilter: return true
+        case .emptyFolder, .noSource: return false
+        }
+    }
     /// True, wenn nach dem Typ-Filter noch Ordner uebrig sind.
     var hasVisibleResults: Bool { !displayBuckets.isEmpty }
 

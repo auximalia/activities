@@ -18,7 +18,11 @@ struct RootView: View {
                 introBanner
                 Divider()
             }
-            if model.hasScanResults && model.errorMessage == nil {
+            // ⚠️ `showsChartHeader`, nicht `hasScanResults`. Die Regel steht im
+            // Modell, weil sie eine Aussage ueber den Zustand ist und keine
+            // ueber die Darstellung – und weil ein leeres Zeitfenster die
+            // Kopfzone samt Mausrad-Flaeche verschwinden liess (v1.19.72).
+            if model.showsChartHeader {
                 ChartHeaderView(model: model)
                 Divider()
             }

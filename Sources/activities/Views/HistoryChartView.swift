@@ -44,13 +44,23 @@ struct HistoryChartView: View {
     private var otherColor: Color { FileTypeColor.other }
 
     /// Reihenfolge/Domain der Stapel: Top-Endungen, danach ggf. "Sonstige".
+    /// **⚠️ Nie leer, auch wenn es nichts zu zeigen gibt.** Seit v1.19.72 steht
+    /// die Kopfzone auch dann, wenn im Zeitfenster nichts liegt – dann ist die
+    /// Legende leer und dieser Wertebereich wäre es auch.
+    /// `chartForegroundStyleScale` mit leerem Bereich ist ein Grenzfall, den
+    /// Swift Charts nicht zusichert; ein einzelner Eintrag, den keine Marke
+    /// benutzt, kostet nichts und schließt ihn aus. *Vorsichtsmaßnahme, kein
+    /// gemessener Befund – aber der Zustand ist jetzt der Normalfall beim
+    /// Herunterdrehen des Zeitraums, und dort darf nichts wackeln.*
     private var chartKeys: [String] {
-        topExtensions.map(\.ext) + (hasOther ? [otherKey] : [])
+        let keys = topExtensions.map(\.ext) + (hasOther ? [otherKey] : [])
+        return keys.isEmpty ? [otherKey] : keys
     }
 
     private var chartColors: [Color] {
-        topExtensions.map { FileTypeColor.color(forExtension: $0.ext, assignment: colorAssignment) }
+        let farben = topExtensions.map { FileTypeColor.color(forExtension: $0.ext, assignment: colorAssignment) }
             + (hasOther ? [otherColor] : [])
+        return farben.isEmpty ? [otherColor] : farben
     }
 
     private var points: [ChartPoint] {

@@ -25,32 +25,53 @@ final class ChartScrub {
     /// Die laufende Geste – `nil`, wenn gerade nicht gedreht wird.
     private(set) var pending: DayScrub?
 
+    /// Der Arbeitsstand, **ungesehen**.
+    ///
+    /// **⚠️ Getrennt von ``pending``, damit nicht jedes Ereignis neu zeichnet.**
+    /// Ein Trackpad meldet viele Ereignisse, die einzeln unter einem Tag
+    /// liegen; sie verändern nur den aufgehobenen Rest. Läge der Wert allein in
+    /// der beobachteten Größe, zeichnete das Anzeigefeld auch dann neu, wenn
+    /// dieselbe Zahl darin steht – `@Observable` vergleicht nicht, es meldet
+    /// jede Zuweisung.
+    @ObservationIgnored private var arbeitsstand: DayScrub?
+
     @ObservationIgnored private var abschluss: Task<Void, Never>?
 
-    /// **⚠️ Ruhefrist für das echte Mausrad, hergeleitet statt gemessen.**
-    /// Ein Trackpad meldet `NSEvent.Phase.ended`, ein Rad meldet gar keine
-    /// Phase – dort ist das Ende der Geste allein an einer Pause zu erkennen.
-    /// 180 ms liegen deutlich über dem Abstand zweier Rasten beim
-    /// Dauerdrehen (typisch 20–60 ms) und deutlich unter dem, was als
-    /// Verzögerung auffällt. *Wer sie ändert, misst am Gerät nach; die Frage
-    /// steht in der Abnahme.*
-    private static let ruhefrist: Duration = .milliseconds(180)
+    /// **⚠️ Ruhefrist für das echte Mausrad – von 180 auf 500 ms erhöht
+    /// (v1.19.72), aus der Praxis: „ist noch ein wenig ruckelig".**
+    ///
+    /// Das Trackpad meldet `NSEvent.Phase.ended` und braucht sie gar nicht; ein
+    /// Rad kennt keine Phase, dort ist das Ende der Geste allein an einer Pause
+    /// zu erkennen. 180 ms lagen über dem Abstand zweier Rasten beim
+    /// *Dauerdrehen* – und darunter, sobald jemand **bedächtig** dreht. Dann
+    /// griff die Frist mitten in der Bewegung, die Neurechnung belegte den
+    /// Hauptstrang (gemessen 0,6 s bei 100.000 Dateien), die folgenden Rasten
+    /// stauten sich und kamen im Block an. **Das Ruckeln war also nicht das
+    /// Rechnen, sondern das Rechnen zur falschen Zeit.**
+    ///
+    /// 500 ms liegen über einer bedächtigen Rastenfolge und unter dem, was als
+    /// Hängenbleiben durchgeht. *Wer sie ändert, dreht am Gerät nach – gemessen
+    /// werden kann das nur unter den Fingern.*
+    private static let ruhefrist: Duration = .milliseconds(500)
 
     /// Nimmt ein Rad-Ereignis auf.
     ///
     /// - Parameters:
     ///   - input: die Eingabe, schon nach Gerät unterschieden.
     ///   - startDays / startAll: der aktuelle Zustand, falls die Geste hier beginnt.
-    ///   - beendetSofort: `true` bei einem Trackpad, das sein Ende selbst meldet.
+    ///   - endsNow: `true` bei einem Trackpad, das sein Ende selbst meldet.
     ///   - anwenden: läuft **einmal** am Ende der Geste.
     func handle(_ input: DayScrub.Input,
                 startDays: Int,
                 startAll: Bool,
                 endsNow: Bool,
                 anwenden: @escaping (DayScrub) -> Void) {
-        var scrub = pending ?? DayScrub(days: startDays, isAllTime: startAll)
-        scrub.advance(input)
-        pending = scrub
+        var scrub = arbeitsstand ?? DayScrub(days: startDays, isAllTime: startAll)
+        let geaendert = scrub.advance(input)
+        arbeitsstand = scrub
+        // Nur zuweisen, wenn sich die Anzeige wirklich unterscheidet – und beim
+        // ersten Ereignis, damit das Feld ueberhaupt erscheint.
+        if geaendert || pending == nil { pending = scrub }
 
         abschluss?.cancel()
         if endsNow {
@@ -70,9 +91,10 @@ final class ChartScrub {
     /// das Feld eine Rechnung lang, bevor die Überschrift den neuen Wert trägt –
     /// und in genau dieser Lücke stünde die **alte** Zahl da.
     private func abschließen(_ anwenden: @escaping (DayScrub) -> Void) {
-        guard let scrub = pending else { return }
+        guard let scrub = arbeitsstand else { return }
         abschluss = nil
         anwenden(scrub)
+        arbeitsstand = nil
         pending = nil
     }
 }

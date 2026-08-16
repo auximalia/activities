@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.75 · 2026-08-16*
+*Stand: v1.19.76 · 2026-08-16*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,48 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-64 · Dreizehn sichtbare Zeilen bei 198 Endungen sehen aus wie eine Auswahl *(v1.19.76)*
+**Aufwand:** XS · **Art:** Verständlichkeit · *„Ist die Liste erschöpfend? Sonst sollte der Nutzer auch eigene Dateitypen hinzufügen können."*
+
+**Die Liste war erschöpfend, und das war nicht zu sehen.** `typeInventory` läuft über **alle**
+`scannedFiles` und baut für jede vorkommende Endung eine Zeile — kein Deckel, kein Top-N; die
+Tabelle scrollt. Zeitraum, Namensfilter und Office-Filter wirken darauf **nicht**, weil sie
+erst `relevantFiles` erzeugen.
+
+**⚠️ Die Frage entstand aus dem Bild, nicht aus dem Bestand.** Dreizehn Zeilen im Fenster,
+198 Endungen dahinter — wer scrollt und seine Endung nicht findet, hält die Liste für
+kuratiert. *Der erklärende Satz existierte längst, stand aber nur im Zweig „Suche ohne
+Treffer" — also genau dort, wohin man erst gelangt, wenn man den Verdacht schon hat.* Er steht
+jetzt dauerhaft unter der Tabelle, mit der **Zahl**: „198" beweist nebenbei, dass gescrollt
+werden kann, „alle Endungen" behauptet es nur.
+
+**Der zweite Halbsatz beantwortet die Frage, die auf die erste folgt** — und die kam
+prompt: Ein neuer Dateityp trägt sich beim nächsten Suchlauf selbst ein, bei offenem Fenster
+sogar sichtbar, weil `typeInventory` berechnet und nirgends gepuffert ist.
+
+## Warum kein „eigenen Typ hinzufügen"
+
+**⚠️ Der Nutzen ist auf ein schmales Zeitfenster beschränkt:** die Spanne *vor* der ersten
+Datei dieses Typs. Danach erscheint die Zeile von selbst.
+
+**Und der Preis wäre eine Spalte, die für genau diese Zeilen lügt.** Jede Zeile braucht ein
+**Beispiel-URL**; die Spalte „Standardprogramm" fragt LaunchServices mit einer echten Datei.
+`FileTypeInspector.swift:66-69` hält gemessen fest, dass ein erfundener Pfad wie
+`/tmp/probe.<endung>` für **jede** Endung „keine Zuordnung" liefert. Eine von Hand eingetippte
+Endung stünde dauerhaft falsch da. *Eine Spalte, die bei selbst angelegten Zeilen systematisch
+irreführt, ist schlechter als eine fehlende Zeile.* Die Schranke selbst wäre kein Hindernis —
+`resumeRejection(forExtension:)` arbeitet ohne Datei.
+
+**Drei Fälle, in denen tatsächlich etwas fehlt** — festgehalten, damit die Frage nicht neu
+gestellt wird:
+
+1. **Nicht angehakte Quellen.** `scannedFiles = activeSources.flatMap { … }`. Die
+   wahrscheinlichste Ursache, wenn jemand eine Endung vermisst.
+2. **Vom Rauschfilter übersprungene Ordner** — folgenlos: Eine Freigabe bewirkte nichts, weil
+   die Dateien ohnehin nie erscheinen.
+3. **Dateien ohne Endung** (`Makefile`, `README`, Dotfiles). Keine Lücke der Tabelle, sondern
+   des Modells: `WorkFileFilter` entscheidet ausschließlich über Endungen.
 
 ### ✅ UX-63 · Nicht das Auswählen war teuer, sondern was daran hing *(v1.19.75)*
 **Aufwand:** M · **Art:** Defekt · *„bei der Auswahl von Dateien scheint es eine Latenz zu geben – die stört sehr"* · **P1**

@@ -32,6 +32,32 @@ struct FileTypesSettingsView: View {
         return model.typeInventory.filter { $0.ext.contains(muster) }
     }
 
+    /// Woher die Liste kommt – und dass sie sich von selbst fortschreibt.
+    ///
+    /// **⚠️ Drei Fälle, und der mittlere ist der Anlass.** Ein leeres
+    /// Suchergebnis muss sagen, *warum* es leer ist – sonst hält man den Bestand
+    /// für unvollständig statt die Suche für zu eng. Der Fall **ohne** Suche
+    /// brauchte denselben Satz aber genauso: Dreizehn sichtbare Zeilen bei 198
+    /// Endungen sehen aus wie eine kuratierte Auswahl.
+    ///
+    /// **Der zweite Halbsatz beantwortet die Frage, die auf die erste folgt.**
+    /// „Nur was im Bestand vorkommt" klingt nach einer Schranke, hinter der man
+    /// von Hand nachhelfen müsste. Tatsächlich ist ``ReportViewModel/typeInventory``
+    /// bei jedem Suchlauf neu gerechnet – ein neuer Dateityp trägt sich selbst
+    /// ein, bei offenem Fenster sogar sichtbar.
+    private var bestandshinweis: String {
+        let gesamt = model.typeInventory.count
+        let nachtrag = "Ein neu hinzukommender Dateityp erscheint nach dem nächsten Suchlauf von selbst."
+        if suche.trimmingCharacters(in: .whitespaces).isEmpty {
+            return "Aufgeführt sind alle \(gesamt) Endungen, die im eingelesenen Bestand vorkommen. "
+                + nachtrag
+        }
+        if zeilen.isEmpty {
+            return "Keine der \(gesamt) Endungen im Bestand enthält „\(suche)“. " + nachtrag
+        }
+        return "\(zeilen.count) von \(gesamt) Endungen im Bestand. " + nachtrag
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Welche Dateitypen als Arbeitsdateien gelten – und welche „Arbeit fortsetzen“ öffnen darf.")
@@ -86,15 +112,21 @@ struct FileTypesSettingsView: View {
             }
             .frame(minHeight: 240)
 
-            // ⚠️ Ein leeres Suchergebnis muss sagen, WARUM es leer ist – sonst
-            // haelt man den Bestand fuer unvollstaendig statt die Suche fuer zu eng.
-            if zeilen.isEmpty {
-                Text("Keine Endung enthält „" + suche + "“. Aufgeführt sind nur Endungen, "
-                     + "die im eigenen Bestand vorkommen.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            // ⚠️ Der Satz steht DAUERHAFT unter der Tabelle, nicht nur bei
+            // leerer Suche. Aus der Praxis gefragt: „Ist die Liste
+            // erschoepfend?" – und im Bild waren dreizehn Zeilen zu sehen,
+            // waehrend der Bestand 198 Endungen hat. Wer scrollt und seine
+            // Endung nicht findet, sucht nicht unbedingt danach; er haelt die
+            // Liste fuer eine Auswahl. Die Antwort gehoert deshalb dorthin, wo
+            // die Frage entsteht, und nicht in einen Zweig, den man erst durch
+            // eine erfolglose Suche erreicht.
+            //
+            // **Die Zahl ist der eigentliche Inhalt.** „Alle Endungen" ist eine
+            // Behauptung; „198" zeigt zugleich, dass die Tabelle scrollt.
+            Text(bestandshinweis)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             // ⚠️ Der Satz nennt die Regel, nicht die Bedienung. Dass man
             // Haeckchen setzt, sieht man; **warum** manche nicht gehen, nicht.

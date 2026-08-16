@@ -127,6 +127,8 @@ struct HelpView: View {
 
                 section("Dateitypen", icon: "doc.badge.gearshape", [
                     "Einstellungen → Dateitypen (\(Shortcuts.settings.display)): je Endung Anzahl, Standardprogramm und zwei Häkchen.",
+                    "Aufgeführt sind **alle** Endungen des eingelesenen Bestands – die Tabelle scrollt, das Suchfeld darüber findet schneller.",
+                    "Ein neuer Dateityp trägt sich beim nächsten Suchlauf selbst ein; von Hand hinzufügen muss man nichts.",
                     "„Office“ bestimmt, was der Office-Filter zeigt." ,
                     "„Arbeit fortsetzen“ bestimmt, was ein Klick öffnen darf – nur setzbar, wenn „Office“ gesetzt ist." ,
                     "Skripte, Programme und Abbilder lassen sich nicht freigeben; der Grund steht in der Zeile.",

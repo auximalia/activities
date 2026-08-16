@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.73 · 2026-08-16*
+*Stand: v1.19.74 · 2026-08-16*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,49 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-62 · Die Verzögerung saß nicht in der Anzeige, sondern in der Umrechnung davor *(v1.19.74)*
+**Aufwand:** S · **Art:** Defekt · *„Die Anzeige der Tage muss sich beim Drehen unmittelbar – ohne Verzögerung – anpassen; nur das Laden darf verzögert werden."*
+
+**Der Befund lag am Gerät, nicht am Code für die Anzeige.** Am Rechner des Anwenders hängen
+drei Zeigegeräte, und **zwei davon haben keine Rasten**:
+
+| Gerät | meldet | Verhalten bis v1.19.73 |
+|---|---|---|
+| Razer DeathAdder V2 | ganze Zeilen | 1 Raste = 1 Tag ✓ |
+| **Magic Mouse** | Punkte, stufenlos | erst nach 10 Punkten bewegte sich die Zahl |
+| internes Trackpad | Punkte, stufenlos | dito |
+
+Eine Magic Mouse liefert bei kleiner Fingerbewegung **1–3 Punkte je Ereignis**. Bei
+`pointsPerDay = 10` verfiel das, bis genug angespart war — die Zahl stand mehrere Ereignisse
+lang still. *Die Anzeige war die ganze Zeit unmittelbar; sie hatte nur nichts zu zeigen, weil
+die Umrechnung davor die Bewegung verschluckt hat.*
+
+**⚠️ Jetzt bewegt jedes Ereignis die Zahl um mindestens einen Tag.** Der Rest bleibt für die
+**schnellen** Bewegungen zuständig: `.points(35)` sind weiterhin drei Tage auf einmal. Beim
+Mindestschritt wird der Rest zurückgesetzt, sonst zählte dieselbe Bewegung zweimal — einmal
+als Mindestschritt und später noch einmal aus dem Angesparten.
+
+**Der Preis, offen benannt:** Auf einem stufenlosen Gerät zählt jetzt jedes Ereignis statt
+jedes zehnten Punkts — eine Wischbewegung legt deutlich mehr Tage zurück als vorher. Für das
+Rad ändert sich nichts. *Sollte es zu schnell sein, ist es wieder genau eine Zahl.*
+
+## Der zweite Grund, der wie eine Verzögerung aussah
+
+**Das Anzeigefeld wurde beim Laden weggeräumt.** Bei bedächtigem Drehen hieß das: Feld
+erscheint, verschwindet nach 400 ms, kommt bei der nächsten Raste neu. **Dieses Flackern ist
+von einer verzögerten Anzeige nicht zu unterscheiden.**
+
+Jetzt gibt es **zwei Fristen, weil es zwei Fragen sind**: Die Anzeige lebt vom letzten
+**Ereignis** (1200 ms), das Laden vom letzten **Wert** (400 ms). Das Feld überlebt das Laden
+und zeigt danach kurz den angewandten Wert.
+
+**⚠️ Der Arbeitsstand bleibt dabei stehen.** Dreht jemand nach dem Laden weiter, setzt die
+nächste Raste auf der **angezeigten** Zahl auf und nicht auf dem Modell — sonst spränge sie um
+die Schritte zurück, die das Laden gerade erst übernommen hat.
+
+**Zusicherungen:** 1602 → **1610**, darunter der einzelne Punkt, der Mindestschritt ohne
+Doppelzählung, die schnelle Bewegung mit erhaltenem Rest und das folgenlose Nullereignis.
 
 ### ✅ UX-61 · Die Frist hing am Ereignis, nicht am Wert *(v1.19.73)*
 **Aufwand:** XS · **Art:** Korrektur einer Festlegung · *„Das Mausrad soll nicht entprellt werden – das soll reaktiv sein. Wenn sich der Wert dann 400 ms nicht ändert, soll das Laden ausgelöst werden."*

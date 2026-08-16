@@ -2716,21 +2716,45 @@ do {
 
     // ── Der Rest wird aufgehoben, nicht verworfen. ──
     //
-    // ⚠️ Ohne das bliebe ein langsames Trackpad wirkungslos: Jedes einzelne
-    // Ereignis laege unter einem Tag und verfiele.
+    // ⚠️ JEDES Ereignis bewegt die Zahl um mindestens einen Tag (v1.19.74).
+    // Der Anlass war ein Geraet ohne Rasten: Eine Magic Mouse meldet 1-3 Punkte
+    // je Ereignis, und bei 10 Punkten je Tag stand die Anzeige mehrere
+    // Ereignisse lang still - gemeldet als „Verzoegerung der Anzeige". Der
+    // Fehler sass nicht im Zeichnen, sondern in der Umrechnung davor.
     var fein = DayScrub(days: 30)
-    for _ in 0..<4 { fein.advance(.points(3)) }   // 12 Punkte = 1,2 Tage
-    expectEqual(fein.days, 31, "Rad: gesammelte Punkte ergeben einen ganzen Tag")
-    expect(!fein.advance(.points(1)), "Rad: ein Bruchteil allein aendert nichts")
+    expect(fein.advance(.points(1)), "Rad: ein einzelner Punkt bewegt die Zahl")
+    expectEqual(fein.days, 31, "Rad: und zwar um genau einen Tag")
+    expect(fein.advance(.points(-1)), "Rad: auch in die Gegenrichtung")
+    expectEqual(fein.days, 30, "Rad: wieder zurueck")
+
+    // ⚠️ Der Mindestschritt darf nicht DOPPELT zaehlen: Der Rest wird dabei
+    // zurueckgesetzt, sonst schluege dieselbe Bewegung spaeter noch einmal zu.
+    var doppelt = DayScrub(days: 100)
+    for _ in 0..<9 { doppelt.advance(.points(1)) }   // 9 Ereignisse = 9 Tage
+    expectEqual(doppelt.days, 109, "Rad: neun kleine Ereignisse sind neun Tage")
+
+    // Eine SCHNELLE Bewegung legt mehr als einen Tag je Ereignis zurueck -
+    // dafuer ist der Rest noch zustaendig.
+    var schnell = DayScrub(days: 100)
+    schnell.advance(.points(35))                     // 3,5 Tage
+    expectEqual(schnell.days, 103, "Rad: eine schnelle Bewegung zaehlt mehrfach")
+    schnell.advance(.points(5))                      // 0,5 + 0,5 Rest = 1,0
+    expectEqual(schnell.days, 104, "Rad: und der Rest geht dabei nicht verloren")
+
+    // Ein Ereignis ohne Bewegung bleibt folgenlos.
+    var still = DayScrub(days: 30)
+    expect(!still.advance(.points(0)), "Rad: null Punkte bewegen nichts")
+    expect(!still.advance(.notches(0)), "Rad: null Rasten auch nicht")
+    expectEqual(still.days, 30, "Rad: und die Zahl steht")
 
     expectEqual(DayScrub.pointsPerDay, 10, "Rad: die Umrechnung des Trackpads")
 
     // ⚠️ Richtungswechsel: Der aufgehobene Rest darf nicht in die neue Richtung
     // durchschlagen. Deshalb wird zur Null hin abgeschnitten, nicht abgerundet.
     var wechsel = DayScrub(days: 30)
-    wechsel.advance(.points(4))                  // 0,4 Tage vorgemerkt
-    expectEqual(wechsel.days, 30, "Rad: noch kein ganzer Tag")
-    wechsel.advance(.points(-4))                 // wieder bei 0,0
+    wechsel.advance(.points(35))                     // +3 Tage, Rest 0,5
+    expectEqual(wechsel.days, 33, "Rad: drei Tage vorwaerts")
+    wechsel.advance(.points(-35))                    // -3,5 + 0,5 = -3,0
     expectEqual(wechsel.days, 30, "Rad: Richtungswechsel springt nicht")
 
     // ── Die Grenzen. ──

@@ -39,6 +39,9 @@ final class ChartScrub {
 
     @ObservationIgnored private var abschluss: Task<Void, Never>?
 
+    /// Räumt das Anzeigefeld weg, wenn niemand mehr dreht.
+    @ObservationIgnored private var ausblenden: Task<Void, Never>?
+
     /// **⚠️ Die Frist hängt am WERT, nicht am Ereignis – und das ist der ganze
     /// Unterschied zu einer Entprellung.** Festgelegt vom Eigentümer
     /// (v1.19.73): *„Das Mausrad soll nicht entprellt werden – das soll reaktiv
@@ -55,10 +58,17 @@ final class ChartScrub {
     /// Jetzt läuft sie **nur an, wenn sich die Zahl geändert hat**. Bleibt sie
     /// stehen, läuft die begonnene Frist weiter ab und löst aus. Die Anzeige
     /// selbst wird davon nie aufgehalten: Sie folgt jedem Ereignis sofort.
-    ///
-    /// *Wer die Zahl ändert, dreht am Gerät nach – gemessen werden kann das nur
-    /// unter den Fingern.*
     private static let ruhefrist: Duration = .milliseconds(400)
+
+    /// Wie lange die Zahl nach dem letzten Ereignis noch stehenbleibt.
+    ///
+    /// **⚠️ Länger als die Ruhefrist, und das ist der Zweck.** Das Feld wurde
+    /// bis v1.19.73 **beim Laden** weggeräumt – bei bedächtigem Drehen erschien
+    /// es also, verschwand nach 400 ms und kam bei der nächsten Raste neu.
+    /// Dieses Flackern war von einer verzögerten Anzeige nicht zu
+    /// unterscheiden. Jetzt überlebt es das Laden und zeigt danach kurz den
+    /// angewandten Wert.
+    private static let anzeigefrist: Duration = .milliseconds(1200)
 
     /// Nimmt ein Rad-Ereignis auf.
     ///
@@ -66,7 +76,7 @@ final class ChartScrub {
     ///   - input: die Eingabe, schon nach Gerät unterschieden.
     ///   - startDays / startAll: der aktuelle Zustand, falls die Geste hier beginnt.
     ///   - endsNow: `true` bei einem Trackpad, das sein Ende selbst meldet.
-    ///   - anwenden: läuft **einmal**, wenn der Wert zur Ruhe gekommen ist.
+    ///   - anwenden: läuft, sobald der Wert zur Ruhe gekommen ist.
     func handle(_ input: DayScrub.Input,
                 startDays: Int,
                 startAll: Bool,
@@ -76,15 +86,25 @@ final class ChartScrub {
         let geaendert = scrub.advance(input)
         let beginn = arbeitsstand == nil
         arbeitsstand = scrub
-        // Nur zuweisen, wenn sich die Anzeige wirklich unterscheidet – und beim
-        // ersten Ereignis, damit das Feld ueberhaupt erscheint.
+        // Sofort und ohne Bedingung, sobald sich die Zahl unterscheidet – hier
+        // darf nichts dazwischenliegen.
         if geaendert || beginn { pending = scrub }
+
+        // Die Anzeige lebt vom letzten **Ereignis**, das Laden vom letzten
+        // **Wert**. Zwei Fristen, weil es zwei Fragen sind.
+        ausblenden?.cancel()
+        ausblenden = Task { [weak self] in
+            try? await Task.sleep(for: Self.anzeigefrist)
+            guard !Task.isCancelled else { return }
+            self?.pending = nil
+            self?.arbeitsstand = nil
+        }
 
         if endsNow {
             // Das Trackpad meldet das Ende der Geste selbst – dann gibt es
             // nichts mehr abzuwarten.
             abschluss?.cancel()
-            abschließen(anwenden)
+            laden(anwenden)
             return
         }
 
@@ -96,22 +116,22 @@ final class ChartScrub {
         abschluss = Task { [weak self] in
             try? await Task.sleep(for: Self.ruhefrist)
             guard !Task.isCancelled else { return }
-            self?.abschließen(anwenden)
+            self?.laden(anwenden)
         }
     }
 
-    /// Wendet an und räumt das Anzeigefeld weg.
+    /// Wendet den Stand an – **ohne** das Anzeigefeld anzutasten.
     ///
-    /// **⚠️ Erst anwenden, dann `pending` löschen.** Andersherum verschwände
-    /// das Feld eine Rechnung lang, bevor die Überschrift den neuen Wert trägt –
-    /// und in genau dieser Lücke stünde die **alte** Zahl da.
-    private func abschließen(_ anwenden: @escaping (DayScrub) -> Void) {
+    /// **⚠️ Der Arbeitsstand bleibt stehen.** Dreht jemand nach dem Laden
+    /// weiter, setzt die nächste Raste auf der **angezeigten** Zahl auf und
+    /// nicht auf dem Modell – sonst spränge sie um die Schritte zurück, die das
+    /// Laden gerade erst übernommen hat.
+    private func laden(_ anwenden: @escaping (DayScrub) -> Void) {
         guard let scrub = arbeitsstand else { return }
         abschluss = nil
         anwenden(scrub)
-        arbeitsstand = nil
-        pending = nil
     }
+
 }
 
 /// Das Anzeigefeld während des Drehens.

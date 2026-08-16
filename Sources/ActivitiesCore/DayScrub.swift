@@ -65,10 +65,12 @@ public struct DayScrub: Equatable, Sendable {
 
     /// Angesammelte Eingabe, die noch keinen ganzen Tag ergeben hat.
     ///
-    /// **⚠️ Der Rest wird aufgehoben, nicht verworfen.** Ohne ihn bliebe ein
-    /// langsames Trackpad wirkungslos: Jedes einzelne Ereignis läge unter einem
-    /// Tag, würde abgerundet und verfiele – man schöbe die Finger und nichts
-    /// geschähe.
+    /// **⚠️ Seit v1.19.74 nur noch für die großen Schritte zuständig.** Vorher
+    /// war er das Einzige, was ein stufenloses Gerät überhaupt vorankommen
+    /// ließ – und genau daran lag die gemeldete Verzögerung, weil bis zum
+    /// ersten ganzen Tag mehrere Ereignisse vergingen. Den Mindestschritt
+    /// erledigt jetzt ``advance(_:)``; der Rest sorgt nur noch dafür, dass eine
+    /// **schnelle** Bewegung mehr als einen Tag je Ereignis zurücklegt.
     private var carry: Double
 
     public init(days: Int, isAllTime: Bool = false) {
@@ -90,23 +92,51 @@ public struct DayScrub: Equatable, Sendable {
     /// damit von selbst der Bildlaufrichtung des Systems, weil AppKit das
     /// Vorzeichen bereits gedreht hat, wenn „natürliches Scrollen" an ist.
     ///
+    /// **⚠️ Jedes Ereignis bewegt die Zahl um mindestens einen Tag –
+    /// Festlegung des Eigentümers (v1.19.74): *„Die Anzeige der Tage muss sich
+    /// beim Drehen unmittelbar – ohne Verzögerung – anpassen."***
+    ///
+    /// Das ist keine Kosmetik, sondern die Antwort auf ein Gerät ohne Rasten.
+    /// Ein Rad meldet ganze Zeilen, dort war „eine Raste = ein Tag" von Anfang
+    /// an exakt. Eine **Magic Mouse** und ein Trackpad melden Punkte, stufenlos
+    /// – bei ``pointsPerDay`` = 10 und 1–3 Punkten je Ereignis stand die Zahl
+    /// mehrere Ereignisse lang still, und genau das wurde als Verzögerung
+    /// gemeldet. *Der Fehler saß nicht in der Anzeige, sondern in der
+    /// Umrechnung davor: Sie hat die Bewegung verschluckt, bevor irgendetwas
+    /// zu zeichnen war.*
+    ///
+    /// **Der Preis, offen benannt:** Auf einem stufenlosen Gerät zählt jetzt
+    /// jedes Ereignis, nicht jeder zehnte Punkt – eine Wischbewegung bewegt
+    /// deshalb deutlich mehr Tage als vorher. Für ein Rad ändert sich nichts.
+    ///
     /// - Returns: `true`, wenn sich die Anzeige geändert hat.
     @discardableResult
     public mutating func advance(_ input: Input) -> Bool {
         let vorherTage = days
         let vorherAlle = isAllTime
 
+        let roh: Double
         switch input {
-        case let .notches(n): carry += n
-        case let .points(p): carry += p / Self.pointsPerDay
+        case let .notches(n): roh = n
+        case let .points(p): roh = p / Self.pointsPerDay
         }
+        guard roh != 0 else { return false }
+        carry += roh
 
         // ⚠️ Zur Null hin abschneiden, nicht abrunden: Bei einem Wechsel der
         // Drehrichtung darf der aufgehobene Rest nicht in die neue Richtung
         // durchschlagen. `Int(-0.4)` ist 0, `floor(-0.4)` waere -1.
-        let schritte = Int(carry)
-        guard schritte != 0 else { return false }
-        carry -= Double(schritte)
+        var schritte = Int(carry)
+        if schritte == 0 {
+            // ⚠️ Mindestens ein Tag je Ereignis. Der Rest wird dabei
+            // zurueckgesetzt und NICHT aufgehoben – sonst zaehlte dieselbe
+            // Bewegung zweimal, einmal als Mindestschritt und spaeter noch
+            // einmal aus dem angesparten Rest.
+            schritte = roh > 0 ? 1 : -1
+            carry = 0
+        } else {
+            carry -= Double(schritte)
+        }
 
         apply(steps: schritte)
         return days != vorherTage || isAllTime != vorherAlle

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.72 · 2026-08-16*
+*Stand: v1.19.73 · 2026-08-16*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,30 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-61 · Die Frist hing am Ereignis, nicht am Wert *(v1.19.73)*
+**Aufwand:** XS · **Art:** Korrektur einer Festlegung · *„Das Mausrad soll nicht entprellt werden – das soll reaktiv sein. Wenn sich der Wert dann 400 ms nicht ändert, soll das Laden ausgelöst werden."*
+
+**⚠️ Der Einwand traf einen echten Unterschied, keinen sprachlichen.** Bis v1.19.72 setzte die
+Frist bei **jedem Eingabeereignis** neu an — das ist die Bauform einer Entprellung, auch wenn
+im Kommentar daneben stand, es sei keine. Zwei Folgen:
+
+- Ein Trackpad, das lange **unter** einem Tag driftet, schob den Ladezeitpunkt endlos vor sich
+  her, obwohl die Anzeige längst stillstand.
+- Wer bedächtig dreht, wartete nach der letzten Raste die **volle** Frist ab — sie war ja an
+  eben dieser Raste gestartet.
+
+**Jetzt läuft sie nur bei einer Wertänderung an.** Bleibt die Zahl stehen, läuft die begonnene
+Frist ab und löst aus. Die Anzeige folgt weiterhin **jedem** Ereignis ohne Verzögerung; ein
+Trackpad meldet sein Ende zusätzlich selbst. 500 → **400 ms**.
+
+*Der Kommentar im Quelltext behauptete seit PR-61 „das ist keine Entprellung" und beschrieb
+eine — die Begründung war richtig gedacht und falsch gebaut. Ein `⚠️`, das eine Entscheidung
+verteidigt, die so nicht umgesetzt ist, ist schlimmer als keines: Er hat genau die Prüfung
+verhindert, die den Fehler gefunden hätte.*
+
+Hilfe und `README` nachgezogen (die sagten „gerechnet wird erst am Ende der Bewegung" — jetzt
+„sobald sie kurz stillsteht").
 
 ### ✅ UX-60 · Das Rad drehte sich in eine Sackgasse *(v1.19.72)*
 **Aufwand:** S · **Art:** Defekt · *aus der Praxis, einen Tag nach PR-61, mit Bild* · **P1**

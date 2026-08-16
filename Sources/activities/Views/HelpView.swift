@@ -32,8 +32,8 @@ struct HelpView: View {
                     "„Spanne“: feste Von–Bis, bis max. heute – wirkt sofort.",
                     "„Alle“: ohne Zeitgrenze – die App wird zum reinen Suchwerkzeug.",
                     "**Mausrad über dem Diagramm** verstellt den Zeitraum – eine Raste, ein Tag. "
-                        + "Während des Drehens steht die Zahl mitten im Diagramm; gerechnet wird erst, "
-                        + "wenn du aufhörst.",
+                        + "Die Zahl steht sofort mitten im Diagramm; gerechnet wird, sobald sie kurz "
+                        + "stillsteht.",
                     "Ordner außerhalb des Zeitraums werden ausgeblendet.",
                 ])
 

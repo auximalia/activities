@@ -11,13 +11,15 @@ import ActivitiesCore
 /// zeichnet nur neu, wer die Größe **liest**, und das ist allein das
 /// Anzeigefeld.
 ///
-/// **Anzeigen sofort, anwenden am Ende.** Diese Klasse hält den Wert und
-/// entscheidet, wann er wirkt. Das ist keine Entprellung: Eine Entprellung
-/// verzögert Arbeit in der Hoffnung, dass keine neue kommt, und war deshalb
-/// beim Namensfilter nachweislich schädlich (`ReportViewModel`, v1.19.53 –
-/// gemessen 0,6 s bis 3,0 s je Durchlauf, „kürzer als die Arbeit, die sie
-/// auslöste"). Hier gibt es ein **Ende der Geste**, das der Eingabe selbst zu
-/// entnehmen ist.
+/// **Anzeigen sofort, laden wenn der Wert steht.** Diese Klasse hält den Wert
+/// und entscheidet, wann er wirkt. Das ist **keine Entprellung**, und der
+/// Unterschied ist nicht sprachlich: Eine Entprellung setzt bei jeder *Eingabe*
+/// neu an und verzögert Arbeit in der Hoffnung, dass keine neue kommt – beim
+/// Namensfilter war sie deshalb nachweislich schädlich (`ReportViewModel`,
+/// v1.19.53 – gemessen 0,6 s bis 3,0 s je Durchlauf, *„kürzer als die Arbeit,
+/// die sie auslöste"*). Hier hängt die Frist am **Wert**: Die Anzeige folgt
+/// jedem Ereignis ohne jede Verzögerung, und geladen wird, sobald die Zahl
+/// 400 ms lang stillsteht. Ein Trackpad meldet sein Ende zusätzlich selbst.
 @MainActor
 @Observable
 final class ChartScrub {
@@ -37,22 +39,26 @@ final class ChartScrub {
 
     @ObservationIgnored private var abschluss: Task<Void, Never>?
 
-    /// **⚠️ Ruhefrist für das echte Mausrad – von 180 auf 500 ms erhöht
-    /// (v1.19.72), aus der Praxis: „ist noch ein wenig ruckelig".**
+    /// **⚠️ Die Frist hängt am WERT, nicht am Ereignis – und das ist der ganze
+    /// Unterschied zu einer Entprellung.** Festgelegt vom Eigentümer
+    /// (v1.19.73): *„Das Mausrad soll nicht entprellt werden – das soll reaktiv
+    /// sein. Wenn sich der Wert dann 400 ms nicht ändert, soll das Laden
+    /// ausgelöst werden."*
     ///
-    /// Das Trackpad meldet `NSEvent.Phase.ended` und braucht sie gar nicht; ein
-    /// Rad kennt keine Phase, dort ist das Ende der Geste allein an einer Pause
-    /// zu erkennen. 180 ms lagen über dem Abstand zweier Rasten beim
-    /// *Dauerdrehen* – und darunter, sobald jemand **bedächtig** dreht. Dann
-    /// griff die Frist mitten in der Bewegung, die Neurechnung belegte den
-    /// Hauptstrang (gemessen 0,6 s bei 100.000 Dateien), die folgenden Rasten
-    /// stauten sich und kamen im Block an. **Das Ruckeln war also nicht das
-    /// Rechnen, sondern das Rechnen zur falschen Zeit.**
+    /// Eine Entprellung setzt bei **jeder Eingabe** neu an. Genau so lief es
+    /// bis v1.19.72, und es hatte zwei Folgen: Ein Trackpad, das lange unter
+    /// einem Tag driftet, schob den Ladezeitpunkt endlos vor sich her, obwohl
+    /// die Anzeige längst stillstand — und wer bedächtig dreht, wartete nach der
+    /// letzten Raste noch die volle Frist ab, weil sie an derselben Raste
+    /// gestartet war.
     ///
-    /// 500 ms liegen über einer bedächtigen Rastenfolge und unter dem, was als
-    /// Hängenbleiben durchgeht. *Wer sie ändert, dreht am Gerät nach – gemessen
-    /// werden kann das nur unter den Fingern.*
-    private static let ruhefrist: Duration = .milliseconds(500)
+    /// Jetzt läuft sie **nur an, wenn sich die Zahl geändert hat**. Bleibt sie
+    /// stehen, läuft die begonnene Frist weiter ab und löst aus. Die Anzeige
+    /// selbst wird davon nie aufgehalten: Sie folgt jedem Ereignis sofort.
+    ///
+    /// *Wer die Zahl ändert, dreht am Gerät nach – gemessen werden kann das nur
+    /// unter den Fingern.*
+    private static let ruhefrist: Duration = .milliseconds(400)
 
     /// Nimmt ein Rad-Ereignis auf.
     ///
@@ -60,7 +66,7 @@ final class ChartScrub {
     ///   - input: die Eingabe, schon nach Gerät unterschieden.
     ///   - startDays / startAll: der aktuelle Zustand, falls die Geste hier beginnt.
     ///   - endsNow: `true` bei einem Trackpad, das sein Ende selbst meldet.
-    ///   - anwenden: läuft **einmal** am Ende der Geste.
+    ///   - anwenden: läuft **einmal**, wenn der Wert zur Ruhe gekommen ist.
     func handle(_ input: DayScrub.Input,
                 startDays: Int,
                 startAll: Bool,
@@ -68,20 +74,29 @@ final class ChartScrub {
                 anwenden: @escaping (DayScrub) -> Void) {
         var scrub = arbeitsstand ?? DayScrub(days: startDays, isAllTime: startAll)
         let geaendert = scrub.advance(input)
+        let beginn = arbeitsstand == nil
         arbeitsstand = scrub
         // Nur zuweisen, wenn sich die Anzeige wirklich unterscheidet – und beim
         // ersten Ereignis, damit das Feld ueberhaupt erscheint.
-        if geaendert || pending == nil { pending = scrub }
+        if geaendert || beginn { pending = scrub }
 
-        abschluss?.cancel()
         if endsNow {
+            // Das Trackpad meldet das Ende der Geste selbst – dann gibt es
+            // nichts mehr abzuwarten.
+            abschluss?.cancel()
             abschließen(anwenden)
-        } else {
-            abschluss = Task { [weak self] in
-                try? await Task.sleep(for: Self.ruhefrist)
-                guard !Task.isCancelled else { return }
-                self?.abschließen(anwenden)
-            }
+            return
+        }
+
+        // ⚠️ Nur bei einer Wertaenderung neu ansetzen. Ereignisse, die den
+        // aufgehobenen Rest verschieben, ohne die Zahl zu bewegen, duerfen den
+        // Ladezeitpunkt nicht verschleppen.
+        guard geaendert || beginn else { return }
+        abschluss?.cancel()
+        abschluss = Task { [weak self] in
+            try? await Task.sleep(for: Self.ruhefrist)
+            guard !Task.isCancelled else { return }
+            self?.abschließen(anwenden)
         }
     }
 

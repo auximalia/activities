@@ -738,7 +738,7 @@ final class ReportViewModel {
 
     // MARK: - Zeitmodus (Tage / Zeitspanne)
 
-    /// Setzt die Tagesanzahl (geklemmt 1…3650), sichert sie und startet die Suche neu.
+    /// Setzt die Tagesanzahl, sichert sie und rechnet neu.
     ///
     /// **Wichtig – bewusst im Modell, nicht in der View:** Bis v1.8.0 hing der
     /// Rescan an einem `onChange(of: model.days)` in der Steuerleiste. Mit deren
@@ -747,12 +747,33 @@ final class ReportViewModel {
     /// eine Modell-Methode (``setUseDateRange``, ``setAutoRefresh`` …); ``days``
     /// war die Ausnahme. Zustandsänderungen gehören ins Modell, damit sie einen
     /// Umbau der Oberfläche überleben.
+    ///
+    /// **⚠️ Eine Tageszahl setzen heißt, in den Tagemodus zu wechseln – seit
+    /// v1.19.71 auch aus „Spanne" heraus.** Vorher verließ diese Methode nur
+    /// „Alle", und in „Spanne" schrieb sie `days` in eine Größe, die niemand
+    /// ansieht: Die Anzeige blieb stehen, der Wert änderte sich still.
+    /// **Der Beleg lag im Aufrufer:** Der leere Zustand rief
+    /// `setUseDateRange(false)` und `setDays(90)` **nacheinander** – eine
+    /// Reparatur hinter der Grenze, dazu zwei volle Neurechnungen für eine
+    /// Handlung. Beim Mausrad wäre daraus ein Rad geworden, das sichtbar zählt
+    /// und nichts bewirkt.
+    ///
+    /// *Kein Aufrufer verliert dadurch etwas: Menü und Werkzeugleiste rufen
+    /// ohnehin zuerst `setTimeMode(.rolling)`, und das Zahlenfeld öffnet sich
+    /// nur in einem Modus, in dem das bereits geschehen ist.*
     func setDays(_ value: Int) {
-        let clamped = min(max(value, 1), 3650)
-        guard clamped != days else { return }
+        // ⚠️ Die Grenze steht in `DayScrub.dayRange` im Kern, nicht mehr hier.
+        // Sie war dreimal getippt – Modell, Schrittfeld, Hilfetext –, und das
+        // Mausrad (v1.19.71) waere die vierte Kopie geworden.
+        let clamped = DayScrub.clamp(value)
+        guard clamped != days || useDateRange || ignoreTimeWindow else { return }
         days = clamped
         ignoreTimeWindow = false
         store.saveIgnoreTimeWindow(false)
+        if useDateRange {
+            useDateRange = false
+            store.saveTimeMode(useDateRange: false, start: rangeStart, end: rangeEnd)
+        }
         applyWindowChange()
     }
 

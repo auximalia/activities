@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.70 · 2026-08-14*
+*Stand: v1.19.71 · 2026-08-16*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,98 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-61 · Zeitraum am Mausrad *(v1.19.71)*
+**Aufwand:** M · **Art:** Wunsch aus der Praxis · *„durch das Drehen des Mausrades die Tage von 0 bis maximal zurück einstellen"*
+
+**Gebaut:** Ein Mausrad **über der Diagrammfläche** verstellt den Zeitraum — eine Raste, ein
+Tag. Während des Drehens steht die vorgemerkte Zahl mitten im Diagramm; gerechnet wird
+**einmal**, wenn das Drehen aufhört.
+
+**⚠️ „Anzeigen sofort, anwenden am Ende" ist der ganze Entwurf.** Ein angewandter Schritt
+kostet gemessen **0,6 s bei 100.000**, **1,4 s bei 250.000** und **3,0 s bei 500.000** Dateien
+auf dem Hauptstrang; beim Vergrößern kommt ein Plattenzugriff dazu, und `applyWindowChange`
+schreibt zusätzlich die Einstellungen und löscht den Cursor. Dreihundert Rasten einzeln
+anzuwenden wären dreihundert solche Durchläufe.
+
+**⚠️ Das ist keine Entprellung, und der Unterschied ist genau der, an dem v1.19.52
+gescheitert ist.** Dort stand eine feste Frist von 250 ms am Namensfilter — *„kürzer als die
+Arbeit, die sie auslöste"*. Eine Entprellung verzögert Arbeit in der **Hoffnung**, dass keine
+neue kommt. Hier gibt es ein **Ende der Geste**: Das Trackpad meldet `NSEvent.Phase.ended`,
+und nur für das echte Rad, das gar keine Phase kennt, braucht es eine Ruhefrist (180 ms).
+
+**Vier Festlegungen des Eigentümers, davon zwei gegen meinen Vorschlag:**
+
+| Frage | Vorschlag | Entschieden |
+|---|---|---|
+| Auflösung | Leiter aus Haltepunkten (1, 2, 3 … 90, 365, 3650) | **eine Raste = ein Tag** |
+| Zusatztaste | keine | keine ✓ |
+| oberhalb 3650 | eine Raste weiter ist „Alle" | so ✓ |
+| Wirkungsbereich | gesamte Kopfzone | **nur die Diagrammfläche** |
+
+*Die Leiter wurde verworfen, und der Einwand ist damit erledigt, nicht vergessen: Bei einer
+Raste je Tag sind es **3649 Rasten** bis zum Anschlag, und die Raste nach „Alle" liegt
+dahinter — sie ist auf diesem Weg praktisch unerreichbar. Das Rad ist die Feineinstellung;
+wer den Anschlag will, nimmt ⌘0. Das stand vor der Entscheidung im Plan und ist eingebaut wie
+entschieden.*
+
+**⚠️ Der naheliegende Bauweg hätte das Diagramm zerbrochen.** Eine `NSView`, die
+`scrollWheel(with:)` überschreibt, muss anklickbar sein — und verschluckt damit Klick, Ziehen
+und Überfahren, also genau die drei Gesten, die die Fläche schon hat. `HistoryChartView` hält
+außerdem fest, dass laufende Zustandsänderungen eine Ziehgeste **abbrechen**; ein vierter
+Erkenner wäre die dritte Regression dieser Art gewesen. Stattdessen ein **lokaler**
+Ereignisbeobachter (kein globaler — der verlangte die Bedienhilfen-Freigabe, siehe
+`GlobalHotKey`) und eine `NSView`, die aus `hitTest` grundsätzlich `nil` zurückgibt und nur
+ihr Rechteck kennt.
+
+**⚠️ Kein Bildlauf-Konflikt, und das ist baulich so, nicht wahrscheinlich.** Die Kopfzone ist
+**Geschwister** der Liste, nicht ihr Kind — über ihr liegt kein Bildlaufbereich, in den ein
+Ereignis aufsteigen könnte.
+
+**⚠️ Nachlauf wird verworfen** (`momentumPhase`). Ohne das zählte ein Trackpad-Wisch nach dem
+Abheben der Finger weiter, und aus „eine Raste = ein Tag" würde ein Glücksrad.
+
+**⚠️ Das Anzeigefeld ist nicht die Überschrift.** Die Überschrift entsteht aus
+`displayRangeStart/End` — also in genau dem Durchlauf, den die Geste vermeidet. Sie bliebe
+während des Drehens stehen und spränge danach; das wäre schlechter als gar keine Rückmeldung.
+Der Zustand liegt in einem eigenen `@Observable`, damit nur das Feld neu zeichnet und nicht
+die ganze Kopfzone — bei einer Raste je Tag sind das dreihundert vermiedene Neuaufbauten je
+Fingerbewegung.
+
+## Der Defekt, der beim Durchlesen herausfiel
+
+**`setDays` verließ „Alle", aber nicht „Spanne".** In diesem Modus schrieb es `days` in eine
+Größe, die niemand ansieht: Die Anzeige blieb stehen, der Wert änderte sich still. **Für das
+Rad hätte das geheißen: sichtbar zählen und nichts bewirken.**
+
+**⚠️ Der Beleg lag im Aufrufer, nicht in der Methode.** `RootView` rief für „Auf 90 Tage
+erweitern" erst `setUseDateRange(false)` und dann `setDays(90)` — eine Reparatur **hinter**
+der Grenze, dazu zwei volle Neurechnungen für eine Handlung. *Ein Aufrufer, der von Hand
+nachbessert, was die Methode zusichern müsste, ist ein Befund und keine Fußnote.* `setDays`
+wechselt den Modus jetzt selbst; kein Aufrufer verliert dadurch etwas, weil Menü und
+Werkzeugleiste ohnehin zuerst `setTimeMode(.rolling)` rufen.
+
+**Nebenbei entfernt:** Die Grenze 1…3650 stand an **drei** Stellen (Modell, Schrittfeld,
+Hilfetext); das Rad wäre die vierte gewesen. Sie steht jetzt als `DayScrub.dayRange` im Kern.
+
+**Zusicherungen:** 42 neue (1558 → **1602**) — Auflösung, Vorzeichen, aufgehobener Rest beim
+Trackpad, Richtungswechsel ohne Sprung, beide Endpunkte als Festpunkt statt Umlauf, der
+Anschlag wird nicht übersprungen, der Rückweg aus „Alle" landet auf 3650 statt daneben,
+gleicher Wortlaut wie die Überschrift, und der „Spanne"-Fall oben.
+
+**⚠️ Zwei Zahlen sind hergeleitet, nicht gemessen — und das steht so im Quelltext, statt als
+Messung ausgegeben zu werden:** `pointsPerDay = 10` (AppKits eigene Umrechnung Punkte→Zeile;
+für die Maus unbeteiligt, weil sie ganze Zeilen meldet) und die Ruhefrist von 180 ms. Beide
+sind nur am Gerät zu beurteilen, und der Eigentümer war nicht am Bildschirm. **Die Fragen
+stehen in der Abnahme.**
+
+**Bewusst nicht gebaut:** kein Zoomen des Diagramms per Rad (zweite Bedeutung derselben
+Geste), kein waagerechtes Schieben, keine Beschleunigung nach Drehgeschwindigkeit — sie wäre
+an Maus und Trackpad verschieden, nicht reproduzierbar und von `CoreChecks` unerreichbar.
+
+**Offene Abnahme:** Am laufenden Programm **nicht** geprüft — der Eigentümer war unterwegs.
+Drehrichtung, Trackpad-Geschwindigkeit und Ruhefrist sind die drei Punkte, die nur unter den
+Fingern zu beurteilen sind.
 
 ### ✅ UX-59 · „Auto" und „veraltet" standen nebeneinander in derselben Zeile *(v1.19.70)*
 **Aufwand:** M · **Art:** Defekt · *aus der Praxis gemeldet, mit Bild* · **P1**

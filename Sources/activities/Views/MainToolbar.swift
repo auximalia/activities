@@ -499,11 +499,11 @@ struct MainToolbar: ToolbarContent {
             Stepper("", value: Binding(
                 get: { model.days },
                 set: { model.setDays($0) }
-            ), in: 1...3650)
+            ), in: DayScrub.dayRange)
             .labelsHidden()
         }
         .padding(12)
-        .help("Tage manuell eingeben (1–3650)")
+        .help("Tage manuell eingeben (\(DayScrub.dayRange.lowerBound)–\(DayScrub.dayRange.upperBound))")
             .accessibilityLabel("Tage manuell eingeben")
     }
 }

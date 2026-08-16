@@ -338,6 +338,14 @@ public enum Shortcuts {
         id: "shiftClick", key: nil, displayOverride: "⇧-Klick",
         label: "Bereich auswählen", section: .mouse
     )
+    /// **⚠️ Wirkt nur über der Diagrammfläche.** Ein Rad über der Liste
+    /// scrollt die Liste – deshalb steht der Ort in der Beschriftung und nicht
+    /// nur in der Hilfeprosa. Ohne ihn wäre der Eintrag eine Behauptung, die
+    /// beim ersten Versuch an der falschen Stelle scheitert.
+    public static let wheelDays = ShortcutEntry(
+        id: "wheelDays", key: nil, displayOverride: "Mausrad",
+        label: "Über dem Diagramm: Zeitraum tageweise verstellen", section: .mouse
+    )
 
     /// Der vollständige Katalog, in der Reihenfolge der Hilfetabelle.
     public static let catalogue: [ShortcutEntry] = [
@@ -351,7 +359,7 @@ public enum Shortcuts {
         selectAll, clearSelection, closeWindow, settings, help, bringToFront,
         moveSelection, extendSelection, expandCollapse, openSelection,
         quickLookSpace, escapeSelection,
-        commandClick, shiftClick,
+        commandClick, shiftClick, wheelDays,
     ]
 
     /// Alle Einträge eines Abschnitts, in Katalogreihenfolge.

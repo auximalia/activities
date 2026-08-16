@@ -137,7 +137,11 @@ struct RootView: View {
                 title: "Im Zeitraum wurde nichts bearbeitet",
                 message: "Der Ordner enthält \(total) Dateien, aber keine davon wurde im gewählten Zeitraum geändert.",
                 actionTitle: "Auf 90 Tage erweitern",
-                action: { model.setUseDateRange(false); model.setDays(90) }
+                // ⚠️ Nur noch **ein** Aufruf. Hier stand
+                // `setUseDateRange(false); setDays(90)` – eine Reparatur hinter
+                // der Grenze, die zwei volle Neurechnungen kostete. Seit
+                // v1.19.71 wechselt `setDays` den Modus selbst.
+                action: { model.setDays(90) }
             )
         case .emptyFolder:
             EmptyStateView(

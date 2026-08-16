@@ -21,6 +21,54 @@ struct ChartHeaderView: View {
     /// Platz, den die Y-Achsenbeschriftung des Diagramms links einnimmt.
     private static let yAxisGutter: CGFloat = 38
 
+    /// Zustand einer laufenden Rad-Geste (v1.19.71).
+    @State private var scrub = ChartScrub()
+
+    /// Nimmt ein Rad-Ereignis über der Diagrammfläche entgegen.
+    ///
+    /// **⚠️ Nachlauf wird verworfen** (`momentumPhase != []`). Ein Trackpad
+    /// schickt nach dem Loslassen weiter Ereignisse; ohne diese Bedingung
+    /// zählte ein Wisch nach dem Abheben der Finger weiter, und aus „eine Raste
+    /// = ein Tag" würde ein Glücksrad. Am Trackpad zählt deshalb nur, solange
+    /// die Finger aufliegen.
+    ///
+    /// **⚠️ Maus und Trackpad werden getrennt behandelt, weil sie
+    /// Verschiedenes melden.** `hasPreciseScrollingDeltas` unterscheidet sie:
+    /// Die Maus meldet ganze Zeilen – dort ist „eine Raste = ein Tag" exakt und
+    /// braucht keine Umrechnung. Das Trackpad meldet Punkte; dafür sammelt
+    /// ``DayScrub`` und gibt ganze Tage aus.
+    ///
+    /// **⚠️ Waagerechtes Wischen wird nicht angefasst.** Ein Zweifingerwisch
+    /// nach links hat auf dieser Fläche keine Bedeutung, und ein Ereignis, das
+    /// überwiegend waagerecht ist, war nicht als Verstellen gemeint.
+    private func verstelle(_ event: NSEvent) -> Bool {
+        guard event.momentumPhase.isEmpty else { return true }
+        let dy = event.scrollingDeltaY
+        guard dy != 0, abs(dy) >= abs(event.scrollingDeltaX) else { return false }
+
+        let eingabe: DayScrub.Input = event.hasPreciseScrollingDeltas
+            ? .points(dy)
+            : .notches(dy)
+        // Ein Trackpad meldet das Ende der Geste selbst; ein Rad kennt keine
+        // Phase, dort entscheidet die Ruhefrist in ``ChartScrub``.
+        let endetJetzt = event.phase.contains(.ended) || event.phase.contains(.cancelled)
+
+        scrub.handle(eingabe,
+                     startDays: model.days,
+                     startAll: model.ignoreTimeWindow,
+                     endsNow: endetJetzt) { stand in
+            guard stand.differs(fromDays: model.days,
+                                isAllTime: model.ignoreTimeWindow,
+                                usesRange: model.useDateRange) else { return }
+            if stand.isAllTime {
+                model.setIgnoreTimeWindow(true)
+            } else {
+                model.setDays(stand.days)
+            }
+        }
+        return true
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headline
@@ -44,6 +92,18 @@ struct ChartHeaderView: View {
                 .padding(.horizontal, 4)
                 .padding(.top, 6)
                 .padding(.bottom, 8)
+                // ⚠️ Das Rad wirkt **nur über der Diagrammflaeche** – so
+                // entschieden. Ueberschrift und Statuszeile der Kopfzone sind
+                // ausgenommen, und eingeklappt gibt es kein Ziel; dann bleiben
+                // ⌘1–⌘5, ⌘0, der Segmentschalter und das Zahlenfeld.
+                //
+                // **Kein Bildlauf-Konflikt, und das ist baulich so, nicht
+                // wahrscheinlich:** Die Kopfzone ist **Geschwister** der Liste,
+                // nicht ihr Kind (`RootView` gegen `ReportView`) – ueber ihr
+                // liegt kein Bildlaufbereich, in den ein Ereignis aufsteigen
+                // koennte.
+                .background(WheelCatcher(onWheel: verstelle))
+                .overlay { ScrubIndicator(scrub: scrub) }
             }
 
             statusRow

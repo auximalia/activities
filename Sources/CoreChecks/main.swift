@@ -2699,6 +2699,117 @@ do {
            "Stand: die beiden Aussagen sind unterscheidbar")
 }
 
+// MARK: - DayScrub: Zeitraum am Mausrad (v1.19.71)
+do {
+    // ── Die Festlegung des Eigentuemers: eine Raste, ein Tag. ──
+    var s = DayScrub(days: 30)
+    s.advance(.notches(1))
+    expectEqual(s.days, 31, "Rad: eine Raste vorwaerts ist ein Tag")
+    s.advance(.notches(-1))
+    expectEqual(s.days, 30, "Rad: und eine zurueck derselbe Tag")
+
+    // ⚠️ Vorzeichen: positiv bedeutet MEHR Tage - die Richtung jedes
+    // Schrittfeldes. Wer das dreht, dreht es an genau dieser Zusicherung.
+    var richtung = DayScrub(days: 10)
+    richtung.advance(.notches(5))
+    expect(richtung.days > 10, "Rad: positiv heisst mehr Tage")
+
+    // ── Der Rest wird aufgehoben, nicht verworfen. ──
+    //
+    // ⚠️ Ohne das bliebe ein langsames Trackpad wirkungslos: Jedes einzelne
+    // Ereignis laege unter einem Tag und verfiele.
+    var fein = DayScrub(days: 30)
+    for _ in 0..<4 { fein.advance(.points(3)) }   // 12 Punkte = 1,2 Tage
+    expectEqual(fein.days, 31, "Rad: gesammelte Punkte ergeben einen ganzen Tag")
+    expect(!fein.advance(.points(1)), "Rad: ein Bruchteil allein aendert nichts")
+
+    expectEqual(DayScrub.pointsPerDay, 10, "Rad: die Umrechnung des Trackpads")
+
+    // ⚠️ Richtungswechsel: Der aufgehobene Rest darf nicht in die neue Richtung
+    // durchschlagen. Deshalb wird zur Null hin abgeschnitten, nicht abgerundet.
+    var wechsel = DayScrub(days: 30)
+    wechsel.advance(.points(4))                  // 0,4 Tage vorgemerkt
+    expectEqual(wechsel.days, 30, "Rad: noch kein ganzer Tag")
+    wechsel.advance(.points(-4))                 // wieder bei 0,0
+    expectEqual(wechsel.days, 30, "Rad: Richtungswechsel springt nicht")
+
+    // ── Die Grenzen. ──
+    expectEqual(DayScrub.dayRange.lowerBound, 1, "Rad: weniger als ein Tag gibt es nicht")
+    expectEqual(DayScrub.dayRange.upperBound, 3650, "Rad: der Anschlag liegt bei 3650")
+    expectEqual(DayScrub.clamp(0), 1, "Rad: 0 wird auf 1 gehoben")
+    expectEqual(DayScrub.clamp(99_999), 3650, "Rad: und alles darueber auf den Anschlag")
+
+    var unten = DayScrub(days: 1)
+    unten.apply(steps: -50)
+    expectEqual(unten.days, 1, "Rad: unten ist ein Festpunkt, kein Umlauf")
+    expect(!unten.isAllTime, "Rad: und schlaegt nicht nach „Alle\u{201C} um")
+
+    // ── „Alle" liegt genau eine Raste hinter dem Anschlag. ──
+    //
+    // ⚠️ Der Anschlag wird NICHT uebersprungen: Wer von 3000 aus weit dreht,
+    // landet auf 3650 und braucht eine weitere Raste fuer „Alle". Sonst
+    // uebersaehe man den groessten Zeitraum, den es als Zahl gibt.
+    var hoch = DayScrub(days: 3000)
+    hoch.apply(steps: 5000)
+    expectEqual(hoch.days, 3650, "Rad: der Anschlag wird nicht uebersprungen")
+    expect(!hoch.isAllTime, "Rad: und ist noch nicht „Alle\u{201C}")
+    hoch.apply(steps: 1)
+    expect(hoch.isAllTime, "Rad: eine Raste weiter ist „Alle\u{201C}")
+    hoch.apply(steps: 99)
+    expect(hoch.isAllTime, "Rad: weiter geht es dort nicht")
+
+    // ⚠️ Der Rueckweg fuehrt auf den Anschlag, nicht daran vorbei.
+    var zurueck = DayScrub(days: 3650, isAllTime: true)
+    zurueck.apply(steps: -1)
+    expect(!zurueck.isAllTime, "Rad: eine Raste zurueck verlaesst „Alle\u{201C}")
+    expectEqual(zurueck.days, 3650, "Rad: und landet auf dem Anschlag, nicht darunter")
+    zurueck.apply(steps: -1)
+    expectEqual(zurueck.days, 3649, "Rad: erst die naechste geht weiter hinunter")
+
+    // ── Die Beschriftung ist dieselbe wie in der Ueberschrift. ──
+    //
+    // ⚠️ Zwei Wortlaute fuer dieselbe Sache in einem Fenster waeren der Fehler,
+    // den die Kuerzeltabelle (UX-39) schon einmal gemacht hat.
+    expectEqual(DayScrub(days: 1).label, DateFormatting.spanLabel(days: 1), "Rad: Einzahl wie die Ueberschrift")
+    expectEqual(DayScrub(days: 30).label, "30 Tage", "Rad: Mehrzahl")
+    expectEqual(DayScrub(days: 3650).label, DateFormatting.spanLabel(days: 3650),
+                "Rad: und in Jahren, wo die Ueberschrift es auch tut")
+    expectEqual(DayScrub(days: 1, isAllTime: true).label, "Alle", "Rad: „Alle\u{201C} ist keine Tageszahl")
+
+    // ── Was nichts aendert, wird nicht angewandt. ──
+    //
+    // ⚠️ Ohne diese Frage liefe nach jeder Geste eine volle Rechnung, auch wenn
+    // man am Ende dort steht, wo man angefangen hat.
+    expect(!DayScrub(days: 30).differs(fromDays: 30, isAllTime: false), "Rad: derselbe Wert wird nicht angewandt")
+    expect(DayScrub(days: 31).differs(fromDays: 30, isAllTime: false), "Rad: ein anderer schon")
+    expect(DayScrub(days: 30, isAllTime: true).differs(fromDays: 30, isAllTime: false),
+           "Rad: der Wechsel nach „Alle\u{201C} zaehlt, obwohl die Zahl gleich bleibt")
+    expect(!DayScrub(days: 30, isAllTime: true).differs(fromDays: 99, isAllTime: true),
+           "Rad: in „Alle\u{201C} ist die Tageszahl bedeutungslos")
+
+    // ⚠️ Aus „Spanne" heraus aendert das Anwenden IMMER etwas - es verlaesst
+    // diesen Modus. Ohne diesen Fall waere das Rad dort sichtbar am Zaehlen und
+    // wirkungslos: Die Anzeige zaehlte, die Pruefung sagte „nichts geaendert".
+    expect(DayScrub(days: 30).differs(fromDays: 30, isAllTime: false, usesRange: true),
+           "Rad: aus „Spanne\u{201C} heraus wirkt auch derselbe Wert")
+    expect(!DayScrub(days: 30).differs(fromDays: 30, isAllTime: false, usesRange: false),
+           "Rad: ohne „Spanne\u{201C} bleibt derselbe Wert folgenlos")
+
+    // ⚠️ Jeder Vorgabewert muss auf dem Weg des Rades LIEGEN, sonst rastet der
+    // Segmentschalter beim Drehen nie ein. Bei einer Raste je Tag ist das
+    // selbstverstaendlich - die Zusicherung steht hier fuer den Tag, an dem
+    // jemand doch eine Leiter einzieht.
+    for vorgabe in TimePreset.rollingPresets.compactMap(\.days) {
+        expect(DayScrub.dayRange.contains(vorgabe), "Rad: Vorgabe \(vorgabe) ist erreichbar")
+        // ⚠️ Von oben angefahren, nicht von unten: Fuer die 1 gibt es kein
+        // „darunter" - `DayScrub(days: 0)` wird auf 1 geklemmt, und die Raste
+        // fuehrte dann auf 2. Der Weg von oben trifft alle Vorgaben gleich.
+        var lauf = DayScrub(days: vorgabe + 1)
+        lauf.advance(.notches(-1))
+        expectEqual(lauf.days, vorgabe, "Rad: Vorgabe \(vorgabe) wird getroffen, nicht uebersprungen")
+    }
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

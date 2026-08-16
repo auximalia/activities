@@ -31,6 +31,9 @@ struct HelpView: View {
                     "Gerechnet wird in **Kalendertagen bis heute** – „Heute“ beginnt um 0 Uhr.",
                     "„Spanne“: feste Von–Bis, bis max. heute – wirkt sofort.",
                     "„Alle“: ohne Zeitgrenze – die App wird zum reinen Suchwerkzeug.",
+                    "**Mausrad über dem Diagramm** verstellt den Zeitraum – eine Raste, ein Tag. "
+                        + "Während des Drehens steht die Zahl mitten im Diagramm; gerechnet wird erst, "
+                        + "wenn du aufhörst.",
                     "Ordner außerhalb des Zeitraums werden ausgeblendet.",
                 ])
 

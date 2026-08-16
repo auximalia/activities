@@ -116,6 +116,18 @@ struct FileRowView: View {
         }
         .background(paintsBackground ? RowMetrics.rowBackground(alternate: isAlternate) : Color.clear)
         .contentShape(Rectangle())
+        // **⚠️ Mehrere Dateien kann `onDrag` nicht.** Seine Signatur liefert
+        // genau EINEN `NSItemProvider`, und der traegt ein Objekt – gemeldet:
+        // „zwei markiert, nur die erste kommt an". Der Beobachter darunter
+        // uebernimmt deshalb den Fall `> 1` und startet eine echte
+        // `NSDraggingSession`; fuer eine einzelne Datei bleibt alles wie es war.
+        // Siehe ``MultiFileDragSource`` fuer die Begruendung der Bauform.
+        .background(
+            MultiFileDragSource(
+                targets: { model.actionTargets(for: file.url) },
+                prepare: { if !model.isSelected(file.url) { model.select(.file(file.url)) } }
+            )
+        )
         // Herausziehen in andere Programme (Mail, Finder, Editor).
         //
         // **Reihenfolge ist wichtig:** `.onDrag` steht VOR der
@@ -138,20 +150,11 @@ struct FileRowView: View {
             provider.suggestedName = file.url.deletingPathExtension().lastPathComponent
             return provider
         } preview: {
-            // Eigene Vorschau: Die Standardvorschau ist eine verkleinerte
-            // Abbildung der gesamten Zeile und damit unlesbar.
-            HStack(spacing: 6) {
-                Image(nsImage: FileIconProvider.icon(for: file.url))
-                    .resizable()
-                    .interpolation(.high)
-                    .frame(width: 16, height: 16)
-                Text(file.url.lastPathComponent)
-                    .font(.system(size: groesse.nameFontSize))
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            // ⚠️ Ebenfalls ein eigener Typ, und aus demselben Grund: Auch
+            // `preview:` ist eine nicht entweichende Closure und baute Symbol,
+            // Text und Material bei jeder Neuzeichnung der Zeile auf – fuer ein
+            // Ziehen, das fast nie stattfindet.
+            DragPreview(url: file.url, fontSize: groesse.nameFontSize)
         }
         .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau · Ziehen: in andere Programme")
         // Markieren sofort beim Mausdruck: zwei konkurrierende onTapGesture
@@ -201,26 +204,18 @@ struct FileRowView: View {
                 model.requestOpen(model.actionTargets(for: file.url))
             }
         )
-        .contextMenu {
-            // Aktionen wirken auf die gesamte Auswahl, wenn diese Zeile dazugehoert.
-            let targets = model.actionTargets(for: file.url)
-            let suffix = targets.count > 1 ? " (\(targets.count))" : ""
-            Button("Öffnen" + suffix) { model.requestOpen(targets) }
-            Button("Im Finder anzeigen" + suffix) { model.requestReveal(targets) }
-            if let editor = model.editorApp {
-                Button("In \(editor.name) öffnen" + suffix) { model.requestOpenInEditor(targets) }
-                    .keyboardShortcut("e", modifiers: [.command, .shift])
-            }
-            if let terminal = model.terminalApp {
-                // Ohne Anzahl: Das Terminal oeffnet den **Ordner** der Auswahl,
-                // nicht die Dateien – eine Zahl daneben waere eine falsche Zusage.
-                Button("Ordner in \(terminal.name) öffnen") { model.requestOpenInTerminal(targets) }
-                    .keyboardShortcut("t", modifiers: [.command, .shift])
-            }
-            Button((targets.count > 1 ? "Pfade kopieren" : "Pfad kopieren") + suffix) {
-                ClipboardService.copy(targets.map(\.path).joined(separator: "\n"))
-            }
-        }
+        // **⚠️ Ein eigener Typ, kein Inhalts-Baublock.** `contextMenu(menuItems:)`
+        // nimmt eine **nicht** entweichende Closure und baut sie deshalb bei
+        // JEDER Auswertung dieses Zeilenrumpfes auf – auch wenn nie jemand
+        // rechtsklickt. Darin stand `model.actionTargets(for:)`, und das ist
+        // fuer eine ausgewaehlte Zeile die volle Kette ueber alle sichtbaren
+        // Zeilen. Bei einer Bereichsauswahl lief sie damit je markierter Zeile
+        // einmal. Als eigener `View` wird hier nur noch ein Wert **erzeugt**;
+        // sein Rumpf laeuft erst, wenn das Menue wirklich aufgeht.
+        //
+        // *Dieselbe Bauform, die `FolderRowView` mit `FolderContextMenu` seit
+        // jeher benutzt – sie war da und wurde hier nicht angewandt.*
+        .contextMenu { FileContextMenu(url: file.url, model: model) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Datei \(file.url.lastPathComponent)")
         // **⚠️ Der Wert traegt jetzt auch den Zustand.** Das ausdrueckliche
@@ -239,5 +234,60 @@ struct FileRowView: View {
             model.select(.file(file.url))
             FinderService.open(file.url)
         }
+    }
+}
+
+/// Das Kontextmenue einer Dateizeile.
+///
+/// **⚠️ Eigener Typ, damit sein Rumpf nicht bei jeder Neuzeichnung laeuft** –
+/// siehe die Begruendung an der Aufrufstelle. Die Aktionen wirken auf die
+/// gesamte Auswahl, wenn diese Zeile dazugehoert (Finder-Regel,
+/// ``ReportViewModel/actionTargets(for:)``).
+struct FileContextMenu: View {
+    let url: URL
+    @Bindable var model: ReportViewModel
+
+    var body: some View {
+        let targets = model.actionTargets(for: url)
+        let suffix = targets.count > 1 ? " (\(targets.count))" : ""
+        Button("Öffnen" + suffix) { model.requestOpen(targets) }
+        Button("Im Finder anzeigen" + suffix) { model.requestReveal(targets) }
+        if let editor = model.editorApp {
+            Button("In \(editor.name) öffnen" + suffix) { model.requestOpenInEditor(targets) }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+        }
+        if let terminal = model.terminalApp {
+            // Ohne Anzahl: Das Terminal oeffnet den **Ordner** der Auswahl,
+            // nicht die Dateien – eine Zahl daneben waere eine falsche Zusage.
+            Button("Ordner in \(terminal.name) öffnen") { model.requestOpenInTerminal(targets) }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
+        }
+        Button((targets.count > 1 ? "Pfade kopieren" : "Pfad kopieren") + suffix) {
+            ClipboardService.copy(targets.map(\.path).joined(separator: "\n"))
+        }
+    }
+}
+
+/// Die Vorschau, die am Mauszeiger haengt.
+///
+/// Die Standardvorschau ist eine verkleinerte Abbildung der gesamten Zeile und
+/// damit unlesbar.
+struct DragPreview: View {
+    let url: URL
+    let fontSize: CGFloat
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(nsImage: FileIconProvider.icon(for: url))
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 16, height: 16)
+            Text(url.lastPathComponent)
+                .font(.system(size: fontSize))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }

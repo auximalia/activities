@@ -342,6 +342,13 @@ public enum Shortcuts {
     /// scrollt die Liste – deshalb steht der Ort in der Beschriftung und nicht
     /// nur in der Hilfeprosa. Ohne ihn wäre der Eintrag eine Behauptung, die
     /// beim ersten Versuch an der falschen Stelle scheitert.
+    /// **⚠️ „auch mehrere" steht ausdruecklich da.** Bis v1.19.75 kam beim
+    /// Ziehen mehrerer markierter Dateien nur die erste an – der Katalog soll
+    /// nennen, was das Programm kann, und nicht, was es vorhatte.
+    public static let dragFiles = ShortcutEntry(
+        id: "dragFiles", key: nil, displayOverride: "Ziehen",
+        label: "Markierte Dateien in ein anderes Programm kopieren – auch mehrere", section: .mouse
+    )
     public static let wheelDays = ShortcutEntry(
         id: "wheelDays", key: nil, displayOverride: "Mausrad",
         label: "Über dem Diagramm: Zeitraum tageweise verstellen", section: .mouse
@@ -359,7 +366,7 @@ public enum Shortcuts {
         selectAll, clearSelection, closeWindow, settings, help, bringToFront,
         moveSelection, extendSelection, expandCollapse, openSelection,
         quickLookSpace, escapeSelection,
-        commandClick, shiftClick, wheelDays,
+        commandClick, shiftClick, dragFiles, wheelDays,
     ]
 
     /// Alle Einträge eines Abschnitts, in Katalogreihenfolge.

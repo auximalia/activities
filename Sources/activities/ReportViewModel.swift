@@ -170,7 +170,15 @@ final class ReportViewModel {
 
     // Ergebnisse und Status.
     /// Anzuzeigende Ordner (nach Zeitraum + Typ-Filter, ohne leere Ordner).
-    var displayBuckets: [BucketedEntries] = []
+    ///
+    /// **⚠️ `didSet` nachgetragen in v1.19.75.** ``displayTree`` direkt darunter
+    /// trug ihn seit Sprint 15, diese Eigenschaft nicht – beide werden in
+    /// ``recomputeDisplayBuckets()`` unmittelbar nacheinander geschrieben, und
+    /// beide sind Eingang eines Zwischenspeichers. *Eine fehlende Zeile
+    /// zwischen zwei Geschwistern sieht man nicht; sie fiel erst auf, als
+    /// ``visibleRows`` gepuffert werden sollte und die Frage lautete, ob der
+    /// Zähler wirklich **alle** Eingänge kennt.*
+    var displayBuckets: [BucketedEntries] = [] { didSet { invalidateRows() } }
     /// Derselbe Bestand als **Ordnerbaum** – die zweite Blickrichtung.
     ///
     /// Wird **immer** mitberechnet, auch in der Zeitansicht. Der Aufbau kostet
@@ -179,7 +187,15 @@ final class ReportViewModel {
     /// ``displayBuckets`` zu.
     private(set) var displayTree: [FolderNode] = [] { didSet { invalidateRows() } }
     /// Gliederung der Liste: Baum oder Zeitabschnitte.
-    private(set) var viewMode: ViewMode
+    ///
+    /// **⚠️ `didSet` nachgetragen in v1.19.75, aus demselben Grund wie bei
+    /// ``displayBuckets``.** ``visibleRows`` wählt anhand dieser Größe zwischen
+    /// zwei völlig verschiedenen Zeilenfolgen; ohne den Zähler bliebe der
+    /// Zwischenspeicher nach einem Ansichtswechsel auf der alten stehen. *Der
+    /// bisherige Ersatz war ein Zufall: ``setViewMode`` schreibt
+    /// ``expandedFolders``, und **das** schrieb den Zähler fort – aber nur,
+    /// wenn dabei tatsächlich ein Ordner hinzukam.*
+    private(set) var viewMode: ViewMode { didSet { invalidateRows() } }
     /// Ob im **Baum** die Dateizeilen erscheinen.
     ///
     /// **WARNUNG: nicht dasselbe wie „Ordner aufgeklappt".** Der Schalter in der
@@ -651,6 +667,26 @@ final class ReportViewModel {
         case .folder(let url): [url]
         case .file(let url): actionTargets(for: url)
         case nil: []
+        }
+    }
+
+    /// Ob ein Menuebefehl ueberhaupt ein Ziel hat.
+    ///
+    /// **⚠️ Beantwortet dieselbe Frage wie `commandTargets.isEmpty`, ohne die
+    /// Liste zu bauen.** Sie stand viermal in der Menueleiste
+    /// (`ActivitiesApp`), und jedes Mal lief dafuer die volle Kette
+    /// ``orderedSelection`` → ``visibleFileOrder`` → ``visibleRows``: **vier
+    /// vollstaendige Durchlaeufe ueber alle sichtbaren Zeilen, um ein
+    /// Ja/Nein zu beantworten** – bei jedem Klick, weil dasselbe Menue auch
+    /// ``cursor`` liest.
+    ///
+    /// *Gleichwertig, weil beide Nicht-`nil`-Faelle mindestens die Cursorzeile
+    /// selbst enthalten: `.folder` liefert sie unmittelbar, `.file` entweder
+    /// `[url]` oder eine Auswahl, die `url` enthaelt.*
+    var hasCommandTargets: Bool {
+        switch cursor {
+        case .folder, .file: true
+        case nil: false
         }
     }
 
@@ -1356,6 +1392,12 @@ final class ReportViewModel {
     @ObservationIgnored private var sortedFilesMemo = Memo<[URL: [RelevantFile]]>()
     @ObservationIgnored private var treeRowsMemo = Memo<[TreeRow]>()
     @ObservationIgnored private var visibilityMemo = Memo<FileVisibility>()
+    /// ⚠️ Vierter Speicher, nachgezogen in v1.19.75 – siehe ``visibleRows``.
+    @ObservationIgnored private var visibleRowsMemo = Memo<[RowID]>()
+    /// ⚠️ Arbeitstage je Ordner – siehe ``workDays(in:)``. Kein ``Memo``,
+    /// weil hier nicht **ein** Ergebnis gepuffert wird, sondern eines je
+    /// Ordner; der Zaehler raeumt den ganzen Sack auf einmal.
+    @ObservationIgnored private var workDaysCache: (generation: Int, byFolder: [URL: [WorkDay]]) = (-1, [:])
 
     private func invalidateRows() { rowsGeneration &+= 1 }
 
@@ -1607,16 +1649,31 @@ final class ReportViewModel {
     /// Abschnitten, im Baum aus ``treeRows`` – beide ueber
     /// ``visibleSortedFilesByFolder``, also in genau der Reihenfolge, die auch
     /// gezeichnet wird.
+    ///
+    /// **⚠️ Gepuffert seit v1.19.75 – Sprint 15 hat diese hier übersehen.**
+    /// Dort bekamen ``visibleSortedFilesByFolder`` und ``treeRows`` ihren
+    /// Speicher, ``visibleRows`` nicht, obwohl **jeder** Eingang von
+    /// `flatten` bereits an ``rowsGeneration`` hängt. Aufgefallen ist es erst,
+    /// als aus der Praxis „bei der Auswahl von Dateien gibt es eine Latenz"
+    /// gemeldet wurde: Auf dieser Eigenschaft sitzen ``visibleFileOrder``,
+    /// ``orderedSelection`` und ``actionTargets(for:)`` – und die stehen im
+    /// **Kontextmenü jeder Dateizeile** und viermal in der Menüleiste. Ein
+    /// einziger Klick lief die volle Kette dadurch zweistellig oft durch.
+    ///
+    /// *Die Lehre ist nicht „einen Speicher vergessen", sondern: Ein Speicher,
+    /// der zwei von drei Geschwistern bekommt, sieht vollständig aus.*
     var visibleRows: [RowID] {
-        switch viewMode {
-        case .time:
-            RowNavigation.flatten(
-                buckets: displayBuckets,
-                expanded: expandedFolders,
-                filesByFolder: visibleSortedFilesByFolder
-            )
-        case .tree:
-            treeRows.map(\.row)
+        visibleRowsMemo.value(at: rowsGeneration) {
+            switch viewMode {
+            case .time:
+                RowNavigation.flatten(
+                    buckets: displayBuckets,
+                    expanded: expandedFolders,
+                    filesByFolder: visibleSortedFilesByFolder
+                )
+            case .tree:
+                treeRows.map(\.row)
+            }
         }
     }
 
@@ -1720,11 +1777,39 @@ final class ReportViewModel {
     /// **⚠️ Gefiltert wird beim Einsammeln, nicht erst beim Oeffnen.** Ein
     /// Menue, das etwas anbietet, das danach abgelehnt wird, ist schlimmer als
     /// eines, das es gar nicht erst nennt.
+    /// **⚠️ Gepuffert seit v1.19.75 – hier lag der teuerste Posten der aus der
+    /// Praxis gemeldeten Latenz beim Auswählen.**
+    ///
+    /// Diese Auskunft steht im Menü „Auswahl", und `Menu(_:content:)` baut
+    /// seinen Inhalt **eifrig** auf. Da dasselbe Menü auch ``cursor`` liest,
+    /// wurde es bei **jedem Klick** neu gebaut – und diese Zeile mit ihm. Die
+    /// Bedingung darunter ruft je Datei ``FileTypeInspector/refusesToOpen(_:)``,
+    /// und das ist `resolvingSymlinksInPath()` + `resourceValues` +
+    /// `UTType`-Vergleiche: **Dateisystem und LaunchServices, synchron auf dem
+    /// Hauptstrang, einmal pro Dokument des angeklickten Ordners** – während
+    /// die Maustaste noch unten ist.
+    ///
+    /// *Ein Ordner mit zweihundert Dokumenten hieß zweihundert Systemaufrufe
+    /// pro Klick. Nicht das Auswählen war teuer, sondern was daran hing.*
+    ///
+    /// Der Zähler räumt den Speicher auf; ``visibleSortedFilesByFolder`` liefert
+    /// die Eingangsmenge und ist selbst gepuffert.
     func workDays(in folder: URL) -> [WorkDay] {
-        guard let files = visibleFiles(in: folder) else { return [] }
-        return WorkDays.group(files) { url in
+        if workDaysCache.generation == rowsGeneration, let fertig = workDaysCache.byFolder[folder] {
+            return fertig
+        }
+        if workDaysCache.generation != rowsGeneration {
+            workDaysCache = (rowsGeneration, [:])
+        }
+        // ⚠️ Ueber den Zwischenspeicher, nicht ueber `visibleFiles(in:)` –
+        // dieselbe Lehre wie bei `newestVisibleDate(in:)` (Sprint 16, gemessen
+        // 243 Aufrufe vorher, 0 nachher).
+        let files = visibleSortedFilesByFolder[folder] ?? []
+        let tage = WorkDays.group(files) { url in
             self.typeRules.allowsResume(url) && FileTypeInspector.refusesToOpen(url) == nil
         }
+        workDaysCache.byFolder[folder] = tage
+        return tage
     }
 
     /// Menuebeschriftung eines Arbeitstags.

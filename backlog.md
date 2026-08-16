@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.74 · 2026-08-16*
+*Stand: v1.19.75 · 2026-08-16*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,86 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-63 · Nicht das Auswählen war teuer, sondern was daran hing *(v1.19.75)*
+**Aufwand:** M · **Art:** Defekt · *„bei der Auswahl von Dateien scheint es eine Latenz zu geben – die stört sehr"* · **P1**
+
+**Ein Klick schreibt `cursor` — eine Zuweisung.** Die Latenz saß vollständig im
+Beobachtungsgraphen dahinter. Sieben Stellen, nach Kosten geordnet:
+
+| # | Fundstelle | Mechanismus |
+|---|---|---|
+| 1 | `ActivitiesApp` · `workDaysForCommand` | **Dateisystem-Zugriffe auf dem Hauptstrang, einer je Dokument des Ordners** |
+| 2 | `ReportView` · `onChange(of: model.cursor)` | machte den **ganzen Listenrumpf** zum Cursor-Beobachter |
+| 3 | `FileRowView` · `.contextMenu { }` | baute je Zeilenrumpf `actionTargets` = drei O(n)-Läufe |
+| 4 | `ActivitiesApp` · 4 × `commandTargets.isEmpty` | vier volle O(n)-Läufe für ein Ja/Nein |
+| 5 | `ReportViewModel` · `visibleRows` | die einzige **ungepufferte** heiße Eigenschaft |
+| 6 | `SelectionBackground` | 200 ms Animation **je Zeile**, dutzendfach bei ⇧-Klick |
+| 7 | `ReportView` · Baumansicht | Ordnerdatum je **Dateizeile** statt je Ordner — quadratisch |
+
+**⚠️ Der teuerste Posten war unsichtbar, weil er nach Ordnung aussah.** Das Menü „Auswahl"
+liest `cursor` und wird deshalb bei jedem Klick neu gebaut; `Menu(_:content:)` baut seinen
+Inhalt **eifrig**. Darin steht `workDaysForCommand` → `WorkDays.group` mit einer Bedingung,
+die je Datei `FileTypeInspector.refusesToOpen` ruft — `resolvingSymlinksInPath()` +
+`resourceValues` + `UTType`-Vergleiche. **Ein Ordner mit zweihundert Dokumenten bedeutete
+zweihundert Systemaufrufe pro Klick, während die Maustaste noch unten war.**
+
+**⚠️ `visibleRows` fehlte der Zwischenspeicher, den seine beiden Geschwister in Sprint 15
+bekommen haben.** Jeder Eingang von `flatten` hängt längst an `rowsGeneration`. Darauf sitzen
+`visibleFileOrder`, `orderedSelection` und `actionTargets(for:)` — und die stehen im
+Kontextmenü **jeder** Dateizeile und viermal in der Menüleiste. *Die Lehre ist nicht „einen
+Speicher vergessen", sondern: Ein Speicher, der zwei von drei Geschwistern bekommt, sieht
+vollständig aus.*
+
+**⚠️ Beim Puffern fiel eine zweite Lücke auf, und die war die gefährlichere.** `viewMode` und
+`displayBuckets` schrieben den Zähler **nicht** fort — `displayTree` direkt daneben schon,
+und beide werden in `recomputeDisplayBuckets()` unmittelbar nacheinander geschrieben. Ohne die
+Nachträge hätte der neue Speicher nach einem Ansichtswechsel die **alte** Zeilenfolge
+geliefert. *Ein veraltetes Ergebnis ist hier schlimmer als ein langsames, weil es richtig
+aussieht — die Datei sagt das selbst über `rowsGeneration`.* Gefunden nur, weil vor dem
+Puffern die Frage stand, ob der Zähler wirklich **alle** Eingänge kennt.
+
+**⚠️ Die Auswahl-Animation war auch ohne die Kosten die falsche Antwort.** Weder Finder noch
+`NSTableView` blenden eine Markierung ein. Eine Auswahl ist die Antwort auf einen Klick und
+muss **sofort** dastehen; 200 ms Weichzeichnen sind bei einer Rückmeldung auf eine Eingabe
+keine Eleganz, sondern Verzögerung — dutzendfach parallel erst recht.
+
+**Bauform, zweimal angewandt:** Kontextmenü und Ziehvorschau sind jetzt eigene `View`-Typen.
+Beide Closures sind **nicht entweichend** und liefen deshalb bei jeder Neuzeichnung mit; als
+Typ wird nur noch ein Wert erzeugt. *`FolderRowView` macht das mit `FolderContextMenu` seit
+jeher — die Bauform war da und wurde hier nicht angewandt.*
+
+## Und der dritte Anlauf beim Ziehen
+
+### ✅ PR-62 · Von zwei markierten Dateien kam nur die erste an *(v1.19.75)*
+**Aufwand:** M · **Art:** Defekt · *dreimal gemeldet*
+
+**⚠️ Der Quelltext behauptete die Fähigkeit, die er nicht hatte.** Über `onDrag` stand seit
+jeher „Finder-Regel: … werden **ALLE** ausgewählten Dateien gezogen". Der Code darunter tat
+die erste Hälfte — er stellte die Auswahl her — und übergab dann **eine** Datei. Kein
+Flüchtigkeitsfehler, sondern die API-Grenze: `onDrag(_ data: () -> NSItemProvider)` ist
+**Einzahl**, und ein `NSItemProvider` trägt ein Objekt; mehrere Repräsentationen darin sind
+alternative Kodierungen desselben, keine zweite Datei.
+
+**SwiftUIs eigene Antwort ist unerreichbar:** `dragContainer(for:)` und
+`draggable(containerItemID:)` tragen `@available(macOS 26.0, *)`, das Ziel ist macOS 14.
+
+**Gebaut** wie beim Mausrad: eine `NSView`, die aus `hitTest` `nil` zurückgibt, plus ein
+**lokaler** Ereignisbeobachter auf `.leftMouseDragged`, der eine echte `NSDraggingSession` mit
+**einem `NSDraggingItem` je Datei** startet. **⚠️ Kein vierter Gestenerkenner in der
+Dateizeile** — dort liegen bereits drei, und die Quelle hält zwei Regressionen fest, die genau
+aus ihrem Zusammenspiel entstanden.
+
+**⚠️ Bei *einer* Datei wird nichts übernommen.** Dann leistet `onDrag` dasselbe samt eigener
+Vorschau; ein zweiter Weg für denselben Fall wäre die Verdopplung, die später ausein­anderläuft.
+Übernommen wird nur, was SwiftUI nicht kann.
+
+**⚠️ `.copy`, nicht `.move`** — dieses Programm liest nur; ein Ziehen, das die Datei am
+Ursprung entfernt, widerspräche „findet, verwaltet nicht".
+
+*`README.md` versprach „einzeln oder **mehrfach**" schon vorher. Es war bis heute unwahr.*
+
+**Nicht am laufenden Programm geprüft** — beides steht in der Abnahme.
 
 ### ✅ UX-62 · Die Verzögerung saß nicht in der Anzeige, sondern in der Umrechnung davor *(v1.19.74)*
 **Aufwand:** S · **Art:** Defekt · *„Die Anzeige der Tage muss sich beim Drehen unmittelbar – ohne Verzögerung – anpassen; nur das Laden darf verzögert werden."*

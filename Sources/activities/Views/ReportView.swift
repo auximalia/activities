@@ -179,15 +179,24 @@ struct ReportView: View {
                 presentQuickLook()
                 return .handled
             }
-            .onChange(of: model.cursor) { _, cursor in
-                if !quickLookActive { listFocused = true }
-                guard let cursor else { return }
-                // Bei einem Mausklick ist die Zeile bereits sichtbar – Scrollen
-                // wuerde sie unter dem Zeiger wegziehen.
-                guard model.selectionOrigin.shouldScroll else { return }
-                scroll(proxy, to: cursor)
-                pendingScroll = cursor
-            }
+            // ⚠️ Die Cursorbeobachtung liegt in einem **eigenen, leeren** View.
+            // `onChange(of:)` wertet seinen Wert im Rumpf aus – stand sie hier,
+            // las dieser Rumpf `model.cursor`, und damit baute **jeder Klick die
+            // ganze Liste neu** statt nur die betroffenen Zeilen: alle
+            // Abschnittsköpfe, das Datenargument jedes `ForEach`, jeder
+            // aufgeklappte Ordner. Aus der Praxis gemeldet als Latenz beim
+            // Auswählen. Als eigener View trifft die Ungültigkeit nur ihn.
+            .background(
+                CursorObserver(model: model) { cursor in
+                    if !quickLookActive { listFocused = true }
+                    guard let cursor else { return }
+                    // Bei einem Mausklick ist die Zeile bereits sichtbar – Scrollen
+                    // wuerde sie unter dem Zeiger wegziehen.
+                    guard model.selectionOrigin.shouldScroll else { return }
+                    scroll(proxy, to: cursor)
+                    pendingScroll = cursor
+                }
+            )
             // Sprung aus dem Diagramm: Der Zielordner wird oft erst **asynchron**
             // geladen – dann existiert die Zeile beim ersten Scrollversuch noch
             // gar nicht. Sobald die Detaildateien da sind, erneut scrollen.
@@ -220,6 +229,11 @@ struct ReportView: View {
         // sind hier alle Zeilen eine durchgehende Folge. Der Streifen beantwortet
         // die **waagerechte** Frage – welches Datum am rechten Rand gehoert zu
         // dieser Zeile? Die Baumlinien beantworten nur die senkrechte.
+        // ⚠️ Das Ordnerdatum EINMAL je Ordner, nicht je Dateizeile. `newestVisibleDate`
+        // filtert und faltet den ganzen Ordner; im Datenargument einer Dateizeile
+        // stand es damit `m`-mal je Ordner – also quadratisch. Die Zeitansicht
+        // (`detailRows`) zieht es seit jeher heraus, der Baum tat es nicht.
+        let datumsquellen = quellDaten
         ForEach(Array(model.treeRows.enumerated()), id: \.element.id) { index, row in
             let alternate = index.isMultiple(of: 2) == false
             if let node = row.node {
@@ -235,7 +249,7 @@ struct ReportView: View {
                     // Wie in der Liste: Die Datei, die dem Ordner sein Datum
                     // gibt, steht fett – sie beantwortet „warum steht der
                     // Ordner hier oben?".
-                    isDateSource: file.timestamp == model.newestVisibleDate(in: file.folder),
+                    isDateSource: file.timestamp == datumsquellen[file.folder],
                     // **Zebra nicht hier, sondern aussen.** ``FileRowView`` legt
                     // seinen Streifen hinter den bereits eingerueckten Inhalt –
                     // im Baum begaenne er dann erst hinter der Einrueckung,
@@ -268,9 +282,26 @@ struct ReportView: View {
         }
     }
 
+    /// Je Ordner **ein** Datum – die juengste sichtbare Datei im Zeitfenster.
+    ///
+    /// ⚠️ Vorgezogen, weil ``ReportViewModel/newestVisibleDate(in:)`` den ganzen
+    /// Ordner filtert und faltet. Je Dateizeile gerufen war das quadratisch.
+    private var quellDaten: [URL: Date] {
+        var result: [URL: Date] = [:]
+        for row in model.treeRows {
+            guard let file = row.file, result[file.folder] == nil else { continue }
+            result[file.folder] = model.newestVisibleDate(in: file.folder)
+        }
+        return result
+    }
+
     @ViewBuilder
     private func detailRows(for entry: FolderEntry, isCompact: Bool) -> some View {
-        if let files = model.visibleFiles(in: entry.folder) {
+        // ⚠️ Ueber den Zwischenspeicher, nicht ueber `visibleFiles(in:)`. Letzteres
+        // filtert und sortiert den Ordner bei JEDEM Aufruf neu – also je aufgeklapptem
+        // Ordner und je Auswertung dieses Rumpfes. Der Speicher enthaelt einen Eintrag
+        // fuer genau die geladenen Ordner, `nil` heisst also weiterhin „laedt noch".
+        if let files = model.visibleSortedFilesByFolder[entry.folder] {
             if files.isEmpty {
                 Text("Keine passenden Dateien in diesem Ordner.")
                     .font(.callout)
@@ -389,5 +420,23 @@ struct ReportView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(bucket.isPinned ? "Angeheftete Ordner" : "Zeitabschnitt \(bucket.label)")
         .accessibilityValue("\(folderCount) Ordner, \(fileCount) Dateien")
+    }
+}
+
+/// Beobachtet allein den Cursor – ein leerer View mit genau einer Aufgabe.
+///
+/// **⚠️ Er existiert, weil `onChange(of:)` seinen Wert im Rumpf ausliest.**
+/// Stand die Beobachtung im Rumpf der Liste, war dieser Rumpf ein Beobachter von
+/// ``ReportViewModel/cursor`` – und ein Klick baute die vollständige Liste neu,
+/// obwohl sich nur die Markierung zweier Zeilen ändert. Hier trifft die
+/// Ungültigkeit einen View ohne Inhalt.
+private struct CursorObserver: View {
+    @Bindable var model: ReportViewModel
+    let onCursor: (RowID?) -> Void
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onChange(of: model.cursor) { _, cursor in onCursor(cursor) }
     }
 }

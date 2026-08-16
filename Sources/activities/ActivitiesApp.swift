@@ -342,12 +342,12 @@ struct ActivitiesApp: App {
                     .disabled(model.selectedFileURL == nil)
                 Button(Shortcuts.revealInFinder.label) { model.requestReveal(model.commandTargets) }
                     .keyboardShortcut(Shortcuts.revealInFinder)
-                    .disabled(model.commandTargets.isEmpty)
+                    .disabled(!model.hasCommandTargets)
                 Button(Shortcuts.copyPath.label) {
                     ClipboardService.copy(model.commandTargets.map(\.path).joined(separator: "\n"))
                 }
                 .keyboardShortcut(Shortcuts.copyPath)
-                .disabled(model.commandTargets.isEmpty)
+                .disabled(!model.hasCommandTargets)
                 Divider()
                 // **⚠️ Hier ABGEBLENDET, im Kontextmenue dagegen VERSTECKT –
                 // und das ist kein Widerspruch, sondern der Grund fuer diesen
@@ -394,12 +394,12 @@ struct ActivitiesApp: App {
                 if let editor = model.editorApp {
                     Button("In \(editor.name) öffnen") { model.requestOpenInEditor(model.commandTargets) }
                         .keyboardShortcut(Shortcuts.openInEditor)
-                        .disabled(model.commandTargets.isEmpty)
+                        .disabled(!model.hasCommandTargets)
                 }
                 if let terminal = model.terminalApp {
                     Button("Ordner in \(terminal.name) öffnen") { model.requestOpenInTerminal(model.commandTargets) }
                         .keyboardShortcut(Shortcuts.openInTerminal)
-                        .disabled(model.commandTargets.isEmpty)
+                        .disabled(!model.hasCommandTargets)
                 }
             }
         }

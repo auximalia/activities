@@ -2834,6 +2834,123 @@ do {
     }
 }
 
+// MARK: - FileNaming: „daneben ablegen" zaehlt hoch (v1.19.77)
+do {
+    func frei(_ name: String, _ da: Set<String>) -> String {
+        FileNaming.uniqueName(for: name, existing: da)
+    }
+
+    // Kein Konflikt: der Name bleibt, wie er ist.
+    expectEqual(frei("Bericht.docx", []), "Bericht.docx", "Name: ohne Konflikt unveraendert")
+    expectEqual(frei("Bericht.docx", ["Anderes.docx"]), "Bericht.docx", "Name: fremder Name stoert nicht")
+
+    // ⚠️ Die Endung bleibt HINTEN. Wird am ersten Punkt getrennt oder gar nicht,
+    // entsteht „Bericht.docx 2" oder „Bericht.docx.docx" - beides laeuft durch
+    // und faellt erst Wochen spaeter auf.
+    expectEqual(frei("Bericht.docx", ["Bericht.docx"]), "Bericht 2.docx", "Name: Endung bleibt erhalten")
+    expectEqual(frei("Bericht.docx", ["Bericht.docx", "Bericht 2.docx"]), "Bericht 3.docx",
+                "Name: zaehlt weiter, bis frei")
+
+    // ⚠️ Ein bereits gezaehlter Name wird WEITERgezaehlt, nicht erneut gezaehlt.
+    // Sonst waechst der Name bei jedem Durchgang um ein Wort.
+    expectEqual(frei("Bericht 2.docx", ["Bericht 2.docx"]), "Bericht 3.docx",
+                "Name: gezaehlter Name zaehlt weiter")
+    expect(frei("Bericht 2.docx", ["Bericht 2.docx"]) != "Bericht 2 2.docx",
+           "Name: und zaehlt nicht doppelt")
+
+    // ⚠️ Nur reine Ziffern gelten als Zaehler. „Bericht v2" ist eine
+    // Versionsangabe, keine Zaehlung - daraus „Bericht v3" zu machen waere eine
+    // Behauptung ueber fremde Absicht.
+    expectEqual(frei("Bericht v2.docx", ["Bericht v2.docx"]), "Bericht v2 2.docx",
+                "Name: „v2\u{201C} ist kein Zaehler")
+
+    // Mehrere Punkte: getrennt wird am letzten.
+    expectEqual(frei("archiv.tar.gz", ["archiv.tar.gz"]), "archiv.tar 2.gz",
+                "Name: getrennt wird am letzten Punkt")
+
+    // ⚠️ Eine Datei OHNE Endung bekommt keine.
+    expectEqual(frei("Makefile", ["Makefile"]), "Makefile 2", "Name: ohne Endung bleibt ohne")
+
+    // ⚠️ `.gitignore` ist eine Datei ohne Endung, nicht eine Endung ohne Namen.
+    expectEqual(frei(".gitignore", [".gitignore"]), ".gitignore 2",
+                "Name: fuehrender Punkt ist keine Endung")
+
+    // Der gezaehlte Kandidat kann selbst belegt sein - dann weiter.
+    expectEqual(frei("A.md", ["A.md", "A 2.md", "A 3.md"]), "A 4.md", "Name: ueberspringt Belegtes")
+
+    // ⚠️ DER Fall, an dem die erste Fassung falsch war: Eine Jahreszahl ist
+    // kein Zaehler. „Protokoll 2025.md" waere kein haesslicher Name, sondern ein
+    // falscher - er behauptet ein anderes Jahr. Haesslich schlaegt irrefuehrend.
+    expectEqual(frei("Protokoll 2024.md", ["Protokoll 2024.md"]), "Protokoll 2024 2.md",
+                "Name: eine Jahreszahl wird NICHT weitergezaehlt")
+    expectEqual(frei("Rechnung 4711.pdf", ["Rechnung 4711.pdf"]), "Rechnung 4711 2.pdf",
+                "Name: eine Belegnummer auch nicht")
+    // Die Grenze selbst: 99 gilt noch als Zaehler, 100 nicht mehr.
+    expectEqual(FileNaming.counterLimit, 99, "Name: die Grenze steht bei 99")
+    expectEqual(frei("A 99.md", ["A 99.md"]), "A 100.md", "Name: 99 ist noch ein Zaehler")
+    expectEqual(frei("A 100.md", ["A 100.md"]), "A 100 2.md", "Name: 100 ist keiner mehr")
+}
+
+// MARK: - MovePlan: der Plan, bevor die Platte angefasst wird (v1.19.77)
+do {
+    let ziel = URL(fileURLWithPath: "/Users/x/Ziel", isDirectory: true)
+    let a = URL(fileURLWithPath: "/Users/x/Quelle/Bericht.docx")
+    let b = URL(fileURLWithPath: "/Users/x/Andere/Bericht.docx")
+    let c = URL(fileURLWithPath: "/Users/x/Quelle/Notiz.md")
+
+    // ── Konflikte erkennen. ──
+    expectEqual(MovePlan.conflicts(sources: [a, c], into: ziel, existing: ["Bericht.docx"]),
+                [a], "Plan: nur der kollidierende Name wird gemeldet")
+    expect(MovePlan.conflicts(sources: [c], into: ziel, existing: []).isEmpty,
+           "Plan: leeres Ziel hat keine Konflikte")
+
+    // ⚠️ Eine Datei, die BEREITS im Zielordner liegt, ist kein Konflikt - sie
+    // ist gar kein Vorgang. Sonst schoebe „Ersetzen" sie in den Papierkorb UND
+    // an ihren eigenen Platz.
+    let drin = ziel.appendingPathComponent("Bericht.docx")
+    expect(MovePlan.conflicts(sources: [drin], into: ziel, existing: ["Bericht.docx"]).isEmpty,
+           "Plan: was schon am Ziel liegt, kollidiert nicht mit sich selbst")
+    expect(MovePlan.steps(sources: [drin], into: ziel, existing: ["Bericht.docx"]) { _ in .replace }.isEmpty,
+           "Plan: und wird gar nicht erst zum Schritt")
+
+    // ── Die drei Aufloesungen. ──
+    let ersetzen = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in .replace }
+    expectEqual(ersetzen.count, 1, "Plan: ein Schritt")
+    expectEqual(ersetzen[0].destination.lastPathComponent, "Bericht.docx", "Plan: Ersetzen behaelt den Namen")
+    expectEqual(ersetzen[0].resolution, .replace, "Plan: und merkt sich die Aufloesung")
+
+    let daneben = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in .keepBoth }
+    expectEqual(daneben[0].destination.lastPathComponent, "Bericht 2.docx", "Plan: Daneben zaehlt hoch")
+
+    let uebersprungen = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in .skip }
+    expectEqual(uebersprungen.count, 1, "Plan: Ueberspringen bleibt im Plan …")
+    expect(MovePlan.executable(uebersprungen).isEmpty, "Plan: … wird aber nicht ausgefuehrt")
+
+    // ⚠️ Der Vorrat der belegten Namen WAECHST mit. Zwei gleichnamige Dateien
+    // aus zwei Ordnern duerfen nicht denselben freien Namen bekommen - sonst
+    // ueberschriebe der Vorgang sich selbst.
+    let zwei = MovePlan.steps(sources: [a, b], into: ziel, existing: []) { _ in .keepBoth }
+    expectEqual(zwei.count, 2, "Plan: beide Dateien")
+    expect(zwei[0].destination != zwei[1].destination, "Plan: und zwei VERSCHIEDENE Ziele")
+    expectEqual(zwei[0].destination.lastPathComponent, "Bericht.docx", "Plan: die erste bekommt den Namen")
+    expectEqual(zwei[1].destination.lastPathComponent, "Bericht 2.docx", "Plan: die zweite zaehlt hoch")
+
+    // Ohne Antwort gilt „daneben ablegen" - die verlustfreie Vorgabe.
+    let ohne = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in nil }
+    expectEqual(ohne[0].resolution, .keepBoth, "Plan: ohne Antwort wird nichts ueberschrieben")
+
+    // Gemischt: konfliktfrei und kollidierend in einem Durchgang.
+    let gemischt = MovePlan.steps(sources: [a, c], into: ziel, existing: ["Bericht.docx"]) { _ in .keepBoth }
+    expectEqual(gemischt.count, 2, "Plan: beide Dateien")
+    expect(!gemischt.first(where: { $0.source == c })!.hadConflict, "Plan: Notiz.md hatte keinen Konflikt")
+    expect(gemischt.first(where: { $0.source == a })!.hadConflict, "Plan: Bericht.docx schon")
+
+    // Jede Beschriftung ist gesetzt - eine leere Schaltflaeche waere unbedienbar.
+    for fall in MoveResolution.allCases {
+        expect(!fall.label.isEmpty, "Plan: Beschriftung fuer \(fall.rawValue)")
+    }
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

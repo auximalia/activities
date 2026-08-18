@@ -26,6 +26,14 @@ public enum BulkAction {
         case reveal
         /// In einem benannten Programm oeffnen (Editor, Terminal).
         case openInApp(String)
+        /// **In einen anderen Ordner verschieben** (v1.19.77).
+        ///
+        /// ⚠️ Der sechste Weg – und der erste, der etwas **veraendert**. Der
+        /// Kommentar oben sagt seit jeher „der sechste Weg, der spaeter
+        /// dazukommt, haette sie garantiert nicht"; hier ist er, und er hat sie.
+        /// Bei den fuenf anderen kostet eine zu grosse Menge Zeit und Nerven,
+        /// bei diesem waere sie ein Eingriff in fremde Ordner.
+        case move(String)
     }
 
     /// Ab **wie vielen** Objekten zurueckgefragt wird.
@@ -74,6 +82,8 @@ public enum BulkAction {
             return "\(objects) im Finder anzeigen?"
         case .openInApp(let app):
             return "\(objects) in \(app) öffnen?"
+        case .move(let ordner):
+            return "\(objects) nach \u{201E}\(ordner)\u{201C} verschieben?"
         }
     }
 
@@ -104,6 +114,11 @@ public enum BulkAction {
             return "Der Finder zeigt \(count) Objekte an."
         case .openInApp(let app):
             return "\(app) erhält \(count) Objekte auf einmal."
+        case .move(let ordner):
+            // ⚠️ Nennt die FOLGE: dass sie ihren bisherigen Ort verlassen.
+            // „Werden verschoben" wiederholte nur die Handlung.
+            return "\(count) Dateien verlassen ihren bisherigen Ordner und liegen danach "
+                + "in \u{201E}\(ordner)\u{201C}. Mit \(Shortcuts.undoMove.display) rückgängig zu machen."
         }
     }
 
@@ -117,6 +132,7 @@ public enum BulkAction {
         case .open: return "Öffnen"
         case .reveal: return "Anzeigen"
         case .openInApp(let app): return "In \(app) öffnen"
+        case .move: return "Verschieben"
         }
     }
 }

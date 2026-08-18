@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.76 · 2026-08-16*
+*Stand: v1.19.77 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,95 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-63 · Verschieben in der Liste *(v1.19.77)*
+**Aufwand:** M · **Art:** Wunsch aus der Praxis · **verschiebt eine dokumentierte Grenze**
+
+**Der Anlass war nicht die fehlende Funktion, sondern ihre Folge.** Gemeldet mit Bild: dasselbe
+Dokument an fünf Stellen über zwei Jahre — eine Ansicht, die der Finder **nicht herstellen
+kann**. Die App erzeugt also das Problembewusstsein und schickte zum Aufräumen weg. Mein
+Einwand *„Im Finder anzeigen ist zwei Tastendrücke entfernt"* wurde beantwortet mit *„Ich mag
+nicht mit so vielen Fenstern parallel arbeiten. Aktiviert man eines, verschwindet manchmal das
+andere."* — **eine Kostenart, die in keiner Messung auftaucht und trotzdem den Tag frisst.**
+
+**Gebaut:** Dateien auf eine Ordnerzeile ziehen verschiebt sie dorthin. Bei Namensgleichheit
+fragt die App: daneben ablegen · ersetzen · überspringen · abbrechen. ⌘Z nimmt die letzte
+Verschiebung zurück.
+
+## Die vier Entscheidungen, die den Zuschnitt bestimmt haben
+
+**⚠️ 1 · „Ersetzen" legt in den Papierkorb, statt zu löschen — über die Vorgabe hinaus.**
+Der Finder löscht hier endgültig. Diese App darf das nicht, weil sie ⌘Z verspricht: Wären zwei
+Verschiebungen äußerlich gleich und nur eine umkehrbar, wäre die Zusage „rückgängig" **nur
+manchmal wahr**, und das ist schlimmer als keine. *Die Entscheidung folgt aus der Vorgabe des
+Eigentümers, sie widerspricht ihr nicht.*
+
+**⚠️ 2 · Der Konfliktdialog fragt einmal für alle, nicht je Datei.** Der Plan sagte „je
+Konflikt". Bei einem Konflikt ist beides gleich; bei zwanzig wäre eine Kette von zwanzig
+Blättern genau die Rückfrage, die weggeklickt wird, ohne gelesen zu werden — dieselbe
+Überlegung, die in `BulkAction` die Schwelle begründet. Der Finder macht es mit „Auf alle
+anwenden" ebenso. **Und die verlustfreie Antwort steht zuerst:** Esc bricht ab, wer nichts
+entscheidet, verliert nichts.
+
+**⚠️ 3 · „Von innen" wird an der Datei erkannt, nicht am Zug.** `isKnownFile(_:)` fragt, ob
+diese App die Datei eingelesen hat. Kein Kennzeichen auf der Ablage, kein eigener Typ, kein
+geteiltes Flag. Damit behält das fensterweite Ablegeziel seine Bedeutung: Ein aus dem Finder
+gezogener **Ordner** wird weiterhin zur Quelle, eine fremde Datei wird abgewiesen statt still
+irgendwohin verschoben.
+
+**⚠️ 4 · Nur die letzte Verschiebung, kein Undo-Stapel.** Ein Stapel über
+Dateisystem-Vorgänge verspricht mehr, als er halten kann — was zwei Schritte zurückliegt, ist
+vielleicht von fremder Hand bewegt worden. Ein Schritt deckt den Fall ab, für den ⌘Z hier da
+ist: die falsche Ziehbewegung, die man sofort bemerkt.
+
+## Der Fehler, den eine Zusicherung gefunden hat
+
+**⚠️ Die erste Fassung des Hochzählens machte aus `Protokoll 2024.md` beim Ausweichen
+`Protokoll 2025.md`.** Sie erkannte jede angehängte Zahl als Zähler. Das ist kein hässlicher
+Name, sondern ein **falscher**: Er behauptet ein anderes Jahr.
+
+*Aufgefallen ist es an der Zusicherung, die ich selbst dafür schrieb — und ich hatte sie
+bereits mit „bekannt und hingenommen" beschriftet, statt sie als das zu lesen, was sie war.
+Das ist genau der Fehler, vor dem `AGENTS.md` warnt: eine Begründung zu schreiben ist nicht
+dasselbe wie eine zu prüfen.*
+
+Die Abwägung ist einseitig: Wer eine Jahreszahl weiterzählt, erzeugt eine **Lüge**; wer einen
+echten Zähler nicht erkennt, erzeugt `Bericht 2 2.docx` — hässlich und wahr. **Hässlich
+schlägt irreführend.** Ein angehängter Zähler gilt jetzt nur bis `counterLimit = 99`; eine
+vierstellige Zahl ist fast immer ein Jahr, eine Nummer oder eine Kennung. Die Zahl ist
+**gesetzt, nicht gemessen**, und soll es zeigen — dieselbe Haltung wie bei
+`BulkAction.confirmationThreshold`.
+
+## Was sonst noch bemerkenswert war
+
+- **Der sechste Weg ist da.** `BulkAction` sagte seit jeher voraus: *„der sechste Weg, der
+  später dazukommt, hätte sie garantiert nicht."* Er hat sie — und er ist der erste, bei dem
+  eine zu große Menge nicht Zeit kostet, sondern in fremde Ordner eingreift.
+- **⌘Z ersetzt das System-Undo, statt danebenzustehen.** „Widerrufen" stand hier dauerhaft
+  abgeblendet, weil es nichts zu widerrufen gab. Ein zweiter Eintrag daneben wären zwei
+  Antworten auf dieselbe Frage; im Textfeld greift weiterhin dessen eigenes Undo.
+- **Der Konflikt wird beim Ausführen erneut geprüft**, nicht nur beim Planen. Zwischen Planen
+  und Ausführen liegt ein Dialog. *Ein Plan ist eine Absicht, keine Zusicherung über die
+  Platte.*
+- **Der Vorrat belegter Namen wächst mit.** Zwei gleichnamige Dateien aus zwei Ordnern
+  bekommen zwei verschiedene freie Namen — sonst überschriebe der Vorgang sich selbst.
+- **Nach dem Verschieben wird neu eingelesen**, statt den Bestand im Speicher nachzuziehen.
+  Das wäre eine zweite Wahrheit neben dem Suchlauf, und die läuft auseinander.
+
+## Offen und ehrlich benannt
+
+**Nicht am laufenden Programm geprüft.** Ziehen lässt sich nicht ohne Maus prüfen, und
+`AGENTS.md` verbietet das Automatisieren aus gutem Grund. **Die Machbarkeitsprobe AP0 aus dem
+Plan konnte ich deshalb nicht selbst durchführen** — ob eine `dropDestination` auf der
+Ordnerzeile den Zug aus der eigenen App entgegennimmt und ob das fensterweite Ziel
+dazwischenfunkt, entscheidet die erste Abnahme. **Schlägt es fehl, passiert nichts** (der Zug
+wird abgewiesen), es geht nichts kaputt — dann wird das Ablegeziel auf AppKit umgestellt.
+
+Zweitens: Das fensterweite Ablegeziel zeigt seinen blauen Rahmen auch während eines internen
+Zugs, obwohl es Dateien abweist. Kosmetisch, aber gemeldet gehört es.
+
+**Als Nächstes vorgesehen:** Dateien in den Papierkorb, danach leere Ordner in den Papierkorb
+— *leer heißt rekursiv und auf der Platte geprüft*, nicht „leer in der gefilterten Ansicht".
 
 ### ✅ UX-64 · Dreizehn sichtbare Zeilen bei 198 Endungen sehen aus wie eine Auswahl *(v1.19.76)*
 **Aufwand:** XS · **Art:** Verständlichkeit · *„Ist die Liste erschöpfend? Sonst sollte der Nutzer auch eigene Dateitypen hinzufügen können."*
@@ -1965,8 +2054,21 @@ greift **den Grund** an – nicht die Entscheidung.
   anderen Wettbewerbern. PR-15/PR-16 liefern den Nutzen ohne den Anspruch.
 - **Cloud-Abgleich zwischen Geräten:** widerspricht der Stärke „liest nur lokal, sendet
   nichts" (PR-24).
-- **Dateiverwaltung** (umbenennen, verschieben, löschen): dafür gibt es den Finder. Die App
+- **Dateiverwaltung** (umbenennen, Ordner anlegen, kopieren): dafür gibt es den Finder. Die App
   soll *finden*, nicht *verwalten*.
+
+  **⚠️ Diese Grenze hat sich am 2026-08-16 um genau eine Handlung verschoben — Verschieben
+  innerhalb der Liste (PR-63).** Der Satz stand hier seit Anbeginn und war richtig, bis die App
+  etwas konnte, was der Finder nicht kann: dasselbe Dokument an fünf Stellen über zwei Jahre
+  zeigen. *Sie erzeugt damit ein Problembewusstsein und schickte den Anwender zum Aufräumen
+  weg.* Gemeldet wurde nicht die fehlende Funktion, sondern ihre Folge: *„Ich mag nicht mit so
+  vielen Fenstern parallel arbeiten. Aktiviert man eines, verschwindet manchmal das andere."*
+
+  **Verschoben ist die Handlung, nicht die Kategorie.** Umbenennen, Ordner anlegen und Kopieren
+  bleiben draußen; Papierkorb ist als Folgeschritt vorgesehen. *Wer die nächste Handlung
+  hinzufügen will, muss diesen Absatz erweitern — und wenn er dabei merkt, dass er zum vierten
+  Mal schreibt „nur diese eine noch", ist die Grenze in Wahrheit gefallen und der Eintrag
+  gehört gestrichen statt gedehnt.*
 
 ---
 

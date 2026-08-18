@@ -213,6 +213,7 @@ private struct DialogsModifier: ViewModifier {
             .modifier(UpdateAlert(updates: updates))
             .modifier(BulkActionConfirmation(model: model))
             .modifier(SourceConflictDialog(model: model))
+            .modifier(MoveConflictDialog(model: model))
     }
 }
 
@@ -317,6 +318,53 @@ private struct BulkActionConfirmation: ViewModifier {
 /// `ForEach` gebildet: Ein macOS-Blatt liest seine Knoepfe aus dem Baum aus,
 /// und was es dabei nicht findet, fehlt **wortlos** – bei zwei Faellen ist das
 /// Risiko den Verzicht auf die Schleife nicht wert.
+/// **Die dritte Rueckfrage** – und die erste vor einer Handlung, die etwas
+/// **veraendert**.
+///
+/// **⚠️ Sie fragt EINMAL fuer alle Konflikte, nicht je Datei.** Bei einem
+/// Konflikt ist beides gleich; bei zwanzig waere eine Kette von zwanzig
+/// Blaettern genau die Rueckfrage, die weggeklickt wird, ohne gelesen zu
+/// werden – dieselbe Ueberlegung, die in ``BulkAction`` die Schwelle
+/// begruendet. Der Finder macht es mit „Auf alle anwenden" ebenso.
+///
+/// **⚠️ „Ersetzen" ist NICHT die Vorgabe.** Esc bricht ab, und wer nichts
+/// entscheidet, verliert nichts. Die verlustfreie Antwort steht zuerst.
+private struct MoveConflictDialog: ViewModifier {
+    @Bindable var model: ReportViewModel
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            model.pendingMove?.question ?? "",
+            isPresented: Binding(
+                get: { model.pendingMove != nil },
+                set: { if !$0 { model.cancelMove() } }
+            ),
+            titleVisibility: .visible,
+            presenting: model.pendingMove
+        ) { _ in
+            Button(MoveResolution.keepBoth.label) { model.resolveMove(with: .keepBoth) }
+            Button(MoveResolution.replace.label) { model.resolveMove(with: .replace) }
+            Button(MoveResolution.skip.label) { model.resolveMove(with: .skip) }
+            Button("Abbrechen", role: .cancel) { model.cancelMove() }
+        } message: { offen in
+            Text(offen.explanation)
+        }
+        // Nur Fehler werden gemeldet – siehe `ReportViewModel.melde(_:)`.
+        .alert(
+            "Nicht alles konnte verschoben werden",
+            isPresented: Binding(
+                get: { model.moveReport != nil },
+                set: { if !$0 { model.moveReport = nil } }
+            ),
+            presenting: model.moveReport
+        ) { _ in
+            Button("OK", role: .cancel) { model.moveReport = nil }
+        } message: { bericht in
+            Text(bericht)
+        }
+    }
+}
+
 private struct SourceConflictDialog: ViewModifier {
     @Bindable var model: ReportViewModel
 

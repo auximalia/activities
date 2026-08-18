@@ -243,6 +243,23 @@ struct ActivitiesApp: App {
             // Ansicht den Tastendruck sieht – ein zusaetzlicher Eintrag bliebe
             // wirkungslos. Ausschneiden/Kopieren/Einsetzen muessen deshalb selbst
             // bereitgestellt werden, sonst funktionierten sie im Suchfeld nicht.
+            // **⚠️ Das System-Undo wird ersetzt, nicht ergaenzt.** Es stand hier
+            // dauerhaft abgeblendet, weil es nichts zu widerrufen gab – seit
+            // v1.19.77 gibt es das. Ein zweiter Eintrag „Verschieben
+            // rueckgaengig" neben einem grauen „Widerrufen" waere zwei Antworten
+            // auf dieselbe Frage; im Textfeld greift ohnehin dessen eigenes Undo,
+            // und dafuer wird der Befehl an den Responder weitergereicht.
+            CommandGroup(replacing: .undoRedo) {
+                Button(model.canUndoMove ? "Verschieben widerrufen" : "Widerrufen") {
+                    if NSApp.keyWindow?.firstResponder is NSText {
+                        sendToResponder("undo:")
+                    } else {
+                        model.undoLastMove()
+                    }
+                }
+                .keyboardShortcut(Shortcuts.undoMove)
+                .disabled(!model.canUndoMove)
+            }
             CommandGroup(replacing: .pasteboard) {
                 Button("Ausschneiden") { sendToResponder("cut:") }
                     .keyboardShortcut("x", modifiers: .command)

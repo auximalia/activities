@@ -130,6 +130,8 @@ struct TreeFolderRowView: View {
             // senkrechte. Zwei verschiedene Aufgaben – kein doppeltes
             // Trennsystem.
             .background(RowMetrics.rowBackground(alternate: isAlternate))
+            // Dateien aus der Liste hierher ziehen (v1.19.77).
+            .folderDropTarget(model: model, folder: node.folder)
             .contentShape(Rectangle())
             .help(node.folder.path)
             .onTapGesture {

@@ -125,6 +125,14 @@ struct HelpView: View {
                     "Ab 10 Objekten fragt die App zurück und nennt die Zahl.",
                 ])
 
+                section("Dateien verschieben", icon: "arrow.right.doc.on.clipboard", [
+                    "Dateien markieren und auf eine **Ordnerzeile** der Liste ziehen – sie liegen danach dort.",
+                    "\(Shortcuts.undoMove.display) macht die letzte Verschiebung rückgängig.",
+                    "Liegt am Ziel schon eine Datei des Namens, fragt die App: daneben ablegen (Name wird hochgezählt), ersetzen oder überspringen.",
+                    "**Ersetzen löscht nicht**: Die vorhandene Datei wandert in den Papierkorb und lässt sich dort zurücklegen.",
+                    "Ziehen in ein **Finder-Fenster** kopiert stattdessen – dort entscheidet der Finder.",
+                ])
+
                 section("Dateitypen", icon: "doc.badge.gearshape", [
                     "Einstellungen → Dateitypen (\(Shortcuts.settings.display)): je Endung Anzahl, Standardprogramm und zwei Häkchen.",
                     "Aufgeführt sind **alle** Endungen des eingelesenen Bestands – die Tabelle scrollt, das Suchfeld darüber findet schneller.",

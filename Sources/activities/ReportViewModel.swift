@@ -556,6 +556,13 @@ final class ReportViewModel {
         let urls: [URL]
         /// Zielprogramm bei ``BulkAction/Kind/openInApp(_:)``, sonst ``nil``.
         var app: ExternalApp?
+        /// Die geplanten Schritte bei ``BulkAction/Kind/move(_:)``, sonst leer.
+        ///
+        /// ⚠️ Der Plan wird MITGEFUEHRT, nicht nach der Bestaetigung neu
+        /// gebaut: Zwischen Frage und Antwort koennte sich der Zielordner
+        /// geaendert haben, und dann bezoege sich die Zusage der Rueckfrage auf
+        /// etwas anderes als das Ausgefuehrte.
+        var moveSteps: [MoveStep] = []
 
         var question: String { BulkAction.question(kind: kind, count: urls.count) }
         /// Wie viele Objekte der Menge beim Oeffnen **ausgefuehrt** wuerden.
@@ -574,6 +581,126 @@ final class ReportViewModel {
 
     /// Wartet ein Handgriff auf Bestaetigung? (steuert die Rueckfrage)
     var pendingBulkAction: PendingBulkAction?
+
+    // MARK: - Verschieben (v1.19.77)
+
+    /// Ein Verschieben, das auf die Antwort zu einem Namenskonflikt wartet.
+    struct PendingMove: Identifiable {
+        let id = UUID()
+        let sources: [URL]
+        let folder: URL
+        let existing: Set<String>
+        let conflicts: [URL]
+
+        var question: String {
+            conflicts.count == 1
+            ? "\u{201E}\(conflicts[0].lastPathComponent)\u{201C} liegt dort bereits."
+            : "\(conflicts.count) Dateien liegen dort bereits."
+        }
+
+        var explanation: String {
+            "Zielordner: \(folder.lastPathComponent). \u{201E}Ersetzen\u{201C} legt das "
+            + "Vorhandene in den Papierkorb – rückholbar. \u{201E}Daneben ablegen\u{201C} "
+            + "zählt den Namen hoch."
+        }
+    }
+
+    var pendingMove: PendingMove?
+    /// Ergebnisbericht des letzten Verschiebens – nur bei Fehlern gesetzt.
+    var moveReport: String?
+
+    /// Die Paare der **letzten** Verschiebung, für das Widerrufen.
+    ///
+    /// **⚠️ Nur die letzte, kein Stapel.** Ein Undo-Stapel über Dateisystem-
+    /// Vorgänge verspricht mehr, als er halten kann: Was zwei Schritte zurück
+    /// liegt, ist inzwischen vielleicht von fremder Hand bewegt worden. Ein
+    /// Schritt deckt den Fall ab, für den ⌘Z hier da ist – die falsche
+    /// Ziehbewegung, die man sofort bemerkt.
+    private(set) var lastMove: [(from: URL, to: URL)] = []
+    var canUndoMove: Bool { !lastMove.isEmpty }
+
+    /// Ob diese URL eine Datei aus dem eigenen Bestand ist.
+    ///
+    /// **⚠️ Das ist die Unterscheidung „von innen" gegen „von außen"**, und sie
+    /// kommt ohne Kennzeichen am Zug aus: Nur was diese App eingelesen hat, darf
+    /// sie auch verschieben. Ein aus dem Finder gezogener Ordner oder eine
+    /// fremde Datei fällt heraus – und das fensterweite Ablegeziel („Ordner aufs
+    /// Fenster = Quelle hinzufügen") behält seine Bedeutung.
+    func isKnownFile(_ url: URL) -> Bool {
+        filesByFolder[url.deletingLastPathComponent()]?.contains { $0.url == url } ?? false
+    }
+
+    /// Verschiebt Dateien in einen Ordner der Liste.
+    ///
+    /// **⚠️ Der Konfliktdialog fragt EINMAL für alle**, nicht je Datei. Bei
+    /// einem Konflikt ist beides gleich; bei zwanzig wäre eine Kette von zwanzig
+    /// Blättern genau die Rückfrage, die weggeklickt wird, ohne gelesen zu
+    /// werden – dieselbe Überlegung, die in ``BulkAction`` die Schwelle
+    /// begründet.
+    func requestMove(_ urls: [URL], to folder: URL) {
+        let eigene = urls.filter { isKnownFile($0) }
+        let vorhanden = FileMoveService.existingNames(in: folder)
+        let konflikte = MovePlan.conflicts(sources: eigene, into: folder, existing: vorhanden)
+        let bewegt = MovePlan.steps(sources: eigene, into: folder, existing: vorhanden) { _ in .keepBoth }
+        guard !bewegt.isEmpty else { return }
+
+        if konflikte.isEmpty {
+            starteVerschieben(eigene, to: folder, existing: vorhanden, resolution: .keepBoth)
+        } else {
+            pendingMove = PendingMove(sources: eigene, folder: folder,
+                                      existing: vorhanden, conflicts: konflikte)
+        }
+    }
+
+    func resolveMove(with resolution: MoveResolution) {
+        guard let offen = pendingMove else { return }
+        pendingMove = nil
+        starteVerschieben(offen.sources, to: offen.folder,
+                          existing: offen.existing, resolution: resolution)
+    }
+
+    func cancelMove() { pendingMove = nil }
+
+    private func starteVerschieben(_ urls: [URL], to folder: URL,
+                                   existing: Set<String>, resolution: MoveResolution) {
+        let schritte = MovePlan.steps(sources: urls, into: folder, existing: existing) { _ in resolution }
+        let auszufuehren = MovePlan.executable(schritte)
+        guard !auszufuehren.isEmpty else { return }
+
+        // ⚠️ Dieselbe Bremse wie bei den fuenf anderen Wegen – „der sechste Weg,
+        // der spaeter dazukommt" aus dem Kommentar in `BulkAction`.
+        if BulkAction.needsConfirmation(count: auszufuehren.count) {
+            pendingBulkAction = PendingBulkAction(kind: .move(folder.lastPathComponent),
+                                                  urls: auszufuehren.map(\.source),
+                                                  moveSteps: auszufuehren)
+        } else {
+            fuehreVerschiebenAus(auszufuehren)
+        }
+    }
+
+    func fuehreVerschiebenAus(_ schritte: [MoveStep]) {
+        let bericht = FileMoveService.execute(schritte)
+        lastMove = bericht.moved
+        melde(bericht)
+        rescan(preservingState: true)
+    }
+
+    /// ⌘Z – die letzte Verschiebung zurücknehmen.
+    func undoLastMove() {
+        guard !lastMove.isEmpty else { return }
+        let bericht = FileMoveService.undo(lastMove)
+        lastMove = []
+        melde(bericht)
+        rescan(preservingState: true)
+    }
+
+    /// **⚠️ Gemeldet wird nur, was schiefging.** Eine Erfolgsmeldung für einen
+    /// Vorgang, dessen Ergebnis man unmittelbar sieht, wäre ein Blatt, das man
+    /// wegklickt – und das nächste, das etwas Wichtiges sagt, dann auch.
+    private func melde(_ bericht: FileMoveService.Report) {
+        guard !bericht.failures.isEmpty else { return }
+        moveReport = bericht.failures.joined(separator: "\n")
+    }
 
     /// Oeffnet Objekte mit ihrem jeweiligen Standardprogramm.
     func requestOpen(_ urls: [URL]) {
@@ -645,6 +772,10 @@ final class ReportViewModel {
     }
 
     private func perform(_ action: PendingBulkAction) {
+        if case .move = action.kind {
+            fuehreVerschiebenAus(action.moveSteps)
+            return
+        }
         switch action.kind {
         case .open:
             FinderService.open(action.urls)
@@ -655,6 +786,10 @@ final class ReportViewModel {
             ExternalAppService.open(action.urls, with: app) { [weak self] message in
                 self?.actionError = message
             }
+        case .move:
+            // Oben abgefangen – der Zweig ist unerreichbar und steht hier nur,
+            // damit der Uebersetzer die Vollstaendigkeit prueft.
+            break
         }
     }
 

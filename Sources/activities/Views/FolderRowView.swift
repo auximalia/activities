@@ -92,6 +92,8 @@ struct FolderRowView: View {
         // Gleiche Grundfarbe wie eine gerade Dateizeile: Ohne sie stuende
         // die Ordnerzeile als graue Bank zwischen weissen Dateizeilen.
         .background(RowMetrics.rowBackground(alternate: false))
+        // Dateien aus der Liste hierher ziehen (v1.19.77).
+        .folderDropTarget(model: model, folder: entry.folder)
         // Baum-Stub: leitet vom aufgeklappten Ordner in den Dateiblock ueber.
         .overlay(alignment: .bottom) {
             if isExpanded {

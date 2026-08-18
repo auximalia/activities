@@ -342,6 +342,16 @@ public enum Shortcuts {
     /// scrollt die Liste – deshalb steht der Ort in der Beschriftung und nicht
     /// nur in der Hilfeprosa. Ohne ihn wäre der Eintrag eine Behauptung, die
     /// beim ersten Versuch an der falschen Stelle scheitert.
+    /// **⚠️ Das erste Kuerzel, das etwas RUECKGAENGIG macht.** Bearbeiten →
+    /// Widerrufen stand in dieser App bis v1.19.77 dauerhaft abgeblendet, weil
+    /// es nichts zu widerrufen gab. Mit dem Verschieben gibt es das – und ⌘Z
+    /// ist dafuer die einzige Taste, die in Frage kommt: Jede andere waere eine
+    /// eigene Erfindung fuer eine Handlung, die jeder kennt.
+    public static let undoMove = ShortcutEntry(
+        id: "undoMove", key: .character("z"), modifiers: [.command],
+        label: "Verschieben rückgängig", section: .list
+    )
+
     /// **⚠️ „auch mehrere" steht ausdruecklich da.** Bis v1.19.75 kam beim
     /// Ziehen mehrerer markierter Dateien nur die erste an – der Katalog soll
     /// nennen, was das Programm kann, und nicht, was es vorhatte.
@@ -365,7 +375,7 @@ public enum Shortcuts {
         exportCSV, exportHTML, copySummary,
         selectAll, clearSelection, closeWindow, settings, help, bringToFront,
         moveSelection, extendSelection, expandCollapse, openSelection,
-        quickLookSpace, escapeSelection,
+        quickLookSpace, escapeSelection, undoMove,
         commandClick, shiftClick, dragFiles, wheelDays,
     ]
 

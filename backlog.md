@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.14 · 2026-08-18*
+*Stand: v2.0.15 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,61 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-67 · `/usr/bin/svn` gibt es nicht – und die App hat es als Ergebnis ausgegeben *(v2.0.15)*
+**Aufwand:** S · **Art:** Defekt aus PR-65, sichtbar geworden durch v2.0.14 · *„Oh nein – jetzt tragen scheinbar nur noch die Ordner das git/svn-Symbol, nicht aber die Dateien selbst."*
+
+## Der Fund
+
+`RepoIndex` rief `/usr/bin/svn` mit fest eingebautem Pfad. **Den gibt es auf diesem Rechner
+nicht** – Apple hat Subversion mit Xcode 11 aus den Command Line Tools entfernt; installiert ist
+es über Homebrew unter `/opt/homebrew/bin/svn`. Auf dem Rechner des Anwenders, der **überwiegend
+in svn arbeitet**, ist die Abfrage seit PR-65 also **nie** gelaufen.
+
+**⚠️ Über `PATH` wäre es nicht zu finden gewesen.** Gemessen: `launchctl getenv PATH` ist auf
+diesem System **leer** – ein aus dem Finder gestartetes Programm erbt nur die magere Vorgabe,
+Homebrew steht dort nicht drin. Ein `/usr/bin/env svn` fände nichts. Deshalb eine Liste von
+Orten, `/usr/bin` zuerst: Was das System mitbringt, gilt vor dem Nachinstallierten, sonst
+entschiede die Installationsgeschichte des Rechners, welches Programm befragt wird.
+
+## Die eigentliche Lehre steht eine Ebene tiefer
+
+`run(...)` gab bei einem Fehlschlag **eine leere Zeichenkette** zurück – nicht zu unterscheiden
+von einer gelungenen Abfrage ohne Treffer. Aus *„`svn` gibt es hier nicht"* wurde damit
+*„keine dieser Dateien ist versioniert"*, und im Untermenü stand *„Keine Repository-Adresse
+hinterlegt"*. **Beides waren Behauptungen an einer Stelle, an der Schweigen richtig gewesen
+wäre.**
+
+*Das ist derselbe Fehlertyp wie in PR-66, nur eine Ebene tiefer: eine Antwort, die wie ein
+Ergebnis aussieht, wo in Wahrheit niemand nachgesehen hat.* Zweimal in zwei Auslieferungen –
+deshalb steht es jetzt im Typ und nicht in einem Kommentar:
+
+- `run` liefert `nil`, wenn das Programm **gar nicht lief**, sonst Status **und** Ausgabe.
+  ⚠️ Der Status bleibt beim Aufrufer, weil er nicht überall dasselbe heißt: `git config --get`
+  meldet 1 für „Schlüssel fehlt" – ein Ergebnis, kein Fehler.
+- `tracked` wird bei Fehlschlag **nicht gesetzt**. Der fehlende Schlüssel heißt „weiß ich nicht"
+  und lässt die Rückfallantwort greifen – die irrt dann in Richtung **Warnung**, wie in PR-65
+  entworfen.
+- `RepoRemote.unreadable` ist ein eigener Fall neben `missing` und `unknown`, mit eigenem
+  Wortlaut: *„Adresse nicht lesbar – ist git bzw. svn installiert?"* **⚠️ Er nennt den Grund,
+  nicht nur das Scheitern** – der liegt auf dem Rechner des Anwenders und ist mit einem Handgriff
+  behoben.
+
+## Geprüft, nicht behauptet
+
+`RepoTooling` liegt im Kern, die Platte kommt als Parameter – dieselbe Aufteilung wie
+`RepoDetection`, damit `CoreChecks` sie erreicht. Zusätzlich ein Lauf gegen die **echte**
+svn-Arbeitskopie des Anwenders:
+
+| | Ergebnis |
+|---|---|
+| Werkzeugsuche | `/opt/homebrew/bin/svn`, **nicht** `/usr/bin/svn` |
+| `svn status -v --xml` | **8.159** geführte Einträge in **783 ms** |
+| die drei gemeldeten Dateien | alle drei als versioniert erkannt |
+| `svn info --show-item url` | Adresse kommt an, **126 ms** |
+| daraus eine Web-Adresse | ja, `https://…` unverändert |
+
+**Zusicherungen:** 1845 → **1865**.
 
 ### ✅ PR-66 · Der Anhänger sagt nichts – und der Tooltip, der es sollte, war unerreichbar *(v2.0.14)*
 **Aufwand:** M · **Art:** Defekt aus v1.19.79 **+ Wunsch aus der Praxis** · *„Allein, das Icon ist nicht intuitiv verständlich. Vielleicht kann man auch im Kontextmenü zu Ordner bzw. Datei einen Link (URL) zum Repository anbieten."*

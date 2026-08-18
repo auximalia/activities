@@ -14,6 +14,17 @@ public enum RepoRemote: Sendable, Hashable {
     case unknown
     /// Gelesen, und es ist keine eingetragen – eine rein örtliche Arbeitskopie.
     case missing
+    /// **Nicht** gelesen: Die Abfrage ist gescheitert – `git`/`svn` fehlt auf
+    /// diesem Rechner, oder der Befehl kam mit einem Fehler zurück.
+    ///
+    /// **⚠️ Ein eigener Fall, und er hat einen Preis gekostet.** Bis v2.0.14
+    /// gab ``RepoIndex`` bei einem Fehlschlag dieselbe leere Antwort wie bei
+    /// „nichts gefunden". Auf dem Rechner des Anwenders zeigte `/usr/bin/svn`
+    /// ins Leere — und die App behauptete daraufhin nicht etwa „ich konnte
+    /// nicht nachsehen", sondern **„keine dieser Dateien ist versioniert"**.
+    /// *Eine gescheiterte Abfrage, die wie ein Ergebnis aussieht, ist
+    /// schlimmer als eine, die abstürzt.*
+    case unreadable
     /// Die eingetragene Adresse, wortwörtlich wie im Repository.
     case address(String)
 }
@@ -24,6 +35,12 @@ public extension RepoRemote {
     static let unknownLabel = "Repository-Adresse wird gelesen …"
     /// Was das Menü sagt, wenn keine eingetragen ist.
     static let missingLabel = "Keine Repository-Adresse hinterlegt"
+    /// Was das Menü sagt, wenn die Abfrage gescheitert ist.
+    ///
+    /// **⚠️ Es nennt den Grund, nicht nur das Scheitern.** „Nicht lesbar" ließe
+    /// den Anwender im Programm suchen; der Grund liegt aber auf seinem Rechner
+    /// und ist mit einem Handgriff behoben.
+    static let unreadableLabel = "Adresse nicht lesbar – ist git bzw. svn installiert?"
 
     var address: String? {
         if case .address(let value) = self { return value }

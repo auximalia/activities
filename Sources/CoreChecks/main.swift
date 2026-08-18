@@ -93,6 +93,7 @@ checkFilenamingDanebenAblegenZaehltHochV11977()
 checkMoveplanDerPlanBevorDiePlatteAngefasstWirdV11977()
 checkRepodetectionLiegtDieDateiUnterVersionsverwaltungV11979()
 checkRepoRemoteAusDerFernadresseEineSeiteImBrowserV2014()
+checkRepoToolingWoGitUndSvnWirklichLiegenV2015()
 
 checkNotice()
 

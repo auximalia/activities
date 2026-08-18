@@ -154,6 +154,7 @@ struct HelpView: View {
                     "**Rechtsklick** führt dieselbe Auskunft als Untermenü: „git-Arbeitskopie: …“. Darin „Repository im Browser öffnen“ und „Repository-Adresse kopieren“.",
                     "Der Browser-Eintrag erscheint nur, wenn sich aus der eingetragenen Adresse verlässlich eine Webseite ergibt. Bei `svn+ssh` oder einem Repository auf der Platte gibt es keine – kopieren lässt sich die Adresse trotzdem.",
                     "Gezeigt wird **versioniert**, nicht „liegt in einem Repo“ – Bauwerk wie `.build` bleibt unmarkiert.",
+                    "Dafür befragt die App `git` bzw. `svn` auf diesem Rechner. Fehlt eines davon, sagt das Untermenü es – die App behauptet dann **nicht**, es sei nichts versioniert.",
                     "Beim Verschieben versionierter Dateien fragt die App **immer** zurück, auch bei einer einzelnen, und nennt den Befehl, der dabei nicht ausgeführt wird (`git mv`, `svn mv`).",
                     "Die App führt die Verschiebung trotzdem aus – sie warnt, sie hindert nicht.",
                 ])

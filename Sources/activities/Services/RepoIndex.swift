@@ -29,14 +29,13 @@ final class RepoIndex {
     @ObservationIgnored private var byFolder: [URL: RepoMark?] = [:]
     /// Wurzel → geführte Dateien. `nil` = noch nicht geladen.
     @ObservationIgnored private var tracked: [URL: Set<URL>] = [:]
-    /// Wurzel → eingetragene Fernadresse. Schlüssel fehlt = noch nicht gelesen,
-    /// `.some(nil)` = gelesen und keine vorhanden.
+    /// Wurzel → eingetragene Fernadresse. Schlüssel fehlt = noch nicht gelesen.
     ///
     /// **⚠️ Kommt im selben Durchgang wie ``tracked``.** Beides braucht denselben
     /// Unterprozess-Ausflug je Arbeitskopie; zwei getrennte Ladewege wären zwei
     /// Zustände, die auseinanderlaufen können – und der zweite käme dann
     /// ausgerechnet dann noch nicht an, wenn das Menü schon offen ist.
-    @ObservationIgnored private var remotes: [URL: String?] = [:]
+    @ObservationIgnored private var remotes: [URL: RepoRemote] = [:]
 
     /// Steigt bei jedem abgeschlossenen Ladevorgang – die Ansicht hängt daran.
     private(set) var generation = 0
@@ -127,9 +126,7 @@ final class RepoIndex {
     /// Puffer. Solange er leer ist, lautet die Antwort ``RepoRemote/unknown``
     /// und nicht ``RepoRemote/missing``.
     func remote(for mark: RepoMark) -> RepoRemote {
-        guard let entry = remotes[mark.root] else { return .unknown }
-        guard let address = entry else { return .missing }
-        return .address(address)
+        remotes[mark.root] ?? .unknown
     }
 
     // MARK: - Laden
@@ -171,7 +168,13 @@ final class RepoIndex {
         laufend = Task { [weak self] in
             let amount = await Self.load(mark)
             guard let self, !Task.isCancelled else { return }
-            self.tracked[mark.root] = amount.tracked
+            // **⚠️ Bei gescheiterter Abfrage wird `tracked` NICHT gesetzt.**
+            // Ein fehlender Schlüssel heißt „weiß ich nicht" und lässt die
+            // Rückfallantwort aus ``mark(forFile:)`` greifen – „liegt in einer
+            // Arbeitskopie". Eine leere Menge hieße dagegen „nichts davon ist
+            // versioniert", und genau das hat die App behauptet, als
+            // `/usr/bin/svn` ins Leere zeigte.
+            if let gefuehrt = amount.tracked { self.tracked[mark.root] = gefuehrt }
             self.remotes[mark.root] = amount.remote
             self.generation &+= 1
             self.laufend = nil
@@ -190,7 +193,8 @@ final class RepoIndex {
         generation &+= 1
     }
 
-    nonisolated private static func load(_ mark: RepoMark) async -> (tracked: Set<URL>, remote: String?) {
+    /// - Returns: `tracked == nil` heißt **Abfrage gescheitert**, nicht „leer".
+    nonisolated private static func load(_ mark: RepoMark) async -> (tracked: Set<URL>?, remote: RepoRemote) {
         await Task.detached(priority: .utility) {
             switch mark.kind {
             case .git: (gitTracked(at: mark.root), gitRemote(at: mark.root))
@@ -208,13 +212,32 @@ final class RepoIndex {
     /// **⚠️ `core.quotePath=false` und `-z`**, sonst kommen Umlaute als
     /// Oktal-Fluchtfolgen zurück und Pfade mit Zeilenumbruch zerreißen die
     /// Ausgabe.
-    nonisolated private static func gitTracked(at root: URL) -> Set<URL> {
-        let ausgabe = run("/usr/bin/git",
-                          ["--no-optional-locks", "-c", "core.quotePath=false", "ls-files", "-z"],
-                          in: root)
-        return Set(ausgabe.split(separator: "\0").map {
+    nonisolated private static func gitTracked(at root: URL) -> Set<URL>? {
+        guard let lauf = run(.git,
+                             ["--no-optional-locks", "-c", "core.quotePath=false", "ls-files", "-z"],
+                             in: root),
+              lauf.status == 0 else { return nil }
+        return Set(lauf.ausgabe.split(separator: "\0").map {
             root.appendingPathComponent(String($0)).standardizedFileURL
         })
+    }
+
+    /// **⚠️ `config --get`, nicht `remote get-url`.** Beide lesen dasselbe Feld,
+    /// aber `config` gibt es seit jeher.
+    ///
+    /// **⚠️ Rückgabe 1 heißt „kein `origin`", nicht „Fehler".** `git config
+    /// --get` beendet sich mit 1, wenn der Schlüssel fehlt – das ist hier ein
+    /// **Ergebnis**. Nur ein Programm, das gar nicht erst startet, ist ein
+    /// Fehlschlag.
+    ///
+    /// **⚠️ Nur `origin`.** Ein Repository kann mehrere Gegenstellen führen;
+    /// eine Auswahlliste im Kontextmenü wäre eine Frage an einen, der sie nicht
+    /// gestellt hat.
+    nonisolated private static func gitRemote(at root: URL) -> RepoRemote {
+        guard let lauf = run(.git, ["--no-optional-locks", "config", "--get", "remote.origin.url"],
+                             in: root) else { return .unreadable }
+        guard lauf.status == 0 else { return .missing }
+        return adresse(lauf.ausgabe)
     }
 
     /// **⚠️ `--xml`, nicht die Spaltenausgabe.** Die Textform von `svn status`
@@ -224,9 +247,10 @@ final class RepoIndex {
     ///
     /// **⚠️ `svn status`, nicht `svn list`.** Letzteres fragt den **Server** –
     /// eine Netzanfrage für eine Anzeige, und ohne Verbindung schlägt sie fehl.
-    nonisolated private static func svnTracked(at root: URL) -> Set<URL> {
-        let ausgabe = run("/usr/bin/svn", ["status", "-v", "--xml", "--no-ignore", "."], in: root)
-        guard let daten = ausgabe.data(using: .utf8) else { return [] }
+    nonisolated private static func svnTracked(at root: URL) -> Set<URL>? {
+        guard let lauf = run(.svn, ["status", "-v", "--xml", "--no-ignore", "."], in: root),
+              lauf.status == 0,
+              let daten = lauf.ausgabe.data(using: .utf8) else { return nil }
         let leser = SvnStatusParser(root: root)
         let parser = XMLParser(data: daten)
         parser.delegate = leser
@@ -234,46 +258,46 @@ final class RepoIndex {
         return leser.versioned
     }
 
-    /// Die eingetragene Fernadresse einer git-Arbeitskopie.
-    ///
-    /// **⚠️ `config --get`, nicht `remote get-url`.** Beide lesen dasselbe Feld,
-    /// aber `config` gibt es seit jeher und schweigt, wenn nichts da ist;
-    /// `remote get-url` schreibt in einem solchen Fall auf die Fehlerausgabe.
-    /// Hier ist „nichts eingetragen" ein **Ergebnis**, kein Fehler.
-    ///
-    /// **⚠️ Nur `origin`.** Ein Repository kann mehrere Gegenstellen führen;
-    /// welche davon „das Repository" ist, weiß nur der Anwender. `origin` ist
-    /// die Antwort, die git selbst überall voraussetzt – und eine Auswahlliste
-    /// im Kontextmenü wäre eine Frage an einen, der sie nicht gestellt hat.
-    nonisolated private static func gitRemote(at root: URL) -> String? {
-        clean(run("/usr/bin/git",
-                  ["--no-optional-locks", "config", "--get", "remote.origin.url"],
-                  in: root))
-    }
-
     /// Die Adresse, unter der die svn-Arbeitskopie ausgecheckt wurde.
     ///
     /// **⚠️ `svn info` auf einem PFAD fragt keinen Server.** Es liest die
-    /// örtliche `.svn/wc.db`; nur `svn info <URL>` ginge ins Netz. Gemessen:
-    /// 70–110 ms je Arbeitskopie, also in derselben Größenordnung wie das
-    /// `svn status`, das ohnehin schon läuft.
+    /// örtliche `.svn/wc.db`; nur `svn info <URL>` ginge ins Netz. Gemessen an
+    /// der Arbeitskopie des Anwenders: **126 ms**.
     ///
     /// **⚠️ Die Adresse der Arbeitskopie, nicht die Repository-Wurzel.** In svn
     /// arbeitet man in `…/trunk` oder `…/branches/x`; `repos-root-url` führte
     /// auf eine Ebene, die mit der Arbeit nichts zu tun hat.
-    nonisolated private static func svnRemote(at root: URL) -> String? {
-        clean(run("/usr/bin/svn", ["info", "--show-item", "url", "."], in: root))
+    nonisolated private static func svnRemote(at root: URL) -> RepoRemote {
+        guard let lauf = run(.svn, ["info", "--show-item", "url", "."], in: root),
+              lauf.status == 0 else { return .unreadable }
+        return adresse(lauf.ausgabe)
     }
 
-    /// Eine Zeile Prozessausgabe → Adresse oder ``nil``.
-    nonisolated private static func clean(_ ausgabe: String) -> String? {
+    /// Eine Zeile Prozessausgabe → Adresse oder „keine hinterlegt".
+    nonisolated private static func adresse(_ ausgabe: String) -> RepoRemote {
         let getrimmt = ausgabe.trimmingCharacters(in: .whitespacesAndNewlines)
-        return getrimmt.isEmpty ? nil : getrimmt
+        return getrimmt.isEmpty ? .missing : .address(getrimmt)
     }
 
-    nonisolated private static func run(_ path: String, _ argumente: [String], in folder: URL) -> String {
+    /// Führt das Programm aus – ``nil``, wenn es **gar nicht lief**.
+    ///
+    /// **⚠️ Der Unterschied zwischen „nichts gefunden" und „nicht nachgesehen"
+    /// ist der Kern dieses Rückgabetyps.** Vorher gab diese Methode bei einem
+    /// Fehlschlag eine leere Zeichenkette zurück – nicht zu unterscheiden von
+    /// einer erfolgreichen Abfrage ohne Treffer. Aus „`svn` gibt es hier nicht"
+    /// wurde damit „keine dieser Dateien ist versioniert", und das war eine
+    /// **Behauptung** an der Stelle, an der Schweigen richtig gewesen wäre.
+    ///
+    /// Der Rückgabestatus bleibt drin, weil er nicht überall dasselbe heißt:
+    /// `git config --get` meldet 1 für „Schlüssel fehlt" – ein Ergebnis, kein
+    /// Fehler. Diese Deutung gehört zum Aufrufer, nicht hierher.
+    nonisolated private static func run(_ kind: RepoKind, _ argumente: [String],
+                                        in folder: URL) -> (status: Int32, ausgabe: String)? {
+        let fm = FileManager.default
+        guard let pfad = RepoTooling.executable(for: kind, isExecutable: fm.isExecutableFile(atPath:))
+        else { return nil }
         let prozess = Process()
-        prozess.executableURL = URL(fileURLWithPath: path)
+        prozess.executableURL = URL(fileURLWithPath: pfad)
         prozess.arguments = argumente
         prozess.currentDirectoryURL = folder
         let rohr = Pipe()
@@ -283,12 +307,12 @@ final class RepoIndex {
             try prozess.run()
             let daten = rohr.fileHandleForReading.readDataToEndOfFile()
             prozess.waitUntilExit()
-            return String(data: daten, encoding: .utf8) ?? ""
+            return (prozess.terminationStatus, String(data: daten, encoding: .utf8) ?? "")
         } catch {
-            // Kein git/svn auf diesem Rechner: keine Auskunft, keine Meldung.
-            // ⚠️ Das ist KEIN Fehlerfall fuer den Anwender – er hat dann nur
-            // keinen Anhaenger, und das ist die richtige Antwort.
-            return ""
+            // ⚠️ „Konnte nicht starten" ist KEIN leeres Ergebnis. Der Aufrufer
+            // laesst daraufhin die Rueckfallantwort greifen, statt etwas ueber
+            // die Dateien zu behaupten.
+            return nil
         }
     }
 }

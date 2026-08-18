@@ -45,6 +45,12 @@ struct RepoMenu: View {
                 Button(RepoRemote.unknownLabel) {}.disabled(true)
             case .missing:
                 Button(RepoRemote.missingLabel) {}.disabled(true)
+            case .unreadable:
+                // **⚠️ Und hier steht ausdrücklich NICHT „keine hinterlegt".**
+                // Genau das stand bis v2.0.14 an dieser Stelle, wenn `svn`
+                // nicht gefunden wurde – die App behauptete das Fehlen eines
+                // Repositorys, während sie in Wahrheit nicht nachsehen konnte.
+                Button(RepoRemote.unreadableLabel) {}.disabled(true)
             case .address(let address):
                 // **⚠️ Nur wenn daraus verlässlich eine Seite wird.** Bei
                 // `file://`, `svn+ssh://` und einem blossen Pfad entfällt der

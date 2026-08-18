@@ -859,6 +859,79 @@ func checkRepoRemoteAusDerFernadresseEineSeiteImBrowserV2014() {
            "Zustand: und die beiden sagen nicht dasselbe")
 }
 
+// MARK: - RepoTooling: wo git und svn wirklich liegen (v2.0.15)
+func checkRepoToolingWoGitUndSvnWirklichLiegenV2015() {
+
+    func vorhanden(_ pfade: String...) -> (String) -> Bool {
+        let menge = Set(pfade)
+        return { menge.contains($0) }
+    }
+
+    // ── Der Fall, der eine Auslieferung gekostet hat. ──
+    //
+    // ⚠️ `/usr/bin/svn` gibt es seit Xcode 11 nicht mehr - Apple hat Subversion
+    // aus den Command Line Tools entfernt. Der Pfad stand seit PR-65 fest im
+    // Code, und auf dem Rechner des Anwenders, der ueberwiegend in svn
+    // arbeitet, ist die Abfrage deshalb NIE gelaufen.
+    let nurBrew = vorhanden("/opt/homebrew/bin/svn", "/usr/bin/git")
+    expectEqual(RepoTooling.executable(for: .svn, isExecutable: nurBrew),
+                "/opt/homebrew/bin/svn",
+                "Werkzeug: svn wird bei Homebrew gefunden, wenn /usr/bin/svn fehlt")
+    expectEqual(RepoTooling.executable(for: .git, isExecutable: nurBrew),
+                "/usr/bin/git",
+                "Werkzeug: git bringt das System selbst mit")
+
+    // Intel-Rechner: Homebrew liegt woanders.
+    let intel = vorhanden("/usr/local/bin/svn")
+    expectEqual(RepoTooling.executable(for: .svn, isExecutable: intel),
+                "/usr/local/bin/svn",
+                "Werkzeug: /usr/local fuer Intel-Rechner")
+
+    // ⚠️ Was das System mitbringt, gilt VOR dem Nachinstallierten - sonst
+    // entschiede die Installationsgeschichte, welches Programm befragt wird.
+    let beide = vorhanden("/usr/bin/svn", "/opt/homebrew/bin/svn", "/usr/local/bin/svn")
+    expectEqual(RepoTooling.executable(for: .svn, isExecutable: beide),
+                "/usr/bin/svn",
+                "Werkzeug: /usr/bin gewinnt gegen Nachinstalliertes")
+    expectEqual(RepoTooling.searchPaths.first, "/usr/bin",
+                "Werkzeug: und die Reihenfolge sagt das auch")
+
+    // ⚠️ Gar nicht da ist ein ERGEBNIS, kein Fehler - der Aufrufer muss es
+    // unterscheiden koennen, sonst behauptet er „nichts ist versioniert".
+    expect(RepoTooling.executable(for: .svn, isExecutable: { _ in false }) == nil,
+           "Werkzeug: fehlt es ueberall, ist die Antwort nil")
+
+    // Jede Verwaltung wird an jedem Ort gesucht - kein vergessener Fall.
+    for kind in RepoKind.allCases {
+        for ort in RepoTooling.searchPaths {
+            let pfad = "\(ort)/\(kind.rawValue)"
+            expectEqual(RepoTooling.executable(for: kind, isExecutable: vorhanden(pfad)), pfad,
+                        "Werkzeug: \(kind.rawValue) wird in \(ort) gefunden")
+        }
+    }
+
+    // ── Der Zustand, der aus dem Fehlschlag folgt. ──
+    //
+    // ⚠️ „Abfrage gescheitert" ist NICHT „keine Adresse hinterlegt". Genau
+    // diese Verwechslung liess die App behaupten, eine svn-Arbeitskopie habe
+    // kein Repository - waehrend sie in Wahrheit nicht nachsehen konnte.
+    expect(RepoRemote.unreadable != RepoRemote.missing,
+           "Zustand: nicht lesbar ist nicht dasselbe wie nicht vorhanden")
+    expect(RepoRemote.unreadable != RepoRemote.unknown,
+           "Zustand: nicht lesbar ist auch nicht dasselbe wie noch nicht gelesen")
+    expect(RepoRemote.unreadable.address == nil, "Zustand: nicht lesbar hat keine Adresse")
+    expect(RepoRemote.unreadable.webURL(kind: .svn) == nil, "Zustand: und keine Seite")
+    expect(!RepoRemote.unreadableLabel.isEmpty, "Zustand: der Fehlschlag hat einen Wortlaut")
+    // ⚠️ Der Wortlaut nennt den GRUND, nicht nur das Scheitern - er liegt auf
+    // dem Rechner des Anwenders und ist mit einem Handgriff behoben.
+    expect(RepoRemote.unreadableLabel.contains("git") || RepoRemote.unreadableLabel.contains("svn"),
+           "Zustand: und er nennt, woran es liegen koennte (\(RepoRemote.unreadableLabel))")
+    for wortlaut in [RepoRemote.unknownLabel, RepoRemote.missingLabel] {
+        expect(wortlaut != RepoRemote.unreadableLabel,
+               "Zustand: drei Faelle, drei Saetze")
+    }
+}
+
 // MARK: - Notice: die Form ist eine Regel, keine Gewohnheit (v2.0.10)
 func checkNotice() {
     // ⚠️ Die Form folgt der Frage „was kann der Anwender jetzt noch tun?",

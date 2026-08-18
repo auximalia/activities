@@ -799,6 +799,15 @@ final class ReportViewModel {
     /// Ordner entweder gefüllt und von selbst sichtbar, oder er war ein Irrtum.*
     private(set) var sessionCreatedFolders: [URL] = []
 
+    /// Die selbst angelegten Ordner, die es **noch gibt**.
+    ///
+    /// ⚠️ Gefragt wird die Platte: Ein angelegter Ordner kann inzwischen
+    /// verschoben, umbenannt oder im Finder geloescht worden sein. Eine Zeile
+    /// fuer einen Ordner, den es nicht mehr gibt, waere schlimmer als keine.
+    var vorhandeneSitzungsordner: [URL] {
+        sessionCreatedFolders.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
     /// Ein Blatt wartet auf einen Ordnernamen.
     struct PendingFolderName: Identifiable {
         let id = UUID()
@@ -1822,9 +1831,8 @@ final class ReportViewModel {
         var eintraege = entries
         let bekannt = Set(eintraege.map { $0.folder.standardizedFileURL })
         let jetzt = Date()
-        for neuer in sessionCreatedFolders
-        where !bekannt.contains(neuer.standardizedFileURL)
-            && FileManager.default.fileExists(atPath: neuer.path) {
+        for neuer in vorhandeneSitzungsordner
+        where !bekannt.contains(neuer.standardizedFileURL) {
             eintraege.append(FolderEntry(folder: neuer, newestDate: jetzt, fileCount: 0))
         }
         // ⚠️ NACH dem Anhaengen neu sortieren. `TimeBucket.group` bildet die
@@ -2974,7 +2982,19 @@ final class ReportViewModel {
 
         // Detaildateien nur fuer Ordner nachladen, die noch nicht im Zwischen-
         // speicher liegen. Beim Verkleinern des Zeitraums ist das keiner.
-        let folders = Set(relevantFiles.map(\.folder))
+        // **⚠️ Selbst angelegte Ordner gehoeren in diese Menge, obwohl sie keine
+        // Dateien haben.** Sie stehen in der Liste (siehe
+        // `sessionCreatedFolders`), und die Detailzeile liest
+        // `visibleSortedFilesByFolder[ordner]`: **`nil` heisst dort „laedt
+        // noch"**. Ein Ordner, der nie geladen wird, weil er keine Dateien
+        // liefert, zeigt deshalb ewig „Lade Dateien …" – aus der Praxis
+        // gemeldet, unmittelbar nach v2.0.0.
+        //
+        // *Die Menge kommt aus `relevantFiles`, also aus DATEIEN. Ein Ordner
+        // ohne Dateien kann darin grundsaetzlich nicht vorkommen — deshalb ist
+        // das keine vergessene Zeile, sondern eine Annahme, die mit dem
+        // Anlegen von Ordnern aufgehoert hat zu gelten.*
+        let folders = Set(relevantFiles.map(\.folder)).union(vorhandeneSitzungsordner)
         filesByFolder = filesByFolder.filter { folders.contains($0.key) }
         // ⚠️ Erst NACH dem Aufbau der Ordnerliste: Vorher weiss niemand, welche
         // Arbeitskopien ueberhaupt vorkommen – und ein Vorratsladen ueber alle

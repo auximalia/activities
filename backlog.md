@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.2 · 2026-08-18*
+*Stand: v2.0.3 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,35 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-67 · „Lade Dateien …" ohne Ende *(v2.0.3)*
+**Aufwand:** XS · **Art:** Defekt aus v2.0.0 · *„Nach einem Refresh versucht das Tool in dem leeren Ordner Dateien zu laden und hängt sich dabei auf"*
+
+**⚠️ `nil` heißt in der Detailzeile „lädt noch".** `ReportView` liest
+`visibleSortedFilesByFolder[ordner]`; ein leeres Feld bedeutet „nichts drin", **`nil`
+bedeutet „noch nicht geladen"** und zeigt den Fortschrittskreis. Ein Ordner, für den nie
+geladen wird, zeigt ihn deshalb **ewig**.
+
+**Und genau das war der selbst angelegte Ordner.** Die Menge, für die Detaildateien geladen
+werden, entstand aus `Set(relevantFiles.map(\.folder))` — also aus **Dateien**. Ein Ordner
+ohne Dateien kann darin grundsätzlich nicht vorkommen.
+
+*Das ist keine vergessene Zeile, sondern eine **Annahme, die aufgehört hat zu gelten**: „die
+angezeigten Ordner sind genau die mit Dateien" war wahr, seit es diese Liste gibt — bis
+v2.0.0 das Anlegen von Ordnern brachte. Der Ausdruck stand unverändert richtig da und war es
+nicht mehr.*
+
+**Gemacht:** Die selbst angelegten Ordner gehen in dieselbe Menge. `listAll` setzt für einen
+leeren Ordner `[]` statt gar nichts — aus „lädt noch" wird „keine passenden Dateien".
+
+**⚠️ Gefragt wird dabei die Platte:** Ein angelegter Ordner kann inzwischen verschoben,
+umbenannt oder im Finder gelöscht worden sein. Eine Zeile für einen Ordner, den es nicht mehr
+gibt, wäre schlimmer als keine.
+
+**Dritter Fehler desselben Musters an einem Tag** — nach der Zusicherung, die nur `add()`
+absicherte, und der Vorbedingung, die nur der erste Aufrufer kannte: *Etwas, das für den
+bekannten Weg gilt, sieht vollständig aus.*
+
 
 ### ✅ UX-66 · Das Blatt kam ohne Fokus *(v2.0.2)*
 **Aufwand:** XS · **Art:** Defekt aus v2.0.0 · *„Nach dem Aufruf zum Anlegen eines neuen Ordners kommt ein Fenster – es hat aber keinen Fokus. Man muss es erst anklicken."*

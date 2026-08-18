@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.8 · 2026-08-18*
+*Stand: v2.0.9 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,37 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP4 — ein Lebenszyklus statt zweier *(v2.0.9)*
+**Aufwand:** S
+
+Drei Ansichten machten dasselbe Grundsätzliche: `WheelCatcher`, `MultiFileDragSource`
+und der Fokus-Helfer im Blatt sind alle **unsichtbare `NSView` mit `hitTest → nil`**;
+die ersten beiden führten zusätzlich **denselben Lebenszyklus** für
+`addLocalMonitorForEvents`.
+
+**⚠️ Der Lebenszyklus war der eigentliche Befund, nicht die doppelte Zeile.** Er ist
+heikel, und beide Kopien trugen denselben `⚠️`-Kommentar daneben:
+
+> *Ein prozessweiter Beobachter, der einen geschlossenen Fensterinhalt überlebt, wirkt
+> weiter, während man über einem **anderen** Fenster arbeitet.*
+
+**Zwei Kopien eines heiklen Ablaufs sind eine zu viel** — eine Korrektur an einer Stelle
+erreicht die andere nicht. Und dass der Kommentar zweimal dastand, machte es nicht
+sicherer, sondern nur doppelt begründet.
+
+**Gebaut:** `InvisibleView` (nur `hitTest → nil` und die Fensterprüfung) und darauf
+`MonitoringView` (Anmelden beim Betreten, Abmelden beim Verlassen, `deinit` als Netz).
+Die drei behalten je zwei Zeilen: **welches** Ereignis und **was** damit geschieht.
+
+`WheelCatcher` schrumpft von 88 auf **37 Zeilen**, `addLocalMonitorForEvents` steht im
+ganzen Programm nur noch **einmal**.
+
+**⚠️ Auch die Fensterprüfung war doppelt** und ist die unauffälligere Hälfte: Ein lokaler
+Beobachter bekommt die Ereignisse **aller** Fenster des Programms. Ohne den Vergleich
+träfe ein Mausrad an derselben Bildschirmstelle über dem Hilfefenster zu — ein Fehler,
+den man beim Lesen nicht sieht und beim Benutzen für einen Zufall hält.
+
 
 ### ✅ Sprint 20 · AP6 — `CoreChecks` nach Thema statt nach Größe *(v2.0.8)*
 **Aufwand:** S

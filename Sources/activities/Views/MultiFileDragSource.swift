@@ -45,43 +45,15 @@ struct MultiFileDragSource: NSViewRepresentable {
         nsView.prepare = prepare
     }
 
-    final class DragCatcherView: NSView, NSDraggingSource {
+    final class DragCatcherView: MonitoringView, NSDraggingSource {
         var targets: (() -> [URL])?
         var prepare: (() -> Void)?
-        private var monitor: Any?
 
-        /// **Für alles außer dem Beobachter unsichtbar.**
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            if window == nil { remove() } else { install() }
-        }
-
-        deinit {
-            if let monitor { NSEvent.removeMonitor(monitor) }
-        }
-
-        private func install() {
-            guard monitor == nil else { return }
-            // ⚠️ `.leftMouseDragged`, nicht `.leftMouseDown`. Beim Druck ist
-            // noch nicht entschieden, ob es ein Klick oder ein Ziehen wird –
-            // dort zu starten machte jeden Klick zum Ziehen.
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDragged) { [weak self] event in
-                guard let self, self.hits(event) else { return event }
-                return self.start(event) ? nil : event
-            }
-        }
-
-        private func remove() {
-            if let monitor { NSEvent.removeMonitor(monitor) }
-            monitor = nil
-        }
-
-        private func hits(_ event: NSEvent) -> Bool {
-            guard let window, event.window === window else { return false }
-            return bounds.contains(convert(event.locationInWindow, from: nil))
-        }
+        /// ⚠️ `.leftMouseDragged`, nicht `.leftMouseDown`. Beim Druck ist noch
+        /// nicht entschieden, ob es ein Klick oder ein Ziehen wird – dort zu
+        /// starten machte jeden Klick zum Ziehen.
+        override var monitoredEvents: NSEvent.EventTypeMask { .leftMouseDragged }
+        override func handle(_ event: NSEvent) -> Bool { start(event) }
 
         /// Startet die Ziehsitzung – oder überlässt das Ereignis SwiftUI.
         ///

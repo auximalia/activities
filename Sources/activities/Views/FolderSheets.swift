@@ -162,8 +162,6 @@ private struct SheetFieldFocus: NSViewRepresentable {
         }
         @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
 
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             guard window != nil, !done else { return }

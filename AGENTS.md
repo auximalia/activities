@@ -14,6 +14,7 @@ Sources/activities/       the SwiftUI app (Views/, Style/, Services/)
 Sources/CoreChecks/       assertion runner for the domain logic (see below)
 Tests/ActivitiesCoreTests XCTest suite — needs full Xcode
 Packaging/                build_app.sh, release.sh, web-install.sh, assets
+sprints/                  sprint plans, written before the code (see below)
 backlog.md                the record of decisions — read this before changing UI
 ```
 
@@ -178,6 +179,50 @@ Therefore, from v1.19.45 on:
 
 If a substantial item ever returns, this section goes back to what it said. The old
 text is one commit away.
+
+**⚠️ It returned on 2026-08-16, and this paragraph is the amendment.** The owner asked
+for Finder-grade file operations — moving files and folders in from the Finder, creating
+subfolders, renaming, trash, clipboard. That is an L, and it is the first work in
+thirty-five releases that does not fit into a single afternoon. **Sprints are back for
+work of that size, and only for that size.** Everything above still holds for everything
+else: a two-line fix does not wait for a sprint, and no item gets built because a
+release felt due. What changed is that there is now something to cut a sprint *from*.
+
+## Sprints: the plan is a file, and it is a handover document
+
+**⚠️ From Sprint 19 on, a sprint plan is written to `sprints/sprint-NN-<name>.md`
+before any code exists.** Not into `backlog.md`, not into the conversation.
+
+The reason is not tidiness. **The owner decides, per sprint, which model implements
+it** — a cheaper one or a shallower thinking depth, to spend tokens where they earn
+something. Planning and implementing are therefore separated by design, and they may
+happen in different sessions with different models and no shared memory.
+
+That has one consequence, and it is the whole rule: **the plan must work without the
+conversation that produced it.** Anything an implementer would otherwise have to ask
+is a defect in the plan. Concretely, a plan carries:
+
+- the assignment **in the owner's own words**, quoted, not paraphrased;
+- what already exists and where — file paths, not descriptions;
+- the work packages with effort, and what depends on what;
+- **the open decisions, marked as open**, each with the alternatives and a
+  recommendation — an implementer who meets an unmarked fork will guess;
+- the assertions that have to come out of it;
+- the acceptance runbook;
+- the rules that govern implementation, named — because the implementing model may
+  never have read `AGENTS.md`.
+
+**⚠️ Two gates apply unchanged, and the split makes them easier to skip.** The plan is
+*planning* and needs no approval; **implementation still waits for an explicit go**,
+and that go now includes the choice of model. And a cheaper model does not buy relief
+from `swift build`, `swift run CoreChecks`, `decision-check`, `ux-review` or the help
+line in the same commit. *If a model is too weak to carry those, it is too weak for
+the sprint — that is the measurement, not the token count.*
+
+**The plan stays a living document.** Decisions taken during implementation are
+written back into it, so the file and the code tell the same story. When the sprint
+ships, `backlog.md` gets the entry as always; the plan file remains as the record of
+what was decided **before** anything was known.
 
 ## The guideline documents
 

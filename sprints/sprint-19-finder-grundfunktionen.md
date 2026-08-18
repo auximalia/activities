@@ -1,6 +1,6 @@
 # Sprint 19 – „Der Finder im Werkzeug"
 
-*Geplant am 2026-08-16 · Stand: Entwurf, noch nicht freigegeben*
+*Geplant am 2026-08-16 · Stand: Entwurf, noch nicht freigegeben · E2 entschieden*
 
 > **Dieses Dokument ist ein Übergabedokument, kein Merkzettel.** Es kann von einem
 > anderen Modell und in einer anderen Sitzung umgesetzt werden. Alles, was zur
@@ -89,11 +89,12 @@ Zwei Befehle, beide nach Finder-Vorbild:
 - **Neuer Ordner** (⇧⌘N) — im markierten Ordner
 - **Neuer Ordner mit Auswahl** (⌃⌘N) — legt an und verschiebt die Auswahl hinein
 
-**⚠️ Ein neu angelegter, leerer Ordner ist in dieser App unsichtbar.** Die Liste zeigt
-Ordner über `FolderAggregator.folderEntries`, und das setzt eine Datei im Zeitfenster
-voraus. Auch das Anheften hilft nicht: `pinnedFolders` **sortiert nur um**, es erzeugt
-keinen Eintrag (`ReportViewModel`, Abschnittsbildung „Angeheftet"). Wer einen Ordner
-anlegt, sähe also nichts geschehen. → **offene Entscheidung E2.**
+**⚠️ Ein neu angelegter, leerer Ordner ist in dieser App unsichtbar** — in **jedem**
+Modus. `FolderAggregator.folderEntries` läuft über `for (folder, files) in filesByFolder`,
+und diese Abbildung entsteht aus gefundenen **Dateien**; ein leerer Ordner ist gar kein
+Schlüssel darin. Auch das Anheften hilft nicht: `pinnedFolders` **sortiert nur um**, es
+erzeugt keinen Eintrag. → **entschieden in E2**, dort steht auch, warum „Alle" das
+nicht löst.
 
 Namensregeln gehören in den Kern und sind zusicherungspflichtig: kein `/`, kein leerer
 Name, nicht `.` oder `..`, kein bereits vergebener Name, führende/folgende Leerzeichen
@@ -140,6 +141,19 @@ dass diese App etwas dafür tun muss.
 `CommandGroup(replacing: .pasteboard)`). Im Textfeld muss es Text kopieren, in der
 Liste Dateien — dieselbe Fallunterscheidung, die „Alles auswählen" dort bereits macht.
 
+### AP7 · Rückmeldung, wenn das Ergebnis unsichtbar bleibt *(XS)*
+
+Es bleibt **ein** Fall, in dem eine Handlung ins Leere zu laufen scheint: Wird eine
+Datei in einen sichtbaren Ordner verschoben, während ein **Typ- oder Namensfilter** sie
+ausblendet, steht der Ordner da und die Datei nicht.
+
+Dafür wird nicht ausgeblendet, sondern **gesagt** — eine Zeile im Bericht:
+
+> *Die Datei liegt jetzt in „X", wird aber vom aktiven Filter ausgeblendet.*
+
+**⚠️ Das ist die einzige Stelle, an der der Grundsatz „nichts anbieten, dessen Ergebnis
+man nicht sieht" hier überhaupt greift** — nach E2 ist er sonst überall gegenstandslos.
+
 ---
 
 ## 4 · Die offenen Entscheidungen
@@ -159,16 +173,39 @@ Beides ist ein Ordner, der aus dem Finder auf dieses Fenster gezogen wird.
 *Empfehlung: **a**, mit zwei deutlich verschiedenen Hervorhebungen — Zeilenrahmen
 gegen Fensterrahmen —, damit vor dem Loslassen sichtbar ist, was gleich geschieht.*
 
-### E2 · Wie wird ein neu angelegter Ordner sichtbar?
+### ✅ E2 · Wie wird ein neu angelegter Ordner sichtbar? *(entschieden 2026-08-16)*
 
-| Weg | dafür | dagegen |
-|---|---|---|
-| **a) „Ordner mit Auswahl"** als Hauptweg | Er ist nie leer, das Problem entsteht nicht | Beantwortet nicht „leeren Ordner anlegen" |
-| **b) Leere Ordner zeigen, solange sie der Cursor sind** | Kein neuer Zustand, verschwindet von selbst | Verschwindet auch, wenn man wegklickt |
-| **c) `folderEntries` zeigt angeheftete Ordner auch ohne Dateien** | Dauerhaft sichtbar, nutzt vorhandenen Begriff | Ändert eine Kernfunktion und die Bedeutung von „Angeheftet" |
+**Ein selbst angelegter Ordner ist Arbeit von heute** — und genau das zeigt diese App.
+Er gehört damit zu Recht in den Abschnitt „Heute", mit `0 Dateien`, bis etwas darin
+liegt. Zwei Zeilen:
 
-*Empfehlung: **a + b**. Der Hauptweg erzeugt nie einen leeren Ordner; der Nebenweg
-zeigt ihn, solange man mit ihm zu tun hat.*
+1. **„Ordner mit Auswahl" (⌃⌘N) ist der Hauptweg** — dabei entsteht nie ein leerer Ordner.
+2. **In dieser Sitzung selbst angelegte Ordner werden gezeigt, auch leer.** Nicht als
+   Ausnahme von der Regel, sondern weil die Aussage wahr ist: Dort wurde gerade
+   gearbeitet. Die Menge ist sitzungslokal und räumt sich damit selbst auf.
+
+**⚠️ Verworfen: „Alle" als Vorbedingung für Verwaltungsfunktionen.** Der Vorschlag
+lautete, das Anlegen nur bei Zeitraum „Alle" zuzulassen und sonst auszublenden. **Die
+Prämisse hält der Prüfung nicht stand:**
+
+| Fall | hilft „Alle"? |
+|---|---|
+| neu angelegter, **leerer** Ordner | **nein** — er ist kein Schlüssel in `filesByFolder`, in keinem Modus |
+| Ordner mit nur alten Dateien | ja |
+| Ordner, dessen Dateien der Typ-/Namensfilter ausblendet | **nein** |
+
+„Alle" ist also **weder notwendig noch hinreichend**. Dazu kommen drei Kosten: Jede
+Verwaltungshandlung würde dreistufig (umschalten, tun, zurückschalten), „Alle" ist über
+70.863 Dateien der langsamste Modus, und das **bereits ausgelieferte** Verschieben würde
+lahmgelegt, obwohl es in einer 30-Tage-Ansicht einwandfrei sichtbar ist.
+
+**⚠️ Und es widerspricht der Leitlinie dieses Projekts.** „Funktionen ausblenden, weil
+der Zustand ungünstig ist" heißt: Das Werkzeug entscheidet stellvertretend. Der Satz
+lautet *„Die Sorgfaltspflicht liegt beim Nutzer, nicht beim Tool"* — die App **sagt**,
+sie hindert nicht.
+
+*Der Grundsatz hinter dem Vorschlag bleibt richtig und findet seinen Platz in AP7: Wo
+eine Handlung wirklich ins Leere liefe, wird das gesagt.*
 
 ### E3 · Was geschieht, wenn ein Ordner verschoben wird, der Quelle ist?
 
@@ -266,6 +303,7 @@ mit `ok` oder `nein: <was stattdessen>` zu beantworten.
 | 4 | AP5 Papierkorb | S | — |
 | 5 | AP4 Umbenennen | S | E5 |
 | 6 | AP6 Zwischenablage | S | — |
+| 7 | AP7 Rückmeldung bei unsichtbarem Ergebnis | XS | — |
 
 **Gesamt: L.** Die Reihenfolge ist so gewählt, dass jedes Paket für sich
 auslieferbar ist — nach jedem Schritt ist die App vollständig und benutzbar.

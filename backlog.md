@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.4 · 2026-08-18*
+*Stand: v2.0.5 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,45 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP1 — Bezeichner auf Englisch *(v2.0.5)*
+**Aufwand:** S · **Plan:** `sprints/sprint-20-ballast.md`
+
+Rund **hundert** Bezeichner standen auf Deutsch — `zieheBestandUm`, `fuehreVerschiebenAus`,
+`arbeitsstand`, `ruhefrist`, dazu Dutzende lokaler `ziel`, `grund`, `ordner`.
+**`AGENTS.md` sagt seit jeher:** *„all prose … is German. Code identifiers and commit
+messages are English."*
+
+**⚠️ Kein Altlast-, sondern ein Frischschaden:** Alle stammen aus den letzten zwei Tagen.
+*Eine Regel, die im Bestand gilt und in neuem Code nicht, ist nach einer Woche keine Regel
+mehr — der nächste Beitragende sieht beides und wählt beliebig.* Die **Prosa bleibt
+deutsch**; umbenannt wurden nur Bezeichner.
+
+## Der eigentliche Ertrag: zwei stille Fehler, gefunden von den Zusicherungen
+
+Eine mechanische Umbenennung kann Bezeichner **zusammenfallen** lassen, die vorher
+verschieden waren. Genau das geschah zweimal, und beide Male war das Ergebnis ein
+Ausdruck, der sich selbst vergleicht:
+
+| Stelle | wurde zu | Wirkung |
+|---|---|---|
+| `RepoDetection.moveWarning` | `total == total` | **immer wahr** → „Alle 9 Dateien" statt „9 der 12" |
+| `DayScrub.differs` | `days != days` | **immer falsch** → eine geänderte Tageszahl hätte nichts mehr ausgelöst |
+
+Beide entstanden, weil eine lokale Größe denselben englischen Namen bekam wie ein
+Parameter bzw. eine Eigenschaft und sie **beschattete**. Der Übersetzer sah nichts: Beide
+Ausdrücke sind typkorrekt.
+
+**⚠️ Genau hierfür sind die 1.799 Zusicherungen da, und sie haben es geleistet** — im
+Kern, wo sie liegen. *Das ist zugleich die Bestätigung der Warnung aus dem Sprintplan: In
+der App-Schicht hätte dieselbe Umbenennung dieselben Fehler erzeugt und **niemand hätte
+es gemerkt**.*
+
+**Drei weitere Kollisionen** fing der Übersetzer ab (`sorted`, `report`, `result`,
+`entries` doppelt vergeben) — die sind harmlos, weil sie nicht übersetzen.
+
+**Zusicherungen:** 1799 → **1799**, wie für dieses Paket verlangt.
+
 
 ### ✅ UX-68 · Filter schlägt neuen Ordner *(v2.0.4)*
 **Aufwand:** XS · **Art:** Nachschärfung von E2 · *„Wird ein Ordner erzeugt, der das aktuelle Filterkriterium nicht erfüllt, soll er auch nicht angezeigt werden. Der Nutzer kann darauf hingewiesen werden, dass der Ordner verschwindet."*

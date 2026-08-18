@@ -114,16 +114,16 @@ public struct SourceConflict: Sendable, Equatable {
     /// und würde von den Knöpfen doch anders beantwortet; die HIG verlangen an
     /// dieser Stelle, was geschehen ist und in welchem Zusammenhang.
     public var question: String {
-        let neu = Self.quoted(candidate.lastPathComponent)
+        let new = Self.quoted(candidate.lastPathComponent)
         switch kind {
         case .inside:
             let aeusserer = Self.quoted(existing.first?.lastPathComponent ?? "")
-            return "\(neu) liegt in der Quelle \(aeusserer)."
+            return "\(new) liegt in der Quelle \(aeusserer)."
         case .around:
             if existing.count == 1 {
-                return "\(neu) enthält die Quelle \(Self.quoted(existing[0].lastPathComponent))."
+                return "\(new) enthält die Quelle \(Self.quoted(existing[0].lastPathComponent))."
             }
-            return "\(neu) enthält \(existing.count) vorhandene Quellen."
+            return "\(new) enthält \(existing.count) vorhandene Quellen."
         }
     }
 
@@ -139,20 +139,20 @@ public struct SourceConflict: Sendable, Equatable {
     /// wie möglich", und ein Blatt, das gescrollt werden muss, wird weggeklickt.
     public var explanation: String {
         let regel = "Quellen dürfen sich nicht überlappen – jede Datei würde sonst doppelt gezählt."
-        let neu = Self.quoted(candidate.lastPathComponent)
+        let new = Self.quoted(candidate.lastPathComponent)
         switch kind {
         case .inside(let existingIsActive):
             let aeusserer = Self.quoted(existing.first?.lastPathComponent ?? "")
             if existingIsActive {
-                return regel + " \(aeusserer) ist angehakt, \(neu) wird also bereits mit angezeigt."
+                return regel + " \(aeusserer) ist angehakt, \(new) wird also bereits mit angezeigt."
                     + " Nur diesen Unterordner zu sehen, geht erst, wenn \(aeusserer) aus der Liste weicht."
             }
             return regel + " \(aeusserer) ist derzeit nicht angehakt:"
-                + " Anhaken zeigt den ganzen Ordner, \(neu) darin."
-                + " Ersetzen entfernt \(aeusserer) aus der Liste und trägt \(neu) ein."
+                + " Anhaken zeigt den ganzen Ordner, \(new) darin."
+                + " Ersetzen entfernt \(aeusserer) aus der Liste und trägt \(new) ein."
         case .around:
-            let namen = Self.list(existing.map { Self.quoted($0.lastPathComponent) })
-            return regel + " \(namen) \(existing.count == 1 ? "liegt" : "liegen") vollständig in \(neu):"
+            let names = Self.list(existing.map { Self.quoted($0.lastPathComponent) })
+            return regel + " \(names) \(existing.count == 1 ? "liegt" : "liegen") vollständig in \(new):"
                 + " Nach dem Ersetzen ist weiterhin alles dabei."
         }
     }

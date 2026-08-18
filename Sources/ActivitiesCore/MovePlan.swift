@@ -54,9 +54,9 @@ public enum MovePlan {
     ///   - existing: die Namen, die im Zielordner bereits vergeben sind.
     /// - Returns: die Namen der kollidierenden Quellen, in Eingangsreihenfolge.
     public static func conflicts(sources: [URL], into folder: URL, existing: Set<String>) -> [URL] {
-        sources.filter { quelle in
-            quelle.deletingLastPathComponent().standardizedFileURL != folder.standardizedFileURL
-                && existing.contains(quelle.lastPathComponent)
+        sources.filter { source in
+            source.deletingLastPathComponent().standardizedFileURL != folder.standardizedFileURL
+                && existing.contains(source.lastPathComponent)
         }
     }
 
@@ -82,35 +82,35 @@ public enum MovePlan {
         var belegt = existing
         var result: [MoveStep] = []
 
-        for quelle in sources {
-            guard quelle.deletingLastPathComponent().standardizedFileURL != folder.standardizedFileURL
+        for source in sources {
+            guard source.deletingLastPathComponent().standardizedFileURL != folder.standardizedFileURL
             else { continue }
 
-            let name = quelle.lastPathComponent
+            let name = source.lastPathComponent
             guard belegt.contains(name) else {
                 belegt.insert(name)
-                result.append(MoveStep(source: quelle,
+                result.append(MoveStep(source: source,
                                        destination: folder.appendingPathComponent(name),
                                        hadConflict: false,
                                        resolution: nil))
                 continue
             }
 
-            switch resolution(quelle) ?? .keepBoth {
+            switch resolution(source) ?? .keepBoth {
             case .skip:
-                result.append(MoveStep(source: quelle,
+                result.append(MoveStep(source: source,
                                        destination: folder.appendingPathComponent(name),
                                        hadConflict: true,
                                        resolution: .skip))
             case .replace:
-                result.append(MoveStep(source: quelle,
+                result.append(MoveStep(source: source,
                                        destination: folder.appendingPathComponent(name),
                                        hadConflict: true,
                                        resolution: .replace))
             case .keepBoth:
                 let frei = FileNaming.uniqueName(for: name, existing: belegt)
                 belegt.insert(frei)
-                result.append(MoveStep(source: quelle,
+                result.append(MoveStep(source: source,
                                        destination: folder.appendingPathComponent(frei),
                                        hadConflict: true,
                                        resolution: .keepBoth))

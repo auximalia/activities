@@ -72,7 +72,7 @@ public struct FileVisibility: Sendable, Equatable {
         hiddenExtensions: Set<String> = [],
         topExtensions: Set<String> = [],
         showsOnlyWorkFiles: Bool = false,
-        typeRules: FileTypeRules = .leer,
+        typeRules: FileTypeRules = .empty,
         nameFilter: NameFilter = NameFilter(""),
         windowStart: Date = .distantPast,
         windowEnd: Date = .distantFuture,

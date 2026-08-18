@@ -36,9 +36,9 @@ struct RootView: View {
         // ⚠️ Seit PR-19 **hinzufuegen statt ersetzen**: Quellen loesen einander
         // nicht mehr ab. Wer ersetzen will, hakt die alte ab.
         .dropDestination(for: URL.self) { urls, _ in
-            let ordner = urls.filter(\.hasDirectoryPath)
-            guard !ordner.isEmpty else { return false }
-            model.addSources(ordner)
+            let folder = urls.filter(\.hasDirectoryPath)
+            guard !folder.isEmpty else { return false }
+            model.addSources(folder)
             return true
         } isTargeted: { targeted in
             isDropTargeted = targeted
@@ -220,14 +220,14 @@ private struct DialogsModifier: ViewModifier {
             .sheet(item: Binding(
                 get: { model.pendingFolderName },
                 set: { if $0 == nil { model.cancelNewFolder() } }
-            )) { offen in
-                NewFolderSheet(model: model, pending: offen)
+            )) { pending in
+                NewFolderSheet(model: model, pending: pending)
             }
             .sheet(item: Binding(
                 get: { model.pendingRename },
                 set: { if $0 == nil { model.cancelRename() } }
-            )) { offen in
-                RenameSheet(model: model, pending: offen)
+            )) { pending in
+                RenameSheet(model: model, pending: pending)
             }
     }
 }
@@ -361,8 +361,8 @@ private struct MoveConflictDialog: ViewModifier {
             Button(MoveResolution.replace.label) { model.resolveMove(with: .replace) }
             Button(MoveResolution.skip.label) { model.resolveMove(with: .skip) }
             Button("Abbrechen", role: .cancel) { model.cancelMove() }
-        } message: { offen in
-            Text(offen.explanation)
+        } message: { pending in
+            Text(pending.explanation)
         }
         // Nur Fehler werden gemeldet – siehe `ReportViewModel.melde(_:)`.
         .alert(
@@ -374,8 +374,8 @@ private struct MoveConflictDialog: ViewModifier {
             presenting: model.moveReport
         ) { _ in
             Button("OK", role: .cancel) { model.moveReport = nil }
-        } message: { bericht in
-            Text(bericht)
+        } message: { report in
+            Text(report)
         }
     }
 }
@@ -487,11 +487,11 @@ struct StatusBarView: View {
             // abgeschafft hat – in seiner unangenehmsten Form: Wer die
             // Umgebungsvariable gesetzt hat, ohne es zu merken, sieht leere
             // Einstellungen und haelt seine eigenen fuer verloren.
-            if let bereich = SettingsStore.scratchSuiteName {
+            if let suite = SettingsStore.scratchSuiteName {
                 Divider().frame(height: 10)
                 Label("Abnahme", systemImage: "flask")
                     .foregroundStyle(.orange)
-                    .help("Eigener Ablagebereich \u{201E}\(bereich)\u{201C} – die normalen "
+                    .help("Eigener Ablagebereich \u{201E}\(suite)\u{201C} – die normalen "
                           + "Einstellungen sind unberührt.")
                     .layoutPriority(1)
             }
@@ -535,18 +535,18 @@ struct StatusBarView: View {
             // niemand etwas tut – ein unberuehrtes Fenster zeichnet sonst nie
             // neu und bliebe ewig unauffaellig gruen.
             TimelineView(.periodic(from: readAt, by: 60)) { context in
-                let stand = ScanFreshness.state(lastScanAt: readAt,
+                let state = ScanFreshness.state(lastScanAt: readAt,
                                                 isWatching: model.isWatching,
                                                 now: context.date)
                 HStack(spacing: 8) {
                     HStack(spacing: 4) {
-                        Image(systemName: symbol(for: stand))
+                        Image(systemName: icon(for: state))
                         // **⚠️ Das Wort steht im Text, nicht nur in der Farbe.**
                         // Vorher war der Text in beiden Zustaenden wortgleich
                         // („Stand: …") und der Unterschied allein farblich – fuer
                         // Farbfehlsichtige und fuer Vorleseprogramme also gar nicht
                         // vorhanden (UX-34). Der Zusatz kommt aus dem Kern.
-                        Text(stand.suffix.map { "Stand: \(DateFormatting.dateTime(readAt)) · \($0)" }
+                        Text(state.suffix.map { "Stand: \(DateFormatting.dateTime(readAt)) · \($0)" }
                              ?? "Stand: \(DateFormatting.dateTime(readAt))")
                             // ⚠️ `.semibold`, nicht `.bold`: Das ist die Emphase des
                             // Hauses (EmptyStateView, Abschnittskoepfe, Hinweisband);
@@ -558,11 +558,11 @@ struct StatusBarView: View {
                             // Eine haeufig falsche Warnung lauter zu stellen, macht
                             // die App nicht wachsamer, sondern erzieht dazu, auch
                             // die richtige zu ueberlesen.
-                            .fontWeight(stand.isWarning ? .semibold : .regular)
+                            .fontWeight(state.isWarning ? .semibold : .regular)
                     }
-                    .foregroundStyle(stand.isWarning ? Color(nsColor: Self.staleWarning) : Color.secondary)
-                    .help(tooltip(for: stand, readAt: readAt))
-                    .accessibilityLabel(voiceOver(for: stand, readAt: readAt))
+                    .foregroundStyle(state.isWarning ? Color(nsColor: Self.staleWarning) : Color.secondary)
+                    .help(tooltip(for: state, readAt: readAt))
+                    .accessibilityLabel(voiceOver(for: state, readAt: readAt))
 
                     // **⚠️ Der Weg zurueck steht da, statt im Tooltip zu stehen.**
                     // Er stand dort – „⌘R liest den Ordner neu ein" –, und ein
@@ -573,7 +573,7 @@ struct StatusBarView: View {
                     // nicht mit „OK". Vorlage sind UX-57 und PR-58: Eine Meldung,
                     // die das Problem nennt und die Reparatur verschweigt, ist der
                     // Defekt, den dieses Haus zweimal aufgeschrieben hat.
-                    if stand.offersRescan {
+                    if state.offersRescan {
                         Button("Jetzt neu einlesen") { model.rescan() }
                             .buttonStyle(.link)
                             .help(Shortcuts.rescan.hint("Ordner jetzt neu einlesen"))
@@ -586,8 +586,8 @@ struct StatusBarView: View {
         }
     }
 
-    private func symbol(for stand: ScanFreshness) -> String {
-        switch stand {
+    private func icon(for state: ScanFreshness) -> String {
+        switch state {
         case .stale: "exclamationmark.triangle.fill"
         // ⚠️ Kein zweites Antennen-Symbol. Die Antenne gehoert dem **Schalter**
         // in der Werkzeugleiste; hier wird nichts geschaltet, hier steht der
@@ -597,8 +597,8 @@ struct StatusBarView: View {
         }
     }
 
-    private func tooltip(for stand: ScanFreshness, readAt: Date) -> String {
-        switch stand {
+    private func tooltip(for state: ScanFreshness, readAt: Date) -> String {
+        switch state {
         case .stale:
             "Zuletzt eingelesen \(DateFormatting.relative(readAt)) – seitdem kann sich einiges "
                 + "geändert haben, denn die Ordner werden gerade nicht beobachtet. "
@@ -613,8 +613,8 @@ struct StatusBarView: View {
         }
     }
 
-    private func voiceOver(for stand: ScanFreshness, readAt: Date) -> String {
-        switch stand {
+    private func voiceOver(for state: ScanFreshness, readAt: Date) -> String {
+        switch state {
         case .stale:
             "Achtung, die Daten sind veraltet. Zuletzt eingelesen \(DateFormatting.relative(readAt))."
         case .watched:

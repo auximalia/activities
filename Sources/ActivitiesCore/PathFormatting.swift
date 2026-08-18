@@ -21,9 +21,9 @@ public enum PathFormatting {
     /// steht er in ``CoreChecks``.
     public static func withTilde(_ path: String, home: String) -> String {
         guard !home.isEmpty, home != "/" else { return path }
-        let wurzel = home.hasSuffix("/") ? String(home.dropLast()) : home
-        if path == wurzel { return "~" }
-        guard path.hasPrefix(wurzel + "/") else { return path }
-        return "~" + path.dropFirst(wurzel.count)
+        let root = home.hasSuffix("/") ? String(home.dropLast()) : home
+        if path == root { return "~" }
+        guard path.hasPrefix(root + "/") else { return path }
+        return "~" + path.dropFirst(root.count)
     }
 }

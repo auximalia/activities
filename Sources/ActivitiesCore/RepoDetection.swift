@@ -59,15 +59,15 @@ public enum RepoDetection {
     ///
     /// - Parameter marker: Was liegt **in genau diesem** Ordner? ``nil`` = nichts.
     public static func find(from folder: URL, marker: (URL) -> RepoKind?) -> RepoMark? {
-        var aktuell = folder.standardizedFileURL
+        var current = folder.standardizedFileURL
         while true {
-            if let art = marker(aktuell) { return RepoMark(kind: art, root: aktuell) }
-            let eltern = aktuell.deletingLastPathComponent().standardizedFileURL
+            if let kind = marker(current) { return RepoMark(kind: kind, root: current) }
+            let parent = current.deletingLastPathComponent().standardizedFileURL
             // ⚠️ Abbruch am Fixpunkt, nicht bei „/" als Zeichenkette: Das ist
             // die einzige Bedingung, die auch fuer einen relativen oder
             // ungewoehnlichen Pfad terminiert.
-            guard eltern.path != aktuell.path else { return nil }
-            aktuell = eltern
+            guard parent.path != current.path else { return nil }
+            current = parent
         }
     }
 
@@ -86,25 +86,25 @@ public enum RepoDetection {
     ///   - versioned: Anzahl je Verwaltung unter den bewegten Dateien.
     ///   - total: Anzahl der bewegten Dateien insgesamt.
     public static func moveWarning(versioned: [RepoKind: Int], total: Int) -> String? {
-        let betroffen = versioned.filter { $0.value > 0 }
-        guard !betroffen.isEmpty, total > 0 else { return nil }
+        let affected = versioned.filter { $0.value > 0 }
+        guard !affected.isEmpty, total > 0 else { return nil }
 
-        let summe = betroffen.values.reduce(0, +)
+        let versionedCount = affected.values.reduce(0, +)
         // ⚠️ Reihenfolge festgelegt, nicht der Laune des Dictionaries ueberlassen:
         // Der zerbrechlichere Fall zuerst.
-        let arten = betroffen.keys.sorted { a, b in
+        let kinds = affected.keys.sorted { a, b in
             a.isFragile != b.isFragile ? a.isFragile : a.rawValue < b.rawValue
         }
 
-        let menge: String
-        if summe == total {
-            menge = total == 1 ? "Die Datei ist" : "Alle \(total) Dateien sind"
+        let amount: String
+        if versionedCount == total {
+            amount = total == 1 ? "Die Datei ist" : "Alle \(total) Dateien sind"
         } else {
-            menge = "\(summe) der \(total) Dateien sind"
+            amount = "\(versionedCount) der \(total) Dateien sind"
         }
 
-        let systeme = arten.map(\.rawValue).joined(separator: " bzw. ")
-        let befehle = arten.map { "\u{201E}\($0.moveCommand)\u{201C}" }.joined(separator: " bzw. ")
-        return "\(menge) in \(systeme) versioniert – die Verschiebung geschieht ohne \(befehle)."
+        let systems = kinds.map(\.rawValue).joined(separator: " bzw. ")
+        let commands = kinds.map { "\u{201E}\($0.moveCommand)\u{201C}" }.joined(separator: " bzw. ")
+        return "\(amount) in \(systems) versioniert – die Verschiebung geschieht ohne \(commands)."
     }
 }

@@ -43,19 +43,19 @@ final class RepoIndex {
 
         // ⚠️ Der Aufstieg traegt ALLE besuchten Ahnen ein, nicht nur den
         // Startordner – daraus wird aus 71.205 Schritten einer je Ordner.
-        var besucht: [URL] = []
-        let treffer = RepoDetection.find(from: folder) { kandidat in
-            besucht.append(kandidat)
+        var visited: [URL] = []
+        let found = RepoDetection.find(from: folder) { candidate in
+            visited.append(candidate)
             let fm = FileManager.default
             // ⚠️ `.git` kann eine DATEI sein: Bei Worktrees und Submodulen steht
             // dort `gitdir: …`. Wer nur auf Ordner prueft, uebersieht jedes
             // Submodul – deshalb `fileExists` ohne Typfrage.
-            if fm.fileExists(atPath: kandidat.appendingPathComponent(".git").path) { return .git }
-            if fm.fileExists(atPath: kandidat.appendingPathComponent(".svn").path) { return .svn }
+            if fm.fileExists(atPath: candidate.appendingPathComponent(".git").path) { return .git }
+            if fm.fileExists(atPath: candidate.appendingPathComponent(".svn").path) { return .svn }
             return nil
         }
-        for ordner in besucht { byFolder[ordner] = treffer }
-        return treffer
+        for folder in visited { byFolder[folder] = found }
+        return found
     }
 
     /// Steht diese Datei unter Versionsverwaltung?
@@ -63,17 +63,17 @@ final class RepoIndex {
     /// Solange die Liste der geführten Dateien noch lädt, gilt die Zugehörigkeit
     /// zur Arbeitskopie – siehe Typkommentar.
     func mark(forFile url: URL) -> RepoMark? {
-        guard let treffer = mark(forFolder: url.deletingLastPathComponent()) else { return nil }
-        guard let geführt = tracked[treffer.root] else { return treffer }
-        return geführt.contains(url.standardizedFileURL) ? treffer : nil
+        guard let found = mark(forFolder: url.deletingLastPathComponent()) else { return nil }
+        guard let geführt = tracked[found.root] else { return found }
+        return geführt.contains(url.standardizedFileURL) ? found : nil
     }
 
     /// Wie viele der Dateien je Verwaltung versioniert sind – für den Dialog.
     func versionedCounts(_ urls: [URL]) -> [RepoKind: Int] {
         var result: [RepoKind: Int] = [:]
         for url in urls {
-            guard let treffer = mark(forFile: url) else { continue }
-            result[treffer.kind, default: 0] += 1
+            guard let found = mark(forFile: url) else { continue }
+            result[found.kind, default: 0] += 1
         }
         return result
     }
@@ -88,18 +88,18 @@ final class RepoIndex {
     func refresh(folders: [URL]) {
         laufend?.cancel()
         var wurzeln: Set<RepoMark> = []
-        for ordner in folders {
-            if let treffer = mark(forFolder: ordner) { wurzeln.insert(treffer) }
+        for folder in folders {
+            if let found = mark(forFolder: folder) { wurzeln.insert(found) }
         }
-        let offen = wurzeln.filter { tracked[$0.root] == nil }
-        guard !offen.isEmpty else { return }
+        let pending = wurzeln.filter { tracked[$0.root] == nil }
+        guard !pending.isEmpty else { return }
 
         laufend = Task { [weak self] in
-            for marke in offen {
+            for mark in pending {
                 if Task.isCancelled { return }
-                let menge = await Self.lade(marke)
+                let amount = await Self.load(mark)
                 guard let self, !Task.isCancelled else { return }
-                self.tracked[marke.root] = menge
+                self.tracked[mark.root] = amount
                 self.generation &+= 1
             }
         }
@@ -113,11 +113,11 @@ final class RepoIndex {
         generation &+= 1
     }
 
-    nonisolated private static func lade(_ marke: RepoMark) async -> Set<URL> {
+    nonisolated private static func load(_ mark: RepoMark) async -> Set<URL> {
         await Task.detached(priority: .utility) {
-            switch marke.kind {
-            case .git: gitTracked(at: marke.root)
-            case .svn: svnTracked(at: marke.root)
+            switch mark.kind {
+            case .git: gitTracked(at: mark.root)
+            case .svn: svnTracked(at: mark.root)
             }
         }.value
     }
@@ -154,14 +154,14 @@ final class RepoIndex {
         let parser = XMLParser(data: daten)
         parser.delegate = leser
         parser.parse()
-        return leser.versioniert
+        return leser.versioned
     }
 
-    nonisolated private static func run(_ pfad: String, _ argumente: [String], in ordner: URL) -> String {
+    nonisolated private static func run(_ path: String, _ argumente: [String], in folder: URL) -> String {
         let prozess = Process()
-        prozess.executableURL = URL(fileURLWithPath: pfad)
+        prozess.executableURL = URL(fileURLWithPath: path)
         prozess.arguments = argumente
-        prozess.currentDirectoryURL = ordner
+        prozess.currentDirectoryURL = folder
         let rohr = Pipe()
         prozess.standardOutput = rohr
         prozess.standardError = FileHandle.nullDevice
@@ -182,8 +182,8 @@ final class RepoIndex {
 /// Liest `svn status --xml` und sammelt die **versionierten** Pfade.
 private final class SvnStatusParser: NSObject, XMLParserDelegate {
     let root: URL
-    var versioniert: Set<URL> = []
-    private var aktuellerPfad: String?
+    var versioned: Set<URL> = []
+    private var currentPath: String?
 
     init(root: URL) { self.root = root }
 
@@ -191,18 +191,18 @@ private final class SvnStatusParser: NSObject, XMLParserDelegate {
                 namespaceURI: String?, qualifiedName: String?,
                 attributes: [String: String]) {
         if element == "entry" {
-            aktuellerPfad = attributes["path"]
-        } else if element == "wc-status", let pfad = aktuellerPfad {
-            let zustand = attributes["item"] ?? ""
+            currentPath = attributes["path"]
+        } else if element == "wc-status", let path = currentPath {
+            let state = attributes["item"] ?? ""
             // ⚠️ Aufgezaehlt wird, was NICHT gefuehrt ist. Die Liste der
             // gefuehrten Zustaende ist laenger (normal, modified, added,
             // replaced, conflicted, missing, deleted …) und waechst mit svn –
             // eine Positivliste liefe der naechsten Version hinterher.
-            let ungefuehrt = ["unversioned", "ignored", "external", "none"]
-            if !ungefuehrt.contains(zustand) {
-                versioniert.insert(URL(fileURLWithPath: pfad, relativeTo: root).standardizedFileURL)
+            let untracked = ["unversioned", "ignored", "external", "none"]
+            if !untracked.contains(state) {
+                versioned.insert(URL(fileURLWithPath: path, relativeTo: root).standardizedFileURL)
             }
-            aktuellerPfad = nil
+            currentPath = nil
         }
     }
 }

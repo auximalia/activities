@@ -209,11 +209,11 @@ func benchInMemory(count: Int) {
         FolderTree.build(from: entries, root: root)
     }
 
-    let alle = Set(FolderTree.allFolders(nodes))
+    let all = Set(FolderTree.allFolders(nodes))
     // ⚠️ Der schlimmste Fall ist der aufgeklappte Baum: Genau so startet die
     // App nach jedem Suchlauf (`finishDetailLoad` klappt alles auf).
     let rows = measure("FolderTree.rows (alles aufgeklappt)") {
-        FolderTree.rows(nodes, expanded: alle, filesByFolder: byFolder)
+        FolderTree.rows(nodes, expanded: all, filesByFolder: byFolder)
     }
 
     measure("RowSorting.folders") {
@@ -222,11 +222,11 @@ func benchInMemory(count: Int) {
     // Die App sortiert **je Ordner**, nicht einmal global (`visibleFiles(in:)`).
     // Ein globaler Sortierlauf waere eine andere, leichtere Aufgabe.
     measure("RowSorting.files je Ordner") {
-        var summe = 0
-        for (_, dateien) in byFolder {
-            summe += RowSorting.files(dateien, by: FolderSort(field: .size, ascending: false)).count
+        var total = 0
+        for (_, files) in byFolder {
+            total += RowSorting.files(files, by: FolderSort(field: .size, ascending: false)).count
         }
-        return summe
+        return total
     }
 
     // Nachbau des Sichtbarkeitspruefens aus `ReportViewModel.visibleFiles(in:)`.
@@ -234,19 +234,19 @@ func benchInMemory(count: Int) {
     // je Datei neu – obwohl der Doc-Kommentar „gepuffert" behauptet. Die beiden
     // Zeilen unterscheiden sich in genau dieser einen Sache.
     measure("Sichtbarkeit, Filter je Datei neu") {
-        var summe = 0
-        for (_, dateien) in byFolder {
-            summe += dateien.filter { NameFilter("studium").matches($0.url.lastPathComponent) }.count
+        var total = 0
+        for (_, files) in byFolder {
+            total += files.filter { NameFilter("studium").matches($0.url.lastPathComponent) }.count
         }
-        return summe
+        return total
     }
     let filterEinmal = NameFilter("studium")
     measure("Sichtbarkeit, Filter einmal gebaut") {
-        var summe = 0
-        for (_, dateien) in byFolder {
-            summe += dateien.filter { filterEinmal.matches($0.url.lastPathComponent) }.count
+        var total = 0
+        for (_, files) in byFolder {
+            total += files.filter { filterEinmal.matches($0.url.lastPathComponent) }.count
         }
-        return summe
+        return total
     }
 
     print("  → \(entries.count) Ordnerzeilen, \(nodes.count) Wurzelknoten, \(rows.count) Baumzeilen")
@@ -279,11 +279,11 @@ func benchDisk(count: Int) {
     // ihn haengt das Fenster, und der Knopf „Abbrechen" ist eine Behauptung.
     var geprueft = 0
     let abbruch = measure("Abbruch nach 1000 Eintraegen") { () -> Int in
-        let teil = scanner.scan(settings: settings, shouldCancel: {
+        let part = scanner.scan(settings: settings, shouldCancel: {
             geprueft += 1
             return geprueft > 1000
         })
-        return teil.files.count
+        return part.files.count
     }
     print("  → beim Abbruch \(abbruch) Dateien gesammelt (von \(outcome.files.count))")
 
@@ -305,8 +305,8 @@ groessen = zahlen.isEmpty ? [100_000, 250_000, 500_000] : zahlen
 print("Messstand activities – \(ProcessInfo.processInfo.hostName)")
 print("Ausgangsabdruck: \(mib(physFootprint()))")
 
-for groesse in groessen where plattenGroesse == nil || !argumente.contains("--only-disk") {
-    benchInMemory(count: groesse)
+for size in groessen where plattenGroesse == nil || !argumente.contains("--only-disk") {
+    benchInMemory(count: size)
 }
 
 if let plattenGroesse {

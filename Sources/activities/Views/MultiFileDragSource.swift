@@ -55,30 +55,30 @@ struct MultiFileDragSource: NSViewRepresentable {
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if window == nil { entfernen() } else { einrichten() }
+            if window == nil { remove() } else { install() }
         }
 
         deinit {
             if let monitor { NSEvent.removeMonitor(monitor) }
         }
 
-        private func einrichten() {
+        private func install() {
             guard monitor == nil else { return }
             // ⚠️ `.leftMouseDragged`, nicht `.leftMouseDown`. Beim Druck ist
             // noch nicht entschieden, ob es ein Klick oder ein Ziehen wird –
             // dort zu starten machte jeden Klick zum Ziehen.
             monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDragged) { [weak self] event in
-                guard let self, self.trifft(event) else { return event }
-                return self.starte(event) ? nil : event
+                guard let self, self.hits(event) else { return event }
+                return self.start(event) ? nil : event
             }
         }
 
-        private func entfernen() {
+        private func remove() {
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
         }
 
-        private func trifft(_ event: NSEvent) -> Bool {
+        private func hits(_ event: NSEvent) -> Bool {
             guard let window, event.window === window else { return false }
             return bounds.contains(convert(event.locationInWindow, from: nil))
         }
@@ -89,7 +89,7 @@ struct MultiFileDragSource: NSViewRepresentable {
         /// SwiftUIs `onDrag` dasselbe, samt eigener Vorschau, und ein zweiter
         /// Weg für denselben Fall wäre die Sorte Verdopplung, die später
         /// auseinanderläuft. Übernommen wird nur, was SwiftUI **nicht kann**.
-        private func starte(_ event: NSEvent) -> Bool {
+        private func start(_ event: NSEvent) -> Bool {
             prepare?()
             let urls = targets?() ?? []
             // ⚠️ Auch der EINZELFALL laeuft hierueber (v1.19.78). Bis dahin war
@@ -99,7 +99,7 @@ struct MultiFileDragSource: NSViewRepresentable {
             // haetten verschoben werden koennen. Ein Weg, ein Verhalten.
             guard !urls.isEmpty else { return false }
 
-            let ort = convert(event.locationInWindow, from: nil)
+            let origin = convert(event.locationInWindow, from: nil)
             let items: [NSDraggingItem] = urls.enumerated().map { index, url in
                 let item = NSDraggingItem(pasteboardWriter: url as NSURL)
                 if urls.count == 1 {
@@ -108,22 +108,22 @@ struct MultiFileDragSource: NSViewRepresentable {
                     // Einzelfall ebenfalls hierueber laeuft, muss sie hier
                     // entstehen – sonst haenge nur ein Symbol am Zeiger, und
                     // bei fuenf gleichnamigen Dateien saehe man nicht, welche.
-                    let bild = Self.vorschau(for: url)
+                    let image = Self.preview(for: url)
                     item.setDraggingFrame(
-                        NSRect(x: ort.x - 16, y: ort.y - bild.size.height / 2,
-                               width: bild.size.width, height: bild.size.height),
-                        contents: bild
+                        NSRect(x: origin.x - 16, y: origin.y - image.size.height / 2,
+                               width: image.size.width, height: image.size.height),
+                        contents: image
                     )
                 } else {
                     // Die Bilder leicht versetzt stapeln – so sieht man, dass es
                     // mehrere sind, ohne dass eine Zahl nötig wäre.
-                    let versatz = CGFloat(min(index, 4)) * 4
-                    let bild = NSWorkspace.shared.icon(forFile: url.path)
-                    bild.size = NSSize(width: 32, height: 32)
+                    let offset = CGFloat(min(index, 4)) * 4
+                    let image = NSWorkspace.shared.icon(forFile: url.path)
+                    image.size = NSSize(width: 32, height: 32)
                     item.setDraggingFrame(
-                        NSRect(x: ort.x - 16 + versatz, y: ort.y - 16 - versatz,
+                        NSRect(x: origin.x - 16 + offset, y: origin.y - 16 - offset,
                                width: 32, height: 32),
-                        contents: bild
+                        contents: image
                     )
                 }
                 return item
@@ -133,28 +133,28 @@ struct MultiFileDragSource: NSViewRepresentable {
         }
 
         /// Symbol und Name nebeneinander, als Bild fuer den Mauszeiger.
-        private static func vorschau(for url: URL) -> NSImage {
-            let symbol = NSWorkspace.shared.icon(forFile: url.path)
-            symbol.size = NSSize(width: 16, height: 16)
-            let schrift = NSFont.systemFont(ofSize: 12)
+        private static func preview(for url: URL) -> NSImage {
+            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            icon.size = NSSize(width: 16, height: 16)
+            let font = NSFont.systemFont(ofSize: 12)
             let name = url.lastPathComponent as NSString
-            let textGroesse = name.size(withAttributes: [.font: schrift])
-            let breite = 16 + 6 + ceil(textGroesse.width) + 12
-            let hoehe: CGFloat = 22
+            let textSize = name.size(withAttributes: [.font: font])
+            let width = 16 + 6 + ceil(textSize.width) + 12
+            let height: CGFloat = 22
 
-            let bild = NSImage(size: NSSize(width: breite, height: hoehe))
-            bild.lockFocus()
+            let image = NSImage(size: NSSize(width: width, height: height))
+            image.lockFocus()
             NSColor.windowBackgroundColor.withAlphaComponent(0.95).setFill()
-            let rahmen = NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: breite, height: hoehe),
+            let frame = NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: width, height: height),
                                       xRadius: 5, yRadius: 5)
-            rahmen.fill()
+            frame.fill()
             NSColor.separatorColor.setStroke()
-            rahmen.stroke()
-            symbol.draw(in: NSRect(x: 6, y: (hoehe - 16) / 2, width: 16, height: 16))
-            name.draw(at: NSPoint(x: 28, y: (hoehe - textGroesse.height) / 2),
-                      withAttributes: [.font: schrift, .foregroundColor: NSColor.labelColor])
-            bild.unlockFocus()
-            return bild
+            frame.stroke()
+            icon.draw(in: NSRect(x: 6, y: (height - 16) / 2, width: 16, height: 16))
+            name.draw(at: NSPoint(x: 28, y: (height - textSize.height) / 2),
+                      withAttributes: [.font: font, .foregroundColor: NSColor.labelColor])
+            image.unlockFocus()
+            return image
         }
 
         // MARK: - NSDraggingSource

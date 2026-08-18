@@ -35,12 +35,12 @@ final class ChartScrub {
     /// der beobachteten Größe, zeichnete das Anzeigefeld auch dann neu, wenn
     /// dieselbe Zahl darin steht – `@Observable` vergleicht nicht, es meldet
     /// jede Zuweisung.
-    @ObservationIgnored private var arbeitsstand: DayScrub?
+    @ObservationIgnored private var working: DayScrub?
 
-    @ObservationIgnored private var abschluss: Task<Void, Never>?
+    @ObservationIgnored private var applyTask: Task<Void, Never>?
 
     /// Räumt das Anzeigefeld weg, wenn niemand mehr dreht.
-    @ObservationIgnored private var ausblenden: Task<Void, Never>?
+    @ObservationIgnored private var hideTask: Task<Void, Never>?
 
     /// **⚠️ Die Frist hängt am WERT, nicht am Ereignis – und das ist der ganze
     /// Unterschied zu einer Entprellung.** Festgelegt vom Eigentümer
@@ -58,7 +58,7 @@ final class ChartScrub {
     /// Jetzt läuft sie **nur an, wenn sich die Zahl geändert hat**. Bleibt sie
     /// stehen, läuft die begonnene Frist weiter ab und löst aus. Die Anzeige
     /// selbst wird davon nie aufgehalten: Sie folgt jedem Ereignis sofort.
-    private static let ruhefrist: Duration = .milliseconds(400)
+    private static let settleDelay: Duration = .milliseconds(400)
 
     /// Wie lange die Zahl nach dem letzten Ereignis noch stehenbleibt.
     ///
@@ -68,7 +68,7 @@ final class ChartScrub {
     /// Dieses Flackern war von einer verzögerten Anzeige nicht zu
     /// unterscheiden. Jetzt überlebt es das Laden und zeigt danach kurz den
     /// angewandten Wert.
-    private static let anzeigefrist: Duration = .milliseconds(1200)
+    private static let readoutLifetime: Duration = .milliseconds(1200)
 
     /// Nimmt ein Rad-Ereignis auf.
     ///
@@ -82,41 +82,41 @@ final class ChartScrub {
                 startAll: Bool,
                 endsNow: Bool,
                 anwenden: @escaping (DayScrub) -> Void) {
-        var scrub = arbeitsstand ?? DayScrub(days: startDays, isAllTime: startAll)
-        let geaendert = scrub.advance(input)
-        let beginn = arbeitsstand == nil
-        arbeitsstand = scrub
+        var scrub = working ?? DayScrub(days: startDays, isAllTime: startAll)
+        let changed = scrub.advance(input)
+        let isStart = working == nil
+        working = scrub
         // Sofort und ohne Bedingung, sobald sich die Zahl unterscheidet – hier
         // darf nichts dazwischenliegen.
-        if geaendert || beginn { pending = scrub }
+        if changed || isStart { pending = scrub }
 
         // Die Anzeige lebt vom letzten **Ereignis**, das Laden vom letzten
         // **Wert**. Zwei Fristen, weil es zwei Fragen sind.
-        ausblenden?.cancel()
-        ausblenden = Task { [weak self] in
-            try? await Task.sleep(for: Self.anzeigefrist)
+        hideTask?.cancel()
+        hideTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.readoutLifetime)
             guard !Task.isCancelled else { return }
             self?.pending = nil
-            self?.arbeitsstand = nil
+            self?.working = nil
         }
 
         if endsNow {
             // Das Trackpad meldet das Ende der Geste selbst – dann gibt es
             // nichts mehr abzuwarten.
-            abschluss?.cancel()
-            laden(anwenden)
+            applyTask?.cancel()
+            apply(anwenden)
             return
         }
 
         // ⚠️ Nur bei einer Wertaenderung neu ansetzen. Ereignisse, die den
         // aufgehobenen Rest verschieben, ohne die Zahl zu bewegen, duerfen den
         // Ladezeitpunkt nicht verschleppen.
-        guard geaendert || beginn else { return }
-        abschluss?.cancel()
-        abschluss = Task { [weak self] in
-            try? await Task.sleep(for: Self.ruhefrist)
+        guard changed || isStart else { return }
+        applyTask?.cancel()
+        applyTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.settleDelay)
             guard !Task.isCancelled else { return }
-            self?.laden(anwenden)
+            self?.apply(anwenden)
         }
     }
 
@@ -126,9 +126,9 @@ final class ChartScrub {
     /// weiter, setzt die nächste Raste auf der **angezeigten** Zahl auf und
     /// nicht auf dem Modell – sonst spränge sie um die Schritte zurück, die das
     /// Laden gerade erst übernommen hat.
-    private func laden(_ anwenden: @escaping (DayScrub) -> Void) {
-        guard let scrub = arbeitsstand else { return }
-        abschluss = nil
+    private func apply(_ anwenden: @escaping (DayScrub) -> Void) {
+        guard let scrub = working else { return }
+        applyTask = nil
         anwenden(scrub)
     }
 
@@ -145,12 +145,12 @@ struct ScrubIndicator: View {
     let scrub: ChartScrub
 
     var body: some View {
-        if let stand = scrub.pending {
+        if let state = scrub.pending {
             VStack(spacing: 2) {
-                Text(stand.label)
+                Text(state.label)
                     .font(.system(size: 22, weight: .semibold, design: .rounded))
                     .monospacedDigit()
-                if let ab = abDatum(stand) {
+                if let ab = abDatum(state) {
                     Text("ab \(ab)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -188,11 +188,11 @@ struct ScrubIndicator: View {
     /// **Warum überhaupt ein Datum:** „365 Tage" beantwortet nicht, wo man
     /// landet. Bei „Alle" gibt es keinen ersten Tag, der aus der Zahl folgte –
     /// dort steht deshalb nichts.
-    private func abDatum(_ stand: DayScrub) -> String? {
-        guard !stand.isAllTime else { return nil }
+    private func abDatum(_ state: DayScrub) -> String? {
+        guard !state.isAllTime else { return nil }
         let kalender = Calendar(identifier: .gregorian)
         let heute = kalender.startOfDay(for: Date())
-        guard let start = kalender.date(byAdding: .day, value: -(stand.days - 1), to: heute) else { return nil }
+        guard let start = kalender.date(byAdding: .day, value: -(state.days - 1), to: heute) else { return nil }
         return DateFormatting.weekdayDate(start)
     }
 }

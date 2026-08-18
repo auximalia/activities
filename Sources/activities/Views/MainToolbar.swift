@@ -139,7 +139,7 @@ struct MainToolbar: ToolbarContent {
                 set: { model.setViewMode($0) }
             )) {
                 ForEach(ViewMode.allCases, id: \.self) { mode in
-                    Label(mode.label, systemImage: mode.symbol)
+                    Label(mode.label, systemImage: mode.icon)
                         .labelStyle(.iconOnly)
                         .tag(mode)
                 }
@@ -395,7 +395,7 @@ struct MainToolbar: ToolbarContent {
         ) { result in
             switch result {
             case .success(let urls): model.addSources(urls)
-            case .failure(let fehler): model.reportSourceImportFailure(fehler)
+            case .failure(let failure): model.reportSourceImportFailure(failure)
             }
         }
     }

@@ -44,30 +44,30 @@ public enum PathRelocation {
     /// *Dieselbe Falle steht bereits in `ReportViewModel.addSources`
     /// aufgeschrieben: `hasDirectoryPath` ist eine Eigenschaft der URL, nicht
     /// des Ordners.* Hier wird sie deshalb **durchgereicht**, nicht erfragt.
-    public static func relocated(_ pfad: URL, from von: URL, to nach: URL) -> URL? {
-        let p = FolderMoveRules.normalize(pfad)
-        let v = FolderMoveRules.normalize(von)
-        let alsOrdner = pfad.hasDirectoryPath
+    public static func relocated(_ path: URL, from from: URL, to to: URL) -> URL? {
+        let p = FolderMoveRules.normalize(path)
+        let v = FolderMoveRules.normalize(from)
+        let alsOrdner = path.hasDirectoryPath
         if p == v {
-            return URL(fileURLWithPath: FolderMoveRules.normalize(nach), isDirectory: alsOrdner)
+            return URL(fileURLWithPath: FolderMoveRules.normalize(to), isDirectory: alsOrdner)
         }
         guard p.hasPrefix(v + "/") else { return nil }
         let rest = String(p.dropFirst(v.count + 1))
-        return URL(fileURLWithPath: FolderMoveRules.normalize(nach), isDirectory: true)
+        return URL(fileURLWithPath: FolderMoveRules.normalize(to), isDirectory: true)
             .appendingPathComponent(rest, isDirectory: alsOrdner)
     }
 
     /// Dieselbe Abbildung über eine ganze Liste, in Reihenfolge.
-    public static func relocated(_ pfade: [URL], from von: URL, to nach: URL) -> [URL] {
-        pfade.map { relocated($0, from: von, to: nach) ?? $0 }
+    public static func relocated(_ pfade: [URL], from from: URL, to to: URL) -> [URL] {
+        pfade.map { relocated($0, from: from, to: to) ?? $0 }
     }
 
     /// Dieselbe Abbildung über eine Menge von Pfad-Zeichenketten.
     ///
     /// Für ``excludedPaths``, das Zeichenketten hält und keine `URL`s.
-    public static func relocated(_ pfade: Set<String>, from von: URL, to nach: URL) -> Set<String> {
-        Set(pfade.map { eintrag in
-            relocated(URL(fileURLWithPath: eintrag), from: von, to: nach)?.path ?? eintrag
+    public static func relocated(_ pfade: Set<String>, from from: URL, to to: URL) -> Set<String> {
+        Set(pfade.map { entry in
+            relocated(URL(fileURLWithPath: entry), from: from, to: to)?.path ?? entry
         })
     }
 }

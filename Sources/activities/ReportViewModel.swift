@@ -43,7 +43,7 @@ enum ViewMode: String, Hashable, Sendable, CaseIterable {
     /// – und stand damit als zweites gleiches Symbol neben dem Schalter „alle
     /// Ordner auf-/zuklappen". Der Umschalter war dadurch nicht auffindbar
     /// (gemeldet). Verzweigung und Kalender sind in der Leiste eindeutig.
-    var symbol: String {
+    var icon: String {
         switch self {
         case .tree: "arrow.triangle.branch"
         case .time: "calendar"
@@ -266,7 +266,7 @@ final class ReportViewModel {
     /// gilt einem **stillen Zustand**, der eines Morgens Dateien verschweigt.
     /// Eine Typ-Freigabe verschweigt nichts, sie erlaubt zusaetzlich; ihr
     /// schlimmster Fall ist „ich sehe mehr, als ich erwartet habe".
-    var typeRules: FileTypeRules = .leer {
+    var typeRules: FileTypeRules = .empty {
         didSet {
             invalidateRows()
             store.saveTypeRules(typeRules)
@@ -580,12 +580,12 @@ final class ReportViewModel {
             return urls.count { FileTypeInspector.refusesToOpen($0) != nil }
         }
         var explanation: String {
-            let grund = BulkAction.explanation(kind: kind, count: urls.count,
+            let reason = BulkAction.explanation(kind: kind, count: urls.count,
                                                executables: executableCount)
             // ⚠️ Der Hinweis steht HINTER der Folge, nicht davor: Zuerst was
             // geschieht, dann was dabei zu bedenken ist.
-            guard let repoWarning else { return grund }
-            return grund + "\n\n" + repoWarning
+            guard let repoWarning else { return reason }
+            return reason + "\n\n" + repoWarning
         }
         var confirmLabel: String { BulkAction.confirmLabel(kind: kind) }
     }
@@ -676,46 +676,46 @@ final class ReportViewModel {
         // ⚠️ Ordner zuerst pruefen: `mv a a/b` zerstoert einen Baum, und der
         // Schaden ist nicht rueckholbar – es gibt kein „Vorher", in das ⌘Z
         // zurueckfuehren koennte.
-        var eigene: [URL] = []
-        var abgelehnt: [String] = []
+        var own: [URL] = []
+        var rejected: [String] = []
         for url in urls {
-            let istOrdner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            if istOrdner, let grund = FolderMoveRules.rejection(moving: url, into: folder) {
-                abgelehnt.append("\u{201E}\(url.lastPathComponent)\u{201C}: \(grund.reason)")
+            let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if isFolder, let reason = FolderMoveRules.rejection(moving: url, into: folder) {
+                rejected.append("\u{201E}\(url.lastPathComponent)\u{201C}: \(reason.reason)")
             } else {
-                eigene.append(url)
+                own.append(url)
             }
         }
-        if !abgelehnt.isEmpty { moveReport = abgelehnt.joined(separator: "\n") }
-        guard !eigene.isEmpty else { return }
-        let vorhanden = FileMoveService.existingNames(in: folder)
-        let konflikte = MovePlan.conflicts(sources: eigene, into: folder, existing: vorhanden)
-        let bewegt = MovePlan.steps(sources: eigene, into: folder, existing: vorhanden) { _ in .keepBoth }
+        if !rejected.isEmpty { moveReport = rejected.joined(separator: "\n") }
+        guard !own.isEmpty else { return }
+        let present = FileMoveService.existingNames(in: folder)
+        let conflicts = MovePlan.conflicts(sources: own, into: folder, existing: present)
+        let bewegt = MovePlan.steps(sources: own, into: folder, existing: present) { _ in .keepBoth }
         guard !bewegt.isEmpty else { return }
 
-        if konflikte.isEmpty {
-            starteVerschieben(eigene, to: folder, existing: vorhanden,
+        if conflicts.isEmpty {
+            beginTransfer(own, to: folder, existing: present,
                               resolution: .keepBoth, kind: kind)
         } else {
-            pendingMove = PendingMove(sources: eigene, folder: folder, existing: vorhanden,
-                                      conflicts: konflikte, kind: kind)
+            pendingMove = PendingMove(sources: own, folder: folder, existing: present,
+                                      conflicts: conflicts, kind: kind)
         }
     }
 
     func resolveMove(with resolution: MoveResolution) {
-        guard let offen = pendingMove else { return }
+        guard let pending = pendingMove else { return }
         pendingMove = nil
-        starteVerschieben(offen.sources, to: offen.folder, existing: offen.existing,
-                          resolution: resolution, kind: offen.kind)
+        beginTransfer(pending.sources, to: pending.folder, existing: pending.existing,
+                          resolution: resolution, kind: pending.kind)
     }
 
     func cancelMove() { pendingMove = nil }
 
-    private func starteVerschieben(_ urls: [URL], to folder: URL, existing: Set<String>,
+    private func beginTransfer(_ urls: [URL], to folder: URL, existing: Set<String>,
                                    resolution: MoveResolution, kind: TransferKind) {
-        let schritte = MovePlan.steps(sources: urls, into: folder, existing: existing) { _ in resolution }
-        let auszufuehren = MovePlan.executable(schritte)
-        guard !auszufuehren.isEmpty else { return }
+        let steps = MovePlan.steps(sources: urls, into: folder, existing: existing) { _ in resolution }
+        let executable = MovePlan.executable(steps)
+        guard !executable.isEmpty else { return }
 
         // **⚠️ Versionierte Dateien fragen IMMER zurueck, auch eine einzelne.**
         // Ausdrueckliche Festlegung des Eigentuemers. Die Folge ist bekannt und
@@ -724,9 +724,9 @@ final class ReportViewModel {
         // Gegenrechnung – nur ab zehn Objekten zu fragen – haette die Warnung
         // genau in dem Fall verschwiegen, in dem man sie liest: bei der einen
         // Datei, die man gerade bewusst anfasst.
-        let versioniert = repos.versionedCounts(auszufuehren.map(\.source))
-        var warnung = RepoDetection.moveWarning(versioned: versioniert,
-                                                total: auszufuehren.count)
+        let versioned = repos.versionedCounts(executable.map(\.source))
+        var warning = RepoDetection.moveWarning(versioned: versioned,
+                                                total: executable.count)
 
         // **⚠️ Ordner fragen IMMER zurueck, unabhaengig von der Schwelle.**
         // `BulkAction.confirmationThreshold` zaehlt Objekte, und darin liegt
@@ -734,49 +734,49 @@ final class ReportViewModel {
         // bewegen – die Schwelle von zehn griffe nie, ausgerechnet dort, wo
         // ihre eigene Begruendung („vier Groessenordnungen Unterschied") am
         // staerksten zutrifft.
-        let ordner = auszufuehren.map(\.source).filter {
+        let movedFolders = executable.map(\.source).filter {
             (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         }
-        if !ordner.isEmpty {
-            let satz = ordner.map { url -> String in
+        if !movedFolders.isEmpty {
+            let sentence = movedFolders.map { url -> String in
                 // ⚠️ Gezaehlt wird mit Obergrenze: Ein Ordner mit 8.412 Dateien
                 // zu zaehlen kostet Zeit, und die Rueckfrage darf davon nicht
                 // haengen. Ohne rechtzeitiges Ergebnis „mehr als N" statt einer
                 // erfundenen Genauigkeit.
                 let n = FileMoveService.fileCount(under: url)
-                let menge = n.map { "\($0) \($0 == 1 ? "Datei" : "Dateien")" } ?? "mehr als 5.000 Dateien"
-                return "\u{201E}\(url.lastPathComponent)\u{201C} enthält \(menge)."
+                let amount = n.map { "\($0) \($0 == 1 ? "Datei" : "Dateien")" } ?? "mehr als 5.000 Dateien"
+                return "\u{201E}\(url.lastPathComponent)\u{201C} enthält \(amount)."
             }.joined(separator: "\n")
-            warnung = [satz, warnung].compactMap { $0 }.joined(separator: "\n\n")
+            warning = [sentence, warning].compactMap { $0 }.joined(separator: "\n\n")
         }
 
-        if warnung != nil || BulkAction.needsConfirmation(count: auszufuehren.count) {
+        if warning != nil || BulkAction.needsConfirmation(count: executable.count) {
             pendingBulkAction = PendingBulkAction(
                 kind: .transfer(kind, folder.lastPathComponent),
-                urls: auszufuehren.map(\.source),
-                moveSteps: auszufuehren,
+                urls: executable.map(\.source),
+                moveSteps: executable,
                 transferKind: kind,
-                repoWarning: warnung
+                repoWarning: warning
             )
         } else {
-            fuehreVerschiebenAus(auszufuehren, kind: kind)
+            performTransfer(executable, kind: kind)
         }
     }
 
-    func fuehreVerschiebenAus(_ schritte: [MoveStep], kind: TransferKind) {
-        let bericht = FileMoveService.execute(schritte, kind: kind)
+    func performTransfer(_ steps: [MoveStep], kind: TransferKind) {
+        let report = FileMoveService.execute(steps, kind: kind)
         // ⚠️ NUR beim Verschieben zieht der Bestand mit. Eine Kopie laesst das
         // Original an seinem Platz – Quelle, Anheftung und Ausschluss gehoeren
         // weiterhin dorthin.
         if kind == .move {
-            for paar in bericht.moved {
-                let warOrdner = (try? paar.to.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-                if warOrdner { zieheBestandUm(from: paar.from, to: paar.to) }
+            for paar in report.moved {
+                let wasFolder = (try? paar.to.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                if wasFolder { relocateInventory(from: paar.from, to: paar.to) }
             }
         }
-        lastMove = bericht.moved
+        lastMove = report.moved
         lastTransferKind = kind
-        melde(bericht)
+        reportFailures(report)
         rescan(preservingState: true)
     }
 
@@ -824,7 +824,7 @@ final class ReportViewModel {
     /// **Ein Ordner mit Dateien braucht diese Liste ohnehin nicht**: Er kommt
     /// dann auf dem gewoehnlichen Weg ueber `folderEntries` herein, mitsamt der
     /// vollstaendigen Filterpruefung.
-    var vorhandeneSitzungsordner: [URL] {
+    var existingSessionFolders: [URL] {
         guard emptyFolderHiddenReason == nil else { return [] }
         return sessionCreatedFolders.filter { FileManager.default.fileExists(atPath: $0.path) }
     }
@@ -873,16 +873,16 @@ final class ReportViewModel {
     }
 
     func confirmNewFolder(named name: String) {
-        guard let offen = pendingFolderName else { return }
+        guard let pending = pendingFolderName else { return }
         pendingFolderName = nil
-        let ergebnis = FileMoveService.createFolder(named: name, in: offen.parent)
-        guard let neu = ergebnis.url else {
-            moveReport = ergebnis.failure
+        let result = FileMoveService.createFolder(named: name, in: pending.parent)
+        guard let new = result.url else {
+            moveReport = result.failure
             return
         }
-        sessionCreatedFolders.append(neu)
-        if !offen.withSelection.isEmpty {
-            requestTransfer(offen.withSelection, to: neu, kind: .move)
+        sessionCreatedFolders.append(new)
+        if !pending.withSelection.isEmpty {
+            requestTransfer(pending.withSelection, to: new, kind: .move)
         } else {
             rescan(preservingState: true)
         }
@@ -893,28 +893,28 @@ final class ReportViewModel {
     // MARK: Umbenennen
 
     func requestRename(_ url: URL) {
-        let istOrdner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         // ⚠️ Umbenennen ist fuer die Versionsverwaltung derselbe Eingriff wie
         // Verschieben – dieselbe Warnung, derselbe fehlende Befehl.
-        let zaehlung = repos.versionedCounts([url])
+        let counts = repos.versionedCounts([url])
         pendingRename = PendingRename(
             url: url,
-            isFolder: istOrdner,
+            isFolder: isFolder,
             existing: FileMoveService.existingNames(in: url.deletingLastPathComponent()),
-            repoWarning: RepoDetection.moveWarning(versioned: zaehlung, total: 1)
+            repoWarning: RepoDetection.moveWarning(versioned: counts, total: 1)
         )
     }
 
     func confirmRename(to name: String) {
-        guard let offen = pendingRename else { return }
+        guard let pending = pendingRename else { return }
         pendingRename = nil
-        let ergebnis = FileMoveService.rename(offen.url, to: name)
-        guard let neu = ergebnis.url else {
-            moveReport = ergebnis.failure
+        let result = FileMoveService.rename(pending.url, to: name)
+        guard let new = result.url else {
+            moveReport = result.failure
             return
         }
-        if offen.isFolder { zieheBestandUm(from: offen.url, to: neu) }
-        lastMove = [(from: offen.url, to: neu)]
+        if pending.isFolder { relocateInventory(from: pending.url, to: new) }
+        lastMove = [(from: pending.url, to: new)]
         lastTransferKind = .move
         rescan(preservingState: true)
     }
@@ -927,28 +927,28 @@ final class ReportViewModel {
     /// im Moment des Ausführens. Eine Ordnerzeile mit „0 Dateien" kann
     /// fünfhundert enthalten; sie zeigt einen gefilterten Ausschnitt.
     func requestTrash(_ urls: [URL]) {
-        var erlaubt: [URL] = []
-        var abgelehnt: [String] = []
+        var allowed: [URL] = []
+        var rejected: [String] = []
         for url in urls {
-            let istOrdner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            if istOrdner, !FileMoveService.isEmptyOnDisk(url) {
-                abgelehnt.append("\u{201E}\(url.lastPathComponent)\u{201C}: nicht leer – "
+            let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if isFolder, !FileMoveService.isEmptyOnDisk(url) {
+                rejected.append("\u{201E}\(url.lastPathComponent)\u{201C}: nicht leer – "
                                  + "in den Papierkorb wandern nur leere Ordner.")
             } else {
-                erlaubt.append(url)
+                allowed.append(url)
             }
         }
-        if !abgelehnt.isEmpty { moveReport = abgelehnt.joined(separator: "\n") }
-        guard !erlaubt.isEmpty else { return }
+        if !rejected.isEmpty { moveReport = rejected.joined(separator: "\n") }
+        guard !allowed.isEmpty else { return }
 
-        let bericht = FileMoveService.trash(erlaubt)
-        for paar in bericht.moved {
+        let report = FileMoveService.trash(allowed)
+        for paar in report.moved {
             let war = (try? paar.from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            if war { zieheBestandUm(from: paar.from, to: paar.to) }
+            if war { relocateInventory(from: paar.from, to: paar.to) }
         }
-        lastMove = bericht.moved
+        lastMove = report.moved
         lastTransferKind = .move
-        melde(bericht)
+        reportFailures(report)
         rescan(preservingState: true)
     }
 
@@ -993,13 +993,13 @@ final class ReportViewModel {
     /// im Terminal öffnen", damit es nicht zwei Regeln dafür gibt, worauf ein
     /// Befehl wirkt.
     func pasteFromPasteboard(kind: TransferKind) {
-        guard let ziel = newFolderParent else { return }
+        guard let target = newFolderParent else { return }
         let objekte = NSPasteboard.general.readObjects(
             forClasses: [NSURL.self],
             options: [.urlReadingFileURLsOnly: true]
         ) as? [URL] ?? []
         guard !objekte.isEmpty else { return }
-        requestTransfer(objekte, to: ziel, kind: kind)
+        requestTransfer(objekte, to: target, kind: kind)
     }
 
     // MARK: Der Bestand zieht mit
@@ -1011,24 +1011,24 @@ final class ReportViewModel {
     /// *Eine tote Quelle merkt man, weil nichts mehr kommt. Eine verlorene
     /// Anheftung und ein wiederauftauchender ausgeblendeter Ordner sind
     /// **stille** Zustände — und genau die sind hier die gefährlicheren.*
-    private func zieheBestandUm(from von: URL, to nach: URL) {
-        var bestand = sources
-        let entfallen = bestand.relocate(from: von, to: nach)
-        sources = bestand
+    private func relocateInventory(from from: URL, to to: URL) {
+        var inventory = sources
+        let dropped = inventory.relocate(from: from, to: to)
+        sources = inventory
         store.saveSources(sources)
 
-        pinnedFolders = PathRelocation.relocated(pinnedFolders, from: von, to: nach)
+        pinnedFolders = PathRelocation.relocated(pinnedFolders, from: from, to: to)
         store.savePinnedFolders(pinnedFolders)
 
-        excludedPaths = PathRelocation.relocated(excludedPaths, from: von, to: nach)
+        excludedPaths = PathRelocation.relocated(excludedPaths, from: from, to: to)
         store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
 
-        sessionCreatedFolders = PathRelocation.relocated(sessionCreatedFolders, from: von, to: nach)
+        sessionCreatedFolders = PathRelocation.relocated(sessionCreatedFolders, from: from, to: to)
 
-        if !entfallen.isEmpty {
-            let namen = entfallen.map { "\u{201E}\($0.lastPathComponent)\u{201C}" }
+        if !dropped.isEmpty {
+            let names = dropped.map { "\u{201E}\($0.lastPathComponent)\u{201C}" }
                 .joined(separator: ", ")
-            moveReport = "\(namen) liegt jetzt in einer anderen Quelle; der eigene Eintrag ist "
+            moveReport = "\(names) liegt jetzt in einer anderen Quelle; der eigene Eintrag ist "
                 + "entfallen. Der Ordner bleibt über die umschließende Quelle sichtbar."
         }
     }
@@ -1036,26 +1036,26 @@ final class ReportViewModel {
     /// ⌘Z – die letzte Verschiebung zurücknehmen.
     func undoLastMove() {
         guard !lastMove.isEmpty else { return }
-        let rueckwaerts = lastMove
-        let bericht = FileMoveService.undo(lastMove, kind: lastTransferKind)
+        let reversedPairs = lastMove
+        let report = FileMoveService.undo(lastMove, kind: lastTransferKind)
         // ⚠️ Sonst stellt das Widerrufen den Ordner wieder her, aber nicht
         // seine ROLLE – Quelle, Anheftung und Ausschluss blieben am neuen Pfad.
         if lastTransferKind == .move {
-            for paar in rueckwaerts.reversed() {
-                let istOrdner = (try? paar.from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-                if istOrdner { zieheBestandUm(from: paar.to, to: paar.from) }
+            for paar in reversedPairs.reversed() {
+                let isFolder = (try? paar.from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                if isFolder { relocateInventory(from: paar.to, to: paar.from) }
             }
         }
         lastMove = []
-        melde(bericht)
+        reportFailures(report)
         rescan(preservingState: true)
     }
 
     /// **⚠️ Gemeldet wird nur, was schiefging.** Eine Erfolgsmeldung für einen
     /// Vorgang, dessen Ergebnis man unmittelbar sieht, wäre ein Blatt, das man
     /// wegklickt – und das nächste, das etwas Wichtiges sagt, dann auch.
-    private func melde(_ bericht: FileMoveService.Report) {
-        var zeilen = bericht.failures
+    private func reportFailures(_ result: FileMoveService.Report) {
+        var lines = result.failures
 
         // **⚠️ Der eine Fall, in dem eine Handlung ins Leere zu laufen scheint**
         // (AP7): Die Datei liegt im Zielordner, und ein Typ- oder Namensfilter
@@ -1066,21 +1066,21 @@ final class ReportViewModel {
         // verstecken, weil ein Zustand unguenstig ist, hiesse stellvertretend
         // entscheiden – und die Leitlinie lautet „die Sorgfaltspflicht liegt
         // beim Nutzer".
-        let unsichtbar = bericht.moved.filter { paar in
+        let invisible = result.moved.filter { paar in
             guard !paar.to.hasDirectoryPath else { return false }
-            let datei = RelevantFile(url: paar.to, folder: paar.to.deletingLastPathComponent(),
+            let file = RelevantFile(url: paar.to, folder: paar.to.deletingLastPathComponent(),
                                      timestamp: Date(), size: nil)
-            return !visibility.passesType(datei.url)
+            return !visibility.passesType(file.url)
         }
-        if !unsichtbar.isEmpty {
-            let namen = unsichtbar.map { "\u{201E}\($0.to.lastPathComponent)\u{201C}" }
+        if !invisible.isEmpty {
+            let names = invisible.map { "\u{201E}\($0.to.lastPathComponent)\u{201C}" }
                 .joined(separator: ", ")
-            zeilen.append("\(namen) liegt jetzt am Ziel, wird aber vom aktiven Filter "
+            lines.append("\(names) liegt jetzt am Ziel, wird aber vom aktiven Filter "
                           + "ausgeblendet.")
         }
 
-        guard !zeilen.isEmpty else { return }
-        moveReport = zeilen.joined(separator: "\n")
+        guard !lines.isEmpty else { return }
+        moveReport = lines.joined(separator: "\n")
     }
 
     /// Oeffnet Objekte mit ihrem jeweiligen Standardprogramm.
@@ -1154,7 +1154,7 @@ final class ReportViewModel {
 
     private func perform(_ action: PendingBulkAction) {
         if case .transfer = action.kind {
-            fuehreVerschiebenAus(action.moveSteps, kind: action.transferKind)
+            performTransfer(action.moveSteps, kind: action.transferKind)
             return
         }
         switch action.kind {
@@ -1538,9 +1538,9 @@ final class ReportViewModel {
     /// dritte Gliederung dazu, waere ein `if` still falsch, waehrend das hier
     /// weiterreicht.
     func toggleViewMode() {
-        let alle = ViewMode.allCases
-        guard let i = alle.firstIndex(of: viewMode) else { return }
-        setViewMode(alle[(i + 1) % alle.count])
+        let all = ViewMode.allCases
+        guard let i = all.firstIndex(of: viewMode) else { return }
+        setViewMode(all[(i + 1) % all.count])
     }
 
     func setViewMode(_ mode: ViewMode) {
@@ -1677,8 +1677,8 @@ final class ReportViewModel {
     /// Diagramm zeigte weniger als die Liste, und niemand koennte sagen warum –
     /// genau das, was UX-06 abgeschafft hat.
     var futureFileCount: Int {
-        let jetzt = Date()
-        return scannedFiles.count { ChartAxis.isInFuture($0.timestamp, now: jetzt) }
+        let now = Date()
+        return scannedFiles.count { ChartAxis.isInFuture($0.timestamp, now: now) }
     }
 
     /// Ob ueberhaupt Typen ausgeblendet sind – Grundlage der Statuszeile.
@@ -1788,10 +1788,10 @@ final class ReportViewModel {
         // Stabilitaet richtig (die Chips sollen nicht unter dem Mauszeiger
         // wegspringen); der Schalter ist kein Chip, sondern eine Ansage
         // darueber, was ueberhaupt zaehlt.
-        let quelle = showsOnlyWorkFiles
+        let source = showsOnlyWorkFiles
             ? relevantFiles.filter { typeRules.allowsVisible($0.url) }
             : relevantFiles
-        for file in quelle {
+        for file in source {
             let ext = file.url.pathExtension.lowercased()
             if !ext.isEmpty { extensionCounts[ext, default: 0] += 1 }
         }
@@ -1803,7 +1803,7 @@ final class ReportViewModel {
         // Farbzuordnung folgt der Legende: eindeutig, stabil und unabhaengig
         // von der Haeufigkeit (siehe TypePalette.assignment).
         typeColorAssignment = TypePalette.assignment(for: topExtensions.map(\.ext))
-        otherCount = quelle.reduce(0) {
+        otherCount = source.reduce(0) {
             topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
         }
     }
@@ -1849,23 +1849,23 @@ final class ReportViewModel {
         // sind – siehe `sessionCreatedFolders`. Ohne das geschaehe beim Anlegen
         // sichtbar nichts, denn `folderEntries` laeuft ueber Ordner, die
         // Dateien HABEN, und ein leerer ist dort kein Schluessel.
-        var eintraege = entries
-        let bekannt = Set(eintraege.map { $0.folder.standardizedFileURL })
-        let jetzt = Date()
-        for neuer in vorhandeneSitzungsordner
-        where !bekannt.contains(neuer.standardizedFileURL) {
-            eintraege.append(FolderEntry(folder: neuer, newestDate: jetzt, fileCount: 0))
+        var shown = entries
+        let known = Set(shown.map { $0.folder.standardizedFileURL })
+        let now = Date()
+        for created in existingSessionFolders
+        where !known.contains(created.standardizedFileURL) {
+            shown.append(FolderEntry(folder: created, newestDate: now, fileCount: 0))
         }
         // ⚠️ NACH dem Anhaengen neu sortieren. `TimeBucket.group` bildet die
         // Abschnitte in der Reihenfolge des Eingangs und vergleicht nur mit dem
         // letzten – ein angehaengter heutiger Eintrag erzeugte sonst einen
         // zweiten Abschnitt „Heute", ganz unten. Aus der Praxis gemeldet.
-        if eintraege.count != entries.count {
-            eintraege.sort(by: FolderAggregator.byNewestFirst)
+        if shown.count != entries.count {
+            shown.sort(by: FolderAggregator.byNewestFirst)
         }
 
         var grouped = TimeBucket.group(
-            eintraege,
+            shown,
             sort: sort,
             dominantType: { [weak self] in self?.dominantExtension(of: $0) }
         )
@@ -2340,11 +2340,11 @@ final class ReportViewModel {
         // dieselbe Lehre wie bei `newestVisibleDate(in:)` (Sprint 16, gemessen
         // 243 Aufrufe vorher, 0 nachher).
         let files = visibleSortedFilesByFolder[folder] ?? []
-        let tage = WorkDays.group(files) { url in
+        let days = WorkDays.group(files) { url in
             self.typeRules.allowsResume(url) && FileTypeInspector.refusesToOpen(url) == nil
         }
-        workDaysCache.byFolder[folder] = tage
-        return tage
+        workDaysCache.byFolder[folder] = days
+        return days
     }
 
     /// Menuebeschriftung eines Arbeitstags.
@@ -2463,11 +2463,11 @@ final class ReportViewModel {
     /// Durchgangsknoten muessten „im Zustandsabgleich mitzaehlen". *Die Funktion
     /// gab es, der Baum-Zweig hat sie nur nie aufgerufen.*
     var allExpanded: Bool {
-        let alle = Set(displayedFolders())
-        guard !alle.isEmpty else { return false }
+        let all = Set(displayedFolders())
+        guard !all.isEmpty else { return false }
         switch viewMode {
-        case .tree: return treeShowsFiles && alle.isSubset(of: expandedFolders)
-        case .time: return alle.isSubset(of: expandedFolders)
+        case .tree: return treeShowsFiles && all.isSubset(of: expandedFolders)
+        case .time: return all.isSubset(of: expandedFolders)
         }
     }
 
@@ -2812,8 +2812,8 @@ final class ReportViewModel {
     /// gelesen – dann waere die Rueckfrage schaedlicher als der Streifen, den
     /// sie ersetzt. Bei mehreren bleibt es deshalb beim Hinweis wie bisher.
     func addSources(_ urls: [URL]) {
-        var abgelehnt: [String] = []
-        var konflikte: [SourceConflict] = []
+        var rejected: [String] = []
+        var conflicts: [SourceConflict] = []
         for url in urls {
             // **⚠️ Gefragt wird die Platte, nicht die Zeichenkette.** Hier stand
             // `where url.hasDirectoryPath` – und das ist eine Eigenschaft der
@@ -2824,10 +2824,10 @@ final class ReportViewModel {
             // ohne ein Wort zu sagen. Die Pruefung gehoert nicht in den Kern:
             // ``SourceList`` kennt die Platte nicht, und wo dieses Wissen noetig
             // ist, wird es hineingereicht (siehe ``SourceList/existingOnly(_:)``).
-            var istOrdner: ObjCBool = false
-            let vorhanden = FileManager.default.fileExists(atPath: url.path, isDirectory: &istOrdner)
-            guard vorhanden, istOrdner.boolValue else {
-                abgelehnt.append(vorhanden
+            var isFolder: ObjCBool = false
+            let present = FileManager.default.fileExists(atPath: url.path, isDirectory: &isFolder)
+            guard present, isFolder.boolValue else {
+                rejected.append(present
                     ? "\u{201E}\(url.lastPathComponent)\u{201C} ist kein Ordner."
                     : "\u{201E}\(url.lastPathComponent)\u{201C} wurde nicht gefunden.")
                 continue
@@ -2844,16 +2844,16 @@ final class ReportViewModel {
             // ⚠️ Aus demselben Grund wird ``conflict(forAdding:)`` erst
             // **danach** gefragt und nur, wenn ``add`` abgelehnt hat: Es
             // beschreibt die Ablehnung, es faellt sie nicht.
-            if let grund = sources.add(url) {
-                abgelehnt.append(Self.rejectionText(url, grund))
-                if let konflikt = sources.conflict(forAdding: url) { konflikte.append(konflikt) }
+            if let reason = sources.add(url) {
+                rejected.append(Self.rejectionText(url, reason))
+                if let konflikt = sources.conflict(forAdding: url) { conflicts.append(konflikt) }
             }
         }
         applySourceChange()
-        if abgelehnt.count == 1, let konflikt = konflikte.first {
+        if rejected.count == 1, let konflikt = conflicts.first {
             pendingSourceConflict = konflikt
         } else {
-            sourceNotice = abgelehnt.isEmpty ? nil : abgelehnt.joined(separator: " ")
+            sourceNotice = rejected.isEmpty ? nil : rejected.joined(separator: " ")
         }
     }
 
@@ -2864,7 +2864,7 @@ final class ReportViewModel {
         // Der gemerkte Aufklappzustand gehoert zur Quelle, nicht zum Ordner –
         // wer sie entfernt, soll ihn nicht als Altlast zurueckbehalten.
         if option == .replaceExisting {
-            for alt in konflikt.existing { store.forgetExpansion(of: alt) }
+            for old in konflikt.existing { store.forgetExpansion(of: old) }
         }
         sources.resolve(konflikt, with: option)
         applySourceChange()
@@ -2882,17 +2882,17 @@ final class ReportViewModel {
     /// Quarantaene, ausgehaengtes Laufwerk), geschah nichts und es stand nichts
     /// da: Fuer den Anwender war „Quelle hinzufuegen" schlicht kaputt. Ein
     /// Fehlschlag, den niemand sieht, ist schlimmer als eine Fehlermeldung.
-    func reportSourceImportFailure(_ fehler: Error) {
-        sourceNotice = "Der Ordner konnte nicht übernommen werden: \(fehler.localizedDescription)"
+    func reportSourceImportFailure(_ failure: Error) {
+        sourceNotice = "Der Ordner konnte nicht übernommen werden: \(failure.localizedDescription)"
     }
 
     /// Der Grund einer Ablehnung im Klartext.
     ///
     /// ⚠️ Nennt **beide** beteiligten Ordner. „Geht nicht" liesse den Anwender
     /// raten, ob er sich vertan hat oder das Programm kaputt ist.
-    private static func rejectionText(_ url: URL, _ grund: SourceList.RejectionReason) -> String {
+    private static func rejectionText(_ url: URL, _ reason: SourceList.RejectionReason) -> String {
         let name = url.lastPathComponent
-        switch grund {
+        switch reason {
         case .alreadyKnown:
             // ⚠️ Erreicht nur noch den Fall „bekannt UND schon angehakt" – eine
             // abgehakte Quelle wird angehakt statt abgelehnt (siehe
@@ -2912,7 +2912,7 @@ final class ReportViewModel {
     ///   bekannt); sonst ``nil``.
     @discardableResult
     func addSource(_ url: URL) -> SourceList.RejectionReason? {
-        if let grund = sources.add(url) { return grund }
+        if let reason = sources.add(url) { return reason }
         applySourceChange()
         return nil
     }
@@ -2943,12 +2943,12 @@ final class ReportViewModel {
         updateWatcher()
 
         let aktiv = Set(activeSources)
-        for entfallen in scannedSources.subtracting(aktiv) {
-            scannedFilesBySource[entfallen] = nil
+        for dropped in scannedSources.subtracting(aktiv) {
+            scannedFilesBySource[dropped] = nil
         }
-        let neu = aktiv.subtracting(scannedSources)
-        guard neu.isEmpty else {
-            scanSources(Array(neu), replacingAll: false, preservingState: true)
+        let new = aktiv.subtracting(scannedSources)
+        guard new.isEmpty else {
+            scanSources(Array(new), replacingAll: false, preservingState: true)
             return
         }
         guard !aktiv.isEmpty else {
@@ -3015,7 +3015,7 @@ final class ReportViewModel {
         // ohne Dateien kann darin grundsaetzlich nicht vorkommen — deshalb ist
         // das keine vergessene Zeile, sondern eine Annahme, die mit dem
         // Anlegen von Ordnern aufgehoert hat zu gelten.*
-        let folders = Set(relevantFiles.map(\.folder)).union(vorhandeneSitzungsordner)
+        let folders = Set(relevantFiles.map(\.folder)).union(existingSessionFolders)
         filesByFolder = filesByFolder.filter { folders.contains($0.key) }
         // ⚠️ Erst NACH dem Aufbau der Ordnerliste: Vorher weiss niemand, welche
         // Arbeitskopien ueberhaupt vorkommen – und ein Vorratsladen ueber alle
@@ -3214,22 +3214,22 @@ final class ReportViewModel {
         let bereitsGelesen = replacingAll ? 0 : scannedFiles.count
 
         scanTask = Task { [weak self] in
-            var ergebnis: [URL: [RelevantFile]] = [:]
+            var scanned: [URL: [RelevantFile]] = [:]
             var nachRegel = 0
-            var eigene = 0
+            var own = 0
             var bisher = 0
-            for quelle in list {
+            for source in list {
                 let settings = ScanSettings(
-                    rootURL: quelle, start: .distantPast, end: .distantFuture, namePattern: ""
+                    rootURL: source, start: .distantPast, end: .distantFuture, namePattern: ""
                 )
-                let vorher = bisher
+                let before = bisher
                 let result = await Self.runScan(scanner: scanner, settings: settings) { count in
-                    Task { @MainActor in self?.scanProgress = bereitsGelesen + vorher + count }
+                    Task { @MainActor in self?.scanProgress = bereitsGelesen + before + count }
                 }
                 if Task.isCancelled { return }
-                ergebnis[quelle] = result.files
+                scanned[source] = result.files
                 nachRegel += result.skippedByRule
-                eigene += result.skippedByHiddenPath
+                own += result.skippedByHiddenPath
                 bisher += result.files.count
             }
             guard let self else { return }
@@ -3240,10 +3240,10 @@ final class ReportViewModel {
                 // Repo entstanden, geloescht oder ausgecheckt worden sein.
                 self.repos.invalidate()
             }
-            for (quelle, dateien) in ergebnis { self.scannedFilesBySource[quelle] = dateien }
+            for (source, files) in scanned { self.scannedFilesBySource[source] = files }
             self.rebuildScannedFiles()
             self.skippedByRuleCount = replacingAll ? nachRegel : self.skippedByRuleCount + nachRegel
-            self.skippedByHiddenPathCount = replacingAll ? eigene : self.skippedByHiddenPathCount + eigene
+            self.skippedByHiddenPathCount = replacingAll ? own : self.skippedByHiddenPathCount + own
             self.relevantFiles = self.filteredFromScan()
             self.scannedFileCount = self.relevantFiles.count
             let finished = Date()
@@ -3296,12 +3296,12 @@ final class ReportViewModel {
             return
         }
 
-        let bekannt = reusingCache ? filesByFolder.filter { folders.contains($0.key) } : [:]
-        let offen = folders.subtracting(bekannt.keys)
-        detailTotal = offen.count
+        let known = reusingCache ? filesByFolder.filter { folders.contains($0.key) } : [:]
+        let pending = folders.subtracting(known.keys)
+        detailTotal = pending.count
         detailDone = 0
-        if offen.isEmpty {
-            filesByFolder = bekannt
+        if pending.isEmpty {
+            filesByFolder = known
             finishDetailLoad()
             return
         }
@@ -3311,14 +3311,14 @@ final class ReportViewModel {
         // angewandt (``FileVisibility/isVisible(_:)``). Sonst muessten die Ordner bei jeder
         // Filteraenderung erneut von der Platte gelesen werden.
         let filter = NameFilter("")
-        let list = Array(offen)
+        let list = Array(pending)
         detailLoadTask = Task { [weak self] in
             let loaded = await Self.listAll(scanner: scanner, filter: filter, folders: list) { done in
                 Task { @MainActor in self?.detailDone = done }
             }
             if Task.isCancelled { return }
             guard let self else { return }
-            self.filesByFolder = bekannt.merging(loaded) { _, neu in neu }
+            self.filesByFolder = known.merging(loaded) { _, new in new }
             self.finishDetailLoad()
         }
     }
@@ -3371,12 +3371,12 @@ final class ReportViewModel {
             // mit aufgeht. Eine gemeinsame Behandlung waere genau der Verlust,
             // den PR-14 fuer den Einzelfall behoben hat.
             var wiederhergestellt: Set<URL> = []
-            for quelle in activeSources {
-                let quellPfad = FolderTree.normalizedPath(quelle)
+            for source in activeSources {
+                let quellPfad = FolderTree.normalizedPath(source)
                 let darunter = displayed.filter {
                     FolderTree.isRootOrBelow(FolderTree.normalizedPath($0), root: quellPfad)
                 }
-                if let saved = store.expandedFolders(for: quelle) {
+                if let saved = store.expandedFolders(for: source) {
                     wiederhergestellt.formUnion(Set(saved).intersection(darunter))
                 } else {
                     wiederhergestellt.formUnion(darunter)

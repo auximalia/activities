@@ -71,11 +71,11 @@ public struct NameFilter: Sendable, Equatable {
         if let s = start { woerter.append(s..<raw.endIndex) }
 
         var alternativen: [[Range<String.Index>]] = [[]]
-        for bereich in woerter {
-            if Self.orSeparators.contains(String(raw[bereich])) {
+        for suite in woerter {
+            if Self.orSeparators.contains(String(raw[suite])) {
                 alternativen.append([])
             } else {
-                alternativen[alternativen.count - 1].append(bereich)
+                alternativen[alternativen.count - 1].append(suite)
             }
         }
 
@@ -118,8 +118,8 @@ public struct NameFilter: Sendable, Equatable {
         // `contains` bricht bei der ersten passenden Alternative ab, `allSatisfy`
         // beim ersten fehlenden Begriff. Die Kosten wachsen damit linear mit der
         // Zahl der Begriffe und im Regelfall weniger.
-        return groups.contains { gruppe in
-            gruppe.allSatisfy { GlobMatcher.matches(filename, pattern: $0, caseSensitive: false) }
+        return groups.contains { group in
+            group.allSatisfy { GlobMatcher.matches(filename, pattern: $0, caseSensitive: false) }
         }
     }
 }

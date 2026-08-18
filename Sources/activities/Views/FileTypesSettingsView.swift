@@ -26,10 +26,10 @@ struct FileTypesSettingsView: View {
     /// stabil haelt. Ein Suchfeld ordnet nichts um, es blendet nur aus.
     @State private var suche = ""
 
-    private var zeilen: [ReportViewModel.TypeInventoryRow] {
-        let muster = suche.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !muster.isEmpty else { return model.typeInventory }
-        return model.typeInventory.filter { $0.ext.contains(muster) }
+    private var lines: [ReportViewModel.TypeInventoryRow] {
+        let pattern = suche.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !pattern.isEmpty else { return model.typeInventory }
+        return model.typeInventory.filter { $0.ext.contains(pattern) }
     }
 
     /// Woher die Liste kommt – und dass sie sich von selbst fortschreibt.
@@ -45,17 +45,17 @@ struct FileTypesSettingsView: View {
     /// von Hand nachhelfen müsste. Tatsächlich ist ``ReportViewModel/typeInventory``
     /// bei jedem Suchlauf neu gerechnet – ein neuer Dateityp trägt sich selbst
     /// ein, bei offenem Fenster sogar sichtbar.
-    private var bestandshinweis: String {
-        let gesamt = model.typeInventory.count
+    private var inventoryHint: String {
+        let total = model.typeInventory.count
         let nachtrag = "Ein neu hinzukommender Dateityp erscheint nach dem nächsten Suchlauf von selbst."
         if suche.trimmingCharacters(in: .whitespaces).isEmpty {
-            return "Aufgeführt sind alle \(gesamt) Endungen, die im eingelesenen Bestand vorkommen. "
+            return "Aufgeführt sind alle \(total) Endungen, die im eingelesenen Bestand vorkommen. "
                 + nachtrag
         }
-        if zeilen.isEmpty {
-            return "Keine der \(gesamt) Endungen im Bestand enthält „\(suche)“. " + nachtrag
+        if lines.isEmpty {
+            return "Keine der \(total) Endungen im Bestand enthält „\(suche)“. " + nachtrag
         }
-        return "\(zeilen.count) von \(gesamt) Endungen im Bestand. " + nachtrag
+        return "\(lines.count) von \(total) Endungen im Bestand. " + nachtrag
     }
 
     var body: some View {
@@ -77,7 +77,7 @@ struct FileTypesSettingsView: View {
                 }
             }
 
-            Table(zeilen) {
+            Table(lines) {
                 TableColumn("Endung") { zeile in
                     Text(".\(zeile.ext)").font(.system(.body, design: .monospaced))
                 }
@@ -123,7 +123,7 @@ struct FileTypesSettingsView: View {
             //
             // **Die Zahl ist der eigentliche Inhalt.** „Alle Endungen" ist eine
             // Behauptung; „198" zeigt zugleich, dass die Tabelle scrollt.
-            Text(bestandshinweis)
+            Text(inventoryHint)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -142,8 +142,8 @@ struct FileTypesSettingsView: View {
 
             HStack {
                 Spacer()
-                Button("Eigene Freigaben zurücksetzen") { model.typeRules = .leer }
-                    .disabled(model.typeRules == .leer)
+                Button("Eigene Freigaben zurücksetzen") { model.typeRules = .empty }
+                    .disabled(model.typeRules == .empty)
             }
         }
         .padding(20)

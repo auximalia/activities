@@ -47,8 +47,8 @@ struct FolderDropTarget: ViewModifier {
             .onDrop(of: [.fileURL], delegate: FolderDropDelegate(
                 model: model, folder: folder, istZiel: $istZiel
             ))
-            .onChange(of: istZiel) { _, neu in
-                model.isRowDropTargeted = neu
+            .onChange(of: istZiel) { _, new in
+                model.isRowDropTargeted = new
             }
     }
 }
@@ -77,44 +77,44 @@ private struct FolderDropDelegate: DropDelegate {
     /// mitten in der Bewegung drückt; ein Zustand, der nur beim Betreten
     /// ermittelt wird, bliebe stehen und wäre dann falsch.
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: art() == .copy ? .copy : .move)
+        DropProposal(operation: kind() == .copy ? .copy : .move)
     }
 
     func performDrop(info: DropInfo) -> Bool {
         istZiel = false
         model.isRowDropTargeted = false
-        let art = art()
-        let anbieter = info.itemProviders(for: [.fileURL])
-        guard !anbieter.isEmpty else { return false }
+        let kind = kind()
+        let providers = info.itemProviders(for: [.fileURL])
+        guard !providers.isEmpty else { return false }
 
         // ⚠️ Die Anbieter liefern asynchron. Gesammelt wird ueber eine Gruppe,
         // damit ALLE Dateien in EINEM Vorgang landen – sonst entstuenden fuenf
         // einzelne Verschiebungen, fuenf Rueckfragen und fuenf Widerruf-Schritte
         // fuer eine Bewegung.
-        let gruppe = DispatchGroup()
-        let sperre = NSLock()
-        var gesammelt: [URL] = []
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var collected: [URL] = []
 
-        for anbieter in anbieter {
-            gruppe.enter()
-            _ = anbieter.loadObject(ofClass: URL.self) { url, _ in
+        for providers in providers {
+            group.enter()
+            _ = providers.loadObject(ofClass: URL.self) { url, _ in
                 if let url {
-                    sperre.lock()
-                    gesammelt.append(url)
-                    sperre.unlock()
+                    lock.lock()
+                    collected.append(url)
+                    lock.unlock()
                 }
-                gruppe.leave()
+                group.leave()
             }
         }
 
-        gruppe.notify(queue: .main) {
-            guard !gesammelt.isEmpty else { return }
-            model.requestTransfer(gesammelt, to: folder, kind: art)
+        group.notify(queue: .main) {
+            guard !collected.isEmpty else { return }
+            model.requestTransfer(collected, to: folder, kind: kind)
         }
         return true
     }
 
-    private func art() -> TransferKind {
+    private func kind() -> TransferKind {
         let flags = NSEvent.modifierFlags
         return DragOperation.kind(
             sameVolume: VolumeInfo.sameVolume(folder, as: model.dragOriginFolder),

@@ -52,8 +52,8 @@ public enum FolderNaming {
     /// nicht unterscheidenden Dateisystem mit „Datei existiert bereits"
     /// scheitert. Die Ausführung braucht dafür den Umweg über einen
     /// Zwischennamen; die **Regel** sagt nur, dass es erlaubt ist.
-    public static func isCaseOnlyChange(from alt: String, to neu: String) -> Bool {
-        let a = sanitized(alt), n = sanitized(neu)
+    public static func isCaseOnlyChange(from old: String, to new: String) -> Bool {
+        let a = sanitized(old), n = sanitized(new)
         return a != n && a.lowercased() == n.lowercased()
     }
 }

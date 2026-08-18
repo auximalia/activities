@@ -52,9 +52,9 @@ do {
     // Platzhalter gilt der Text woertlich, **Leerzeichen eingeschlossen**.
     // Prosa laesst sich nicht erzeugen (UX-44) – aber eine Zusage, die eine
     // Pruefung bewachen kann, bekommt eine.
-    let unten = NameFilter("_Garten_")
-    expect(unten.matches("Foto_Garten_Sommer.png"), "Unterstriche grenzen ab")
-    expect(!unten.matches("Kindergartenplatz 2026.pdf"), "und schliessen das Wort im Wort aus")
+    let down = NameFilter("_Garten_")
+    expect(down.matches("Foto_Garten_Sommer.png"), "Unterstriche grenzen ab")
+    expect(!down.matches("Kindergartenplatz 2026.pdf"), "und schliessen das Wort im Wort aus")
 
     let punkt = NameFilter("Garten.")
     expect(punkt.matches("Mein Garten.pdf"), "Punkt grenzt nach rechts ab")
@@ -402,8 +402,8 @@ do {
     let stufenRang: [ChartGranularity: Int] = [.day: 0, .week: 1, .month: 2, .quarter: 3, .year: 4]
     var letzterRang = 0
     var monoton = true
-    for tage in stride(from: 1, through: 40_000, by: 37) {
-        let rang = stufenRang[ChartGranularity.automatic(spanDays: tage)] ?? -1
+    for days in stride(from: 1, through: 40_000, by: 37) {
+        let rang = stufenRang[ChartGranularity.automatic(spanDays: days)] ?? -1
         if rang < letzterRang { monoton = false; break }
         letzterRang = rang
     }
@@ -429,8 +429,8 @@ do {
     // v1.19.44). *Eine Obergrenze fuer die Anzahl sagt nichts ueber die
     // Verteilung.*
     for anzahl in [15, 20, 40, 66, 73, 130, 400, 846] {
-        let sortiert = ChartGranularity.labelPositions(barCount: anzahl).sorted()
-        let abstaende = zip(sortiert, sortiert.dropFirst()).map { $1 - $0 }
+        let sorted = ChartGranularity.labelPositions(barCount: anzahl).sorted()
+        let abstaende = zip(sorted, sorted.dropFirst()).map { $1 - $0 }
         expect(abstaende.allSatisfy { $0 >= 2 },
                "Marken: keine zwei Beschriftungen auf benachbarten Balken (\(anzahl))")
         // Gleichmaessig heisst: die Abstaende unterscheiden sich um hoechstens 1.
@@ -581,15 +581,15 @@ do {
     )
 
     let standard = FileScanner().scan(settings: settings)
-    let namen = Set(standard.files.map { $0.url.lastPathComponent })
-    expect(namen.contains("bericht.md"), "Rauschfilter: echte Arbeit bleibt")
-    expect(!namen.contains("index.js"), "Rauschfilter: node_modules ausgeschlossen")
-    expect(!namen.contains("zwischenstand.o"), "Rauschfilter: .build ausgeschlossen")
-    expect(!namen.contains("kram.txt"), "Rauschfilter: DerivedData ausgeschlossen")
-    expect(namen.contains("ergebnis.txt"), "Rauschfilter: mehrdeutiges „build\" bleibt standardmaessig")
-    expect(!namen.contains("CodeResources"), "Buendel: Innereien nicht gemeldet")
-    expect(!namen.contains("Programm"), "Buendel: Innereien nicht gemeldet (MacOS)")
-    expect(namen.contains("Programm.app"), "Buendel: als EINE Einheit gezaehlt")
+    let names = Set(standard.files.map { $0.url.lastPathComponent })
+    expect(names.contains("bericht.md"), "Rauschfilter: echte Arbeit bleibt")
+    expect(!names.contains("index.js"), "Rauschfilter: node_modules ausgeschlossen")
+    expect(!names.contains("zwischenstand.o"), "Rauschfilter: .build ausgeschlossen")
+    expect(!names.contains("kram.txt"), "Rauschfilter: DerivedData ausgeschlossen")
+    expect(names.contains("ergebnis.txt"), "Rauschfilter: mehrdeutiges „build\" bleibt standardmaessig")
+    expect(!names.contains("CodeResources"), "Buendel: Innereien nicht gemeldet")
+    expect(!names.contains("Programm"), "Buendel: Innereien nicht gemeldet (MacOS)")
+    expect(names.contains("Programm.app"), "Buendel: als EINE Einheit gezaehlt")
     expect(standard.skippedFolders > 0, "Rauschfilter: uebersprungene Ordner werden gezaehlt")
 
     // Mehrdeutige zuschaltbar
@@ -662,10 +662,10 @@ do {
                 "und die Einzahl wird gebeugt")
     // Die Summe muss stimmen, sonst zaehlt der Anwender nach und findet es.
     for regel in 0...4 {
-        for eigene in 0...4 where regel + eigene > 0 {
-            let satz = ExclusionRules.skippedSummary(byRule: regel, byHiddenPath: eigene) ?? ""
-            expect(satz.contains("\(regel + eigene)") || regel == 0,
-                   "der Satz nennt die Summe \(regel + eigene)")
+        for own in 0...4 where regel + own > 0 {
+            let sentence = ExclusionRules.skippedSummary(byRule: regel, byHiddenPath: own) ?? ""
+            expect(sentence.contains("\(regel + own)") || regel == 0,
+                   "der Satz nennt die Summe \(regel + own)")
         }
     }
 
@@ -712,8 +712,8 @@ do {
     expect(FolderTree.build(from: [], root: root).isEmpty, "Baum: keine Eintraege -> kein Knoten")
 
     // Eintraege ausserhalb der Wurzel werden uebergangen, nicht verbogen
-    let fremd = FolderTree.build(from: [FolderEntry(folder: URL(fileURLWithPath: "/anderswo/x"), newestDate: t1, fileCount: 1)], root: root)
-    expect(fremd.isEmpty, "Baum: Eintrag ausserhalb der Wurzel wird uebergangen")
+    let foreign = FolderTree.build(from: [FolderEntry(folder: URL(fileURLWithPath: "/anderswo/x"), newestDate: t1, fileCount: 1)], root: root)
+    expect(foreign.isEmpty, "Baum: Eintrag ausserhalb der Wurzel wird uebergangen")
 
     // /r/bc darf NICHT als Kind von /r/b gelten (Praefix ohne Schraegstrich)
     expect(!FolderTree.isRootOrBelow("/r/bc", root: "/r/b"), "Baum: /r/bc liegt nicht unter /r/b")
@@ -781,9 +781,9 @@ do {
         expectEqual(mit[0].folder.path, "/r", "Baum: Wurzelzeile ist die Wurzel")
         expectEqual(mit[0].children.count, 1, "Baum: a haengt unter der Wurzel")
 
-        let ohne = FolderTree.build(from: [entry("a", t1), entry("b", t2)], root: root)
-        expectEqual(ohne.count, 2, "Baum: Wurzel ohne Treffer bekommt keine Zeile")
-        expect(!ohne.contains { $0.folder.path == "/r" }, "Baum: Wurzelname taucht nicht auf")
+        let without = FolderTree.build(from: [entry("a", t1), entry("b", t2)], root: root)
+        expectEqual(without.count, 2, "Baum: Wurzel ohne Treffer bekommt keine Zeile")
+        expect(!without.contains { $0.folder.path == "/r" }, "Baum: Wurzelname taucht nicht auf")
     }
 
     // ⚠️ Wurzelname darf nie in eine verdichtete Beschriftung geraten
@@ -826,8 +826,8 @@ do {
     do {
         let a = [entry("p/a", t1), entry("p/b", t2), entry("q", t3), entry("p", t1)]
         let vorwaerts = FolderTree.build(from: a, root: root)
-        let rueckwaerts = FolderTree.build(from: a.reversed(), root: root)
-        expectEqual(walk(vorwaerts).map(\.folder.path), walk(rueckwaerts).map(\.folder.path),
+        let reversedPairs = FolderTree.build(from: a.reversed(), root: root)
+        expectEqual(walk(vorwaerts).map(\.folder.path), walk(reversedPairs).map(\.folder.path),
                     "Baum: Reihenfolge der Eingabe aendert das Ergebnis nicht")
     }
 
@@ -859,22 +859,22 @@ do {
 do {
     let a = URL(fileURLWithPath: "/w/alpha", isDirectory: true)
     let b = URL(fileURLWithPath: "/w/beta", isDirectory: true)
-    func eintrag(_ url: URL, _ tag: Int, _ anzahl: Int = 1) -> FolderEntry {
+    func entry(_ url: URL, _ tag: Int, _ anzahl: Int = 1) -> FolderEntry {
         FolderEntry(folder: url, newestDate: date(2026, 8, tag), fileCount: anzahl)
     }
-    let eintraege = [
-        eintrag(a.appendingPathComponent("x"), 1),
-        eintrag(b.appendingPathComponent("y"), 3),
+    let entries = [
+        entry(a.appendingPathComponent("x"), 1),
+        entry(b.appendingPathComponent("y"), 3),
     ]
 
     // Eine Quelle ohne eigene Treffer verschwindet - wie bisher.
-    let einzeln = FolderTree.build(from: eintraege, root: a)
+    let einzeln = FolderTree.build(from: entries, root: a)
     expectEqual(einzeln.count, 1, "eine Quelle: Wurzelzeile faellt weg")
     expectEqual(einzeln.first?.label, "x", "eine Quelle: Kind steht oben")
 
     // ⚠️ Bei mehreren Quellen bleibt sie stehen - sonst waere nicht erkennbar,
     // aus welcher Quelle ein Teilbaum stammt.
-    let mehrere = FolderTree.build(from: eintraege, roots: [a, b])
+    let mehrere = FolderTree.build(from: entries, roots: [a, b])
     expectEqual(mehrere.count, 2, "zwei Quellen: zwei oberste Knoten")
     expect(mehrere.allSatisfy { $0.entry == nil }, "zwei Quellen: Quellzeilen sind Durchgangsknoten")
     expectEqual(Set(mehrere.map(\.label)), ["alpha", "beta"], "zwei Quellen: nach Quelle beschriftet")
@@ -883,18 +883,18 @@ do {
     expectEqual(mehrere.map(\.subtreeFileCount).reduce(0, +), 2, "zwei Quellen: jede Datei einmal")
 
     // Eintraege ausserhalb aller Quellen bleiben draussen.
-    let fremd = eintraege + [eintrag(URL(fileURLWithPath: "/anderswo/z", isDirectory: true), 5)]
-    expectEqual(FolderTree.build(from: fremd, roots: [a, b]).count, 2, "fremder Eintrag bleibt draussen")
+    let foreign = entries + [entry(URL(fileURLWithPath: "/anderswo/z", isDirectory: true), 5)]
+    expectEqual(FolderTree.build(from: foreign, roots: [a, b]).count, 2, "fremder Eintrag bleibt draussen")
 
     // Doppelt genannte Quelle liefert den Teilbaum trotzdem nur einmal.
-    expectEqual(FolderTree.build(from: eintraege, roots: [a, a, b]).count, 2, "doppelte Quelle zaehlt einmal")
+    expectEqual(FolderTree.build(from: entries, roots: [a, a, b]).count, 2, "doppelte Quelle zaehlt einmal")
 
     // Zeilenfolge: beide Quellen samt Kindern, keine Zeile doppelt.
-    let alle = Set(FolderTree.allFolders(mehrere))
-    let zeilen = FolderTree.rows(mehrere, expanded: alle, filesByFolder: [:])
-    expectEqual(zeilen.count, 4, "zwei Quellen: vier Ordnerzeilen")
-    expectEqual(Set(zeilen.map(\.row)).count, 4, "zwei Quellen: keine Zeile doppelt")
-    expectEqual(zeilen.filter { $0.level == 0 }.count, 2, "zwei Quellen: zwei Zeilen auf Ebene 0")
+    let all = Set(FolderTree.allFolders(mehrere))
+    let lines = FolderTree.rows(mehrere, expanded: all, filesByFolder: [:])
+    expectEqual(lines.count, 4, "zwei Quellen: vier Ordnerzeilen")
+    expectEqual(Set(lines.map(\.row)).count, 4, "zwei Quellen: keine Zeile doppelt")
+    expectEqual(lines.filter { $0.level == 0 }.count, 2, "zwei Quellen: zwei Zeilen auf Ebene 0")
 }
 
 // MARK: - FolderTree.distinctLabels (gleichnamige Quellen)
@@ -904,15 +904,15 @@ do {
     expectEqual(eindeutig["/b/notizen"], "notizen", "eindeutig: kein Elternteil noetig")
 
     // ⚠️ Nur die betroffenen wachsen, nicht alle.
-    let doppelt = FolderTree.distinctLabels(for: ["/kunde-a/src", "/kunde-b/src", "/notizen"])
-    expectEqual(doppelt["/kunde-a/src"], "kunde-a/src", "gleichnamig: eine Stufe mehr")
-    expectEqual(doppelt["/kunde-b/src"], "kunde-b/src", "gleichnamig: eine Stufe mehr")
-    expectEqual(doppelt["/notizen"], "notizen", "unbeteiligte bleiben kurz")
+    let twice = FolderTree.distinctLabels(for: ["/kunde-a/src", "/kunde-b/src", "/notizen"])
+    expectEqual(twice["/kunde-a/src"], "kunde-a/src", "gleichnamig: eine Stufe mehr")
+    expectEqual(twice["/kunde-b/src"], "kunde-b/src", "gleichnamig: eine Stufe mehr")
+    expectEqual(twice["/notizen"], "notizen", "unbeteiligte bleiben kurz")
 
     // Zwei Stufen noetig.
-    let tief = FolderTree.distinctLabels(for: ["/x/k/src", "/y/k/src"])
-    expectEqual(tief["/x/k/src"], "x/k/src", "zwei Stufen noetig")
-    expectEqual(tief["/y/k/src"], "y/k/src", "zwei Stufen noetig")
+    let deep = FolderTree.distinctLabels(for: ["/x/k/src", "/y/k/src"])
+    expectEqual(deep["/x/k/src"], "x/k/src", "zwei Stufen noetig")
+    expectEqual(deep["/y/k/src"], "y/k/src", "zwei Stufen noetig")
 
     // Ein Pfad hat keine Stufe mehr - die Schleife muss trotzdem enden.
     let ungleich = FolderTree.distinctLabels(for: ["/src", "/a/src"])
@@ -937,7 +937,7 @@ do {
     expectEqual(RowSize.medium.compactThreshold, 957, "Umschaltschwelle wie bisher")
     expectEqual(RowSize.small.compactThreshold, 940, "kleinste Stufe = gemessener Ausgangspunkt")
 
-    var vorher: RowSize? = nil
+    var before: RowSize? = nil
     for stufe in RowSize.allCases {
         // ⚠️ Die Rangordnung „Inhalt groesser als Nebenangabe" muss auf JEDER
         // Stufe gelten, nicht nur auf der mittleren. Ein Regler, der sie auf
@@ -961,13 +961,13 @@ do {
         expect(stufe.sizeColumnWidth > stufe.measuredSizeWidth, "Groessenspalte traegt ihren Text (\(stufe.rawValue))")
         expect(stufe.dateColumnWidth > stufe.dateColumnWidthCompact, "Kompaktspalte ist die schmalere (\(stufe.rawValue))")
 
-        if let v = vorher {
+        if let v = before {
             expect(stufe.nameFontSize > v.nameFontSize, "Stufen wachsen (Name, \(stufe.rawValue))")
             expect(stufe.metaFontSize > v.metaFontSize, "Stufen wachsen (Nebenangabe, \(stufe.rawValue))")
             expect(stufe.dateColumnWidth > v.dateColumnWidth, "Stufen wachsen (Datumsspalte, \(stufe.rawValue))")
             expect(stufe.compactThreshold > v.compactThreshold, "Stufen wachsen (Schwelle, \(stufe.rawValue))")
         }
-        vorher = stufe
+        before = stufe
     }
 }
 
@@ -1021,18 +1021,18 @@ do {
     let proj = URL(fileURLWithPath: "/u/Documents/Projekte", isDirectory: true)
     let bilder = URL(fileURLWithPath: "/u/Bilder", isDirectory: true)
 
-    var liste = SourceList()
-    expect(liste.add(docs) == nil, "erste Quelle wird aufgenommen")
-    expect(liste.isActive(docs), "neue Quelle ist gleich ausgewaehlt")
+    var list = SourceList()
+    expect(list.add(docs) == nil, "erste Quelle wird aufgenommen")
+    expect(list.isActive(docs), "neue Quelle ist gleich ausgewaehlt")
 
     // ⚠️ Festlegung 1: Ueberlappung wird beim Hinzufuegen abgelehnt.
-    expectEqual(liste.rejectionReason(forAdding: proj), .containedIn(docs), "Unterordner wird abgelehnt")
-    expectEqual(liste.add(proj), .containedIn(docs), "und nicht aufgenommen")
-    expectEqual(liste.known.count, 1, "abgelehnte Quelle steht nicht im Bestand")
+    expectEqual(list.rejectionReason(forAdding: proj), .containedIn(docs), "Unterordner wird abgelehnt")
+    expectEqual(list.add(proj), .containedIn(docs), "und nicht aufgenommen")
+    expectEqual(list.known.count, 1, "abgelehnte Quelle steht nicht im Bestand")
 
-    expectEqual(liste.add(docs), .alreadyKnown, "dieselbe Quelle zweimal")
-    expectEqual(liste.known.count, 1, "und weiterhin nur einmal im Bestand")
-    expect(liste.isActive(docs), "und bleibt dabei ausgewaehlt")
+    expectEqual(list.add(docs), .alreadyKnown, "dieselbe Quelle zweimal")
+    expectEqual(list.known.count, 1, "und weiterhin nur einmal im Bestand")
+    expect(list.isActive(docs), "und bleibt dabei ausgewaehlt")
 
     // ⚠️ Festlegung 1a: „bereits bekannt" ist nur dann eine Ablehnung, wenn die
     // Quelle auch schon ANGEHAKT ist. Ist sie abgehakt, wird sie angehakt –
@@ -1062,23 +1062,23 @@ do {
     expectEqual(umgekehrt.rejectionReason(forAdding: docs), .contains(proj), "Oberordner wird abgelehnt")
 
     // Nachbarn ohne Ueberlappung gehen.
-    expect(liste.add(bilder) == nil, "zweite, ueberschneidungsfreie Quelle")
-    expectEqual(liste.known.count, 2, "beide im Bestand")
-    expectEqual(liste.activeInOrder, [docs, bilder], "Reihenfolge folgt dem Bestand")
+    expect(list.add(bilder) == nil, "zweite, ueberschneidungsfreie Quelle")
+    expectEqual(list.known.count, 2, "beide im Bestand")
+    expectEqual(list.activeInOrder, [docs, bilder], "Reihenfolge folgt dem Bestand")
 
     // Abwaehlen loescht nicht.
-    liste.setActive(docs, false)
-    expect(!liste.isActive(docs), "abgewaehlt")
-    expectEqual(liste.known.count, 2, "abwaehlen loescht nicht")
-    expectEqual(liste.activeInOrder, [bilder], "nur die ausgewaehlte")
+    list.setActive(docs, false)
+    expect(!list.isActive(docs), "abgewaehlt")
+    expectEqual(list.known.count, 2, "abwaehlen loescht nicht")
+    expectEqual(list.activeInOrder, [bilder], "nur die ausgewaehlte")
 
     // Loeschen entfernt aus Bestand UND Auswahl.
-    liste.remove(bilder)
-    expectEqual(liste.known.count, 1, "geloescht")
-    expect(liste.activeInOrder.isEmpty, "geloeschte Quelle ist auch abgewaehlt")
+    list.remove(bilder)
+    expectEqual(list.known.count, 1, "geloescht")
+    expect(list.activeInOrder.isEmpty, "geloeschte Quelle ist auch abgewaehlt")
 
     // Der Weg, den es vor Sprint 16 nicht gab: wieder aufnehmen.
-    expect(liste.add(bilder) == nil, "wieder aufnehmbar")
+    expect(list.add(bilder) == nil, "wieder aufnehmbar")
 
     // ⚠️ `/a/bc` faengt mit `/a/b` an, liegt aber nicht darunter.
     var praefix = SourceList()
@@ -1087,9 +1087,9 @@ do {
            "Namenspraefix ist keine Ueberlappung")
 
     // Eine unbekannte Quelle laesst sich nicht auswaehlen.
-    var leer = SourceList()
-    leer.setActive(docs, true)
-    expect(leer.activeInOrder.isEmpty, "unbekannte Quelle bleibt draussen")
+    var empty = SourceList()
+    empty.setActive(docs, true)
+    expect(empty.activeInOrder.isEmpty, "unbekannte Quelle bleibt draussen")
 
     // Auswahl kann nie ueber den Bestand hinausgehen.
     let gefiltert = SourceList(known: [docs], active: [docs, bilder])
@@ -1184,11 +1184,11 @@ do {
     // ⚠️ Die eigentliche Zusicherung: Der Bestand ist NACH jeder Aufloesung
     // wieder ueberlappungsfrei. Genau darauf steht „jeder Ordner kommt genau
     // einmal vor" – wer sie bricht, zaehlt jede Datei doppelt.
-    for liste in [a, b, c] {
-        for quelle in liste.known {
-            var ohne = liste
-            ohne.remove(quelle)
-            expect(ohne.rejectionReason(forAdding: quelle) == nil,
+    for list in [a, b, c] {
+        for source in list.known {
+            var without = list
+            without.remove(source)
+            expect(without.rejectionReason(forAdding: source) == nil,
                    "nach der Aufloesung ueberlappt nichts mehr")
         }
     }
@@ -1340,12 +1340,12 @@ do {
 
     // Auch erzeugte Zwischenknoten erben die Schreibweise der echten URLs
     do {
-        let tief = URL(fileURLWithPath: "/r/x/../p/q", isDirectory: true)
+        let deep = URL(fileURLWithPath: "/r/x/../p/q", isDirectory: true)
         let nodes = FolderTree.build(
-            from: [FolderEntry(folder: tief, newestDate: t1, fileCount: 1)],
+            from: [FolderEntry(folder: deep, newestDate: t1, fileCount: 1)],
             root: root
         )
-        expectEqual(nodes[0].folder, tief, "URL-Treue: verdichtete Kette behaelt die tiefste echte URL")
+        expectEqual(nodes[0].folder, deep, "URL-Treue: verdichtete Kette behaelt die tiefste echte URL")
     }
 
 
@@ -1443,9 +1443,9 @@ do {
 // MARK: - Zeitstempel: genau zwei Formen, sonst keine
 do {
     // Fester Bezugstag, damit „Heute"/„Gestern" nicht von der Systemuhr abhaengen.
-    let jetzt = date(2026, 8, 3, 12)          // Montag
-    func lang(_ d: Date) -> String { DateFormatting.dateTime(d, calendar: calendar, now: jetzt) }
-    func kurz(_ d: Date) -> String { DateFormatting.dateTimeCompact(d, calendar: calendar, now: jetzt) }
+    let now = date(2026, 8, 3, 12)          // Montag
+    func lang(_ d: Date) -> String { DateFormatting.dateTime(d, calendar: calendar, now: now) }
+    func kurz(_ d: Date) -> String { DateFormatting.dateTimeCompact(d, calendar: calendar, now: now) }
 
     // Die beiden gewollten Ausnahmen – in beiden Layouts gleich.
     expectEqual(lang(date(2026, 8, 3, 22)), "Heute, 22:00", "Zeitstempel: heute")
@@ -1519,54 +1519,54 @@ do {
 
 // MARK: - Arbeit fortsetzen: Gruppierung nach Kalendertag (PR-11)
 do {
-    let ordner = URL(fileURLWithPath: "/r/a")
-    func datei(_ name: String, _ y: Int, _ m: Int, _ d: Int, _ h: Int) -> RelevantFile {
-        RelevantFile(url: ordner.appendingPathComponent(name), folder: ordner, timestamp: date(y, m, d, h))
+    let folder = URL(fileURLWithPath: "/r/a")
+    func file(_ name: String, _ y: Int, _ m: Int, _ d: Int, _ h: Int) -> RelevantFile {
+        RelevantFile(url: folder.appendingPathComponent(name), folder: folder, timestamp: date(y, m, d, h))
     }
-    let jetzt = date(2026, 8, 3, 12)   // Montag
+    let now = date(2026, 8, 3, 12)   // Montag
 
     // Drei Tage, absichtlich in gemischter Reihenfolge hereingegeben.
-    let dateien = [
-        datei("b.txt", 2026, 8, 1, 9),
-        datei("a.txt", 2026, 8, 3, 22),
-        datei("c.txt", 2026, 8, 2, 14),
-        datei("d.txt", 2026, 8, 3, 8),
-        datei("e.txt", 2026, 8, 1, 17)
+    let files = [
+        file("b.txt", 2026, 8, 1, 9),
+        file("a.txt", 2026, 8, 3, 22),
+        file("c.txt", 2026, 8, 2, 14),
+        file("d.txt", 2026, 8, 3, 8),
+        file("e.txt", 2026, 8, 1, 17)
     ]
-    let tage = WorkDays.group(dateien, calendar: calendar)
-    expectEqual(tage.count, 3, "Arbeitstage: drei Kalendertage")
+    let days = WorkDays.group(files, calendar: calendar)
+    expectEqual(days.count, 3, "Arbeitstage: drei Kalendertage")
 
     // ⚠️ Juengster Tag zuerst – und zwar nach dem TAG sortiert, nicht in der
     // Reihenfolge der Vorlage. Die Dateiliste folgt der eingestellten
     // Sortierung (Name, Typ); danach stuenden die Tage sonst willkuerlich.
-    expectEqual(tage.map(\.count), [2, 1, 2], "Arbeitstage: absteigend nach Datum, mit Anzahl")
-    expect(tage[0].day > tage[1].day && tage[1].day > tage[2].day,
+    expectEqual(days.map(\.count), [2, 1, 2], "Arbeitstage: absteigend nach Datum, mit Anzahl")
+    expect(days[0].day > days[1].day && days[1].day > days[2].day,
            "Arbeitstage: streng absteigend sortiert")
 
     // Der ganze Tag gehoert zusammen – 8 Uhr und 22 Uhr sind derselbe Tag.
-    expectEqual(tage[0].files.count, 2, "Arbeitstage: frueh und spaet am selben Tag zaehlen zusammen")
-    expect(tage[0].files.contains(ordner.appendingPathComponent("a.txt")),
+    expectEqual(days[0].files.count, 2, "Arbeitstage: frueh und spaet am selben Tag zaehlen zusammen")
+    expect(days[0].files.contains(folder.appendingPathComponent("a.txt")),
            "Arbeitstage: spaete Datei im Tag")
-    expect(tage[0].files.contains(ordner.appendingPathComponent("d.txt")),
+    expect(days[0].files.contains(folder.appendingPathComponent("d.txt")),
            "Arbeitstage: fruehe Datei im selben Tag")
 
     // Beschriftung folgt derselben Regel wie die Zeitstempel (PR-32):
     // genau zwei Ausnahmen, sonst immer dieselbe Form mit Jahr.
-    expectEqual(WorkDays.menuLabel(for: tage[0], calendar: calendar, now: jetzt), "Heute (2)",
+    expectEqual(WorkDays.menuLabel(for: days[0], calendar: calendar, now: now), "Heute (2)",
                 "Arbeitstage: Heute mit Anzahl")
-    expectEqual(WorkDays.menuLabel(for: tage[1], calendar: calendar, now: jetzt), "Gestern (1)",
+    expectEqual(WorkDays.menuLabel(for: days[1], calendar: calendar, now: now), "Gestern (1)",
                 "Arbeitstage: Gestern mit Anzahl")
-    expectEqual(WorkDays.menuLabel(for: tage[2], calendar: calendar, now: jetzt), "Sa., 01.08.2026 (2)",
+    expectEqual(WorkDays.menuLabel(for: days[2], calendar: calendar, now: now), "Sa., 01.08.2026 (2)",
                 "Arbeitstage: aelterer Tag in der Regelform")
 
     // Einzahl/Mehrzahl beim Einzeltag-Befehl.
-    expectEqual(WorkDays.singleDayLabel(for: WorkDay(day: date(2026, 8, 3), files: [ordner])),
+    expectEqual(WorkDays.singleDayLabel(for: WorkDay(day: date(2026, 8, 3), files: [folder])),
                 "Arbeit fortsetzen (1 Datei)", "Arbeitstage: Einzahl")
-    expectEqual(WorkDays.singleDayLabel(for: tage[0]),
+    expectEqual(WorkDays.singleDayLabel(for: days[0]),
                 "Arbeit fortsetzen (2 Dateien)", "Arbeitstage: Mehrzahl")
 
     // Obergrenze: ein Ordner mit vielen Tagen fuellt kein endloses Menue.
-    let viele = (1...30).map { datei("f\($0).txt", 2026, 7, $0, 10) }
+    let viele = (1...30).map { file("f\($0).txt", 2026, 7, $0, 10) }
     expectEqual(WorkDays.group(viele, calendar: calendar).count, WorkDays.maxDays,
                 "Arbeitstage: auf maxDays gedeckelt")
     expect(WorkDays.group(viele, calendar: calendar).first!.day
@@ -1575,7 +1575,7 @@ do {
 
     // Randfaelle.
     expect(WorkDays.group([], calendar: calendar).isEmpty, "Arbeitstage: keine Dateien, keine Tage")
-    expect(WorkDays.group(dateien, calendar: calendar, limit: 0).isEmpty,
+    expect(WorkDays.group(files, calendar: calendar, limit: 0).isEmpty,
            "Arbeitstage: Grenze 0 liefert nichts")
 
     // ⚠️ Erlaubnisliste (Hotfix v1.19.27): „Arbeit fortsetzen" fuehrte
@@ -1611,13 +1611,13 @@ do {
 
     // ⚠️ Gefiltert wird VOR dem Gruppieren: Sonst verspraeche das Menue eine
     // Zahl, die es nicht haelt.
-    let gemischt = [
-        datei("bericht.docx", 2026, 8, 3, 9),
-        datei("skript.py", 2026, 8, 3, 10),
-        datei("start.sh", 2026, 8, 3, 11),
-        datei("prozess.bpmn", 2026, 8, 3, 12)
+    let mixed = [
+        file("bericht.docx", 2026, 8, 3, 9),
+        file("skript.py", 2026, 8, 3, 10),
+        file("start.sh", 2026, 8, 3, 11),
+        file("prozess.bpmn", 2026, 8, 3, 12)
     ]
-    let gefiltert = WorkDays.group(gemischt, calendar: calendar)
+    let gefiltert = WorkDays.group(mixed, calendar: calendar)
     expectEqual(gefiltert.count, 1, "Erlaubnisliste: der Tag bleibt")
     expectEqual(gefiltert[0].count, 2, "Erlaubnisliste: die Zahl nennt nur, was wirklich geoeffnet wird")
     expect(gefiltert[0].files.map(\.lastPathComponent).contains("bericht.docx"),
@@ -1633,12 +1633,12 @@ do {
     // Zusicherung ueber ``WorkDays/isResumable`` allein saehe nicht, wenn
     // ``WorkDays/group(_:calendar:limit:)`` eines Tages an ihm vorbei filterte –
     // und genau dort entsteht, was der Menuepunkt anbietet.
-    let nurModelle = [datei("a.bpmn", 2026, 8, 3, 9), datei("b.graph", 2026, 8, 2, 9)]
+    let nurModelle = [file("a.bpmn", 2026, 8, 3, 9), file("b.graph", 2026, 8, 2, 9)]
     expectEqual(WorkDays.group(nurModelle, calendar: calendar).count, 2,
                 "Erlaubnisliste: ein reiner Modell-Ordner bietet jetzt zwei Tage an")
 
     // Reiner Quelltext-Ordner: kein Tag, damit spaeter kein Menuepunkt.
-    let nurCode = [datei("a.py", 2026, 8, 3, 9), datei("b.swift", 2026, 8, 2, 9)]
+    let nurCode = [file("a.py", 2026, 8, 3, 9), file("b.swift", 2026, 8, 2, 9)]
     expect(WorkDays.group(nurCode, calendar: calendar).isEmpty,
            "Erlaubnisliste: reiner Quelltext-Ordner bietet nichts an")
 }
@@ -1656,8 +1656,8 @@ do {
     // dem Anwender bei jedem Ordnerwechsel sein „alles zuklappen" weg.
     expect(ExpansionState.folders(in: map, for: doks) == nil,
            "Aufklappzustand: unbekannte Wurzel liefert nil")
-    let leer = ExpansionState.updating(map, folders: [], for: doks)
-    expectEqual(ExpansionState.folders(in: leer, for: doks) ?? ["x"], [],
+    let empty = ExpansionState.updating(map, folders: [], for: doks)
+    expectEqual(ExpansionState.folders(in: empty, for: doks) ?? ["x"], [],
                 "Aufklappzustand: bewusst leer bleibt leer, nicht unbekannt")
 
     // ⚠️ Der eigentliche Zweck: Zwei Wurzeln stehen sich nicht mehr im Weg.
@@ -1669,19 +1669,19 @@ do {
 
     // Aufraeumen: was nicht mehr bekannt ist, faellt weg – sonst waechst der
     // Eintrag mit jedem je geoeffneten Ordner.
-    let sauber = ExpansionState.pruned(map, keeping: [projekte])
-    expectEqual(Array(sauber.keys), [projekte], "Aufklappzustand: Unbekanntes wird entfernt")
+    let cleaned = ExpansionState.pruned(map, keeping: [projekte])
+    expectEqual(Array(cleaned.keys), [projekte], "Aufklappzustand: Unbekanntes wird entfernt")
 
     // Migration: der alte GLOBALE Wert gehoert dem aktuellen Ordner.
-    let alt = ["/r/Projekte/a", "/r/Projekte/b"]
-    let migriert = ExpansionState.migrated(legacy: alt, currentRoot: projekte, into: [:])
-    expectEqual(ExpansionState.folders(in: migriert, for: projekte) ?? [], alt,
+    let old = ["/r/Projekte/a", "/r/Projekte/b"]
+    let migriert = ExpansionState.migrated(legacy: old, currentRoot: projekte, into: [:])
+    expectEqual(ExpansionState.folders(in: migriert, for: projekte) ?? [], old,
                 "Migration: alter Wert landet beim aktuellen Ordner")
 
     // ⚠️ Und NUR dann. Sonst ueberschriebe die alte Fassung bei jedem Start
     // den frisch gepflegten Zustand.
-    let neu = ExpansionState.updating([:], folders: ["/r/Projekte/neu"], for: projekte)
-    expectEqual(ExpansionState.folders(in: ExpansionState.migrated(legacy: alt, currentRoot: projekte, into: neu), for: projekte) ?? [],
+    let new = ExpansionState.updating([:], folders: ["/r/Projekte/neu"], for: projekte)
+    expectEqual(ExpansionState.folders(in: ExpansionState.migrated(legacy: old, currentRoot: projekte, into: new), for: projekte) ?? [],
                 ["/r/Projekte/neu"],
                 "Migration: vorhandener Stand wird nicht ueberschrieben")
     expect(ExpansionState.migrated(legacy: [], currentRoot: projekte, into: [:]).isEmpty,
@@ -1690,24 +1690,24 @@ do {
 
 // MARK: - Update-Takt: wann ist eine stille Pruefung faellig (PR-34)
 do {
-    let jetzt = date(2026, 8, 3, 12)
-    func vorStunden(_ h: Double) -> Date { jetzt.addingTimeInterval(-h * 3600) }
+    let now = date(2026, 8, 3, 12)
+    func vorStunden(_ h: Double) -> Date { now.addingTimeInterval(-h * 3600) }
 
     // Noch nie geprueft -> sofort. Sonst erfuehre man 24 Stunden lang nichts.
-    expect(UpdateSchedule.isDue(lastCheck: nil, now: jetzt), "Takt: nie geprueft ist faellig")
+    expect(UpdateSchedule.isDue(lastCheck: nil, now: now), "Takt: nie geprueft ist faellig")
 
-    expect(!UpdateSchedule.isDue(lastCheck: vorStunden(1), now: jetzt), "Takt: nach 1 h nicht faellig")
-    expect(!UpdateSchedule.isDue(lastCheck: vorStunden(23.9), now: jetzt), "Takt: kurz davor nicht faellig")
-    expect(UpdateSchedule.isDue(lastCheck: vorStunden(24), now: jetzt), "Takt: genau 24 h ist faellig")
-    expect(UpdateSchedule.isDue(lastCheck: vorStunden(72), now: jetzt), "Takt: drei Tage sind faellig")
+    expect(!UpdateSchedule.isDue(lastCheck: vorStunden(1), now: now), "Takt: nach 1 h nicht faellig")
+    expect(!UpdateSchedule.isDue(lastCheck: vorStunden(23.9), now: now), "Takt: kurz davor nicht faellig")
+    expect(UpdateSchedule.isDue(lastCheck: vorStunden(24), now: now), "Takt: genau 24 h ist faellig")
+    expect(UpdateSchedule.isDue(lastCheck: vorStunden(72), now: now), "Takt: drei Tage sind faellig")
 
     // ⚠️ Zeitpunkt in der ZUKUNFT (Systemuhr zurueckgestellt, Rechner mit
     // falscher Zeit gestartet). Stur weitergerechnet waere die naechste
     // Pruefung erst faellig, wenn die Zukunft eingeholt ist – bei einem
     // Fehlgriff um ein Jahr also nie. Lieber einmal zu frueh als nie wieder.
-    expect(UpdateSchedule.isDue(lastCheck: jetzt.addingTimeInterval(3600), now: jetzt),
+    expect(UpdateSchedule.isDue(lastCheck: now.addingTimeInterval(3600), now: now),
            "Takt: Zeitpunkt in der Zukunft gilt als faellig")
-    expect(UpdateSchedule.isDue(lastCheck: date(2027, 1, 1), now: jetzt),
+    expect(UpdateSchedule.isDue(lastCheck: date(2027, 1, 1), now: now),
            "Takt: weit in der Zukunft gilt als faellig")
 
     // Der Takt selbst ist eine glatte Zahl und kein Zufallswert.
@@ -1757,8 +1757,8 @@ do {
     for exponent in 0...15 {
         let basis = Int(pow(10.0, Double(exponent)))
         for faktor in [1, 2, 3, 5, 7, 9] {
-            for versatz in [0, -1, 1, basis / 2, basis - 1] {
-                let wert = basis * faktor + versatz
+            for offset in [0, -1, 1, basis / 2, basis - 1] {
+                let wert = basis * faktor + offset
                 guard wert > 0 else { continue }
                 let ausgabe = SizeFormatting.short(wert)
                 expectEqual(ausgabe.count, SizeFormatting.maxLength,
@@ -1776,14 +1776,14 @@ do {
 
     // --- Sortierung ---
     let f = URL(fileURLWithPath: "/r/a")
-    func datei(_ n: String, _ groesse: Int?) -> RelevantFile {
+    func file(_ n: String, _ size: Int?) -> RelevantFile {
         RelevantFile(url: f.appendingPathComponent(n), folder: f,
-                     timestamp: date(2026, 8, 3), size: groesse)
+                     timestamp: date(2026, 8, 3), size: size)
     }
-    let dateien = [datei("klein.txt", 10), datei("gross.txt", 5_000),
-                   datei("mittel.txt", 900), datei("unbekannt.txt", nil)]
+    let files = [file("klein.txt", 10), file("gross.txt", 5_000),
+                   file("mittel.txt", 900), file("unbekannt.txt", nil)]
 
-    let absteigend = RowSorting.files(dateien, by: FolderSort(field: .size, ascending: false))
+    let absteigend = RowSorting.files(files, by: FolderSort(field: .size, ascending: false))
     expectEqual(absteigend.map { $0.url.lastPathComponent },
                 ["gross.txt", "mittel.txt", "klein.txt", "unbekannt.txt"],
                 "Groessensortierung: absteigend")
@@ -1791,7 +1791,7 @@ do {
     // ⚠️ Unbekannte Groesse bleibt am Ende – in BEIDE Richtungen, wie Dateien
     // ohne Endung bei der Typsortierung. Sie als 0 zu behandeln stellte sie zu
     // den echten leeren Dateien.
-    let aufsteigend = RowSorting.files(dateien, by: FolderSort(field: .size, ascending: true))
+    let aufsteigend = RowSorting.files(files, by: FolderSort(field: .size, ascending: true))
     expectEqual(aufsteigend.map { $0.url.lastPathComponent },
                 ["klein.txt", "mittel.txt", "gross.txt", "unbekannt.txt"],
                 "Groessensortierung: aufsteigend, Unbekanntes bleibt hinten")
@@ -1815,7 +1815,7 @@ do {
 
 // MARK: - Weitergeben: Zusammenfassung und Bericht (PR-16/PR-17)
 do {
-    func ordner(_ name: String, _ anzahl: Int, _ tag: Int) -> FolderEntry {
+    func folder(_ name: String, _ anzahl: Int, _ tag: Int) -> FolderEntry {
         FolderEntry(folder: URL(fileURLWithPath: "/r/\(name)"),
                     newestDate: date(2026, 8, tag), fileCount: anzahl)
     }
@@ -1828,52 +1828,52 @@ do {
 
     let zeitraum = "Sa., 01.08.2026 – Mo., 03.08.2026 · 3 Tage"
     let abschnitte = [
-        BucketedEntries(label: "Angeheftet", entries: [ordner("PM2025", 14, 3)], isPinned: true),
-        BucketedEntries(label: "Heute", entries: [ordner("Lerngruppe", 7, 3), ordner("doc", 5, 3)]),
-        BucketedEntries(label: "Gestern", entries: [ordner("Bilder", 3, 2), ordner("Notizen", 2, 2),
-                                                    ordner("Archiv", 1, 2)])
+        BucketedEntries(label: "Angeheftet", entries: [folder("PM2025", 14, 3)], isPinned: true),
+        BucketedEntries(label: "Heute", entries: [folder("Lerngruppe", 7, 3), folder("doc", 5, 3)]),
+        BucketedEntries(label: "Gestern", entries: [folder("Bilder", 3, 2), folder("Notizen", 2, 2),
+                                                    folder("Archiv", 1, 2)])
     ]
     let zusammenfassung = ReportExport.summary(abschnitte, range: zeitraum)
-    let zeilen = zusammenfassung.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-    expectEqual(zeilen.count, 2, "Zusammenfassung: zwei Zeilen, damit sie einzeilig eingefuegt werden kann")
+    let lines = zusammenfassung.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    expectEqual(lines.count, 2, "Zusammenfassung: zwei Zeilen, damit sie einzeilig eingefuegt werden kann")
 
     // ⚠️ Der Zeitraum wird UEBERGEBEN, nicht erfunden. Das Backlog-Beispiel
     // lautete „KW 32: …" – das waere in den meisten Faellen falsch, weil der
     // eingestellte Zeitraum selten eine Kalenderwoche ist. Diese Zeile landet
     // in einer Zeiterfassung.
-    expect(zeilen[0].hasPrefix(zeitraum), "Zusammenfassung: nennt den tatsaechlichen Zeitraum")
+    expect(lines[0].hasPrefix(zeitraum), "Zusammenfassung: nennt den tatsaechlichen Zeitraum")
     expect(!zusammenfassung.contains("KW"), "Zusammenfassung: behauptet keine Kalenderwoche")
 
     // Summen ueber ALLE Abschnitte – angeheftete Ordner werden aus den
     // Zeitabschnitten herausgezogen, kommen also genau einmal vor.
-    expect(zeilen[0].contains("6 Ordner"), "Zusammenfassung: Ordner ueber alle Abschnitte")
-    expect(zeilen[0].contains("32 Dateien"), "Zusammenfassung: Dateien ueber alle Abschnitte")
+    expect(lines[0].contains("6 Ordner"), "Zusammenfassung: Ordner ueber alle Abschnitte")
+    expect(lines[0].contains("32 Dateien"), "Zusammenfassung: Dateien ueber alle Abschnitte")
 
     // Nach ANZAHL sortiert, nicht nach Datum: Die Frage ist „woran habe ich
     // gearbeitet", nicht „was war zuletzt dran".
-    expect(zeilen[1].hasPrefix("PM2025 (14), Lerngruppe (7), doc (5)"),
+    expect(lines[1].hasPrefix("PM2025 (14), Lerngruppe (7), doc (5)"),
            "Zusammenfassung: nach Anzahl absteigend")
 
     // ⚠️ Gekuerzt wird, aber nicht verschwiegen. Eine Liste, die ihre Kuerzung
     // nicht zugibt, ist eine falsche Auskunft.
-    expect(zeilen[1].hasSuffix("… und 1 weitere"), "Zusammenfassung: Rest wird gezaehlt")
-    expect(!zeilen[1].contains("Archiv"), "Zusammenfassung: auf das Limit gekuerzt")
+    expect(lines[1].hasSuffix("… und 1 weitere"), "Zusammenfassung: Rest wird gezaehlt")
+    expect(!lines[1].contains("Archiv"), "Zusammenfassung: auf das Limit gekuerzt")
 
     // Ordnernamen, keine Pfade – ein Standup-Satz mit /Users/... ist unlesbar.
     expect(!zusammenfassung.contains("/r/"), "Zusammenfassung: Namen statt Pfade")
 
     // Randfall: nichts gefunden. Eine leere zweite Zeile waere ein Raetsel.
-    let leer = ReportExport.summary([], range: zeitraum)
-    expect(leer.contains("keine Treffer"), "Zusammenfassung: leeres Ergebnis sagt das auch")
-    expect(!leer.contains("\n"), "Zusammenfassung: leeres Ergebnis bleibt einzeilig")
+    let empty = ReportExport.summary([], range: zeitraum)
+    expect(empty.contains("keine Treffer"), "Zusammenfassung: leeres Ergebnis sagt das auch")
+    expect(!empty.contains("\n"), "Zusammenfassung: leeres Ergebnis bleibt einzeilig")
 
     // --- Diagramm im Bericht ---
-    let tage = [
+    let days = [
         DayExtensionCount(day: date(2026, 8, 1), counts: ["swift": 2]),
         DayExtensionCount(day: date(2026, 8, 2), counts: ["md": 8]),
         DayExtensionCount(day: date(2026, 8, 3), counts: ["swift": 4, "md": 1])
     ]
-    let svg = ReportExport.chartSVG(tage)
+    let svg = ReportExport.chartSVG(days)
     expectEqual(svg.components(separatedBy: "<rect").count - 1, 3, "Diagramm: ein Balken je Tag")
     expect(svg.contains("Höchstwert 8"), "Diagramm: nennt den Hoechstwert")
     expect(svg.contains("role=\"img\""), "Diagramm: fuer Vorleseprogramme gekennzeichnet")
@@ -1886,30 +1886,30 @@ do {
            "Diagramm: ohne Treffer nichts")
 
     // --- HTML-Bericht ---
-    let bericht = ReportExport.html(abschnitte, range: zeitraum,
-                                    roots: [URL(fileURLWithPath: "/r")], chartDays: tage,
+    let report = ReportExport.html(abschnitte, range: zeitraum,
+                                    roots: [URL(fileURLWithPath: "/r")], chartDays: days,
                                     generatedAt: date(2026, 8, 3))
-    expect(bericht.contains(zeitraum), "Bericht: Zeitraum steht im Kopf")
-    expect(bericht.contains("Ordner: /r"), "Bericht: Wurzelordner steht im Kopf")
+    expect(report.contains(zeitraum), "Bericht: Zeitraum steht im Kopf")
+    expect(report.contains("Ordner: /r"), "Bericht: Wurzelordner steht im Kopf")
 
     // ⚠️ Zwei Quellen muessen BEIDE im Kopf stehen - ein Bericht, der zwei
     // Ordner mischt und einen nennt, behauptet einen falschen Geltungsbereich.
     let zweiQuellen = ReportExport.html(abschnitte, range: zeitraum,
                                         roots: [URL(fileURLWithPath: "/r"), URL(fileURLWithPath: "/s")],
-                                        chartDays: tage, generatedAt: date(2026, 8, 3))
+                                        chartDays: days, generatedAt: date(2026, 8, 3))
     expect(zweiQuellen.contains("Quellen:"), "Bericht: Mehrzahl bei zwei Quellen")
     expect(zweiQuellen.contains("/r"), "Bericht: erste Quelle genannt")
     expect(zweiQuellen.contains("/s"), "Bericht: zweite Quelle genannt")
-    expect(!ReportExport.html(abschnitte, range: zeitraum, roots: [], chartDays: tage,
+    expect(!ReportExport.html(abschnitte, range: zeitraum, roots: [], chartDays: days,
                               generatedAt: date(2026, 8, 3)).contains("Quellen:"),
            "Bericht: ohne Quelle keine Zeile")
-    expect(bericht.contains("<svg"), "Bericht: Diagramm eingebettet")
-    expect(bericht.contains("<rect"), "Bericht: Diagramm hat Balken")
-    expect(bericht.contains("PM2025 (14)"), "Bericht: Zusammenfassung im Kopf")
+    expect(report.contains("<svg"), "Bericht: Diagramm eingebettet")
+    expect(report.contains("<rect"), "Bericht: Diagramm hat Balken")
+    expect(report.contains("PM2025 (14)"), "Bericht: Zusammenfassung im Kopf")
 
     // Der Bericht bleibt EINE Datei, die man verschicken kann.
-    expect(!bericht.contains("<img"), "Bericht: kein externes Bild")
-    expect(!bericht.contains("<script"), "Bericht: kein Skript")
+    expect(!report.contains("<img"), "Bericht: kein externes Bild")
+    expect(!report.contains("<script"), "Bericht: kein Skript")
 
     // Maskierung: ein Ordnername mit spitzer Klammer darf das Dokument nicht
     // zerlegen.
@@ -1948,11 +1948,11 @@ do {
 
     // Jede Vorgabe mit Tageszahl findet sich selbst wieder.
     for preset in TimePreset.rollingPresets {
-        guard let tage = preset.days else {
+        guard let days = preset.days else {
             expect(false, "Zeitraum: Vorgabe \(preset.rawValue) ohne Tageszahl")
             continue
         }
-        expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: false, days: tage), preset,
+        expectEqual(TimePreset.resolve(ignoreTimeWindow: false, useDateRange: false, days: days), preset,
                     "Zeitraum: \(preset.rawValue) findet sich selbst wieder")
     }
 
@@ -2011,88 +2011,88 @@ do {
 
 // MARK: - NameFilter: mehrere Begriffe und ODER (Sprint 16, PR-45)
 do {
-    func trifft(_ muster: String, _ name: String) -> Bool { NameFilter(muster).matches(name) }
+    func hits(_ pattern: String, _ name: String) -> Bool { NameFilter(pattern).matches(name) }
 
     // Unveraendert: ein Wort ist ein Teilstring.
-    expect(trifft("Studium", "Studium 2026.xlsx"), "ein Wort: Teilstring")
-    expect(!trifft("Studium", "Urlaub.txt"), "ein Wort: kein Treffer")
+    expect(hits("Studium", "Studium 2026.xlsx"), "ein Wort: Teilstring")
+    expect(!hits("Studium", "Urlaub.txt"), "ein Wort: kein Treffer")
     expectEqual(NameFilter("Studium").pattern, "*Studium*", "ein Wort: aufbereitetes Muster")
 
     // Leeres Muster filtert nicht.
     expect(NameFilter("").matchesEverything, "leer: filtert nicht")
     expect(NameFilter("   ").matchesEverything, "nur Leerzeichen: filtert nicht")
-    expect(trifft("", "irgendwas.txt"), "leer: passt auf alles")
+    expect(hits("", "irgendwas.txt"), "leer: passt auf alles")
 
     // Leerzeichen ist UND - Reihenfolge egal.
-    expect(trifft("Angebot Muster", "Angebot Muster.pdf"), "UND: beide, in der Reihenfolge")
-    expect(trifft("Angebot Muster", "Muster fuer Angebot.pdf"), "UND: beide, umgekehrt")
-    expect(!trifft("Angebot Muster", "Angebot.pdf"), "UND: einer genuegt nicht")
-    expect(!trifft("Angebot Muster", "Muster.pdf"), "UND: der andere auch nicht")
+    expect(hits("Angebot Muster", "Angebot Muster.pdf"), "UND: beide, in der Reihenfolge")
+    expect(hits("Angebot Muster", "Muster fuer Angebot.pdf"), "UND: beide, umgekehrt")
+    expect(!hits("Angebot Muster", "Angebot.pdf"), "UND: einer genuegt nicht")
+    expect(!hits("Angebot Muster", "Muster.pdf"), "UND: der andere auch nicht")
 
     // ⚠️ Die Obermengen-Zusage: Was frueher traf, trifft weiterhin.
     //
     // Frueher wurde `a b` zu `*a b*` - der woertliche Text samt Leerzeichen.
     // Jeder Name, der ihn enthaelt, enthaelt auch beide Woerter einzeln.
-    let bestand = [
+    let inventory = [
         "Angebot Muster.pdf", "Muster fuer Angebot.pdf", "angebot muster 2026.docx",
         "Angebot.pdf", "Muster.pdf", "Urlaub.txt", "AngebotMuster.pdf",
     ]
-    for name in bestand where GlobMatcher.matches(name, pattern: "*Angebot Muster*", caseSensitive: false) {
-        expect(trifft("Angebot Muster", name), "Obermenge: \(name) bleibt Treffer")
+    for name in inventory where GlobMatcher.matches(name, pattern: "*Angebot Muster*", caseSensitive: false) {
+        expect(hits("Angebot Muster", name), "Obermenge: \(name) bleibt Treffer")
     }
     // Und sie ist echt: mindestens einer kommt hinzu.
     expect(!GlobMatcher.matches("Muster fuer Angebot.pdf", pattern: "*Angebot Muster*", caseSensitive: false)
-           && trifft("Angebot Muster", "Muster fuer Angebot.pdf"),
+           && hits("Angebot Muster", "Muster fuer Angebot.pdf"),
            "Obermenge: echt gewachsen")
 
     // ODER trennt Alternativen, deutsch wie englisch.
-    expect(trifft("Angebot ODER Rechnung", "Rechnung 12.pdf"), "ODER: zweite Alternative")
-    expect(trifft("Angebot OR Rechnung", "Angebot.pdf"), "OR: englisch geht auch")
-    expect(!trifft("Angebot ODER Rechnung", "Urlaub.txt"), "ODER: keine passt")
+    expect(hits("Angebot ODER Rechnung", "Rechnung 12.pdf"), "ODER: zweite Alternative")
+    expect(hits("Angebot OR Rechnung", "Angebot.pdf"), "OR: englisch geht auch")
+    expect(!hits("Angebot ODER Rechnung", "Urlaub.txt"), "ODER: keine passt")
 
     // UND bindet enger als ODER: `a b ODER c` = (a UND b) ODER c.
-    expect(trifft("Angebot Muster ODER Rechnung", "Rechnung.pdf"), "Vorrang: c allein reicht")
-    expect(trifft("Angebot Muster ODER Rechnung", "Muster Angebot.pdf"), "Vorrang: a UND b reicht")
-    expect(!trifft("Angebot Muster ODER Rechnung", "Angebot.pdf"), "Vorrang: a allein reicht nicht")
+    expect(hits("Angebot Muster ODER Rechnung", "Rechnung.pdf"), "Vorrang: c allein reicht")
+    expect(hits("Angebot Muster ODER Rechnung", "Muster Angebot.pdf"), "Vorrang: a UND b reicht")
+    expect(!hits("Angebot Muster ODER Rechnung", "Angebot.pdf"), "Vorrang: a allein reicht nicht")
 
     // ⚠️ Nur freistehend und nur gross - sonst waere ein Dateiname ein Operator.
-    expect(trifft("oder", "Entweder oder.txt"), "klein geschriebenes oder ist Text")
-    expect(!trifft("ODER", "Entweder oder.txt") == false, "ODER allein bleibt ein Begriff")
-    expect(trifft("Ordner", "Ordnerliste.txt"), "ORdner wird nicht getrennt")
-    expect(trifft("ODERBRUCH", "Bericht ODERBRUCH.pdf"), "ODERBRUCH ist ein Wort")
+    expect(hits("oder", "Entweder oder.txt"), "klein geschriebenes oder ist Text")
+    expect(!hits("ODER", "Entweder oder.txt") == false, "ODER allein bleibt ein Begriff")
+    expect(hits("Ordner", "Ordnerliste.txt"), "ORdner wird nicht getrennt")
+    expect(hits("ODERBRUCH", "Bericht ODERBRUCH.pdf"), "ODERBRUCH ist ein Wort")
 
     // Haengendes ODER liefert ein Ergebnis, keinen Fehler.
-    expect(trifft("Angebot ODER", "Angebot.pdf"), "haengendes ODER: der Rest gilt")
-    expect(trifft("ODER Angebot", "Angebot.pdf"), "fuehrendes ODER: der Rest gilt")
+    expect(hits("Angebot ODER", "Angebot.pdf"), "haengendes ODER: der Rest gilt")
+    expect(hits("ODER Angebot", "Angebot.pdf"), "fuehrendes ODER: der Rest gilt")
     // ⚠️ Nur Trennwoerter = kein Ausdruck: Wer "ODER" allein sucht, meint die Oder.
     expect(!NameFilter("ODER").matchesEverything, "ODER allein ist ein Begriff, kein Leerfilter")
-    expect(trifft("ODER", "Bericht Oder 2026.pdf"), "ODER allein sucht das Wort")
-    expect(!trifft("ODER", "Angebot.pdf"), "ODER allein filtert wirklich")
+    expect(hits("ODER", "Bericht Oder 2026.pdf"), "ODER allein sucht das Wort")
+    expect(!hits("ODER", "Angebot.pdf"), "ODER allein filtert wirklich")
     expect(!NameFilter("ODER OR").matchesEverything, "nur Trennwoerter: trotzdem ein Begriff")
 
     // ⚠️ Mit Platzhalter wird NICHT zerlegt - sonst gingen Treffer verloren.
-    expect(trifft("*Studium*.xls*", "Studium 2026.xlsx"), "Glob: unveraendert")
-    expect(trifft("datei?.txt", "datei1.txt"), "Glob: Fragezeichen")
-    expect(!trifft("datei?.txt", "datei12.txt"), "Glob: genau ein Zeichen")
-    expect(trifft("*Angebot Muster*.pdf", "Mein Angebot Muster 2024.pdf"),
+    expect(hits("*Studium*.xls*", "Studium 2026.xlsx"), "Glob: unveraendert")
+    expect(hits("datei?.txt", "datei1.txt"), "Glob: Fragezeichen")
+    expect(!hits("datei?.txt", "datei12.txt"), "Glob: genau ein Zeichen")
+    expect(hits("*Angebot Muster*.pdf", "Mein Angebot Muster 2024.pdf"),
            "Glob mit Leerzeichen: bleibt woertlich")
-    expect(!trifft("*Angebot Muster*.pdf", "Muster fuer Angebot.pdf"),
+    expect(!hits("*Angebot Muster*.pdf", "Muster fuer Angebot.pdf"),
            "Glob mit Leerzeichen: wird NICHT zu UND")
 
     // Glob und ODER lassen sich verbinden.
-    expect(trifft("*.pdf ODER *.md", "handbuch.md"), "Glob je Alternative")
-    expect(trifft("*.pdf ODER *.md", "vertrag.pdf"), "Glob je Alternative, zweite")
-    expect(!trifft("*.pdf ODER *.md", "tabelle.xlsx"), "Glob je Alternative, keine")
+    expect(hits("*.pdf ODER *.md", "handbuch.md"), "Glob je Alternative")
+    expect(hits("*.pdf ODER *.md", "vertrag.pdf"), "Glob je Alternative, zweite")
+    expect(!hits("*.pdf ODER *.md", "tabelle.xlsx"), "Glob je Alternative, keine")
 
     // Gross-/Kleinschreibung egal, in allen Zweigen.
-    expect(trifft("bericht", "BERICHT.PDF"), "UND-Zweig: Schreibung egal")
-    expect(trifft("*BERICHT*", "jahresbericht.pdf"), "Glob-Zweig: Schreibung egal")
+    expect(hits("bericht", "BERICHT.PDF"), "UND-Zweig: Schreibung egal")
+    expect(hits("*BERICHT*", "jahresbericht.pdf"), "Glob-Zweig: Schreibung egal")
 }
 
 // MARK: - WorkFileFilter (Sprint 16, PR-44)
 do {
-    func datei(_ name: String) -> URL { URL(fileURLWithPath: "/w/\(name)") }
-    func arbeit(_ name: String) -> Bool { WorkFileFilter.isWorkFile(datei(name)) }
+    func file(_ name: String) -> URL { URL(fileURLWithPath: "/w/\(name)") }
+    func arbeit(_ name: String) -> Bool { WorkFileFilter.isWorkFile(file(name)) }
 
     // Die Wunschliste "anzeigen" - vollstaendig.
     for name in ["Angebot.docx", "Notizen.md", "Liste.txt", "Zahlen.xlsx", "Tabelle.csv",
@@ -2132,14 +2132,14 @@ do {
     // Faellt 1, hat jemand die Kategorientabelle angefasst und damit ungewollt
     // entschieden, was ein Klick startet. Faellt 2, laesst sich eine Datei
     // oeffnen, die man nie zu Gesicht bekommt.
-    expect(WorkFileFilter.isWorkFile(datei("Prozess.bpmn")), "bpmn: sichtbar")
-    expect(WorkDays.isResumable(datei("Prozess.bpmn")), "bpmn: fortsetzbar (v1.19.41)")
-    expect(WorkFileFilter.isWorkFile(datei("Modell.graph")), "graph: sichtbar")
-    expect(WorkDays.isResumable(datei("Modell.GRAPH")), "graph: fortsetzbar, Schreibweise egal")
+    expect(WorkFileFilter.isWorkFile(file("Prozess.bpmn")), "bpmn: sichtbar")
+    expect(WorkDays.isResumable(file("Prozess.bpmn")), "bpmn: fortsetzbar (v1.19.41)")
+    expect(WorkFileFilter.isWorkFile(file("Modell.graph")), "graph: sichtbar")
+    expect(WorkDays.isResumable(file("Modell.GRAPH")), "graph: fortsetzbar, Schreibweise egal")
 
-    expectEqual(FileCategory.category(for: datei("Prozess.bpmn")), .other,
+    expectEqual(FileCategory.category(for: file("Prozess.bpmn")), .other,
                 "Regel 1: bpmn liegt weiterhin in Sonstige")
-    expectEqual(FileCategory.category(for: datei("Modell.graph")), .other,
+    expectEqual(FileCategory.category(for: file("Modell.graph")), .other,
                 "Regel 1: graph liegt weiterhin in Sonstige")
 
     expect(WorkFileFilter.categories.isSuperset(of: WorkDays.resumableCategories),
@@ -2154,25 +2154,25 @@ do {
                  "Notiz.md", "Prozess.bpmn", "Modell.graph", "Skript.py",
                  "Start.sh", "Archiv.zip", "Bild.png", "Formular.form",
                  "LICENSE", "Programm.app"] {
-        if WorkDays.isResumable(datei(name)) {
-            expect(WorkFileFilter.isWorkFile(datei(name)),
+        if WorkDays.isResumable(file(name)) {
+            expect(WorkFileFilter.isWorkFile(file(name)),
                    "Regel 2c: fortsetzbar heisst sichtbar (\(name))")
         }
     }
 
     // Was nicht durchkommen darf - die Erlaubnisliste bleibt eine.
-    expect(!WorkDays.isResumable(datei("Skript.py")), "py: nicht fortsetzbar")
-    expect(!WorkDays.isResumable(datei("Start.sh")), "sh: nicht fortsetzbar")
-    expect(!WorkDays.isResumable(datei("Werkzeug.jar")), "jar: nicht fortsetzbar")
-    expect(!WorkDays.isResumable(datei("Programm.app")), "app: nicht fortsetzbar")
-    expect(!WorkDays.isResumable(datei("LICENSE")), "ohne Endung: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(file("Skript.py")), "py: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(file("Start.sh")), "sh: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(file("Werkzeug.jar")), "jar: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(file("Programm.app")), "app: nicht fortsetzbar")
+    expect(!WorkDays.isResumable(file("LICENSE")), "ohne Endung: nicht fortsetzbar")
 
     // ⚠️ `.form` ist bewusst in KEINER der beiden Listen. Camunda Modeller
     // bedient sie, und der Anwender hat welche - sie jetzt aufzunehmen hiesse
     // fuer ihn zu entscheiden. Sie ist der erste Kandidat fuer die Tabelle aus
     // Sprint 17/AP2 und damit deren Nachweis, dass sie gebraucht wird.
-    expect(!WorkFileFilter.isWorkFile(datei("Formular.form")), "form: noch nicht sichtbar")
-    expect(!WorkDays.isResumable(datei("Formular.form")), "form: noch nicht fortsetzbar")
+    expect(!WorkFileFilter.isWorkFile(file("Formular.form")), "form: noch nicht sichtbar")
+    expect(!WorkDays.isResumable(file("Formular.form")), "form: noch nicht fortsetzbar")
 }
 
 
@@ -2233,7 +2233,7 @@ do {
     }
 
     // Ein Bestand, der alle Ebenen beruehrt: Typen, Namen, Zeitfenster.
-    let bestand = [
+    let inventory = [
         f("Angebot.docx"), f("Muster.pdf"), f("Zahlen.xlsx"), f("Notiz.md"),
         f("Skript.py"), f("Start.sh"), f("Prozess.bpmn"), f("LICENSE"),
         f("Alt.docx", 2026, 1, 5), f("Alt.py", 2026, 1, 5)
@@ -2247,9 +2247,9 @@ do {
     // `visibleFiles(in:)` belogen. Genau das ist zweimal passiert (PR-46):
     // v1.10.0 mit dem Namensfilter, v1.19.36 mit dem Office-Schalter. Beide
     // Male unbemerkt, weil ein falsches Ergebnis richtig aussieht.
-    let leer = FileVisibility()
-    expect(leer.filtersNothing, "filtersNothing: der leere Filter filtert nichts")
-    expect(bestand.allSatisfy { leer.isVisible($0) },
+    let empty = FileVisibility()
+    expect(empty.filtersNothing, "filtersNothing: der leere Filter filtert nichts")
+    expect(inventory.allSatisfy { empty.isVisible($0) },
            "Aequivalenz: filtersNothing heisst, dass nichts herausfaellt")
 
     // Jeder einzelne Filter muss die Vorbedingung umlegen - und tatsaechlich
@@ -2264,7 +2264,7 @@ do {
     ]
     for (name, v) in varianten {
         expect(!v.filtersNothing, "Aequivalenz: \(name) meldet sich als Filter")
-        expect(bestand.contains { !v.isVisible($0) },
+        expect(inventory.contains { !v.isVisible($0) },
                "Aequivalenz: \(name) nimmt auch wirklich etwas weg")
     }
 
@@ -2346,11 +2346,11 @@ do {
     func u(_ n: String) -> URL { URL(fileURLWithPath: "/t/\(n)") }
 
     // ── Ergaenzen wirkt, und zwar auf beiden Ebenen getrennt. ──
-    let leer = FileTypeRules.leer
-    expect(!leer.allowsVisible(u("Formular.form")), "Vorgabe: form ist keine Arbeitsdatei")
-    expect(!leer.allowsResume(u("Formular.form")), "Vorgabe: form ist nicht fortsetzbar")
-    expect(leer.allowsVisible(u("Prozess.bpmn")), "Vorgabe: bpmn ist eingebaut sichtbar")
-    expect(leer.allowsResume(u("Prozess.bpmn")), "Vorgabe: bpmn ist eingebaut fortsetzbar")
+    let empty = FileTypeRules.empty
+    expect(!empty.allowsVisible(u("Formular.form")), "Vorgabe: form ist keine Arbeitsdatei")
+    expect(!empty.allowsResume(u("Formular.form")), "Vorgabe: form ist nicht fortsetzbar")
+    expect(empty.allowsVisible(u("Prozess.bpmn")), "Vorgabe: bpmn ist eingebaut sichtbar")
+    expect(empty.allowsResume(u("Prozess.bpmn")), "Vorgabe: bpmn ist eingebaut fortsetzbar")
 
     let nurSichtbar = FileTypeRules(extraVisible: ["form"])
     expect(nurSichtbar.allowsVisible(u("Formular.form")), "Ergaenzt: form wird sichtbar")
@@ -2395,9 +2395,9 @@ do {
                                    ("public.unix-executable", "Programm"),
                                    ("com.apple.application", "Programm"),
                                    ("public.disk-image", "Abbild")] {
-        let grund = FileTypeRules.resumeRejection(conformingTo: [bezeichner])
-        expect(grund != nil, "Schranke: \(bezeichner) wird abgelehnt")
-        expect(grund?.contains(wortteil) == true,
+        let reason = FileTypeRules.resumeRejection(conformingTo: [bezeichner])
+        expect(reason != nil, "Schranke: \(bezeichner) wird abgelehnt")
+        expect(reason?.contains(wortteil) == true,
                "Schranke: der Grund nennt die Art (\(bezeichner) -> \(wortteil))")
         expect(!FileTypeRules.mayBeResumed(conformingTo: [bezeichner]),
                "Schranke: mayBeResumed verneint (\(bezeichner))")
@@ -2407,8 +2407,8 @@ do {
     // niemandem, warum es abgelehnt wird - "wuerde an einen Interpreter gehen"
     // schon. Dieselbe Regel wie bei `BulkAction.explanation`.
     for bezeichner in FileTypeRules.forbiddenTypeIdentifiers {
-        let grund = FileTypeRules.resumeRejection(conformingTo: [bezeichner]) ?? ""
-        expect(grund.contains("würde") || grund.contains("wuerde"),
+        let reason = FileTypeRules.resumeRejection(conformingTo: [bezeichner]) ?? ""
+        expect(reason.contains("würde") || reason.contains("wuerde"),
                "Schranke: der Grund nennt die Folge (\(bezeichner))")
     }
 
@@ -2460,7 +2460,7 @@ do {
     // dynamischen Bezeichner und conform zu nichts. Aus "nicht verboten" folgt
     // also kein "erlaubt" - sonst waere jede unbekannte Endung offen.
     expect(FileTypeRules.mayBeResumed(conformingTo: []), "Netz: unbekannter Typ ist nicht verboten")
-    expect(!FileTypeRules.leer.allowsResume(u("Unbekannt.xyz")),
+    expect(!FileTypeRules.empty.allowsResume(u("Unbekannt.xyz")),
            "Netz: aber trotzdem nicht erlaubt - die Erlaubnisliste entscheidet zuerst")
 
     // ── Wirkung im Sichtbarkeitstyp: eine Ergaenzung wirkt ueberall. ──
@@ -2474,12 +2474,12 @@ do {
 
 // MARK: - Rueckfrage nennt ausgefuehrte Objekte (Sprint 17, AP2)
 do {
-    let ohne = BulkAction.explanation(kind: .open, count: 50)
-    expect(ohne.contains("50"), "Rueckfrage: die Zahl steht darin")
-    expect(!ohne.contains("ausgeführt"), "Rueckfrage: ohne Skripte kein zweiter Satz")
+    let without = BulkAction.explanation(kind: .open, count: 50)
+    expect(without.contains("50"), "Rueckfrage: die Zahl steht darin")
+    expect(!without.contains("ausgeführt"), "Rueckfrage: ohne Skripte kein zweiter Satz")
 
     let mit = BulkAction.explanation(kind: .open, count: 50, executables: 12)
-    expect(mit.hasPrefix(ohne), "Rueckfrage: der bisherige Satz bleibt unveraendert vorn")
+    expect(mit.hasPrefix(without), "Rueckfrage: der bisherige Satz bleibt unveraendert vorn")
     expect(mit.contains("12 Dateien"), "Rueckfrage: nennt die Zahl der ausgefuehrten")
     expect(mit.contains("ausgeführt"), "Rueckfrage: und benennt die Folge")
 
@@ -2675,16 +2675,16 @@ do {
 
     // ⚠️ Genau EIN Zustand warnt. Waere es mehr als einer, warnte die Zeile
     // wieder haeufiger als noetig - und das war der Befund.
-    let alle: [ScanFreshness] = [.never, .watched, .idle, .stale]
-    expectEqual(alle.filter(\.isWarning).count, 1, "Stand: genau ein warnender Zustand")
+    let all: [ScanFreshness] = [.never, .watched, .idle, .stale]
+    expectEqual(all.filter(\.isWarning).count, 1, "Stand: genau ein warnender Zustand")
 
     // ⚠️ Der Weg zurueck haengt am selben Zustand wie die Warnung. Eine
     // Meldung, die das Problem nennt und die Reparatur verschweigt, ist der
     // Defekt aus UX-57 und PR-58 - bis v1.19.69 stand der Ausweg nur im
     // Tooltip, und ein Tooltip existiert fuer Vorleseprogramme nicht.
-    for zustand in alle {
-        expectEqual(zustand.offersRescan, zustand.isWarning,
-                    "Stand: wer warnt, bietet den Weg zurueck (\(zustand))")
+    for state in all {
+        expectEqual(state.offersRescan, state.isWarning,
+                    "Stand: wer warnt, bietet den Weg zurueck (\(state))")
     }
 
     // ⚠️ Die Aussage steht im WORT, nicht nur in der Farbe (UX-34). Beide
@@ -2710,9 +2710,9 @@ do {
 
     // ⚠️ Vorzeichen: positiv bedeutet MEHR Tage - die Richtung jedes
     // Schrittfeldes. Wer das dreht, dreht es an genau dieser Zusicherung.
-    var richtung = DayScrub(days: 10)
-    richtung.advance(.notches(5))
-    expect(richtung.days > 10, "Rad: positiv heisst mehr Tage")
+    var direction = DayScrub(days: 10)
+    direction.advance(.notches(5))
+    expect(direction.days > 10, "Rad: positiv heisst mehr Tage")
 
     // ── Der Rest wird aufgehoben, nicht verworfen. ──
     //
@@ -2721,41 +2721,41 @@ do {
     // je Ereignis, und bei 10 Punkten je Tag stand die Anzeige mehrere
     // Ereignisse lang still - gemeldet als „Verzoegerung der Anzeige". Der
     // Fehler sass nicht im Zeichnen, sondern in der Umrechnung davor.
-    var fein = DayScrub(days: 30)
-    expect(fein.advance(.points(1)), "Rad: ein einzelner Punkt bewegt die Zahl")
-    expectEqual(fein.days, 31, "Rad: und zwar um genau einen Tag")
-    expect(fein.advance(.points(-1)), "Rad: auch in die Gegenrichtung")
-    expectEqual(fein.days, 30, "Rad: wieder zurueck")
+    var fine = DayScrub(days: 30)
+    expect(fine.advance(.points(1)), "Rad: ein einzelner Punkt bewegt die Zahl")
+    expectEqual(fine.days, 31, "Rad: und zwar um genau einen Tag")
+    expect(fine.advance(.points(-1)), "Rad: auch in die Gegenrichtung")
+    expectEqual(fine.days, 30, "Rad: wieder zurueck")
 
     // ⚠️ Der Mindestschritt darf nicht DOPPELT zaehlen: Der Rest wird dabei
     // zurueckgesetzt, sonst schluege dieselbe Bewegung spaeter noch einmal zu.
-    var doppelt = DayScrub(days: 100)
-    for _ in 0..<9 { doppelt.advance(.points(1)) }   // 9 Ereignisse = 9 Tage
-    expectEqual(doppelt.days, 109, "Rad: neun kleine Ereignisse sind neun Tage")
+    var twice = DayScrub(days: 100)
+    for _ in 0..<9 { twice.advance(.points(1)) }   // 9 Ereignisse = 9 Tage
+    expectEqual(twice.days, 109, "Rad: neun kleine Ereignisse sind neun Tage")
 
     // Eine SCHNELLE Bewegung legt mehr als einen Tag je Ereignis zurueck -
     // dafuer ist der Rest noch zustaendig.
-    var schnell = DayScrub(days: 100)
-    schnell.advance(.points(35))                     // 3,5 Tage
-    expectEqual(schnell.days, 103, "Rad: eine schnelle Bewegung zaehlt mehrfach")
-    schnell.advance(.points(5))                      // 0,5 + 0,5 Rest = 1,0
-    expectEqual(schnell.days, 104, "Rad: und der Rest geht dabei nicht verloren")
+    var fast = DayScrub(days: 100)
+    fast.advance(.points(35))                     // 3,5 Tage
+    expectEqual(fast.days, 103, "Rad: eine schnelle Bewegung zaehlt mehrfach")
+    fast.advance(.points(5))                      // 0,5 + 0,5 Rest = 1,0
+    expectEqual(fast.days, 104, "Rad: und der Rest geht dabei nicht verloren")
 
     // Ein Ereignis ohne Bewegung bleibt folgenlos.
-    var still = DayScrub(days: 30)
-    expect(!still.advance(.points(0)), "Rad: null Punkte bewegen nichts")
-    expect(!still.advance(.notches(0)), "Rad: null Rasten auch nicht")
-    expectEqual(still.days, 30, "Rad: und die Zahl steht")
+    var idle = DayScrub(days: 30)
+    expect(!idle.advance(.points(0)), "Rad: null Punkte bewegen nichts")
+    expect(!idle.advance(.notches(0)), "Rad: null Rasten auch nicht")
+    expectEqual(idle.days, 30, "Rad: und die Zahl steht")
 
     expectEqual(DayScrub.pointsPerDay, 10, "Rad: die Umrechnung des Trackpads")
 
     // ⚠️ Richtungswechsel: Der aufgehobene Rest darf nicht in die neue Richtung
     // durchschlagen. Deshalb wird zur Null hin abgeschnitten, nicht abgerundet.
-    var wechsel = DayScrub(days: 30)
-    wechsel.advance(.points(35))                     // +3 Tage, Rest 0,5
-    expectEqual(wechsel.days, 33, "Rad: drei Tage vorwaerts")
-    wechsel.advance(.points(-35))                    // -3,5 + 0,5 = -3,0
-    expectEqual(wechsel.days, 30, "Rad: Richtungswechsel springt nicht")
+    var flip = DayScrub(days: 30)
+    flip.advance(.points(35))                     // +3 Tage, Rest 0,5
+    expectEqual(flip.days, 33, "Rad: drei Tage vorwaerts")
+    flip.advance(.points(-35))                    // -3,5 + 0,5 = -3,0
+    expectEqual(flip.days, 30, "Rad: Richtungswechsel springt nicht")
 
     // ── Die Grenzen. ──
     expectEqual(DayScrub.dayRange.lowerBound, 1, "Rad: weniger als ein Tag gibt es nicht")
@@ -2763,32 +2763,32 @@ do {
     expectEqual(DayScrub.clamp(0), 1, "Rad: 0 wird auf 1 gehoben")
     expectEqual(DayScrub.clamp(99_999), 3650, "Rad: und alles darueber auf den Anschlag")
 
-    var unten = DayScrub(days: 1)
-    unten.apply(steps: -50)
-    expectEqual(unten.days, 1, "Rad: unten ist ein Festpunkt, kein Umlauf")
-    expect(!unten.isAllTime, "Rad: und schlaegt nicht nach „Alle\u{201C} um")
+    var down = DayScrub(days: 1)
+    down.apply(steps: -50)
+    expectEqual(down.days, 1, "Rad: unten ist ein Festpunkt, kein Umlauf")
+    expect(!down.isAllTime, "Rad: und schlaegt nicht nach „Alle\u{201C} um")
 
     // ── „Alle" liegt genau eine Raste hinter dem Anschlag. ──
     //
     // ⚠️ Der Anschlag wird NICHT uebersprungen: Wer von 3000 aus weit dreht,
     // landet auf 3650 und braucht eine weitere Raste fuer „Alle". Sonst
     // uebersaehe man den groessten Zeitraum, den es als Zahl gibt.
-    var hoch = DayScrub(days: 3000)
-    hoch.apply(steps: 5000)
-    expectEqual(hoch.days, 3650, "Rad: der Anschlag wird nicht uebersprungen")
-    expect(!hoch.isAllTime, "Rad: und ist noch nicht „Alle\u{201C}")
-    hoch.apply(steps: 1)
-    expect(hoch.isAllTime, "Rad: eine Raste weiter ist „Alle\u{201C}")
-    hoch.apply(steps: 99)
-    expect(hoch.isAllTime, "Rad: weiter geht es dort nicht")
+    var up = DayScrub(days: 3000)
+    up.apply(steps: 5000)
+    expectEqual(up.days, 3650, "Rad: der Anschlag wird nicht uebersprungen")
+    expect(!up.isAllTime, "Rad: und ist noch nicht „Alle\u{201C}")
+    up.apply(steps: 1)
+    expect(up.isAllTime, "Rad: eine Raste weiter ist „Alle\u{201C}")
+    up.apply(steps: 99)
+    expect(up.isAllTime, "Rad: weiter geht es dort nicht")
 
     // ⚠️ Der Rueckweg fuehrt auf den Anschlag, nicht daran vorbei.
-    var zurueck = DayScrub(days: 3650, isAllTime: true)
-    zurueck.apply(steps: -1)
-    expect(!zurueck.isAllTime, "Rad: eine Raste zurueck verlaesst „Alle\u{201C}")
-    expectEqual(zurueck.days, 3650, "Rad: und landet auf dem Anschlag, nicht darunter")
-    zurueck.apply(steps: -1)
-    expectEqual(zurueck.days, 3649, "Rad: erst die naechste geht weiter hinunter")
+    var back = DayScrub(days: 3650, isAllTime: true)
+    back.apply(steps: -1)
+    expect(!back.isAllTime, "Rad: eine Raste zurueck verlaesst „Alle\u{201C}")
+    expectEqual(back.days, 3650, "Rad: und landet auf dem Anschlag, nicht darunter")
+    back.apply(steps: -1)
+    expectEqual(back.days, 3649, "Rad: erst die naechste geht weiter hinunter")
 
     // ── Die Beschriftung ist dieselbe wie in der Ueberschrift. ──
     //
@@ -2893,57 +2893,57 @@ do {
 
 // MARK: - MovePlan: der Plan, bevor die Platte angefasst wird (v1.19.77)
 do {
-    let ziel = URL(fileURLWithPath: "/Users/x/Ziel", isDirectory: true)
+    let target = URL(fileURLWithPath: "/Users/x/Ziel", isDirectory: true)
     let a = URL(fileURLWithPath: "/Users/x/Quelle/Bericht.docx")
     let b = URL(fileURLWithPath: "/Users/x/Andere/Bericht.docx")
     let c = URL(fileURLWithPath: "/Users/x/Quelle/Notiz.md")
 
     // ── Konflikte erkennen. ──
-    expectEqual(MovePlan.conflicts(sources: [a, c], into: ziel, existing: ["Bericht.docx"]),
+    expectEqual(MovePlan.conflicts(sources: [a, c], into: target, existing: ["Bericht.docx"]),
                 [a], "Plan: nur der kollidierende Name wird gemeldet")
-    expect(MovePlan.conflicts(sources: [c], into: ziel, existing: []).isEmpty,
+    expect(MovePlan.conflicts(sources: [c], into: target, existing: []).isEmpty,
            "Plan: leeres Ziel hat keine Konflikte")
 
     // ⚠️ Eine Datei, die BEREITS im Zielordner liegt, ist kein Konflikt - sie
     // ist gar kein Vorgang. Sonst schoebe „Ersetzen" sie in den Papierkorb UND
     // an ihren eigenen Platz.
-    let drin = ziel.appendingPathComponent("Bericht.docx")
-    expect(MovePlan.conflicts(sources: [drin], into: ziel, existing: ["Bericht.docx"]).isEmpty,
+    let inside = target.appendingPathComponent("Bericht.docx")
+    expect(MovePlan.conflicts(sources: [inside], into: target, existing: ["Bericht.docx"]).isEmpty,
            "Plan: was schon am Ziel liegt, kollidiert nicht mit sich selbst")
-    expect(MovePlan.steps(sources: [drin], into: ziel, existing: ["Bericht.docx"]) { _ in .replace }.isEmpty,
+    expect(MovePlan.steps(sources: [inside], into: target, existing: ["Bericht.docx"]) { _ in .replace }.isEmpty,
            "Plan: und wird gar nicht erst zum Schritt")
 
     // ── Die drei Aufloesungen. ──
-    let ersetzen = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in .replace }
+    let ersetzen = MovePlan.steps(sources: [a], into: target, existing: ["Bericht.docx"]) { _ in .replace }
     expectEqual(ersetzen.count, 1, "Plan: ein Schritt")
     expectEqual(ersetzen[0].destination.lastPathComponent, "Bericht.docx", "Plan: Ersetzen behaelt den Namen")
     expectEqual(ersetzen[0].resolution, .replace, "Plan: und merkt sich die Aufloesung")
 
-    let daneben = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in .keepBoth }
+    let daneben = MovePlan.steps(sources: [a], into: target, existing: ["Bericht.docx"]) { _ in .keepBoth }
     expectEqual(daneben[0].destination.lastPathComponent, "Bericht 2.docx", "Plan: Daneben zaehlt hoch")
 
-    let uebersprungen = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in .skip }
+    let uebersprungen = MovePlan.steps(sources: [a], into: target, existing: ["Bericht.docx"]) { _ in .skip }
     expectEqual(uebersprungen.count, 1, "Plan: Ueberspringen bleibt im Plan …")
     expect(MovePlan.executable(uebersprungen).isEmpty, "Plan: … wird aber nicht ausgefuehrt")
 
     // ⚠️ Der Vorrat der belegten Namen WAECHST mit. Zwei gleichnamige Dateien
     // aus zwei Ordnern duerfen nicht denselben freien Namen bekommen - sonst
     // ueberschriebe der Vorgang sich selbst.
-    let zwei = MovePlan.steps(sources: [a, b], into: ziel, existing: []) { _ in .keepBoth }
+    let zwei = MovePlan.steps(sources: [a, b], into: target, existing: []) { _ in .keepBoth }
     expectEqual(zwei.count, 2, "Plan: beide Dateien")
     expect(zwei[0].destination != zwei[1].destination, "Plan: und zwei VERSCHIEDENE Ziele")
     expectEqual(zwei[0].destination.lastPathComponent, "Bericht.docx", "Plan: die erste bekommt den Namen")
     expectEqual(zwei[1].destination.lastPathComponent, "Bericht 2.docx", "Plan: die zweite zaehlt hoch")
 
     // Ohne Antwort gilt „daneben ablegen" - die verlustfreie Vorgabe.
-    let ohne = MovePlan.steps(sources: [a], into: ziel, existing: ["Bericht.docx"]) { _ in nil }
-    expectEqual(ohne[0].resolution, .keepBoth, "Plan: ohne Antwort wird nichts ueberschrieben")
+    let without = MovePlan.steps(sources: [a], into: target, existing: ["Bericht.docx"]) { _ in nil }
+    expectEqual(without[0].resolution, .keepBoth, "Plan: ohne Antwort wird nichts ueberschrieben")
 
     // Gemischt: konfliktfrei und kollidierend in einem Durchgang.
-    let gemischt = MovePlan.steps(sources: [a, c], into: ziel, existing: ["Bericht.docx"]) { _ in .keepBoth }
-    expectEqual(gemischt.count, 2, "Plan: beide Dateien")
-    expect(!gemischt.first(where: { $0.source == c })!.hadConflict, "Plan: Notiz.md hatte keinen Konflikt")
-    expect(gemischt.first(where: { $0.source == a })!.hadConflict, "Plan: Bericht.docx schon")
+    let mixed = MovePlan.steps(sources: [a, c], into: target, existing: ["Bericht.docx"]) { _ in .keepBoth }
+    expectEqual(mixed.count, 2, "Plan: beide Dateien")
+    expect(!mixed.first(where: { $0.source == c })!.hadConflict, "Plan: Notiz.md hatte keinen Konflikt")
+    expect(mixed.first(where: { $0.source == a })!.hadConflict, "Plan: Bericht.docx schon")
 
     // Jede Beschriftung ist gesetzt - eine leere Schaltflaeche waere unbedienbar.
     for fall in MoveResolution.allCases {
@@ -2953,28 +2953,28 @@ do {
 
 // MARK: - DragOperation: verschieben oder kopieren (v1.19.78)
 do {
-    func art(_ gleich: Bool, opt: Bool = false, cmd: Bool = false) -> TransferKind {
+    func kind(_ gleich: Bool, opt: Bool = false, cmd: Bool = false) -> TransferKind {
         DragOperation.kind(sameVolume: gleich, optionDown: opt, commandDown: cmd)
     }
 
     // ── Die Regel des Finders, und das ist der Punkt: Wer ⌥ drueckt, hat diese
     // Erwartung nicht in dieser App gelernt. ──
-    expectEqual(art(true), .move, "Zug: gleicher Datentraeger heisst verschieben")
-    expectEqual(art(true, opt: true), .copy, "Zug: ⌥ erzwingt kopieren")
-    expectEqual(art(true, cmd: true), .move, "Zug: ⌘ bleibt verschieben")
+    expectEqual(kind(true), .move, "Zug: gleicher Datentraeger heisst verschieben")
+    expectEqual(kind(true, opt: true), .copy, "Zug: ⌥ erzwingt kopieren")
+    expectEqual(kind(true, cmd: true), .move, "Zug: ⌘ bleibt verschieben")
 
     // ⚠️ Ueber Volume-Grenzen wird OHNE Taste kopiert. Ein Verschieben zwischen
     // zwei Datentraegern ist kein Umhaengen, sondern Kopieren und Loeschen -
     // nicht unterbrechungsfrei, und bei einem Abbruch liegt die Datei doppelt.
-    expectEqual(art(false), .copy, "Zug: anderer Datentraeger heisst kopieren")
-    expectEqual(art(false, opt: true), .copy, "Zug: ⌥ aendert daran nichts")
-    expectEqual(art(false, cmd: true), .move, "Zug: ⌘ erzwingt auch dort verschieben")
+    expectEqual(kind(false), .copy, "Zug: anderer Datentraeger heisst kopieren")
+    expectEqual(kind(false, opt: true), .copy, "Zug: ⌥ aendert daran nichts")
+    expectEqual(kind(false, cmd: true), .move, "Zug: ⌘ erzwingt auch dort verschieben")
 
     // ⚠️ ⌘ gewinnt gegen ⌥. Beide zugleich heisst im Finder „Alias anlegen" –
     // das kann diese App nicht, und still zu kopieren waere die schlechtere der
     // beiden Antworten.
-    expectEqual(art(true, opt: true, cmd: true), .move, "Zug: ⌘ gewinnt gegen ⌥")
-    expectEqual(art(false, opt: true, cmd: true), .move, "Zug: auch ueber Volume-Grenzen")
+    expectEqual(kind(true, opt: true, cmd: true), .move, "Zug: ⌘ gewinnt gegen ⌥")
+    expectEqual(kind(false, opt: true, cmd: true), .move, "Zug: auch ueber Volume-Grenzen")
 
     // Beschriftungen sind gesetzt – eine leere Schaltflaeche waere unbedienbar.
     for k in TransferKind.allCases {
@@ -2996,54 +2996,54 @@ do {
 
 // MARK: - RepoDetection: liegt die Datei unter Versionsverwaltung? (v1.19.79)
 do {
-    let wurzel = URL(fileURLWithPath: "/a/projekt", isDirectory: true)
-    let tief = URL(fileURLWithPath: "/a/projekt/src/kern/tief", isDirectory: true)
+    let root = URL(fileURLWithPath: "/a/projekt", isDirectory: true)
+    let deep = URL(fileURLWithPath: "/a/projekt/src/kern/tief", isDirectory: true)
 
     // Eine erfundene Platte: nur diese Ordner tragen eine Marke.
-    func platte(_ marken: [String: RepoKind]) -> (URL) -> RepoKind? {
+    func disk(_ marken: [String: RepoKind]) -> (URL) -> RepoKind? {
         { url in marken[url.path] }
     }
 
     // ── Der Aufstieg. ──
-    let git = RepoDetection.find(from: tief, marker: platte(["/a/projekt": .git]))
+    let git = RepoDetection.find(from: deep, marker: disk(["/a/projekt": .git]))
     expectEqual(git?.kind, .git, "Repo: der Aufstieg findet die Wurzel")
-    expectEqual(git?.root.path, wurzel.path, "Repo: und meldet sie als Wurzel")
+    expectEqual(git?.root.path, root.path, "Repo: und meldet sie als Wurzel")
 
-    expect(RepoDetection.find(from: tief, marker: platte([:])) == nil,
+    expect(RepoDetection.find(from: deep, marker: disk([:])) == nil,
            "Repo: ohne Fund kein Treffer")
 
     // ⚠️ Der Aufstieg terminiert auch, wenn NICHTS gefunden wird - sonst haenge
     // die App an dieser Stelle, und zwar auf dem Hauptstrang.
-    expect(RepoDetection.find(from: URL(fileURLWithPath: "/"), marker: platte([:])) == nil,
+    expect(RepoDetection.find(from: URL(fileURLWithPath: "/"), marker: disk([:])) == nil,
            "Repo: der Aufstieg endet an der Wurzel des Dateisystems")
 
     // ⚠️ Der NAECHSTLIEGENDE Fund gewinnt. Ein Submodul in einem Repo und ein
     // git-Repo in einer svn-Arbeitskopie kommen beide vor; wer den obersten
     // Fund naehme, benennte die falsche Verwaltung - und damit den falschen
     // Befehl im Warnsatz.
-    let verschachtelt = RepoDetection.find(
-        from: tief,
-        marker: platte(["/a/projekt": .svn, "/a/projekt/src": .git])
+    let nested = RepoDetection.find(
+        from: deep,
+        marker: disk(["/a/projekt": .svn, "/a/projekt/src": .git])
     )
-    expectEqual(verschachtelt?.kind, .git, "Repo: der naechste Fund gewinnt")
-    expectEqual(verschachtelt?.root.path, "/a/projekt/src", "Repo: und nicht der oberste")
+    expectEqual(nested?.kind, .git, "Repo: der naechste Fund gewinnt")
+    expectEqual(nested?.root.path, "/a/projekt/src", "Repo: und nicht der oberste")
 
     // Der Ordner selbst traegt die Marke.
-    expectEqual(RepoDetection.find(from: wurzel, marker: platte(["/a/projekt": .svn]))?.kind, .svn,
+    expectEqual(RepoDetection.find(from: root, marker: disk(["/a/projekt": .svn]))?.kind, .svn,
                 "Repo: der Ordner selbst zaehlt mit")
 
     // ── Die Beschriftung. ──
-    let marke = RepoMark(kind: .svn, root: wurzel)
-    expect(marke.label.contains("svn"), "Repo: die Beschriftung nennt das System")
-    expect(marke.label.contains("projekt"), "Repo: und die Arbeitskopie")
+    let mark = RepoMark(kind: .svn, root: root)
+    expect(mark.label.contains("svn"), "Repo: die Beschriftung nennt das System")
+    expect(mark.label.contains("projekt"), "Repo: und die Arbeitskopie")
 
     // ⚠️ svn ist der zerbrechlichere Fall: Seit 1.7 liegt EIN `.svn` an der
     // Wurzel, ein Verschieben ohne `svn mv` hinterlaesst „missing" plus
     // „unversioned". Bei git ist es vollstaendig heilbar.
     expect(RepoKind.svn.isFragile, "Repo: svn ist der zerbrechlichere Fall")
     expect(!RepoKind.git.isFragile, "Repo: git nicht")
-    for art in RepoKind.allCases {
-        expect(art.moveCommand.contains(art.rawValue), "Repo: der Befehl nennt das System (\(art))")
+    for kind in RepoKind.allCases {
+        expect(kind.moveCommand.contains(kind.rawValue), "Repo: der Befehl nennt das System (\(kind))")
     }
 
     // ── Der Satz im Verschieben-Dialog. ──
@@ -3060,25 +3060,25 @@ do {
     // ⚠️ Auch bei EINER Datei - ausdrueckliche Festlegung des Eigentuemers.
     // Die Warnung gerade dort zu verschweigen, wo man sie liest, waere die
     // falsche Sparsamkeit.
-    let eine = RepoDetection.moveWarning(versioned: [.svn: 1], total: 1)
-    expect(eine != nil, "Satz: auch bei einer einzelnen Datei")
-    expect(eine!.contains("svn mv"), "Satz: und er nennt den fehlenden Befehl")
-    expect(eine!.contains("Die Datei ist"), "Satz: in der Einzahl (\(eine!))")
+    let single = RepoDetection.moveWarning(versioned: [.svn: 1], total: 1)
+    expect(single != nil, "Satz: auch bei einer einzelnen Datei")
+    expect(single!.contains("svn mv"), "Satz: und er nennt den fehlenden Befehl")
+    expect(single!.contains("Die Datei ist"), "Satz: in der Einzahl (\(single!))")
 
-    let alle = RepoDetection.moveWarning(versioned: [.git: 4], total: 4)!
-    expect(alle.contains("Alle 4"), "Satz: alle betroffen wird als solches gesagt")
-    expect(alle.contains("git mv"), "Satz: mit dem git-Befehl")
+    let all = RepoDetection.moveWarning(versioned: [.git: 4], total: 4)!
+    expect(all.contains("Alle 4"), "Satz: alle betroffen wird als solches gesagt")
+    expect(all.contains("git mv"), "Satz: mit dem git-Befehl")
 
-    let teil = RepoDetection.moveWarning(versioned: [.svn: 9], total: 12)!
-    expect(teil.contains("9 der 12"), "Satz: sonst der Anteil (\(teil))")
+    let part = RepoDetection.moveWarning(versioned: [.svn: 9], total: 12)!
+    expect(part.contains("9 der 12"), "Satz: sonst der Anteil (\(part))")
 
     // ⚠️ Bei zwei Systemen zuerst das zerbrechlichere - sonst haengt die
     // Reihenfolge an der Laune des Dictionaries und wechselt von Fall zu Fall.
-    let gemischt = RepoDetection.moveWarning(versioned: [.git: 2, .svn: 3], total: 5)!
-    let svnPos = gemischt.range(of: "svn")!.lowerBound
-    let gitPos = gemischt.range(of: "git")!.lowerBound
-    expect(svnPos < gitPos, "Satz: svn zuerst, weil zerbrechlicher (\(gemischt))")
-    expect(gemischt.contains("5 der 5") || gemischt.contains("Alle 5"),
+    let mixed = RepoDetection.moveWarning(versioned: [.git: 2, .svn: 3], total: 5)!
+    let svnPos = mixed.range(of: "svn")!.lowerBound
+    let gitPos = mixed.range(of: "git")!.lowerBound
+    expect(svnPos < gitPos, "Satz: svn zuerst, weil zerbrechlicher (\(mixed))")
+    expect(mixed.contains("5 der 5") || mixed.contains("Alle 5"),
            "Satz: gezaehlt wird ueber beide Systeme")
 }
 
@@ -3120,8 +3120,8 @@ do {
 
     // Jeder Ablehnungsgrund hat einen Satz - eine leere Meldung waere schlimmer
     // als keine Pruefung, weil die Handlung dann wortlos ausbliebe.
-    for grund in [FolderMoveRules.Rejection.sameFolder, .alreadyThere, .intoItself] {
-        expect(!grund.reason.isEmpty, "Ordner: Grund ist formuliert (\(grund))")
+    for reason in [FolderMoveRules.Rejection.sameFolder, .alreadyThere, .intoItself] {
+        expect(!reason.reason.isEmpty, "Ordner: Grund ist formuliert (\(reason))")
     }
 
     // ── FolderNaming ─────────────────────────────────────────────────
@@ -3144,8 +3144,8 @@ do {
     // Ein fuehrender Punkt ist ein versteckter Ordner, kein verbotener Name.
     expect(FolderNaming.rejection(for: ".config", existing: []) == nil, "Name: versteckt ist erlaubt")
 
-    for grund in [FolderNaming.Rejection.empty, .containsSeparator, .reserved, .alreadyExists] {
-        expect(!grund.reason.isEmpty, "Name: Grund ist formuliert (\(grund))")
+    for reason in [FolderNaming.Rejection.empty, .containsSeparator, .reserved, .alreadyExists] {
+        expect(!reason.reason.isEmpty, "Name: Grund ist formuliert (\(reason))")
     }
 
     // ⚠️ Nur die Gross-/Kleinschreibung zu aendern ist ERLAUBT - und zugleich
@@ -3161,23 +3161,23 @@ do {
     // ── FolderEmptiness ──────────────────────────────────────────────
     //
     // Eine erfundene Platte: Ordner → Eintraege.
-    func platte(_ baum: [String: [(name: String, isFolder: Bool)]]) -> (URL) -> [(name: String, isFolder: Bool)] {
-        { url in baum[url.path] ?? [] }
+    func disk(_ tree: [String: [(name: String, isFolder: Bool)]]) -> (URL) -> [(name: String, isFolder: Bool)] {
+        { url in tree[url.path] ?? [] }
     }
 
-    expect(FolderEmptiness.isEmpty(u("/leer"), contents: platte(["/leer": []])),
+    expect(FolderEmptiness.isEmpty(u("/leer"), contents: disk(["/leer": []])),
            "Leer: ein wirklich leerer Ordner")
-    expect(!FolderEmptiness.isEmpty(u("/voll"), contents: platte(["/voll": [("a.md", false)]])),
+    expect(!FolderEmptiness.isEmpty(u("/voll"), contents: disk(["/voll": [("a.md", false)]])),
            "Leer: eine Datei hebt die Leere auf")
 
     // ⚠️ `.DS_Store` zaehlt nicht mit - „gleiches Verhalten wie im Finder",
     // Entscheidung des Eigentuemers. Der Finder loescht diese Reste
     // stillschweigend mit; eine App, die deswegen ablehnt, wirkt kaputt.
-    expect(FolderEmptiness.isEmpty(u("/x"), contents: platte(["/x": [(".DS_Store", false)]])),
+    expect(FolderEmptiness.isEmpty(u("/x"), contents: disk(["/x": [(".DS_Store", false)]])),
            "Leer: nur .DS_Store gilt als leer")
 
     // ⚠️ Rekursiv: leere Unterordner heben die Leere nicht auf …
-    expect(FolderEmptiness.isEmpty(u("/r"), contents: platte([
+    expect(FolderEmptiness.isEmpty(u("/r"), contents: disk([
         "/r": [("a", true), ("b", true)],
         "/r/a": [], "/r/b": [(".DS_Store", false), ("c", true)], "/r/b/c": []
     ])), "Leer: leere Unterordner heben die Leere nicht auf")
@@ -3185,7 +3185,7 @@ do {
     // … eine echte Datei TIEF UNTEN aber schon. Die Kurzfassung „hat
     // Unterordner, also nicht leer" waere einfacher und wuerde genau den Fall
     // ablehnen, der gemeint ist; die hier lehnt genau den ab, der gemeint ist.
-    expect(!FolderEmptiness.isEmpty(u("/r"), contents: platte([
+    expect(!FolderEmptiness.isEmpty(u("/r"), contents: disk([
         "/r": [("a", true)], "/r/a": [("b", true)], "/r/a/b": [("wichtig.docx", false)]
     ])), "Leer: eine Datei tief unten macht NICHT leer")
 
@@ -3195,46 +3195,46 @@ do {
                 "Leer: die Artefaktliste bleibt kurz - jeder Eintrag wird ungefragt geloescht")
 
     // ── PathRelocation ───────────────────────────────────────────────
-    let von = u("/Users/x/Documents/A")
-    let nach = u("/Users/x/Archiv/A")
+    let from = u("/Users/x/Documents/A")
+    let to = u("/Users/x/Archiv/A")
 
-    expectEqual(PathRelocation.relocated(von, from: von, to: nach)?.path, nach.path,
+    expectEqual(PathRelocation.relocated(from, from: from, to: to)?.path, to.path,
                 "Umzug: der Ordner selbst")
 
     // ⚠️ NACHFAHREN ziehen mit. Ein Gleichheitstest liesse eine Quelle
     // `/Documents/A/B` haengen, waehrend `/Documents/A` umzieht.
-    expectEqual(PathRelocation.relocated(u("/Users/x/Documents/A/B"), from: von, to: nach)?.path,
+    expectEqual(PathRelocation.relocated(u("/Users/x/Documents/A/B"), from: from, to: to)?.path,
                 "/Users/x/Archiv/A/B", "Umzug: Nachfahren wandern mit")
-    expectEqual(PathRelocation.relocated(u("/Users/x/Documents/A/B/C/d.md"), from: von, to: nach)?.path,
+    expectEqual(PathRelocation.relocated(u("/Users/x/Documents/A/B/C/d.md"), from: from, to: to)?.path,
                 "/Users/x/Archiv/A/B/C/d.md", "Umzug: auch tief liegende")
 
     // ⚠️ Verglichen wird auf Pfadgrenzen - `AB` zieht NICHT mit, wenn `A` umzieht.
-    expect(PathRelocation.relocated(u("/Users/x/Documents/AB"), from: von, to: nach) == nil,
+    expect(PathRelocation.relocated(u("/Users/x/Documents/AB"), from: from, to: to) == nil,
            "Umzug: /Documents/AB ist nicht betroffen")
-    expect(PathRelocation.relocated(u("/Users/x/Anderes"), from: von, to: nach) == nil,
+    expect(PathRelocation.relocated(u("/Users/x/Anderes"), from: from, to: to) == nil,
            "Umzug: Unbeteiligte bleiben unbeteiligt")
 
     // ⚠️ Die FORM der URL wird durchgereicht. `URL` vergleicht sich als
     // Zeichenkette: `/y/A/B` und `/y/A/B/` sind zwei verschiedene Werte, und
     // eine Menge, die den einen enthaelt, findet den anderen nicht. Ohne das
     // verloere eine Quelle beim Umzug STUMM ihre Auswahl.
-    expect(PathRelocation.relocated(u("/Users/x/Documents/A/B"), from: von, to: nach)!.hasDirectoryPath,
+    expect(PathRelocation.relocated(u("/Users/x/Documents/A/B"), from: from, to: to)!.hasDirectoryPath,
            "Umzug: aus einer Ordner-URL wird wieder eine")
-    let datei = URL(fileURLWithPath: "/Users/x/Documents/A/b.md")
-    expect(!PathRelocation.relocated(datei, from: von, to: nach)!.hasDirectoryPath,
+    let file = URL(fileURLWithPath: "/Users/x/Documents/A/b.md")
+    expect(!PathRelocation.relocated(file, from: from, to: to)!.hasDirectoryPath,
            "Umzug: aus einer Datei-URL keine Ordner-URL")
-    expectEqual(PathRelocation.relocated(datei, from: von, to: nach)?.path,
+    expectEqual(PathRelocation.relocated(file, from: from, to: to)?.path,
                 "/Users/x/Archiv/A/b.md", "Umzug: und der Pfad stimmt trotzdem")
 
     // Listen und Zeichenketten-Mengen benutzen dieselbe Rechnung.
-    let liste = PathRelocation.relocated([von, u("/Users/x/Documents/A/B"), u("/Users/x/Anderes")],
-                                          from: von, to: nach)
-    expectEqual(liste.map(\.path),
+    let list = PathRelocation.relocated([from, u("/Users/x/Documents/A/B"), u("/Users/x/Anderes")],
+                                          from: from, to: to)
+    expectEqual(list.map(\.path),
                 ["/Users/x/Archiv/A", "/Users/x/Archiv/A/B", "/Users/x/Anderes"],
                 "Umzug: die Liste behaelt ihre Reihenfolge")
-    let menge = PathRelocation.relocated(Set(["/Users/x/Documents/A/B", "/Users/x/Anderes"]),
-                                          from: von, to: nach)
-    expectEqual(menge, Set(["/Users/x/Archiv/A/B", "/Users/x/Anderes"]),
+    let amount = PathRelocation.relocated(Set(["/Users/x/Documents/A/B", "/Users/x/Anderes"]),
+                                          from: from, to: to)
+    expectEqual(amount, Set(["/Users/x/Archiv/A/B", "/Users/x/Anderes"]),
                 "Umzug: dieselbe Rechnung fuer ausgeblendete Pfade")
 }
 
@@ -3243,51 +3243,51 @@ do {
     func u(_ p: String) -> URL { URL(fileURLWithPath: p, isDirectory: true) }
 
     // Der einfache Fall: die Quelle zieht mit, die Auswahl bleibt.
-    var liste = SourceList(known: [u("/x/A"), u("/x/B")], active: [u("/x/A")])
-    liste.relocate(from: u("/x/A"), to: u("/y/A"))
-    expectEqual(liste.known.map(\.path), ["/y/A", "/x/B"], "Quelle: der Pfad ist der neue")
-    expect(liste.active.contains(u("/y/A")), "Quelle: und sie bleibt ausgewaehlt")
-    expect(!liste.active.contains(u("/x/A")), "Quelle: der alte Pfad ist fort")
+    var list = SourceList(known: [u("/x/A"), u("/x/B")], active: [u("/x/A")])
+    list.relocate(from: u("/x/A"), to: u("/y/A"))
+    expectEqual(list.known.map(\.path), ["/y/A", "/x/B"], "Quelle: der Pfad ist der neue")
+    expect(list.active.contains(u("/y/A")), "Quelle: und sie bleibt ausgewaehlt")
+    expect(!list.active.contains(u("/x/A")), "Quelle: der alte Pfad ist fort")
 
     // ⚠️ NACHFAHREN: Zieht `/x/A` um, waehrend `/x/A/B` eine Quelle ist, muss B
     // mitwandern - ein Gleichheitstest liesse sie haengen.
-    var tief = SourceList(known: [u("/x/A/B")], active: [u("/x/A/B")])
-    tief.relocate(from: u("/x/A"), to: u("/y/A"))
-    expectEqual(tief.known.map(\.path), ["/y/A/B"], "Quelle: Nachfahren wandern mit")
-    expect(tief.active.contains(u("/y/A/B")), "Quelle: samt Auswahl")
+    var deep = SourceList(known: [u("/x/A/B")], active: [u("/x/A/B")])
+    deep.relocate(from: u("/x/A"), to: u("/y/A"))
+    expectEqual(deep.known.map(\.path), ["/y/A/B"], "Quelle: Nachfahren wandern mit")
+    expect(deep.active.contains(u("/y/A/B")), "Quelle: samt Auswahl")
 
     // Unbeteiligte bleiben unbeteiligt - auch die mit gemeinsamem Praefix.
-    var fremd = SourceList(known: [u("/x/AB")], active: [])
-    fremd.relocate(from: u("/x/A"), to: u("/y/A"))
-    expectEqual(fremd.known.map(\.path), ["/x/AB"], "Quelle: /x/AB ist nicht betroffen")
+    var foreign = SourceList(known: [u("/x/AB")], active: [])
+    foreign.relocate(from: u("/x/A"), to: u("/y/A"))
+    expectEqual(foreign.known.map(\.path), ["/x/AB"], "Quelle: /x/AB ist nicht betroffen")
 
     // ⚠️ DER Fall, wegen dem `relocate` mehr tut als umschreiben: Zieht Quelle A
     // in Quelle B, entstuende der Zustand, den `rejectionReason` verbietet -
     // doppelt gezaehlte Dateien und ein Ordner in zwei Zweigen. Die Regel wurde
     // bis v2.0.0 nur in `add` durchgesetzt, und ein Verschieben geht daran
     // vorbei. Der innere Eintrag entfaellt.
-    var kollision = SourceList(known: [u("/x/A"), u("/x/B")], active: [u("/x/A"), u("/x/B")])
-    let entfallen = kollision.relocate(from: u("/x/A"), to: u("/x/B/A"))
-    expectEqual(entfallen.map(\.path), ["/x/B/A"], "Quelle: die innere faellt weg")
-    expectEqual(kollision.known.map(\.path), ["/x/B"], "Quelle: nur die aeussere bleibt")
-    expect(!kollision.active.contains(u("/x/B/A")), "Quelle: und ist auch nicht mehr ausgewaehlt")
-    expect(kollision.active.contains(u("/x/B")), "Quelle: die aeussere bleibt ausgewaehlt")
+    var collision = SourceList(known: [u("/x/A"), u("/x/B")], active: [u("/x/A"), u("/x/B")])
+    let dropped = collision.relocate(from: u("/x/A"), to: u("/x/B/A"))
+    expectEqual(dropped.map(\.path), ["/x/B/A"], "Quelle: die innere faellt weg")
+    expectEqual(collision.known.map(\.path), ["/x/B"], "Quelle: nur die aeussere bleibt")
+    expect(!collision.active.contains(u("/x/B/A")), "Quelle: und ist auch nicht mehr ausgewaehlt")
+    expect(collision.active.contains(u("/x/B")), "Quelle: die aeussere bleibt ausgewaehlt")
 
     // Gegenprobe: Der Bestand ist danach wieder ueberschneidungsfrei - genau
     // die Zusicherung, auf der Baum und Zusammenfassung stehen.
-    for quelle in kollision.known {
-        var ohne = kollision
-        ohne.remove(quelle)
-        expect(ohne.rejectionReason(forAdding: quelle) == nil,
-               "Quelle: \(quelle.lastPathComponent) ueberschneidet sich mit keiner anderen")
+    for source in collision.known {
+        var without = collision
+        without.remove(source)
+        expect(without.rejectionReason(forAdding: source) == nil,
+               "Quelle: \(source.lastPathComponent) ueberschneidet sich mit keiner anderen")
     }
 }
 
 // MARK: - TimeBucket.group: die Vorbedingung, die niemand aufgeschrieben hatte (v2.0.1)
 do {
     let kalender = Calendar(identifier: .gregorian)
-    let jetzt = kalender.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
-    func tage(_ n: Int) -> Date { jetzt.addingTimeInterval(-Double(n) * 86_400) }
+    let now = kalender.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
+    func days(_ n: Int) -> Date { now.addingTimeInterval(-Double(n) * 86_400) }
     func e(_ name: String, _ datum: Date) -> FolderEntry {
         FolderEntry(folder: URL(fileURLWithPath: "/x/\(name)", isDirectory: true),
                     newestDate: datum, fileCount: 0)
@@ -3298,71 +3298,71 @@ do {
     // LETZTEN Abschnitt - also entstand „Heute" ein zweites Mal, ganz unten, und
     // die Chronologie zerbrach. Gemeldet als „der Rahmen Heute erscheint ganz
     // unten".
-    let unsortiert = [e("alt", tage(400)), e("test", jetzt)]
-    let kaputt = TimeBucket.group(unsortiert, now: jetzt, calendar: kalender)
-    expect(kaputt.count == 2, "Abschnitte: unsortierter Eingang ergibt zwei Abschnitte")
-    expect(kaputt.last?.label != kaputt.first?.label,
+    let unsorted = [e("alt", days(400)), e("test", now)]
+    let broken = TimeBucket.group(unsorted, now: now, calendar: kalender)
+    expect(broken.count == 2, "Abschnitte: unsortierter Eingang ergibt zwei Abschnitte")
+    expect(broken.last?.label != broken.first?.label,
            "Abschnitte: … und der heutige steht hinten - genau der gemeldete Fehler")
 
     // Nach dem Sortieren mit DERSELBEN Regel, die `folderEntries` benutzt, steht
     // er vorn. Die Regel ist oeffentlich, damit es nicht zwei Fassungen gibt.
-    let sortiert = unsortiert.sorted(by: FolderAggregator.byNewestFirst)
-    let heil = TimeBucket.group(sortiert, now: jetzt, calendar: kalender)
-    expectEqual(heil.first?.entries.first?.folder.lastPathComponent, "test",
+    let inOrder = unsorted.sorted(by: FolderAggregator.byNewestFirst)
+    let healed = TimeBucket.group(inOrder, now: now, calendar: kalender)
+    expectEqual(healed.first?.entries.first?.folder.lastPathComponent, "test",
                 "Abschnitte: der heutige Ordner steht oben")
-    expect(heil.first?.label != heil.last?.label, "Abschnitte: und die Abschnitte sind verschieden")
+    expect(healed.first?.label != healed.last?.label, "Abschnitte: und die Abschnitte sind verschieden")
 
     // ⚠️ Und der schlimmere Teil desselben Fehlers: Derselbe Abschnittsname darf
     // nicht ZWEIMAL entstehen. Bei sortiertem Eingang kann er das nicht.
-    let viele = [e("a", jetzt), e("b", tage(400)), e("c", jetzt.addingTimeInterval(-3600))]
+    let viele = [e("a", now), e("b", days(400)), e("c", now.addingTimeInterval(-3600))]
         .sorted(by: FolderAggregator.byNewestFirst)
-    let namen = TimeBucket.group(viele, now: jetzt, calendar: kalender).map(\.label)
-    expectEqual(Set(namen).count, namen.count, "Abschnitte: kein Name kommt zweimal vor")
+    let names = TimeBucket.group(viele, now: now, calendar: kalender).map(\.label)
+    expectEqual(Set(names).count, names.count, "Abschnitte: kein Name kommt zweimal vor")
 
     // Die Sortierregel selbst: Datum absteigend, bei Gleichstand der Pfad.
-    expect(FolderAggregator.byNewestFirst(e("a", jetzt), e("b", tage(1))),
+    expect(FolderAggregator.byNewestFirst(e("a", now), e("b", days(1))),
            "Reihenfolge: das juengere Datum zuerst")
-    expect(!FolderAggregator.byNewestFirst(e("a", tage(1)), e("b", jetzt)),
+    expect(!FolderAggregator.byNewestFirst(e("a", days(1)), e("b", now)),
            "Reihenfolge: und nicht umgekehrt")
-    expect(FolderAggregator.byNewestFirst(e("b", jetzt), e("a", jetzt)),
+    expect(FolderAggregator.byNewestFirst(e("b", now), e("a", now)),
            "Reihenfolge: bei gleichem Datum der Pfad absteigend")
 }
 
 // MARK: - EmptyFolderVisibility: Filter schlaegt neuen Ordner (v2.0.4)
 do {
-    func grund(_ muster: String = "", typ: Bool = false, imFenster: Bool = true)
+    func reason(_ pattern: String = "", typ: Bool = false, imFenster: Bool = true)
         -> EmptyFolderVisibility.HiddenReason? {
-        EmptyFolderVisibility.hiddenReason(namePattern: muster, hasTypeFilter: typ,
+        EmptyFolderVisibility.hiddenReason(namePattern: pattern, hasTypeFilter: typ,
                                            nowInWindow: imFenster)
     }
 
     // Ohne Filter erscheint er.
-    expect(grund() == nil, "Leerer Ordner: ohne Filter erscheint er")
+    expect(reason() == nil, "Leerer Ordner: ohne Filter erscheint er")
 
     // ⚠️ Ein Ordner OHNE Dateien hat nichts, was einen Filter erfuellen koennte.
     // Ihn trotzdem zu zeigen hiesse, ihn daran vorbeizuschmuggeln - genau das
     // tat v2.0.0, und bei aktivem Namensfilter „Erinnerung" stand `Neuer Ordner`
     // mitten in den Treffern.
-    expectEqual(grund("Erinnerung"), .nameFilter("Erinnerung"), "Leerer Ordner: Namensfilter schlaegt")
-    expectEqual(grund(typ: true), .typeFilter, "Leerer Ordner: Typ-Filter schlaegt")
-    expectEqual(grund(imFenster: false), .outsideWindow, "Leerer Ordner: Zeitraum schlaegt")
+    expectEqual(reason("Erinnerung"), .nameFilter("Erinnerung"), "Leerer Ordner: Namensfilter schlaegt")
+    expectEqual(reason(typ: true), .typeFilter, "Leerer Ordner: Typ-Filter schlaegt")
+    expectEqual(reason(imFenster: false), .outsideWindow, "Leerer Ordner: Zeitraum schlaegt")
 
     // Leerzeichen sind kein Muster.
-    expect(grund("   ") == nil, "Leerer Ordner: ein leeres Muster ist keiner")
-    expectEqual(grund(" Erinnerung "), .nameFilter("Erinnerung"),
+    expect(reason("   ") == nil, "Leerer Ordner: ein leeres Muster ist keiner")
+    expectEqual(reason(" Erinnerung "), .nameFilter("Erinnerung"),
                 "Leerer Ordner: das Muster wird beschnitten genannt")
 
     // ⚠️ Bei mehreren Gruenden gewinnt der, den der Anwender ZULETZT SELBST
     // gesetzt hat - sonst nennt die App einen Grund, den er nicht sucht.
-    expectEqual(grund("x", typ: true, imFenster: false), .nameFilter("x"),
+    expectEqual(reason("x", typ: true, imFenster: false), .nameFilter("x"),
                 "Leerer Ordner: der Namensfilter wird zuerst genannt")
-    expectEqual(grund(typ: true, imFenster: false), .typeFilter,
+    expectEqual(reason(typ: true, imFenster: false), .typeFilter,
                 "Leerer Ordner: dann der Typ-Filter")
 
     // ⚠️ Der Satz nennt die URSACHE, nicht die Regel: Wer den Filter gerade
     // selbst gesetzt hat, will wissen WELCHER ihn wegnimmt.
-    let satz = EmptyFolderVisibility.HiddenReason.nameFilter("Erinnerung").text
-    expect(satz.contains("Erinnerung"), "Leerer Ordner: der Satz nennt das Muster (\(satz))")
+    let sentence = EmptyFolderVisibility.HiddenReason.nameFilter("Erinnerung").text
+    expect(sentence.contains("Erinnerung"), "Leerer Ordner: der Satz nennt das Muster (\(sentence))")
     for r in [EmptyFolderVisibility.HiddenReason.nameFilter("a"), .typeFilter, .outsideWindow] {
         expect(r.text.contains("angelegt"), "Leerer Ordner: der Satz sagt, dass angelegt wird (\(r))")
         expect(r.text.contains("nicht"), "Leerer Ordner: … und dass er nicht erscheint")

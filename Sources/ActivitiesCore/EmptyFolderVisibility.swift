@@ -35,9 +35,9 @@ public enum EmptyFolderVisibility {
         /// gerade selbst gesetzt hat, will wissen **welcher** ihn wegnimmt.
         public var text: String {
             switch self {
-            case .nameFilter(let muster):
+            case .nameFilter(let pattern):
                 "Der Ordner wird angelegt, erscheint aber nicht in der Liste: Der Namensfilter "
-                + "\u{201E}\(muster)\u{201C} ist aktiv, und ein leerer Ordner hat keinen Treffer."
+                + "\u{201E}\(pattern)\u{201C} ist aktiv, und ein leerer Ordner hat keinen Treffer."
             case .typeFilter:
                 "Der Ordner wird angelegt, erscheint aber nicht in der Liste: Ein Typ-Filter ist "
                 + "aktiv, und ein leerer Ordner hat keine Datei, die durchkäme."
@@ -61,8 +61,8 @@ public enum EmptyFolderVisibility {
     public static func hiddenReason(namePattern: String,
                                     hasTypeFilter: Bool,
                                     nowInWindow: Bool) -> HiddenReason? {
-        let muster = namePattern.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !muster.isEmpty { return .nameFilter(muster) }
+        let pattern = namePattern.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !pattern.isEmpty { return .nameFilter(pattern) }
         if hasTypeFilter { return .typeFilter }
         if !nowInWindow { return .outsideWindow }
         return nil

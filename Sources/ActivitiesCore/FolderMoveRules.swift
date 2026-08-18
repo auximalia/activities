@@ -35,24 +35,24 @@ public enum FolderMoveRules {
     /// gälte `/a/bc` als Nachfahre von `/a/b` — dieselbe Falle, die
     /// ``PathFormatting/withTilde(_:home:)`` schon einmal aufgeschrieben hat
     /// (`/Users/mtri2` ist nicht `/Users/mtri`).
-    public static func isSelfOrDescendant(_ ziel: URL, of wurzel: URL) -> Bool {
-        let z = normalize(ziel)
-        let w = normalize(wurzel)
+    public static func isSelfOrDescendant(_ target: URL, of root: URL) -> Bool {
+        let z = normalize(target)
+        let w = normalize(root)
         if z == w { return true }
         return z.hasPrefix(w + "/")
     }
 
     /// Darf `ordner` nach `ziel` verschoben werden?
-    public static func rejection(moving ordner: URL, into ziel: URL) -> Rejection? {
-        let o = normalize(ordner)
-        let z = normalize(ziel)
+    public static func rejection(moving folder: URL, into target: URL) -> Rejection? {
+        let o = normalize(folder)
+        let z = normalize(target)
         if o == z { return .sameFolder }
         // ⚠️ Diese Pruefung kommt VOR `alreadyThere`: Zieht jemand `/a/b` auf
         // `/a/b/c`, ist der Elternordner von `/a/b` nicht `/a/b/c` – die
         // Reihenfolge entschiede sonst nichts, aber die Meldung waere die
         // falsche und damit unbrauchbar.
-        if isSelfOrDescendant(ziel, of: ordner) { return .intoItself }
-        if normalize(ordner.deletingLastPathComponent()) == z { return .alreadyThere }
+        if isSelfOrDescendant(target, of: folder) { return .intoItself }
+        if normalize(folder.deletingLastPathComponent()) == z { return .alreadyThere }
         return nil
     }
 
@@ -65,8 +65,8 @@ public enum FolderMoveRules {
     /// ablehnen. Falsch abzulehnen ist hier billiger als falsch zu erlauben,
     /// aber unnötig falsch ist beides.
     static func normalize(_ url: URL) -> String {
-        var pfad = url.standardizedFileURL.resolvingSymlinksInPath().path
-        while pfad.count > 1 && pfad.hasSuffix("/") { pfad.removeLast() }
-        return pfad
+        var path = url.standardizedFileURL.resolvingSymlinksInPath().path
+        while path.count > 1 && path.hasSuffix("/") { path.removeLast() }
+        return path
     }
 }

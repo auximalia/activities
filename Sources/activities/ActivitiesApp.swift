@@ -313,14 +313,14 @@ struct ActivitiesApp: App {
             // ausloesen, waeren dort eine Ueberraschung.
             CommandMenu("Verwalten") {
                 Button(Shortcuts.newFolder.label) {
-                    if let ziel = model.newFolderParent { model.requestNewFolder(in: ziel) }
+                    if let target = model.newFolderParent { model.requestNewFolder(in: target) }
                 }
                 .keyboardShortcut(Shortcuts.newFolder)
                 .disabled(model.newFolderParent == nil)
 
                 Button(Shortcuts.newFolderWithSelection.label) {
-                    if let ziel = model.newFolderParent {
-                        model.requestNewFolder(in: ziel, withSelection: true)
+                    if let target = model.newFolderParent {
+                        model.requestNewFolder(in: target, withSelection: true)
                     }
                 }
                 .keyboardShortcut(Shortcuts.newFolderWithSelection)
@@ -329,7 +329,7 @@ struct ActivitiesApp: App {
                 Divider()
 
                 Button(Shortcuts.renameItem.label) {
-                    if let ziel = model.renameTarget { model.requestRename(ziel) }
+                    if let target = model.renameTarget { model.requestRename(target) }
                 }
                 .keyboardShortcut(Shortcuts.renameItem)
                 .disabled(model.renameTarget == nil)
@@ -451,14 +451,14 @@ struct ActivitiesApp: App {
                 // Elternpunkt haette ausserdem nie gesagt, **warum**, und die
                 // beiden Gruende sind verschieden und beide behebbar.
                 Menu("Arbeit fortsetzen") {
-                    let tage = model.workDaysForCommand
-                    if tage.isEmpty {
+                    let days = model.workDaysForCommand
+                    if days.isEmpty {
                         Button(model.cursor == nil
                                ? "Erst einen Ordner auswählen"
                                : "Keine Dokumente in diesem Ordner") { }
                             .disabled(true)
                     } else {
-                        ForEach(tage) { tag in
+                        ForEach(days) { tag in
                             Button(model.workDayLabel(tag)) { model.requestOpen(tag.files) }
                         }
                     }

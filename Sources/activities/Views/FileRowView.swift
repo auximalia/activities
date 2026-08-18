@@ -57,7 +57,7 @@ struct FileRowView: View {
     var body: some View {
         // Einmal lesen statt viermal – und der Uebersetzer schafft den Ausdruck
         // sonst nicht in vertretbarer Zeit.
-        let groesse = model.rowSize
+        let size = model.rowSize
         HStack(spacing: 8) {
             Button {
                 model.select(.file(file.url))
@@ -82,7 +82,7 @@ struct FileRowView: View {
             .accessibilityLabel("Mit Standard-App öffnen")
 
             Text(file.url.lastPathComponent)
-                .font(.system(size: groesse.nameFontSize))
+                .font(.system(size: size.nameFontSize))
                 .fontWeight(isDateSource ? .bold : .regular)
                 .foregroundStyle(isInWindow ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 .opacity(isInWindow ? 1 : RowMetrics.outOfWindowTextOpacity)
@@ -98,16 +98,16 @@ struct FileRowView: View {
             }
 
             Spacer(minLength: RowMetrics.itemSpacing)
-            DateStampView(date: file.timestamp, isCompact: isCompact, size: groesse, isDimmed: !isInWindow)
+            DateStampView(date: file.timestamp, isCompact: isCompact, size: size, isDimmed: !isInWindow)
             // Größe ganz rechts, feste schmale Spalte – im schmalen Fenster
             // entfällt sie (PR-37/PR-39).
             if !isCompact {
-                SizeStampView(bytes: file.size, size: groesse, isDimmed: !isInWindow)
+                SizeStampView(bytes: file.size, size: size, isDimmed: !isInWindow)
             }
         }
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)
-        .columnRule(isVisible: !isCompact, size: groesse)
+        .columnRule(isVisible: !isCompact, size: size)
         .background(SelectionBackground(isActive: isSelected, cornerRadius: 6))
         // Cursor ohne Auswahl: nur ein feiner Rahmen – sonst waere nicht
         // erkennbar, worauf eine Aktion wirkt.

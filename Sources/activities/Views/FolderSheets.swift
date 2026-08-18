@@ -42,13 +42,13 @@ struct NewFolderSheet: View {
                 Text("Die markierten Dateien werden anschließend hineinverschoben.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-            } else if let grund = model.emptyFolderHiddenReason {
+            } else if let reason = model.emptyFolderHiddenReason {
                 // **⚠️ VOR dem Anlegen, nicht danach.** Ein leerer Ordner kann
                 // keinen Filter erfuellen – er hat nichts, was durchkaeme. Ihn
                 // trotzdem zu zeigen hiesse, ihn daran vorbeizuschmuggeln; ihn
                 // wortlos verschwinden zu lassen waere der stille Zustand, den
                 // dieses Programm nirgends duldet. Also: anlegen und es sagen.
-                Label(grund.text, systemImage: "line.3.horizontal.decrease.circle")
+                Label(reason.text, systemImage: "line.3.horizontal.decrease.circle")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -154,7 +154,7 @@ private struct SheetFieldFocus: NSViewRepresentable {
 
     final class Fokus: NSView {
         private let selectStemOnly: Bool
-        private var erledigt = false
+        private var done = false
 
         init(selectStemOnly: Bool) {
             self.selectStemOnly = selectStemOnly
@@ -166,8 +166,8 @@ private struct SheetFieldFocus: NSViewRepresentable {
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            guard window != nil, !erledigt else { return }
-            erledigt = true
+            guard window != nil, !done else { return }
+            done = true
             // ⚠️ Eine Runde spaeter: Beim Einhaengen ist das Blatt noch nicht
             // Schluesselfenster, und `makeFirstResponder` auf ein Fenster, das
             // keinen Fokus hat, bleibt wirkungslos.
@@ -175,26 +175,26 @@ private struct SheetFieldFocus: NSViewRepresentable {
             // *Diese Begruendung ist NICHT am laufenden Programm geprueft — sie
             // waere widerlegt, wenn der Fokus auch ohne die Verzoegerung sitzt.
             // Die Abnahme entscheidet es.*
-            DispatchQueue.main.async { [weak self] in self?.fokussiere() }
+            DispatchQueue.main.async { [weak self] in self?.focusField() }
         }
 
-        private func fokussiere() {
-            guard let window, let inhalt = window.contentView,
-                  let feld = Self.erstesTextfeld(in: inhalt) else { return }
-            window.makeFirstResponder(feld)
-            feld.selectText(nil)
-            guard selectStemOnly, let editor = feld.currentEditor() else { return }
-            let name = feld.stringValue as NSString
+        private func focusField() {
+            guard let window, let contents = window.contentView,
+                  let field = Self.firstTextField(in: contents) else { return }
+            window.makeFirstResponder(field)
+            field.selectText(nil)
+            guard selectStemOnly, let editor = field.currentEditor() else { return }
+            let name = field.stringValue as NSString
             let punkt = name.range(of: ".", options: .backwards)
             // Ein fuehrender Punkt ist ein verstecktes Objekt, keine Endung.
             guard punkt.location != NSNotFound, punkt.location > 0 else { return }
             editor.selectedRange = NSRange(location: 0, length: punkt.location)
         }
 
-        private static func erstesTextfeld(in view: NSView) -> NSTextField? {
-            if let feld = view as? NSTextField, feld.isEditable { return feld }
+        private static func firstTextField(in view: NSView) -> NSTextField? {
+            if let field = view as? NSTextField, field.isEditable { return field }
             for unter in view.subviews {
-                if let gefunden = erstesTextfeld(in: unter) { return gefunden }
+                if let gefunden = firstTextField(in: unter) { return gefunden }
             }
             return nil
         }

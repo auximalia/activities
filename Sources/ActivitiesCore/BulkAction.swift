@@ -82,8 +82,8 @@ public enum BulkAction {
             return "\(objects) im Finder anzeigen?"
         case .openInApp(let app):
             return "\(objects) in \(app) öffnen?"
-        case let .transfer(art, ordner):
-            return "\(objects) nach \u{201E}\(ordner)\u{201C} \(art.verb)?"
+        case let .transfer(kind, folder):
+            return "\(objects) nach \u{201E}\(folder)\u{201C} \(kind.verb)?"
         }
     }
 
@@ -106,22 +106,22 @@ public enum BulkAction {
     public static func explanation(kind: Kind, count: Int, executables: Int = 0) -> String {
         switch kind {
         case .open:
-            let grund = "Es werden \(count) Fenster geöffnet, je nach Dateityp in verschiedenen Programmen."
-            guard executables > 0 else { return grund }
+            let reason = "Es werden \(count) Fenster geöffnet, je nach Dateityp in verschiedenen Programmen."
+            guard executables > 0 else { return reason }
             let objekte = executables == 1 ? "eine Datei" : "\(executables) Dateien"
-            return grund + " Darunter \(objekte), die dabei ausgeführt werden."
+            return reason + " Darunter \(objekte), die dabei ausgeführt werden."
         case .reveal:
             return "Der Finder zeigt \(count) Objekte an."
         case .openInApp(let app):
             return "\(app) erhält \(count) Objekte auf einmal."
-        case let .transfer(art, ordner):
+        case let .transfer(kind, folder):
             // ⚠️ Nennt die FOLGE, nicht die Handlung – und die ist bei den
             // beiden Arten verschieden: Beim Verschieben verlassen die Dateien
             // ihren Ort, beim Kopieren bleiben sie und es entstehen neue.
-            let folge = art == .move
+            let folge = kind == .move
                 ? "\(count) Dateien verlassen ihren bisherigen Ordner und liegen danach "
                 : "\(count) Dateien bleiben, wo sie sind; Kopien davon entstehen "
-            return folge + "in \u{201E}\(ordner)\u{201C}. Mit \(Shortcuts.undoMove.display) "
+            return folge + "in \u{201E}\(folder)\u{201C}. Mit \(Shortcuts.undoMove.display) "
                 + "rückgängig zu machen."
         }
     }
@@ -136,7 +136,7 @@ public enum BulkAction {
         case .open: return "Öffnen"
         case .reveal: return "Anzeigen"
         case .openInApp(let app): return "In \(app) öffnen"
-        case let .transfer(art, _): return art.label
+        case let .transfer(kind, _): return kind.label
         }
     }
 }

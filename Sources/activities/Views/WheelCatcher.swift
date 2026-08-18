@@ -52,7 +52,7 @@ struct WheelCatcher: NSViewRepresentable {
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            if window == nil { entfernen() } else { einrichten() }
+            if window == nil { remove() } else { install() }
         }
 
         deinit {
@@ -63,15 +63,15 @@ struct WheelCatcher: NSViewRepresentable {
             if let monitor { NSEvent.removeMonitor(monitor) }
         }
 
-        private func einrichten() {
+        private func install() {
             guard monitor == nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-                guard let self, self.trifft(event) else { return event }
+                guard let self, self.hits(event) else { return event }
                 return (self.onWheel?(event) ?? false) ? nil : event
             }
         }
 
-        private func entfernen() {
+        private func remove() {
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
         }
@@ -82,7 +82,7 @@ struct WheelCatcher: NSViewRepresentable {
         /// lokaler Beobachter bekommt die Ereignisse **aller** Fenster dieses
         /// Programms – Einstellungen, Hilfe, Über. Ohne diesen Vergleich träfe
         /// ein Rad an derselben Bildschirmstelle über dem Hilfefenster zu.
-        private func trifft(_ event: NSEvent) -> Bool {
+        private func hits(_ event: NSEvent) -> Bool {
             guard let window, event.window === window else { return false }
             let punkt = convert(event.locationInWindow, from: nil)
             return bounds.contains(punkt)

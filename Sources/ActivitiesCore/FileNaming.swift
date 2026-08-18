@@ -31,8 +31,8 @@ public enum FileNaming {
 
         var n = max(start, 1) + 1
         while true {
-            let kandidat = endung.isEmpty ? "\(basis) \(n)" : "\(basis) \(n).\(endung)"
-            if !existing.contains(kandidat) { return kandidat }
+            let candidate = endung.isEmpty ? "\(basis) \(n)" : "\(basis) \(n).\(endung)"
+            if !existing.contains(candidate) { return candidate }
             n += 1
         }
     }
@@ -66,10 +66,10 @@ public enum FileNaming {
     /// **Lüge**; wer einen echten Zähler nicht erkennt, erzeugt `Bericht 2 2.docx`
     /// — hässlich und wahr. **Hässlich schlägt irreführend.**
     static func counted(_ stamm: String) -> (basis: String, zahl: Int) {
-        guard let leer = stamm.lastIndex(of: " "), leer != stamm.startIndex else {
+        guard let empty = stamm.lastIndex(of: " "), empty != stamm.startIndex else {
             return (stamm, 1)
         }
-        let hinten = String(stamm[stamm.index(after: leer)...])
+        let hinten = String(stamm[stamm.index(after: empty)...])
         // ⚠️ Nur reine Ziffern zaehlen. „Bericht v2" ist kein gezaehlter Name,
         // sondern ein Name mit einer Versionsangabe – daraus „Bericht v3" zu
         // machen waere eine Behauptung ueber fremde Absicht.
@@ -78,7 +78,7 @@ public enum FileNaming {
         else {
             return (stamm, 1)
         }
-        return (String(stamm[stamm.startIndex..<leer]), n)
+        return (String(stamm[stamm.startIndex..<empty]), n)
     }
 
     /// Bis zu welcher Zahl eine angehängte Ziffernfolge als **Zähler** gilt.

@@ -36,10 +36,10 @@ enum FileMoveService {
     /// nicht, aber eine versteckte gleichnamige Datei sehr wohl – und der
     /// Vorgang scheiterte dann mit einer Systemmeldung statt mit einer Frage.
     static func existingNames(in folder: URL) -> Set<String> {
-        let inhalt = try? FileManager.default.contentsOfDirectory(
+        let contents = try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil, options: []
         )
-        return Set((inhalt ?? []).map(\.lastPathComponent))
+        return Set((contents ?? []).map(\.lastPathComponent))
     }
 
     /// Führt die Schritte aus.
@@ -134,12 +134,12 @@ extension FileMoveService {
     /// Die Einträge eines Ordners, in der Form, die ``FolderEmptiness`` erwartet.
     static func contents(of folder: URL) -> [(name: String, isFolder: Bool)] {
         let fm = FileManager.default
-        guard let inhalt = try? fm.contentsOfDirectory(
+        guard let contents = try? fm.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: []
         ) else { return [] }
-        return inhalt.map { url in
-            let ordner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            return (name: url.lastPathComponent, isFolder: ordner)
+        return contents.map { url in
+            let folder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            return (name: url.lastPathComponent, isFolder: folder)
         }
     }
 
@@ -165,8 +165,8 @@ extension FileMoveService {
         var n = 0
         for fall in lauf {
             guard let url = fall as? URL else { continue }
-            let ordner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            if !ordner {
+            let folder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if !folder {
                 n += 1
                 if n > limit { return nil }
             }
@@ -176,10 +176,10 @@ extension FileMoveService {
 
     /// Legt einen Ordner an.
     static func createFolder(named name: String, in parent: URL) -> (url: URL?, failure: String?) {
-        let ziel = parent.appendingPathComponent(FolderNaming.sanitized(name), isDirectory: true)
+        let target = parent.appendingPathComponent(FolderNaming.sanitized(name), isDirectory: true)
         do {
-            try FileManager.default.createDirectory(at: ziel, withIntermediateDirectories: false)
-            return (ziel, nil)
+            try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+            return (target, nil)
         } catch {
             return (nil, error.localizedDescription)
         }
@@ -193,19 +193,19 @@ extension FileMoveService {
     /// mit „Datei existiert bereits". Aus `Projekt` würde nie `projekt`, und die
     /// Meldung sagte etwas, das nicht stimmt.
     static func rename(_ url: URL, to name: String) -> (url: URL?, failure: String?) {
-        let sauber = FolderNaming.sanitized(name)
-        let ziel = url.deletingLastPathComponent().appendingPathComponent(sauber)
+        let cleaned = FolderNaming.sanitized(name)
+        let target = url.deletingLastPathComponent().appendingPathComponent(cleaned)
         let fm = FileManager.default
         do {
-            if FolderNaming.isCaseOnlyChange(from: url.lastPathComponent, to: sauber) {
-                let zwischen = url.deletingLastPathComponent()
+            if FolderNaming.isCaseOnlyChange(from: url.lastPathComponent, to: cleaned) {
+                let interim = url.deletingLastPathComponent()
                     .appendingPathComponent(".\(UUID().uuidString)")
-                try fm.moveItem(at: url, to: zwischen)
-                try fm.moveItem(at: zwischen, to: ziel)
+                try fm.moveItem(at: url, to: interim)
+                try fm.moveItem(at: interim, to: target)
             } else {
-                try fm.moveItem(at: url, to: ziel)
+                try fm.moveItem(at: url, to: target)
             }
-            return (ziel, nil)
+            return (target, nil)
         } catch {
             return (nil, error.localizedDescription)
         }
@@ -220,10 +220,10 @@ extension FileMoveService {
         var report = Report()
         for url in urls {
             do {
-                var neu: NSURL?
-                try FileManager.default.trashItem(at: url, resultingItemURL: &neu)
-                if let ziel = neu as URL? {
-                    report.moved.append((from: url, to: ziel))
+                var new: NSURL?
+                try FileManager.default.trashItem(at: url, resultingItemURL: &new)
+                if let target = new as URL? {
+                    report.moved.append((from: url, to: target))
                 }
             } catch {
                 report.failures.append(

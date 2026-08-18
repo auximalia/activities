@@ -40,16 +40,16 @@ public enum FolderEmptiness {
     ///   dieselbe Aufteilung wie bei ``RepoDetection`` und ``FileTypeRules``.
     public static func isEmpty(_ folder: URL,
                                contents: (URL) -> [(name: String, isFolder: Bool)]) -> Bool {
-        for eintrag in contents(folder) {
-            if eintrag.isFolder {
+        for entry in contents(folder) {
+            if entry.isFolder {
                 // ⚠️ Ein leerer Unterordner hebt die Leere nicht auf – aber ein
                 // voller tut es, und deshalb muss hier hinabgestiegen werden.
                 // Die Kurzfassung „hat Unterordner, also nicht leer" waere
                 // einfacher und wuerde genau den Fall ablehnen, der gemeint ist.
-                if !isEmpty(folder.appendingPathComponent(eintrag.name), contents: contents) {
+                if !isEmpty(folder.appendingPathComponent(entry.name), contents: contents) {
                     return false
                 }
-            } else if !isIgnorable(eintrag.name) {
+            } else if !isIgnorable(entry.name) {
                 return false
             }
         }

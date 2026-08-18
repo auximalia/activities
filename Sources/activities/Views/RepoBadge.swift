@@ -23,7 +23,7 @@ struct RepoBadge: View {
     /// Ordnerzeilen tragen ihn etwas größer – dort ist er die eigentliche Aussage.
     var isRoot = false
 
-    private var symbol: String {
+    private var icon: String {
         switch mark.kind {
         // Verzweigung – das Bild, mit dem git ohnehin erklärt wird.
         case .git: "arrow.triangle.branch"
@@ -33,7 +33,7 @@ struct RepoBadge: View {
     }
 
     var body: some View {
-        Image(systemName: symbol)
+        Image(systemName: icon)
             .font(.system(size: isRoot ? 9 : 8, weight: .semibold))
             .foregroundStyle(.secondary)
             .padding(1)

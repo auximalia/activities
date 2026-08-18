@@ -145,8 +145,8 @@ public struct ExclusionRules: Sendable, Equatable {
     /// fuer sich richtig, das Ganze mehrdeutig. Ein Verhaeltnis laesst sich nicht
     /// aus Teilen zusammensetzen, die es nicht kennen.
     public static func skippedSummary(byRule: Int, byHiddenPath: Int) -> String? {
-        let gesamt = byRule + byHiddenPath
-        guard gesamt > 0 else { return nil }
+        let total = byRule + byHiddenPath
+        guard total > 0 else { return nil }
         // Nur eigene Ausblendungen: Ein „davon 2 von 2" waere Buchhaltung.
         if byRule == 0 {
             let wort = byHiddenPath == 1 ? "ausgeblendeter Ordner" : "ausgeblendete Ordner"
@@ -154,7 +154,7 @@ public struct ExclusionRules: Sendable, Equatable {
         }
         // „samt Inhalt": Die Zahl nennt die uebersprungenen EINSTIEGE – darunter
         // liegen meist deutlich mehr Ordner (46 Einstiege ≙ 168 Ordner gemessen).
-        let kopf = "\(gesamt) Ordner samt Inhalt übersprungen"
+        let kopf = "\(total) Ordner samt Inhalt übersprungen"
         guard byHiddenPath > 0 else { return kopf }
         return kopf + " · davon \(byHiddenPath) von dir ausgeblendet"
     }

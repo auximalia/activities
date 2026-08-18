@@ -49,9 +49,9 @@ enum FileTypeInspector {
     /// gar nicht aus. Ein `+x`-Netz hätte hier nur harmlose Textdateien
     /// aussortiert.
     static func refusesToOpen(_ url: URL) -> String? {
-        let ziel = url.resolvingSymlinksInPath()
-        let typ = (try? ziel.resourceValues(forKeys: [.contentTypeKey]).contentType)
-            ?? UTType(filenameExtension: ziel.pathExtension.lowercased())
+        let target = url.resolvingSymlinksInPath()
+        let typ = (try? target.resourceValues(forKeys: [.contentTypeKey]).contentType)
+            ?? UTType(filenameExtension: target.pathExtension.lowercased())
         return FileTypeRules.resumeRejection(conformingTo: verboteneKonformitaeten(typ))
     }
 

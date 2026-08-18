@@ -118,20 +118,20 @@ final class SettingsStore {
         let roh = ProcessInfo.processInfo.environment[scratchVariable]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard let roh, !roh.isEmpty else { return nil }
-        let sauber = roh.replacingOccurrences(of: "/", with: "-")
-        return "\(Bundle.main.bundleIdentifier ?? "activities").abnahme.\(sauber)"
+        let cleaned = roh.replacingOccurrences(of: "/", with: "-")
+        return "\(Bundle.main.bundleIdentifier ?? "activities").abnahme.\(cleaned)"
     }()
 
     /// Die Ablage, auf der dieser Programmlauf arbeitet.
     static let runDefaults: UserDefaults = {
         guard let name = scratchSuiteName else { return .standard }
-        guard let eigene = UserDefaults(suiteName: name) else {
+        guard let own = UserDefaults(suiteName: name) else {
             // Kann mit der Vorsilbe oben nicht eintreten. Wenn doch, ist der
             // Rückfall auf ``standard`` das Einzige, was hier nicht passieren
             // darf – dann lieber laut stehenbleiben.
             fatalError("Ablagebereich \(name) liess sich nicht oeffnen.")
         }
-        return eigene
+        return own
     }()
 
     func load() -> StoredSettings {
@@ -246,36 +246,36 @@ final class SettingsStore {
     func loadSources() -> SourceList {
         let existiert: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
 
-        if let bekannt = defaults.stringArray(forKey: knownSourcesKey) {
+        if let known = defaults.stringArray(forKey: knownSourcesKey) {
             let aktiv = Set(defaults.stringArray(forKey: activeSourcesKey) ?? [])
-            var liste = SourceList()
-            for pfad in bekannt {
-                let url = URL(fileURLWithPath: pfad, isDirectory: true)
-                liste.add(url)
-                liste.setActive(url, aktiv.contains(pfad))
+            var list = SourceList()
+            for path in known {
+                let url = URL(fileURLWithPath: path, isDirectory: true)
+                list.add(url)
+                list.setActive(url, aktiv.contains(path))
             }
-            let bereinigt = liste.existingOnly(existiert)
+            let bereinigt = list.existingOnly(existiert)
             return bereinigt.known.isEmpty ? Self.defaultList() : bereinigt
         }
 
-        var liste = SourceList()
-        if let pfad = defaults.string(forKey: rootPathKey) {
-            liste.add(URL(fileURLWithPath: pfad, isDirectory: true))
+        var list = SourceList()
+        if let path = defaults.string(forKey: rootPathKey) {
+            list.add(URL(fileURLWithPath: path, isDirectory: true))
         }
-        for pfad in defaults.stringArray(forKey: recentKey) ?? [] {
-            let url = URL(fileURLWithPath: pfad, isDirectory: true)
+        for path in defaults.stringArray(forKey: recentKey) ?? [] {
+            let url = URL(fileURLWithPath: path, isDirectory: true)
             // Ueberlappende Alteintraege lehnt ``add`` von selbst ab.
-            if liste.add(url) == nil { liste.setActive(url, false) }
+            if list.add(url) == nil { list.setActive(url, false) }
         }
-        let bereinigt = liste.existingOnly(existiert)
+        let bereinigt = list.existingOnly(existiert)
         return bereinigt.known.isEmpty ? Self.defaultList() : bereinigt
     }
 
     /// Der Ausgangszustand ohne jede gespeicherte Einstellung.
     private static func defaultList() -> SourceList {
-        var liste = SourceList()
-        liste.add(defaultDocumentsDirectory())
-        return liste
+        var list = SourceList()
+        list.add(defaultDocumentsDirectory())
+        return list
     }
 
     func saveSources(_ list: SourceList) {

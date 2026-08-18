@@ -1,6 +1,8 @@
 # Sprint 20 – „Ballast abwerfen"
 
-*Geplant am 2026-08-16 · Stand: Entwurf, Entscheidungen offen*
+*Stand: v2.0.5 · 2026-08-18*
+
+*Geplant am 2026-08-16 · **Entscheidungen getroffen, Umsetzung läuft.***
 
 > **Übergabedokument.** Es kann von einem anderen Modell und in einer anderen Sitzung
 > umgesetzt werden. Was ein Umsetzender fragen müsste, ist ein Fehler dieses Plans.
@@ -180,8 +182,13 @@ diese Schicht an. `swift build` beweist dabei nur, dass es übersetzt.
 | **b) Nur die Dateiverwaltung herausziehen** | Jüngster Teil, klare Naht, ~350 Zeilen | Der Rest bleibt |
 | **c) Voll aufteilen** | Löst das Problem | In einer ungeprüften Schicht |
 
-*Empfehlung: **b**. Und die ehrliche Reihenfolge dazu: erst AP1/AP5/AP6/AP7 (mechanisch
-oder im geprüften Kern), dann AP4, dann AP2/AP3, zuletzt b.*
+**✅ Entschieden: c — voll aufteilen**, gegen meine Empfehlung b. Der Eigentümer nimmt
+das Risiko der ungeprüften Schicht in Kauf.
+
+**Daraus folgt die Reihenfolge zwingend, und sie ist Teil der Entscheidung:** erst
+AP1/AP5/AP7 (mechanisch oder im geprüften Kern), dann AP6, dann AP4, dann AP2 mit der
+Kernregel aus E2, dann AP3 — und **AP8 zuletzt**, wenn alles davor bereits Zeilen aus
+dem Modell entfernt hat. *Wer zuerst aufteilt, teilt den Ballast mit auf.*
 
 ### E2 · Vorher Charakterisierungs-Zusicherungen?
 
@@ -189,18 +196,18 @@ Vor dem Anfassen der App-Schicht könnten die Regeln, die dort **noch** wohnen, 
 Kern gezogen und zugesichert werden — z. B. „welcher Ordner ist Ziel eines Befehls",
 „wann erscheint welcher Meldekanal".
 
-*Empfehlung: **ja, für AP2**. Die Wahl der Darstellung ist eine Regel und gehört
-ohnehin in den Kern; sie zuerst dorthin zu ziehen macht AP2 zu einer geprüften
-Änderung statt zu einer geglaubten.*
+**✅ Entschieden: ja, für AP2.** Die Wahl der Darstellung ist eine Regel und gehört
+ohnehin in den Kern; sie zuerst dorthin zu ziehen macht AP2 zu einer **geprüften**
+Änderung statt zu einer geglaubten.
 
 ### E3 · Wird ausgeliefert, was niemand sieht?
 
 Ein Aufräum-Sprint erzeugt Versionen ohne sichtbare Änderung.
 
-*Empfehlung: **je Arbeitspaket eine Auslieferung**, wie bisher. Der Grund steht in
-`AGENTS.md`: Was auf der Platte liegt statt auf dem Rechner des Anwenders, ist nicht
-fertig — und ein gebündelter Riesen-Commit wäre bei einem Refactoring die schlechteste
-aller Formen, weil man den Fehler dann nicht mehr zuordnen kann.*
+**✅ Entschieden: je Arbeitspaket eine Auslieferung.** Der Grund steht in `AGENTS.md`:
+Was auf der Platte liegt statt auf dem Rechner des Anwenders, ist nicht fertig — und ein
+gebündelter Riesen-Commit wäre beim Aufräumen die schlechteste aller Formen, weil sich
+ein Fehler dann nicht mehr zuordnen lässt.
 
 ---
 

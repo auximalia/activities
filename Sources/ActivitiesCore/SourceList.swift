@@ -60,12 +60,12 @@ public struct SourceList: Sendable, Equatable {
     /// Ausweg, den die App dort anbietet, repariert nichts im Baum – er
     /// veraendert den **Bestand**, und zwar nur, wenn der Anwender es sagt.
     public func rejectionReason(forAdding url: URL) -> RejectionReason? {
-        let neu = Self.key(url)
-        for vorhanden in known {
-            let alt = Self.key(vorhanden)
-            if alt == neu { return .alreadyKnown }
-            if FolderTree.isRootOrBelow(neu, root: alt) { return .containedIn(vorhanden) }
-            if FolderTree.isRootOrBelow(alt, root: neu) { return .contains(vorhanden) }
+        let new = Self.key(url)
+        for present in known {
+            let old = Self.key(present)
+            if old == new { return .alreadyKnown }
+            if FolderTree.isRootOrBelow(new, root: old) { return .containedIn(present) }
+            if FolderTree.isRootOrBelow(old, root: new) { return .contains(present) }
         }
         return nil
     }
@@ -116,16 +116,16 @@ public struct SourceList: Sendable, Equatable {
     /// ist kein Widerspruch, sondern der harmlose Fall (siehe ``add(_:)``): Es
     /// gibt nichts zu entscheiden und deshalb nichts zu fragen.
     public func conflict(forAdding url: URL) -> SourceConflict? {
-        let neu = Self.key(url)
+        let new = Self.key(url)
         var aeussere: URL?
         var innere: [URL] = []
-        for vorhanden in known {
-            let alt = Self.key(vorhanden)
-            if alt == neu { return nil }
-            if FolderTree.isRootOrBelow(neu, root: alt) {
-                aeussere = vorhanden
-            } else if FolderTree.isRootOrBelow(alt, root: neu) {
-                innere.append(vorhanden)
+        for present in known {
+            let old = Self.key(present)
+            if old == new { return nil }
+            if FolderTree.isRootOrBelow(new, root: old) {
+                aeussere = present
+            } else if FolderTree.isRootOrBelow(old, root: new) {
+                innere.append(present)
             }
         }
         if let aeussere {
@@ -157,7 +157,7 @@ public struct SourceList: Sendable, Equatable {
             guard let aeussere = conflict.existing.first else { return }
             setActive(aeussere, true)
         case .replaceExisting:
-            for alt in conflict.existing { remove(alt) }
+            for old in conflict.existing { remove(old) }
             add(conflict.candidate)
         }
     }
@@ -180,33 +180,33 @@ public struct SourceList: Sendable, Equatable {
     ///
     /// - Returns: die Quellen, deren Eintrag dabei entfallen ist.
     @discardableResult
-    public mutating func relocate(from von: URL, to nach: URL) -> [URL] {
-        let vorher = known
-        known = PathRelocation.relocated(known, from: von, to: nach)
+    public mutating func relocate(from from: URL, to to: URL) -> [URL] {
+        let before = known
+        known = PathRelocation.relocated(known, from: from, to: to)
         // Die Auswahl folgt den Pfaden, nicht den Positionen.
-        var neueAuswahl: Set<URL> = []
-        for (alt, neuPfad) in zip(vorher, known) where active.contains(alt) {
-            neueAuswahl.insert(neuPfad)
+        var newActive: Set<URL> = []
+        for (old, neuPfad) in zip(before, known) where active.contains(old) {
+            newActive.insert(neuPfad)
         }
-        active = neueAuswahl
+        active = newActive
 
         // Aufraeumen: Was jetzt in einer anderen Quelle liegt, faellt weg.
-        var entfallen: [URL] = []
-        var behalten: [URL] = []
-        for kandidat in known {
-            let drin = behalten.contains { FolderTree.isRootOrBelow(Self.key(kandidat), root: Self.key($0)) }
+        var dropped: [URL] = []
+        var kept: [URL] = []
+        for candidate in known {
+            let inside = kept.contains { FolderTree.isRootOrBelow(Self.key(candidate), root: Self.key($0)) }
                 || known.contains { anderer in
-                    anderer != kandidat
-                        && FolderTree.isRootOrBelow(Self.key(kandidat), root: Self.key(anderer))
-                        && !entfallen.contains(anderer)
+                    anderer != candidate
+                        && FolderTree.isRootOrBelow(Self.key(candidate), root: Self.key(anderer))
+                        && !dropped.contains(anderer)
                 }
-            if drin { entfallen.append(kandidat) } else { behalten.append(kandidat) }
+            if inside { dropped.append(candidate) } else { kept.append(candidate) }
         }
-        if !entfallen.isEmpty {
-            known = behalten
-            active.subtract(entfallen)
+        if !dropped.isEmpty {
+            known = kept
+            active.subtract(dropped)
         }
-        return entfallen
+        return dropped
     }
 
     public mutating func remove(_ url: URL) {
@@ -221,8 +221,8 @@ public struct SourceList: Sendable, Equatable {
     /// erst aufnehmen.
     public mutating func setActive(_ url: URL, _ on: Bool) {
         let schluessel = Self.key(url)
-        guard let treffer = known.first(where: { Self.key($0) == schluessel }) else { return }
-        if on { active.insert(treffer) } else { active.remove(treffer) }
+        guard let found = known.first(where: { Self.key($0) == schluessel }) else { return }
+        if on { active.insert(found) } else { active.remove(found) }
     }
 
     /// Ob eine Quelle ausgewaehlt ist.

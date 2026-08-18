@@ -233,7 +233,7 @@ struct ReportView: View {
         // filtert und faltet den ganzen Ordner; im Datenargument einer Dateizeile
         // stand es damit `m`-mal je Ordner – also quadratisch. Die Zeitansicht
         // (`detailRows`) zieht es seit jeher heraus, der Baum tat es nicht.
-        let datumsquellen = quellDaten
+        let datumsquellen = folderDates
         ForEach(Array(model.treeRows.enumerated()), id: \.element.id) { index, row in
             let alternate = index.isMultiple(of: 2) == false
             if let node = row.node {
@@ -286,7 +286,7 @@ struct ReportView: View {
     ///
     /// ⚠️ Vorgezogen, weil ``ReportViewModel/newestVisibleDate(in:)`` den ganzen
     /// Ordner filtert und faltet. Je Dateizeile gerufen war das quadratisch.
-    private var quellDaten: [URL: Date] {
+    private var folderDates: [URL: Date] {
         var result: [URL: Date] = [:]
         for row in model.treeRows {
             guard let file = row.file, result[file.folder] == nil else { continue }

@@ -70,8 +70,8 @@ struct SettingsView: View {
 
                 Toggle(isOn: Binding(
                     get: { launchesAtLogin },
-                    set: { neu in
-                        loginError = AppPresence.setLaunchesAtLogin(neu)
+                    set: { new in
+                        loginError = AppPresence.setLaunchesAtLogin(new)
                         launchesAtLogin = AppPresence.launchesAtLogin
                     }
                 )) {
@@ -253,7 +253,7 @@ struct SettingsView: View {
         ) { result in
             switch result {
             case .success(let urls): model.addSources(urls)
-            case .failure(let fehler): model.reportSourceImportFailure(fehler)
+            case .failure(let failure): model.reportSourceImportFailure(failure)
             }
         }
     }

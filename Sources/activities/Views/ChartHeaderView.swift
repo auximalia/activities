@@ -41,7 +41,7 @@ struct ChartHeaderView: View {
     /// **⚠️ Waagerechtes Wischen wird nicht angefasst.** Ein Zweifingerwisch
     /// nach links hat auf dieser Fläche keine Bedeutung, und ein Ereignis, das
     /// überwiegend waagerecht ist, war nicht als Verstellen gemeint.
-    private func verstelle(_ event: NSEvent) -> Bool {
+    private func handleWheel(_ event: NSEvent) -> Bool {
         guard event.momentumPhase.isEmpty else { return true }
         let dy = event.scrollingDeltaY
         guard dy != 0, abs(dy) >= abs(event.scrollingDeltaX) else { return false }
@@ -56,14 +56,14 @@ struct ChartHeaderView: View {
         scrub.handle(eingabe,
                      startDays: model.days,
                      startAll: model.ignoreTimeWindow,
-                     endsNow: endetJetzt) { stand in
-            guard stand.differs(fromDays: model.days,
+                     endsNow: endetJetzt) { state in
+            guard state.differs(fromDays: model.days,
                                 isAllTime: model.ignoreTimeWindow,
                                 usesRange: model.useDateRange) else { return }
-            if stand.isAllTime {
+            if state.isAllTime {
                 model.setIgnoreTimeWindow(true)
             } else {
-                model.setDays(stand.days)
+                model.setDays(state.days)
             }
         }
         return true
@@ -102,7 +102,7 @@ struct ChartHeaderView: View {
                 // nicht ihr Kind (`RootView` gegen `ReportView`) – ueber ihr
                 // liegt kein Bildlaufbereich, in den ein Ereignis aufsteigen
                 // koennte.
-                .background(WheelCatcher(onWheel: verstelle))
+                .background(WheelCatcher(onWheel: handleWheel))
                 .overlay { ScrubIndicator(scrub: scrub) }
             }
 

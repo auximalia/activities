@@ -45,7 +45,7 @@ public struct FileTypeRules: Sendable, Equatable, Codable {
         }
     }
 
-    public static let leer = FileTypeRules()
+    public static let empty = FileTypeRules()
 
     // MARK: - Wirkung
 

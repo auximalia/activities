@@ -126,19 +126,19 @@ public struct DayScrub: Equatable, Sendable {
         // ⚠️ Zur Null hin abschneiden, nicht abrunden: Bei einem Wechsel der
         // Drehrichtung darf der aufgehobene Rest nicht in die neue Richtung
         // durchschlagen. `Int(-0.4)` ist 0, `floor(-0.4)` waere -1.
-        var schritte = Int(carry)
-        if schritte == 0 {
+        var steps = Int(carry)
+        if steps == 0 {
             // ⚠️ Mindestens ein Tag je Ereignis. Der Rest wird dabei
             // zurueckgesetzt und NICHT aufgehoben – sonst zaehlte dieselbe
             // Bewegung zweimal, einmal als Mindestschritt und spaeter noch
             // einmal aus dem angesparten Rest.
-            schritte = roh > 0 ? 1 : -1
+            steps = roh > 0 ? 1 : -1
             carry = 0
         } else {
-            carry -= Double(schritte)
+            carry -= Double(steps)
         }
 
-        apply(steps: schritte)
+        apply(steps: steps)
         return days != vorherTage || isAllTime != vorherAlle
     }
 
@@ -160,8 +160,8 @@ public struct DayScrub: Equatable, Sendable {
             if rest == 0 { return }
         }
 
-        let ziel = days + rest
-        if ziel > Self.dayRange.upperBound {
+        let target = days + rest
+        if target > Self.dayRange.upperBound {
             // Der Anschlag wird nicht uebersprungen: Er ist eine eigene Raste.
             if days == Self.dayRange.upperBound {
                 isAllTime = true
@@ -169,7 +169,7 @@ public struct DayScrub: Equatable, Sendable {
                 days = Self.dayRange.upperBound
             }
         } else {
-            days = Self.clamp(ziel)
+            days = Self.clamp(target)
         }
     }
 
@@ -192,8 +192,9 @@ public struct DayScrub: Equatable, Sendable {
     /// Modus –, auch wenn die Tageszahl zufällig dieselbe ist. Ohne diesen Fall
     /// wäre das Rad in „Spanne" sichtbar am Zählen und wirkungslos: Die Anzeige
     /// zählte, die Prüfung sagte „nichts geändert", und es geschähe nichts.
-    public func differs(fromDays tage: Int, isAllTime alle: Bool, usesRange spanne: Bool = false) -> Bool {
-        if spanne { return true }
-        return isAllTime != alle || (!isAllTime && days != tage)
+    public func differs(fromDays currentDays: Int, isAllTime currentAll: Bool,
+                        usesRange usesRange: Bool = false) -> Bool {
+        if usesRange { return true }
+        return isAllTime != currentAll || (!isAllTime && days != currentDays)
     }
 }

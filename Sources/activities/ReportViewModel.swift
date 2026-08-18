@@ -799,13 +799,34 @@ final class ReportViewModel {
     /// Ordner entweder gefüllt und von selbst sichtbar, oder er war ein Irrtum.*
     private(set) var sessionCreatedFolders: [URL] = []
 
-    /// Die selbst angelegten Ordner, die es **noch gibt**.
+    /// Warum ein leerer Ordner gerade nicht erscheinen würde – ``nil`` = er erscheint.
+    ///
+    /// **⚠️ „Filter schlägt neuen Ordner"** — Entscheidung des Eigentümers vom
+    /// 2026-08-16. Ein Ordner **ohne** Dateien hat nichts, was einen Filter
+    /// erfüllen könnte; ihn trotzdem zu zeigen hieße, ihn daran
+    /// vorbeizuschmuggeln. Bei aktivem Namensfilter „Erinnerung" stand in
+    /// v2.0.0 `Neuer Ordner` mitten in den Treffern.
+    var emptyFolderHiddenReason: EmptyFolderVisibility.HiddenReason? {
+        EmptyFolderVisibility.hiddenReason(
+            namePattern: namePattern,
+            hasTypeFilter: hasTypeFilter,
+            nowInWindow: Date() >= cachedWindowStart && Date() < cachedWindowEnd
+        )
+    }
+
+    /// Die selbst angelegten Ordner, die es **noch gibt** und die gezeigt werden dürfen.
     ///
     /// ⚠️ Gefragt wird die Platte: Ein angelegter Ordner kann inzwischen
     /// verschoben, umbenannt oder im Finder geloescht worden sein. Eine Zeile
     /// fuer einen Ordner, den es nicht mehr gibt, waere schlimmer als keine.
+    ///
+    /// ⚠️ Und der Filter entscheidet mit – siehe ``emptyFolderHiddenReason``.
+    /// **Ein Ordner mit Dateien braucht diese Liste ohnehin nicht**: Er kommt
+    /// dann auf dem gewoehnlichen Weg ueber `folderEntries` herein, mitsamt der
+    /// vollstaendigen Filterpruefung.
     var vorhandeneSitzungsordner: [URL] {
-        sessionCreatedFolders.filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard emptyFolderHiddenReason == nil else { return [] }
+        return sessionCreatedFolders.filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     /// Ein Blatt wartet auf einen Ordnernamen.

@@ -3328,6 +3328,47 @@ do {
            "Reihenfolge: bei gleichem Datum der Pfad absteigend")
 }
 
+// MARK: - EmptyFolderVisibility: Filter schlaegt neuen Ordner (v2.0.4)
+do {
+    func grund(_ muster: String = "", typ: Bool = false, imFenster: Bool = true)
+        -> EmptyFolderVisibility.HiddenReason? {
+        EmptyFolderVisibility.hiddenReason(namePattern: muster, hasTypeFilter: typ,
+                                           nowInWindow: imFenster)
+    }
+
+    // Ohne Filter erscheint er.
+    expect(grund() == nil, "Leerer Ordner: ohne Filter erscheint er")
+
+    // ⚠️ Ein Ordner OHNE Dateien hat nichts, was einen Filter erfuellen koennte.
+    // Ihn trotzdem zu zeigen hiesse, ihn daran vorbeizuschmuggeln - genau das
+    // tat v2.0.0, und bei aktivem Namensfilter „Erinnerung" stand `Neuer Ordner`
+    // mitten in den Treffern.
+    expectEqual(grund("Erinnerung"), .nameFilter("Erinnerung"), "Leerer Ordner: Namensfilter schlaegt")
+    expectEqual(grund(typ: true), .typeFilter, "Leerer Ordner: Typ-Filter schlaegt")
+    expectEqual(grund(imFenster: false), .outsideWindow, "Leerer Ordner: Zeitraum schlaegt")
+
+    // Leerzeichen sind kein Muster.
+    expect(grund("   ") == nil, "Leerer Ordner: ein leeres Muster ist keiner")
+    expectEqual(grund(" Erinnerung "), .nameFilter("Erinnerung"),
+                "Leerer Ordner: das Muster wird beschnitten genannt")
+
+    // ⚠️ Bei mehreren Gruenden gewinnt der, den der Anwender ZULETZT SELBST
+    // gesetzt hat - sonst nennt die App einen Grund, den er nicht sucht.
+    expectEqual(grund("x", typ: true, imFenster: false), .nameFilter("x"),
+                "Leerer Ordner: der Namensfilter wird zuerst genannt")
+    expectEqual(grund(typ: true, imFenster: false), .typeFilter,
+                "Leerer Ordner: dann der Typ-Filter")
+
+    // ⚠️ Der Satz nennt die URSACHE, nicht die Regel: Wer den Filter gerade
+    // selbst gesetzt hat, will wissen WELCHER ihn wegnimmt.
+    let satz = EmptyFolderVisibility.HiddenReason.nameFilter("Erinnerung").text
+    expect(satz.contains("Erinnerung"), "Leerer Ordner: der Satz nennt das Muster (\(satz))")
+    for r in [EmptyFolderVisibility.HiddenReason.nameFilter("a"), .typeFilter, .outsideWindow] {
+        expect(r.text.contains("angelegt"), "Leerer Ordner: der Satz sagt, dass angelegt wird (\(r))")
+        expect(r.text.contains("nicht"), "Leerer Ordner: … und dass er nicht erscheint")
+    }
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.3 · 2026-08-18*
+*Stand: v2.0.4 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,38 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-68 · Filter schlägt neuen Ordner *(v2.0.4)*
+**Aufwand:** XS · **Art:** Nachschärfung von E2 · *„Wird ein Ordner erzeugt, der das aktuelle Filterkriterium nicht erfüllt, soll er auch nicht angezeigt werden. Der Nutzer kann darauf hingewiesen werden, dass der Ordner verschwindet."*
+
+**⚠️ Die Filter dieser App prüfen Dateien, nicht Ordner.** Ein Ordner erscheint in der Liste,
+weil eine seiner Dateien durchkommt. Ein Ordner **ohne** Dateien hat nichts, was durchkommen
+könnte — er kann einen aktiven Filter also gar nicht erfüllen, sondern nur an ihm
+vorbeigeschmuggelt werden.
+
+**Genau das tat v2.0.0.** Der selbst angelegte Ordner wurde in die Liste gehängt, ohne dass
+irgendetwas geprüft wurde; bei aktivem Namensfilter „Erinnerung" stand `Neuer Ordner` mitten
+in den Treffern. *Meine Entscheidung E2 lautete „er ist Arbeit von heute, also gehört er in die
+Liste" — das ist richtig und war zu weit gefasst: Es beantwortet, **warum** er erscheinen darf,
+und nicht, **wann**.*
+
+**Gemacht:** `EmptyFolderVisibility` im Kern nennt den Grund, aus dem ein leerer Ordner nicht
+erscheint — Namensfilter, Typ-Filter oder ein Zeitraum, der nicht bis heute reicht. Er wird
+**angelegt und nicht gezeigt**, und das Blatt sagt es **vorher**.
+
+**⚠️ Die Reihenfolge der Gründe ist festgelegt, nicht beliebig.** Treffen mehrere zu, wird der
+genannt, den der Anwender **zuletzt selbst gesetzt** hat: Namensfilter, dann Typ-Filter, dann
+Zeitraum. Sonst nennt die App einen Grund, den er nicht sucht.
+
+**⚠️ Der Satz nennt die Ursache, nicht die Regel.** „Der Ordner erfüllt das Filterkriterium
+nicht" wäre wahr und unbrauchbar; wer den Filter gerade selbst gesetzt hat, will wissen,
+**welcher** ihn wegnimmt.
+
+*Das ist die Leitlinie in ihrer knappsten Form: Die App hindert nicht am Anlegen — sie sagt,
+was geschehen wird, und tut es dann.*
+
+**Zusicherungen:** 1784 → **1799**.
+
 
 ### ✅ UX-67 · „Lade Dateien …" ohne Ende *(v2.0.3)*
 **Aufwand:** XS · **Art:** Defekt aus v2.0.0 · *„Nach einem Refresh versucht das Tool in dem leeren Ordner Dateien zu laden und hängt sich dabei auf"*

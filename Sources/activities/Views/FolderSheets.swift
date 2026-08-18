@@ -42,6 +42,16 @@ struct NewFolderSheet: View {
                 Text("Die markierten Dateien werden anschließend hineinverschoben.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+            } else if let grund = model.emptyFolderHiddenReason {
+                // **⚠️ VOR dem Anlegen, nicht danach.** Ein leerer Ordner kann
+                // keinen Filter erfuellen – er hat nichts, was durchkaeme. Ihn
+                // trotzdem zu zeigen hiesse, ihn daran vorbeizuschmuggeln; ihn
+                // wortlos verschwinden zu lassen waere der stille Zustand, den
+                // dieses Programm nirgends duldet. Also: anlegen und es sagen.
+                Label(grund.text, systemImage: "line.3.horizontal.decrease.circle")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack {

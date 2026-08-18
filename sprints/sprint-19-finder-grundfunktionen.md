@@ -1,6 +1,6 @@
 # Sprint 19 – „Der Finder im Werkzeug"
 
-*Stand: v2.0.0 · 2026-08-18*
+*Stand: v2.0.4 · 2026-08-18*
 
 *Geplant am 2026-08-16 · **Umgesetzt am 2026-08-16, ausgeliefert als v2.0.0.***
 
@@ -211,6 +211,14 @@ liegt. Zwei Zeilen:
 2. **In dieser Sitzung selbst angelegte Ordner werden gezeigt, auch leer.** Nicht als
    Ausnahme von der Regel, sondern weil die Aussage wahr ist: Dort wurde gerade
    gearbeitet. Die Menge ist sitzungslokal und räumt sich damit selbst auf.
+
+**⚠️ Nachgeschärft am 2026-08-16, nach der ersten Abnahme: „Filter schlägt neuen
+Ordner."** Punkt 2 war zu weit gefasst — er zeigte den Ordner **immer**, auch bei
+aktivem Namens- oder Typ-Filter, und dann stand `Neuer Ordner` mitten in den Treffern
+zu „Erinnerung". *Ein Ordner ohne Dateien hat nichts, was einen Filter erfüllen könnte;
+ihn trotzdem zu zeigen heißt, ihn daran vorbeizuschmuggeln.* Er wird angelegt und
+**nicht** gezeigt — und das Blatt sagt es **vorher**, mit dem Filter, der ihn wegnimmt
+(`EmptyFolderVisibility`).
 
 **⚠️ Verworfen: „Alle" als Vorbedingung für Verwaltungsfunktionen.** Der Vorschlag
 lautete, das Anlegen nur bei Zeitraum „Alle" zuzulassen und sonst auszublenden. **Die

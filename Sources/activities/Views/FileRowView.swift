@@ -125,37 +125,22 @@ struct FileRowView: View {
         .background(
             MultiFileDragSource(
                 targets: { model.actionTargets(for: file.url) },
-                prepare: { if !model.isSelected(file.url) { model.select(.file(file.url)) } }
+                prepare: {
+                    if !model.isSelected(file.url) { model.select(.file(file.url)) }
+                    // Damit das Ziel waehrend der Bewegung weiss, ob es ueber
+                    // eine Volume-Grenze geht – siehe `DragOperation`.
+                    model.noteDragOrigin(file.url)
+                }
             )
         )
-        // Herausziehen in andere Programme (Mail, Finder, Editor).
-        //
-        // **Reihenfolge ist wichtig:** `.onDrag` steht VOR der
-        // Sofort-Markierungsgeste. Andernfalls verschluckt die
-        // `DragGesture(minimumDistance: 0)` die Zugbewegung und das Ziehen
-        // kommt nie zustande.
-        .onDrag {
-            // Finder-Regel: Gehoert die gezogene Zeile zur Auswahl, werden ALLE
-            // ausgewaehlten Dateien gezogen; sonst wird sie zuerst allein
-            // ausgewaehlt und nur sie gezogen.
-            if !model.isSelected(file.url) { model.select(.file(file.url)) }
-            let provider = NSItemProvider(contentsOf: file.url)
-                ?? NSItemProvider(object: file.url as NSURL)
-            // **Ohne `suggestedName` benennt der Empfaenger die Datei nach ihrem
-            // TYP** („XMind Workbook.xmind") statt nach ihrem echten Namen.
-            //
-            // **Ohne Endung uebergeben:** Der Empfaenger haengt die zum Typ
-            // passende Endung selbst an – mit „name.xmind" entstuende
-            // „name.xmind.xmind".
-            provider.suggestedName = file.url.deletingPathExtension().lastPathComponent
-            return provider
-        } preview: {
-            // ⚠️ Ebenfalls ein eigener Typ, und aus demselben Grund: Auch
-            // `preview:` ist eine nicht entweichende Closure und baute Symbol,
-            // Text und Material bei jeder Neuzeichnung der Zeile auf – fuer ein
-            // Ziehen, das fast nie stattfindet.
-            DragPreview(url: file.url, fontSize: groesse.nameFontSize)
-        }
+        // **⚠️ Kein `onDrag` mehr (v1.19.78).** Das Ziehen laeuft vollstaendig
+        // ueber ``MultiFileDragSource`` – auch fuer eine einzelne Datei. Zwei
+        // Wege waren eine Verdopplung, die prompt auseinanderlief: SwiftUI
+        // bestimmt die erlaubten Operationen selbst, also haette eine Datei nur
+        // kopiert und zwei haetten verschoben werden koennen, und der Anhaenger
+        // am Mauszeiger haette bei einer Datei etwas anderes gesagt als bei
+        // zweien. Der Beobachter verbraucht das `.leftMouseDragged`-Ereignis,
+        // ein `onDrag` daneben waere ohnehin toter Code, der lebendig aussieht.
         .help("Klick: markieren · Doppelklick: öffnen · Leertaste: Vorschau · Ziehen: in andere Programme")
         // Markieren sofort beim Mausdruck: zwei konkurrierende onTapGesture
         // (count 1 und 2) wuerden SwiftUI zwingen, das Doppelklick-Intervall

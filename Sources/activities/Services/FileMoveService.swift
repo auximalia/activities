@@ -52,7 +52,7 @@ enum FileMoveService {
     /// Planen und Ausführen liegt ein Dialog; in dieser Zeit kann ein anderes
     /// Programm die Zieldatei angelegt haben. Ein Plan ist eine Absicht, keine
     /// Zusicherung über die Platte.
-    static func execute(_ steps: [MoveStep]) -> Report {
+    static func execute(_ steps: [MoveStep], kind: TransferKind = .move) -> Report {
         var report = Report()
         let fm = FileManager.default
 
@@ -78,7 +78,10 @@ enum FileMoveService {
                         continue
                     }
                 }
-                try fm.moveItem(at: step.source, to: step.destination)
+                switch kind {
+                case .move: try fm.moveItem(at: step.source, to: step.destination)
+                case .copy: try fm.copyItem(at: step.source, to: step.destination)
+                }
                 report.moved.append((from: step.source, to: step.destination))
             } catch {
                 report.failures.append(
@@ -96,10 +99,30 @@ enum FileMoveService {
     /// programmatisch zu tun, hieße den Papierkorb zu durchsuchen und zu raten,
     /// welcher Eintrag gemeint ist. Der Bericht sagt das, statt es zu
     /// verschweigen.
-    static func undo(_ pairs: [(from: URL, to: URL)]) -> Report {
-        // Rueckwaerts, damit eine Kette (a→b, b→c) sich sauber aufloest.
-        execute(pairs.reversed().map {
-            MoveStep(source: $0.to, destination: $0.from, hadConflict: false, resolution: nil)
-        })
+    static func undo(_ pairs: [(from: URL, to: URL)], kind: TransferKind) -> Report {
+        switch kind {
+        case .move:
+            // Rueckwaerts, damit eine Kette (a→b, b→c) sich sauber aufloest.
+            return execute(pairs.reversed().map {
+                MoveStep(source: $0.to, destination: $0.from, hadConflict: false, resolution: nil)
+            }, kind: .move)
+
+        case .copy:
+            // **⚠️ Eine Kopie wird nicht zurueckgeschoben, sie wird
+            // weggeraeumt** – und zwar in den **Papierkorb**, nicht geloescht.
+            // Das Original liegt unveraendert an seinem Platz; die Kopie
+            // zurueckzuschieben hiesse, sie ueber das Original zu legen.
+            var report = Report()
+            for paar in pairs.reversed() {
+                do {
+                    try FileManager.default.trashItem(at: paar.to, resultingItemURL: nil)
+                } catch {
+                    report.failures.append(
+                        "\u{201E}\(paar.to.lastPathComponent)\u{201C}: \(error.localizedDescription)"
+                    )
+                }
+            }
+            return report
+        }
     }
 }

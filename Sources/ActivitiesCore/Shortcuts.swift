@@ -359,6 +359,10 @@ public enum Shortcuts {
         id: "dragFiles", key: nil, displayOverride: "Ziehen",
         label: "Markierte Dateien in ein anderes Programm kopieren – auch mehrere", section: .mouse
     )
+    public static let dragCopy = ShortcutEntry(
+        id: "dragCopy", key: nil, displayOverride: "⌥-Ziehen",
+        label: "Beim Ziehen kopieren statt verschieben (⌘ erzwingt verschieben)", section: .mouse
+    )
     public static let wheelDays = ShortcutEntry(
         id: "wheelDays", key: nil, displayOverride: "Mausrad",
         label: "Über dem Diagramm: Zeitraum tageweise verstellen", section: .mouse
@@ -376,7 +380,7 @@ public enum Shortcuts {
         selectAll, clearSelection, closeWindow, settings, help, bringToFront,
         moveSelection, extendSelection, expandCollapse, openSelection,
         quickLookSpace, escapeSelection, undoMove,
-        commandClick, shiftClick, dragFiles, wheelDays,
+        commandClick, shiftClick, dragFiles, dragCopy, wheelDays,
     ]
 
     /// Alle Einträge eines Abschnitts, in Katalogreihenfolge.

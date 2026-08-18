@@ -2951,6 +2951,49 @@ do {
     }
 }
 
+// MARK: - DragOperation: verschieben oder kopieren (v1.19.78)
+do {
+    func art(_ gleich: Bool, opt: Bool = false, cmd: Bool = false) -> TransferKind {
+        DragOperation.kind(sameVolume: gleich, optionDown: opt, commandDown: cmd)
+    }
+
+    // ── Die Regel des Finders, und das ist der Punkt: Wer ⌥ drueckt, hat diese
+    // Erwartung nicht in dieser App gelernt. ──
+    expectEqual(art(true), .move, "Zug: gleicher Datentraeger heisst verschieben")
+    expectEqual(art(true, opt: true), .copy, "Zug: ⌥ erzwingt kopieren")
+    expectEqual(art(true, cmd: true), .move, "Zug: ⌘ bleibt verschieben")
+
+    // ⚠️ Ueber Volume-Grenzen wird OHNE Taste kopiert. Ein Verschieben zwischen
+    // zwei Datentraegern ist kein Umhaengen, sondern Kopieren und Loeschen -
+    // nicht unterbrechungsfrei, und bei einem Abbruch liegt die Datei doppelt.
+    expectEqual(art(false), .copy, "Zug: anderer Datentraeger heisst kopieren")
+    expectEqual(art(false, opt: true), .copy, "Zug: ⌥ aendert daran nichts")
+    expectEqual(art(false, cmd: true), .move, "Zug: ⌘ erzwingt auch dort verschieben")
+
+    // ⚠️ ⌘ gewinnt gegen ⌥. Beide zugleich heisst im Finder „Alias anlegen" –
+    // das kann diese App nicht, und still zu kopieren waere die schlechtere der
+    // beiden Antworten.
+    expectEqual(art(true, opt: true, cmd: true), .move, "Zug: ⌘ gewinnt gegen ⌥")
+    expectEqual(art(false, opt: true, cmd: true), .move, "Zug: auch ueber Volume-Grenzen")
+
+    // Beschriftungen sind gesetzt – eine leere Schaltflaeche waere unbedienbar.
+    for k in TransferKind.allCases {
+        expect(!k.label.isEmpty, "Zug: Beschriftung fuer \(k.rawValue)")
+        expect(!k.verb.isEmpty, "Zug: Verb fuer \(k.rawValue)")
+    }
+    expect(TransferKind.move.verb != TransferKind.copy.verb, "Zug: die Verben unterscheiden sich")
+
+    // Die Rueckfrage nennt die richtige Handlung und die richtige FOLGE.
+    let fragen = BulkAction.question(kind: .transfer(.copy, "Ziel"), count: 12)
+    expect(fragen.contains("kopieren"), "Zug: die Rueckfrage sagt kopieren (\(fragen))")
+    let erklaerung = BulkAction.explanation(kind: .transfer(.move, "Ziel"), count: 12)
+    expect(erklaerung.contains("verlassen"), "Zug: Verschieben nennt das Verlassen des Ordners")
+    let erklaerungK = BulkAction.explanation(kind: .transfer(.copy, "Ziel"), count: 12)
+    expect(erklaerungK.contains("bleiben"), "Zug: Kopieren nennt, dass die Dateien bleiben")
+    expectEqual(BulkAction.confirmLabel(kind: .transfer(.copy, "Ziel")), "Kopieren",
+                "Zug: der Knopf heisst wie die Handlung")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

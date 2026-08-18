@@ -92,34 +92,89 @@ struct MultiFileDragSource: NSViewRepresentable {
         private func starte(_ event: NSEvent) -> Bool {
             prepare?()
             let urls = targets?() ?? []
-            guard urls.count > 1 else { return false }
+            // ⚠️ Auch der EINZELFALL laeuft hierueber (v1.19.78). Bis dahin war
+            // er SwiftUI ueberlassen, und das war die Verdopplung, die prompt
+            // auseinanderlief: SwiftUIs `onDrag` bestimmt die erlaubten
+            // Operationen selbst, also haette eine Datei nur kopiert und zwei
+            // haetten verschoben werden koennen. Ein Weg, ein Verhalten.
+            guard !urls.isEmpty else { return false }
 
+            let ort = convert(event.locationInWindow, from: nil)
             let items: [NSDraggingItem] = urls.enumerated().map { index, url in
                 let item = NSDraggingItem(pasteboardWriter: url as NSURL)
-                // Die Bilder leicht versetzt stapeln – so sieht man, dass es
-                // mehrere sind, ohne dass eine Zahl nötig wäre.
-                let versatz = CGFloat(min(index, 4)) * 4
-                let bild = NSWorkspace.shared.icon(forFile: url.path)
-                bild.size = NSSize(width: 32, height: 32)
-                let ort = convert(event.locationInWindow, from: nil)
-                item.setDraggingFrame(
-                    NSRect(x: ort.x - 16 + versatz, y: ort.y - 16 - versatz, width: 32, height: 32),
-                    contents: bild
-                )
+                if urls.count == 1 {
+                    // ⚠️ Bei EINER Datei steht der Name dabei. Die Vorschau kam
+                    // bis v1.19.78 von SwiftUIs `onDrag(preview:)`; seit der
+                    // Einzelfall ebenfalls hierueber laeuft, muss sie hier
+                    // entstehen – sonst haenge nur ein Symbol am Zeiger, und
+                    // bei fuenf gleichnamigen Dateien saehe man nicht, welche.
+                    let bild = Self.vorschau(for: url)
+                    item.setDraggingFrame(
+                        NSRect(x: ort.x - 16, y: ort.y - bild.size.height / 2,
+                               width: bild.size.width, height: bild.size.height),
+                        contents: bild
+                    )
+                } else {
+                    // Die Bilder leicht versetzt stapeln – so sieht man, dass es
+                    // mehrere sind, ohne dass eine Zahl nötig wäre.
+                    let versatz = CGFloat(min(index, 4)) * 4
+                    let bild = NSWorkspace.shared.icon(forFile: url.path)
+                    bild.size = NSSize(width: 32, height: 32)
+                    item.setDraggingFrame(
+                        NSRect(x: ort.x - 16 + versatz, y: ort.y - 16 - versatz,
+                               width: 32, height: 32),
+                        contents: bild
+                    )
+                }
                 return item
             }
             beginDraggingSession(with: items, event: event, source: self)
             return true
         }
 
+        /// Symbol und Name nebeneinander, als Bild fuer den Mauszeiger.
+        private static func vorschau(for url: URL) -> NSImage {
+            let symbol = NSWorkspace.shared.icon(forFile: url.path)
+            symbol.size = NSSize(width: 16, height: 16)
+            let schrift = NSFont.systemFont(ofSize: 12)
+            let name = url.lastPathComponent as NSString
+            let textGroesse = name.size(withAttributes: [.font: schrift])
+            let breite = 16 + 6 + ceil(textGroesse.width) + 12
+            let hoehe: CGFloat = 22
+
+            let bild = NSImage(size: NSSize(width: breite, height: hoehe))
+            bild.lockFocus()
+            NSColor.windowBackgroundColor.withAlphaComponent(0.95).setFill()
+            let rahmen = NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: breite, height: hoehe),
+                                      xRadius: 5, yRadius: 5)
+            rahmen.fill()
+            NSColor.separatorColor.setStroke()
+            rahmen.stroke()
+            symbol.draw(in: NSRect(x: 6, y: (hoehe - 16) / 2, width: 16, height: 16))
+            name.draw(at: NSPoint(x: 28, y: (hoehe - textGroesse.height) / 2),
+                      withAttributes: [.font: schrift, .foregroundColor: NSColor.labelColor])
+            bild.unlockFocus()
+            return bild
+        }
+
         // MARK: - NSDraggingSource
 
         func draggingSession(_ session: NSDraggingSession,
                              sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-            // ⚠️ `.copy`, nicht `.move`. Dieses Programm **liest** nur; ein
-            // Ziehen, das die Datei am Ursprung entfernt, widerspräche der
-            // Zusage „findet, verwaltet nicht" (`backlog.md`).
-            context == .outsideApplication ? [.copy] : []
+            // **⚠️ Hier stand `context == .outsideApplication ? [.copy] : []`,
+            // und die zweite Haelfte war ein Defekt.** Innerhalb der App war
+            // damit **keine** Operation erlaubt – ein Zug mit mehreren Dateien
+            // auf eine Ordnerzeile wurde abgewiesen, waehrend der Einzelzug
+            // ueber SwiftUI ankam. Ausgeliefert in v1.19.77, bemerkt beim
+            // Nachlesen eine Stunde spaeter.
+            //
+            // **Die Quelle sagt, was ERLAUBT ist, das Ziel waehlt aus.** Genau
+            // daraus entsteht der Anhaenger am Mauszeiger: Meldet das Ziel
+            // `.copy`, zeichnet das System das gruene Plus; meldet es `.move`,
+            // zeichnet es nichts. Beschraenkt die Quelle auf `.copy`, kann das
+            // Ziel nie etwas anderes waehlen – und der Anhaenger lueckenlos
+            // falsch stehen.
+            [.copy, .move]
         }
     }
 }

@@ -563,6 +563,8 @@ final class ReportViewModel {
         /// geaendert haben, und dann bezoege sich die Zusage der Rueckfrage auf
         /// etwas anderes als das Ausgefuehrte.
         var moveSteps: [MoveStep] = []
+        /// Verschieben oder Kopieren bei ``BulkAction/Kind/transfer(_:_:)``.
+        var transferKind: TransferKind = .move
 
         var question: String { BulkAction.question(kind: kind, count: urls.count) }
         /// Wie viele Objekte der Menge beim Oeffnen **ausgefuehrt** wuerden.
@@ -591,6 +593,7 @@ final class ReportViewModel {
         let folder: URL
         let existing: Set<String>
         let conflicts: [URL]
+        let kind: TransferKind
 
         var question: String {
             conflicts.count == 1
@@ -626,6 +629,15 @@ final class ReportViewModel {
     /// sie auch verschieben. Ein aus dem Finder gezogener Ordner oder eine
     /// fremde Datei fällt heraus – und das fensterweite Ablegeziel („Ordner aufs
     /// Fenster = Quelle hinzufügen") behält seine Bedeutung.
+    /// Der Ordner, aus dem gerade gezogen wird – für die Volume-Frage.
+    ///
+    /// ⚠️ Wird beim Beginn des Ziehens gesetzt, weil das Ziel die Quelle sonst
+    /// erst kennt, wenn losgelassen wurde – der Anhaenger am Mauszeiger muss die
+    /// Antwort aber **waehrend** der Bewegung zeigen.
+    private(set) var dragOriginFolder: URL?
+
+    func noteDragOrigin(_ url: URL) { dragOriginFolder = url.deletingLastPathComponent() }
+
     func isKnownFile(_ url: URL) -> Bool {
         filesByFolder[url.deletingLastPathComponent()]?.contains { $0.url == url } ?? false
     }
@@ -637,7 +649,7 @@ final class ReportViewModel {
     /// Blättern genau die Rückfrage, die weggeklickt wird, ohne gelesen zu
     /// werden – dieselbe Überlegung, die in ``BulkAction`` die Schwelle
     /// begründet.
-    func requestMove(_ urls: [URL], to folder: URL) {
+    func requestTransfer(_ urls: [URL], to folder: URL, kind: TransferKind) {
         let eigene = urls.filter { isKnownFile($0) }
         let vorhanden = FileMoveService.existingNames(in: folder)
         let konflikte = MovePlan.conflicts(sources: eigene, into: folder, existing: vorhanden)
@@ -645,24 +657,25 @@ final class ReportViewModel {
         guard !bewegt.isEmpty else { return }
 
         if konflikte.isEmpty {
-            starteVerschieben(eigene, to: folder, existing: vorhanden, resolution: .keepBoth)
+            starteVerschieben(eigene, to: folder, existing: vorhanden,
+                              resolution: .keepBoth, kind: kind)
         } else {
-            pendingMove = PendingMove(sources: eigene, folder: folder,
-                                      existing: vorhanden, conflicts: konflikte)
+            pendingMove = PendingMove(sources: eigene, folder: folder, existing: vorhanden,
+                                      conflicts: konflikte, kind: kind)
         }
     }
 
     func resolveMove(with resolution: MoveResolution) {
         guard let offen = pendingMove else { return }
         pendingMove = nil
-        starteVerschieben(offen.sources, to: offen.folder,
-                          existing: offen.existing, resolution: resolution)
+        starteVerschieben(offen.sources, to: offen.folder, existing: offen.existing,
+                          resolution: resolution, kind: offen.kind)
     }
 
     func cancelMove() { pendingMove = nil }
 
-    private func starteVerschieben(_ urls: [URL], to folder: URL,
-                                   existing: Set<String>, resolution: MoveResolution) {
+    private func starteVerschieben(_ urls: [URL], to folder: URL, existing: Set<String>,
+                                   resolution: MoveResolution, kind: TransferKind) {
         let schritte = MovePlan.steps(sources: urls, into: folder, existing: existing) { _ in resolution }
         let auszufuehren = MovePlan.executable(schritte)
         guard !auszufuehren.isEmpty else { return }
@@ -670,25 +683,32 @@ final class ReportViewModel {
         // ⚠️ Dieselbe Bremse wie bei den fuenf anderen Wegen – „der sechste Weg,
         // der spaeter dazukommt" aus dem Kommentar in `BulkAction`.
         if BulkAction.needsConfirmation(count: auszufuehren.count) {
-            pendingBulkAction = PendingBulkAction(kind: .move(folder.lastPathComponent),
-                                                  urls: auszufuehren.map(\.source),
-                                                  moveSteps: auszufuehren)
+            pendingBulkAction = PendingBulkAction(
+                kind: .transfer(kind, folder.lastPathComponent),
+                urls: auszufuehren.map(\.source),
+                moveSteps: auszufuehren,
+                transferKind: kind
+            )
         } else {
-            fuehreVerschiebenAus(auszufuehren)
+            fuehreVerschiebenAus(auszufuehren, kind: kind)
         }
     }
 
-    func fuehreVerschiebenAus(_ schritte: [MoveStep]) {
-        let bericht = FileMoveService.execute(schritte)
+    func fuehreVerschiebenAus(_ schritte: [MoveStep], kind: TransferKind) {
+        let bericht = FileMoveService.execute(schritte, kind: kind)
         lastMove = bericht.moved
+        lastTransferKind = kind
         melde(bericht)
         rescan(preservingState: true)
     }
 
+    /// Was die letzte Bewegung war – entscheidet, wie ⌘Z sie zurücknimmt.
+    private(set) var lastTransferKind: TransferKind = .move
+
     /// ⌘Z – die letzte Verschiebung zurücknehmen.
     func undoLastMove() {
         guard !lastMove.isEmpty else { return }
-        let bericht = FileMoveService.undo(lastMove)
+        let bericht = FileMoveService.undo(lastMove, kind: lastTransferKind)
         lastMove = []
         melde(bericht)
         rescan(preservingState: true)
@@ -772,8 +792,8 @@ final class ReportViewModel {
     }
 
     private func perform(_ action: PendingBulkAction) {
-        if case .move = action.kind {
-            fuehreVerschiebenAus(action.moveSteps)
+        if case .transfer = action.kind {
+            fuehreVerschiebenAus(action.moveSteps, kind: action.transferKind)
             return
         }
         switch action.kind {
@@ -786,7 +806,7 @@ final class ReportViewModel {
             ExternalAppService.open(action.urls, with: app) { [weak self] message in
                 self?.actionError = message
             }
-        case .move:
+        case .transfer:
             // Oben abgefangen – der Zweig ist unerreichbar und steht hier nur,
             // damit der Uebersetzer die Vollstaendigkeit prueft.
             break

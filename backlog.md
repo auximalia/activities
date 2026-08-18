@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.77 · 2026-08-18*
+*Stand: v1.19.78 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,85 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-64 · Am Mauszeiger steht, was passiert – und ⌥ schaltet um *(v1.19.78)*
+**Aufwand:** M · **Art:** Wunsch aus der Praxis **+ Defekt aus v1.19.77**
+
+## Der Defekt zuerst
+
+**⚠️ Das Verschieben mehrerer Dateien funktionierte in v1.19.77 gar nicht.**
+`MultiFileDragSource` erlaubte `context == .outsideApplication ? [.copy] : []` — **innerhalb**
+der App also **keine** Operation. Ein Zug mit mehreren Dateien auf eine Ordnerzeile wurde
+abgewiesen; nur der Einzelzug über SwiftUIs `onDrag` kam an. Ausgeliefert um 17 Uhr, beim
+Nachlesen eine Stunde später gefunden — die Abnahme hätte es als „geht nur mit einer Datei"
+gemeldet.
+
+*Der Kommentar daneben begründete die `.copy`-Hälfte ausführlich und schwieg über die
+zweite. Eine Begründung, die nur die Hälfte des Ausdrucks erklärt, deckt die andere Hälfte
+zu.*
+
+## Der Anhänger ist keine Verzierung
+
+**⚠️ Er entsteht dadurch, dass Quelle und Ziel die Operation deklarieren.** Die Quelle sagt,
+was **erlaubt** ist, das Ziel **wählt aus** — meldet es `.copy`, zeichnet das System das grüne
+Plus; meldet es `.move`, zeichnet es nichts. Beschränkt die Quelle sich auf `.copy`, kann das
+Ziel nie etwas anderes wählen, und der Anhänger steht lückenlos falsch.
+
+Deshalb musste das Ablegeziel von `dropDestination(for:)` auf `onDrop(of:delegate:)` wechseln:
+Ersteres nimmt entgegen und schweigt, nur ein `DropDelegate` kann mit `dropUpdated(info:)`
+antworten. **Die Tasten werden bei jeder Bewegung neu gelesen**, nicht beim Eintreten — im
+Finder wechselt der Anhänger, während man die Taste mitten in der Bewegung drückt.
+
+## Die Regel ist die des Finders, und das ist der Punkt
+
+| | gleicher Datenträger | anderer |
+|---|---|---|
+| ohne Taste | verschieben | **kopieren** |
+| ⌥ | kopieren | kopieren |
+| ⌘ | verschieben | **verschieben** |
+
+Sie wurde nicht gewählt, weil sie die beste denkbare wäre, sondern weil jeder sie kennt: *Wer
+⌥ drückt und einen anderen Anhänger erwartet, hat das nicht in dieser App gelernt.* Eine
+eigene Belegung wäre eine zweite Wahrheit neben einer, die im ganzen System gilt.
+
+**⚠️ Über Volume-Grenzen wird ohne Taste kopiert.** Ein Verschieben zwischen zwei Datenträgern
+ist kein Umhängen, sondern Kopieren und Löschen — nicht unterbrechungsfrei, und bei einem
+Abbruch in der Mitte liegt die Datei doppelt. **Gefragt wird das Dateisystem, nicht der
+Pfad**: Ein Vergleich der ersten Pfadbestandteile läge bei `/Volumes/…` richtig und bei einem
+eingehängten Netzlaufwerk oder einem Firmlink falsch.
+
+**⚠️ ⌘ gewinnt gegen ⌥.** Beide zugleich heißt im Finder „Alias anlegen"; das kann diese App
+nicht, und still zu kopieren wäre die schlechtere der beiden Antworten.
+
+## Die Verdopplung, die ich bewusst stehen ließ, ist gefallen
+
+In v1.19.75 stand hier: *„Bei einer Datei wird nichts übernommen … ein zweiter Weg für
+denselben Fall wäre die Verdopplung, die später auseinanderläuft."* **Sie ist genau daran
+auseinandergelaufen, drei Auslieferungen später:** SwiftUIs `onDrag` bestimmt die erlaubten
+Operationen selbst, also hätte eine Datei nur kopiert und zwei hätten verschoben werden können
+— und der Anhänger hätte bei einer Datei etwas anderes gesagt als bei zweien.
+
+`onDrag` ist entfallen; das Ziehen läuft vollständig über `MultiFileDragSource`. Die
+Namensvorschau, die SwiftUI beisteuerte, wird jetzt als `NSImage` gezeichnet — sonst hinge bei
+fünf gleichnamigen Dateien nur ein Symbol am Zeiger.
+
+## Kopieren erweitert die Grenze zum zweiten Mal
+
+**⚠️ Der Absatz in „Was bewusst nicht gebaut wird" ist eine Auslieferung alt und nennt
+„kopieren" ausdrücklich als draußen.** Jetzt ist es drin. *Genau davor warnt der Absatz selbst:
+„wenn er dabei merkt, dass er zum vierten Mal schreibt ‚nur diese eine noch', ist die Grenze in
+Wahrheit gefallen."* Dies ist das zweite Mal. Der Eintrag wird entsprechend nachgeführt —
+draußen bleiben Umbenennen und Ordner anlegen.
+
+**Widerrufen einer Kopie räumt sie weg, statt sie zurückzuschieben** — in den Papierkorb, nicht
+gelöscht. Das Original liegt unverändert an seinem Platz; die Kopie zurückzuschieben hieße, sie
+über das Original zu legen.
+
+**Zusicherungen:** 1653 → **1673**.
+
+**Weiterhin ungeprüft:** Ziehen lässt sich nicht ohne Maus prüfen. Die Machbarkeitsfrage aus
+v1.19.77 ist damit unverändert offen — und sie ist jetzt größer, weil auch der Einzelzug über
+den neuen Weg läuft.
 
 ### ✅ PR-63 · Verschieben in der Liste *(v1.19.77)*
 **Aufwand:** M · **Art:** Wunsch aus der Praxis · **verschiebt eine dokumentierte Grenze**
@@ -2054,7 +2133,7 @@ greift **den Grund** an – nicht die Entscheidung.
   anderen Wettbewerbern. PR-15/PR-16 liefern den Nutzen ohne den Anspruch.
 - **Cloud-Abgleich zwischen Geräten:** widerspricht der Stärke „liest nur lokal, sendet
   nichts" (PR-24).
-- **Dateiverwaltung** (umbenennen, Ordner anlegen, kopieren): dafür gibt es den Finder. Die App
+- **Dateiverwaltung** (umbenennen, Ordner anlegen): dafür gibt es den Finder. Die App
   soll *finden*, nicht *verwalten*.
 
   **⚠️ Diese Grenze hat sich am 2026-08-16 um genau eine Handlung verschoben — Verschieben
@@ -2064,7 +2143,12 @@ greift **den Grund** an – nicht die Entscheidung.
   weg.* Gemeldet wurde nicht die fehlende Funktion, sondern ihre Folge: *„Ich mag nicht mit so
   vielen Fenstern parallel arbeiten. Aktiviert man eines, verschwindet manchmal das andere."*
 
-  **Verschoben ist die Handlung, nicht die Kategorie.** Umbenennen, Ordner anlegen und Kopieren
+  **⚠️ Am selben Tag ein zweites Mal verschoben (PR-64): Kopieren mit ⌥ kam dazu** – weil der
+  Anhänger am Mauszeiger ohne die zweite Operation nichts zu zeigen hätte. Der Satz „nur diese
+  eine noch" ist damit zweimal gefallen; beim dritten Mal ist dieser Eintrag zu streichen und
+  durch eine ehrliche Aufzählung dessen zu ersetzen, was die App **kann**.
+
+  **Verschoben sind zwei Handlungen, nicht die Kategorie.** Umbenennen und Ordner anlegen
   bleiben draußen; Papierkorb ist als Folgeschritt vorgesehen. *Wer die nächste Handlung
   hinzufügen will, muss diesen Absatz erweitern — und wenn er dabei merkt, dass er zum vierten
   Mal schreibt „nur diese eine noch", ist die Grenze in Wahrheit gefallen und der Eintrag

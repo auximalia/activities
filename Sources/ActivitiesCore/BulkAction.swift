@@ -33,7 +33,7 @@ public enum BulkAction {
         /// dazukommt, haette sie garantiert nicht"; hier ist er, und er hat sie.
         /// Bei den fuenf anderen kostet eine zu grosse Menge Zeit und Nerven,
         /// bei diesem waere sie ein Eingriff in fremde Ordner.
-        case move(String)
+        case transfer(TransferKind, String)
     }
 
     /// Ab **wie vielen** Objekten zurueckgefragt wird.
@@ -82,8 +82,8 @@ public enum BulkAction {
             return "\(objects) im Finder anzeigen?"
         case .openInApp(let app):
             return "\(objects) in \(app) öffnen?"
-        case .move(let ordner):
-            return "\(objects) nach \u{201E}\(ordner)\u{201C} verschieben?"
+        case let .transfer(art, ordner):
+            return "\(objects) nach \u{201E}\(ordner)\u{201C} \(art.verb)?"
         }
     }
 
@@ -114,11 +114,15 @@ public enum BulkAction {
             return "Der Finder zeigt \(count) Objekte an."
         case .openInApp(let app):
             return "\(app) erhält \(count) Objekte auf einmal."
-        case .move(let ordner):
-            // ⚠️ Nennt die FOLGE: dass sie ihren bisherigen Ort verlassen.
-            // „Werden verschoben" wiederholte nur die Handlung.
-            return "\(count) Dateien verlassen ihren bisherigen Ordner und liegen danach "
-                + "in \u{201E}\(ordner)\u{201C}. Mit \(Shortcuts.undoMove.display) rückgängig zu machen."
+        case let .transfer(art, ordner):
+            // ⚠️ Nennt die FOLGE, nicht die Handlung – und die ist bei den
+            // beiden Arten verschieden: Beim Verschieben verlassen die Dateien
+            // ihren Ort, beim Kopieren bleiben sie und es entstehen neue.
+            let folge = art == .move
+                ? "\(count) Dateien verlassen ihren bisherigen Ordner und liegen danach "
+                : "\(count) Dateien bleiben, wo sie sind; Kopien davon entstehen "
+            return folge + "in \u{201E}\(ordner)\u{201C}. Mit \(Shortcuts.undoMove.display) "
+                + "rückgängig zu machen."
         }
     }
 
@@ -132,7 +136,7 @@ public enum BulkAction {
         case .open: return "Öffnen"
         case .reveal: return "Anzeigen"
         case .openInApp(let app): return "In \(app) öffnen"
-        case .move: return "Verschieben"
+        case let .transfer(art, _): return art.label
         }
     }
 }

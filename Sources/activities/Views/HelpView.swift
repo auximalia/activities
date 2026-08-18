@@ -127,7 +127,9 @@ struct HelpView: View {
 
                 section("Dateien verschieben", icon: "arrow.right.doc.on.clipboard", [
                     "Dateien markieren und auf eine **Ordnerzeile** der Liste ziehen – sie liegen danach dort.",
-                    "\(Shortcuts.undoMove.display) macht die letzte Verschiebung rückgängig.",
+                    "**Am Mauszeiger steht, was passiert**: mit grünem Plus wird kopiert, ohne verschoben.",
+                    "**⌥ beim Ziehen kopiert, ⌘ verschiebt** – wie im Finder. Auf einen anderen Datenträger wird von sich aus kopiert.",
+                    "\(Shortcuts.undoMove.display) macht die letzte Bewegung rückgängig – bei einer Kopie wandert sie in den Papierkorb.",
                     "Liegt am Ziel schon eine Datei des Namens, fragt die App: daneben ablegen (Name wird hochgezählt), ersetzen oder überspringen.",
                     "**Ersetzen löscht nicht**: Die vorhandene Datei wandert in den Papierkorb und lässt sich dort zurücklegen.",
                     "Ziehen in ein **Finder-Fenster** kopiert stattdessen – dort entscheidet der Finder.",

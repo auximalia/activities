@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.7 · 2026-08-18*
+*Stand: v2.0.8 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,34 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP6 — `CoreChecks` nach Thema statt nach Größe *(v2.0.8)*
+**Aufwand:** S
+
+**3.376 Zeilen in einer Datei.** Das war nicht hässlich, sondern **teuer**: Diese Datei
+ist das meistbenutzte Werkzeug des Projekts — sie läuft vor jeder Auslieferung —, und
+ihre Größe war die einzige Hürde zwischen einem Befund und seiner Zusicherung. Neue
+Zusicherungen wurden hinten angehängt; eine vorhandene zu finden hieß suchen.
+
+Jetzt sechs Dateien nach Gegenstand: `ChecksFilter`, `ChecksFolders`, `ChecksTime`,
+`ChecksChart`, `ChecksRows`, `ChecksCommands`. Der Rumpf ist **100 Zeilen** und ruft nur
+auf.
+
+**⚠️ Gruppiert wird nach Thema, nicht nach Größe — und der erste Versuch war der
+falsche.** Ich hatte zuerst mechanisch in neun gleich große Stücke geteilt. Das übersetzte,
+lief, meldete dieselbe Zahl — und **löste das Problem nicht**: `Checks04.swift` sagt
+niemandem, was darin steht. *Wer eine vorhandene Zusicherung sucht, sucht sie unter ihrem
+Gegenstand.* Eine Aufteilung, die nur die Zeilenzahl je Datei senkt, erfüllt die
+Kennzahl und verfehlt den Zweck.
+
+**⚠️ „Ein Befehl, eine Zahl" bleibt unberührt.** `swift run CoreChecks` meldet weiterhin
+genau eine Gesamtzahl und einen Abschlusssatz — die 52 Blöcke sind Funktionen geworden,
+die der Rumpf der Reihe nach ruft. **1799 vorher, 1799 nachher**, wie für ein
+Aufräumpaket verlangt: Die Zahl ist hier zugleich der Beweis, dass kein Block beim
+Verschieben verlorengegangen ist.
+
+`AGENTS.md` nennt den neuen Aufbau in der Verzeichnisübersicht.
+
 
 ### ✅ Sprint 20 · AP7 — was `public` ist, ist ein Versprechen *(v2.0.7)*
 **Aufwand:** S

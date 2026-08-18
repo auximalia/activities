@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Stand: v1.19.67 · 2026-08-13*
+*Stand: v2.0.8 · 2026-08-18*
 
 ## What this repo is
 
@@ -11,7 +11,7 @@ live alongside the code.
 ```
 Sources/ActivitiesCore/   pure domain logic, Foundation only, no SwiftUI — testable
 Sources/activities/       the SwiftUI app (Views/, Style/, Services/)
-Sources/CoreChecks/       assertion runner for the domain logic (see below)
+Sources/CoreChecks/       assertion runner, grouped by subject (Checks<Topic>.swift)
 Tests/ActivitiesCoreTests XCTest suite — needs full Xcode
 Packaging/                build_app.sh, release.sh, web-install.sh, assets
 sprints/                  sprint plans, written before the code (see below)

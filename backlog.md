@@ -2351,6 +2351,28 @@ greift **den Grund** an – nicht die Entscheidung.
     Zugewinn ist aber nicht die Robustheit, sondern dass Prüfung und Installation jetzt
     **dieselbe** Quelle benutzen (`web-install.sh:19`): Es kann kein Update mehr angeboten
     werden, das sich nicht laden lässt.
+30. **⚠️ Gefiltert wird nach DATEIEN, nicht nach Ordnern — und das bleibt so.** Wortlaut
+    des Eigentümers, 2026-08-16. Ein Ordner steht in der Liste, **weil eine seiner Dateien
+    durchkommt**; er hat selbst keine Eigenschaft, die ein Filter prüft. Das klingt nach
+    einer Implementierungsnotiz und ist eine Produktentscheidung mit vier Folgen:
+
+    - **Ein Ordner ohne Dateien kann keinen Filter erfüllen** — er hat nichts, was
+      durchkäme. Ihn trotzdem zu zeigen hieße, ihn daran vorbeizuschmuggeln; genau das tat
+      v2.0.0 mit neu angelegten Ordnern (UX-68). Deshalb: anlegen, nicht zeigen, und es
+      vorher sagen.
+    - **Der Ordnerzähler der Statuszeile folgt den Dateien**, nicht dem Dateisystem. „3
+      Ordner" heißt „in dreien ist etwas Sichtbares", nicht „es gibt drei".
+    - **Ein Filter über Ordner*namen* wäre ein zweiter, anderer Filter** — und es gibt ihn
+      bereits: der **Rauschfilter** arbeitet auf Ordnernamen, aber im **Suchlauf** und zum
+      Überspringen, nicht bei der Anzeige. Diese Trennung steht seit v1.19.x am Kopf von
+      `FileTypesSettingsView`; wer sie aufhebt, lässt den ersten Anwender vergeblich nach
+      `.git` in der Endungsliste suchen.
+    - **Ein Wunsch „auch Ordnernamen durchsuchen" darf nicht in den Namensfilter.** Das wäre
+      eine dritte Bedeutung für dasselbe Feld, das seit Sprint 16 bereits zwei trägt
+      (Leerzeichen = UND, `ODER` trennt).
+
+    *Wer das ändern will, greift den ersten Satz an: Solange Ordner keine eigene
+    filterbare Eigenschaft haben, folgt alles Übrige daraus.*
 
 
 ---

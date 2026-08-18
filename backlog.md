@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.5 · 2026-08-18*
+*Stand: v2.0.6 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,41 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP5 — eine Frage statt neun *(v2.0.6)*
+**Aufwand:** XS
+
+`(try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false` stand
+**neunmal** im Programm — siebenmal im Modell, zweimal im Verschiebedienst. Jetzt einmal,
+als `URL.isDirectoryOnDisk`.
+
+**⚠️ Das `?? false` war das eigentliche Problem, nicht die Länge der Zeile.** Es ist eine
+**Entscheidung** — *„existiert der Pfad nicht oder ist er nicht lesbar, gilt er als
+Datei"* —, und sie stand neunmal da. Wer sie je ändern muss, ändert sie achtmal richtig.
+Sie ist jetzt an einer Stelle begründet: Ordner dürfen **weniger** (nicht in sich selbst
+verschoben werden, nur leer in den Papierkorb), wer irrtümlich als Datei gilt, wird also
+strenger behandelt, nicht lockerer.
+
+**⚠️ Der Name sagt „on disk", und das ist Absicht.** `hasDirectoryPath` heißt fast
+dasselbe und ist etwas anderes: eine Eigenschaft der **URL**, nicht des Ordners. An
+genau dieser Verwechslung ist v1.19.51 einmal gescheitert.
+
+## Und die Reste von AP1, die erst die Gegenprobe fand
+
+Die Endgegenprobe nach AP1 meldete **sieben** übersehene deutsche Bezeichner —
+`lauf`, `fall`, `suche`, `zahlen`, `argumente`, `vorgabe`, `spanne`, dazu `jahre`,
+`monate`, `endetJetzt`. Sie fehlten in der Ersetzungstabelle, weil ich sie beim
+Durchsehen nicht auf dem Schirm hatte.
+
+*Der erste Versuch, sie mit `sed` nachzuziehen, tat **nichts** — BSD-`sed` kennt `\b`
+nicht und meldete trotzdem Erfolg. Ohne die zweite Gegenprobe wäre das Paket als
+vollständig ausgeliefert worden.* **Eine Gegenprobe, die man nach dem Aufräumen einmal
+laufen lässt, ist kein Zusatz — sie ist der einzige Beleg, dass es vollständig war.**
+
+Dabei fiel außerdem eine **Beschattung** auf, die AP1 hinterlassen hatte:
+`let folder = url.isDirectoryOnDisk` in einer Funktion mit dem Parameter `folder: URL`.
+Übersetzbar, korrekt, unlesbar — und dieselbe Form wie die zwei stillen Fehler aus AP1.
+
 
 ### ✅ Sprint 20 · AP1 — Bezeichner auf Englisch *(v2.0.5)*
 **Aufwand:** S · **Plan:** `sprints/sprint-20-ballast.md`

@@ -292,20 +292,20 @@ func benchDisk(count: Int) {
 
 // MARK: - Ablauf
 
-let argumente = Array(CommandLine.arguments.dropFirst())
+let arguments = Array(CommandLine.arguments.dropFirst())
 let groessen: [Int]
 var plattenGroesse: Int? = nil
 
-if let index = argumente.firstIndex(of: "--disk") {
-    plattenGroesse = Int(argumente[safe: index + 1] ?? "") ?? 100_000
+if let index = arguments.firstIndex(of: "--disk") {
+    plattenGroesse = Int(arguments[safe: index + 1] ?? "") ?? 100_000
 }
-let zahlen = argumente.compactMap(Int.init)
-groessen = zahlen.isEmpty ? [100_000, 250_000, 500_000] : zahlen
+let numbers = arguments.compactMap(Int.init)
+groessen = numbers.isEmpty ? [100_000, 250_000, 500_000] : numbers
 
 print("Messstand activities – \(ProcessInfo.processInfo.hostName)")
 print("Ausgangsabdruck: \(mib(physFootprint()))")
 
-for size in groessen where plattenGroesse == nil || !argumente.contains("--only-disk") {
+for size in groessen where plattenGroesse == nil || !arguments.contains("--only-disk") {
     benchInMemory(count: size)
 }
 

@@ -51,12 +51,12 @@ struct ChartHeaderView: View {
             : .notches(dy)
         // Ein Trackpad meldet das Ende der Geste selbst; ein Rad kennt keine
         // Phase, dort entscheidet die Ruhefrist in ``ChartScrub``.
-        let endetJetzt = event.phase.contains(.ended) || event.phase.contains(.cancelled)
+        let endsNow = event.phase.contains(.ended) || event.phase.contains(.cancelled)
 
         scrub.handle(eingabe,
                      startDays: model.days,
                      startAll: model.ignoreTimeWindow,
-                     endsNow: endetJetzt) { state in
+                     endsNow: endsNow) { state in
             guard state.differs(fromDays: model.days,
                                 isAllTime: model.ignoreTimeWindow,
                                 usesRange: model.useDateRange) else { return }

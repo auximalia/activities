@@ -137,10 +137,7 @@ extension FileMoveService {
         guard let contents = try? fm.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: []
         ) else { return [] }
-        return contents.map { url in
-            let folder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            return (name: url.lastPathComponent, isFolder: folder)
-        }
+        return contents.map { (name: $0.lastPathComponent, isFolder: $0.isDirectoryOnDisk) }
     }
 
     /// Ob dieser Ordner **auf der Platte** leer ist – rekursiv, Artefakte ausgenommen.
@@ -160,13 +157,12 @@ extension FileMoveService {
     /// „mehr als N" statt einer erfundenen Genauigkeit.
     static func fileCount(under folder: URL, limit: Int = 5000) -> Int? {
         let fm = FileManager.default
-        guard let lauf = fm.enumerator(at: folder, includingPropertiesForKeys: [.isDirectoryKey],
+        guard let walk = fm.enumerator(at: folder, includingPropertiesForKeys: [.isDirectoryKey],
                                        options: [.skipsPackageDescendants]) else { return 0 }
         var n = 0
-        for fall in lauf {
-            guard let url = fall as? URL else { continue }
-            let folder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            if !folder {
+        for step in walk {
+            guard let url = step as? URL else { continue }
+            if !url.isDirectoryOnDisk {
                 n += 1
                 if n > limit { return nil }
             }

@@ -183,11 +183,11 @@ public enum DateFormatting {
         guard days >= spanYearThreshold else {
             return "\(days) \(days == 1 ? "Tag" : "Tage")"
         }
-        let jahre = days / 365
-        let monate = (days % 365) / 30
-        let jahrText = "\(jahre) \(jahre == 1 ? "Jahr" : "Jahre")"
-        guard monate > 0 else { return jahrText }
-        return "\(jahrText), \(monate) \(monate == 1 ? "Monat" : "Monate")"
+        let years = days / 365
+        let months = (days % 365) / 30
+        let yearText = "\(years) \(years == 1 ? "Jahr" : "Jahre")"
+        guard months > 0 else { return yearText }
+        return "\(yearText), \(months) \(months == 1 ? "Monat" : "Monate")"
     }
 
     private static let monthYearFormatter: DateFormatter = {

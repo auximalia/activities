@@ -24,10 +24,10 @@ struct FileTypesSettingsView: View {
     /// oben sortieren.** Dann springen Zeilen beim Klicken unter dem Mauszeiger
     /// weg – genau der Grund, aus dem die Legende ihre Plaettchen ausdruecklich
     /// stabil haelt. Ein Suchfeld ordnet nichts um, es blendet nur aus.
-    @State private var suche = ""
+    @State private var query = ""
 
     private var lines: [ReportViewModel.TypeInventoryRow] {
-        let pattern = suche.trimmingCharacters(in: .whitespaces).lowercased()
+        let pattern = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard !pattern.isEmpty else { return model.typeInventory }
         return model.typeInventory.filter { $0.ext.contains(pattern) }
     }
@@ -48,12 +48,12 @@ struct FileTypesSettingsView: View {
     private var inventoryHint: String {
         let total = model.typeInventory.count
         let nachtrag = "Ein neu hinzukommender Dateityp erscheint nach dem nächsten Suchlauf von selbst."
-        if suche.trimmingCharacters(in: .whitespaces).isEmpty {
+        if query.trimmingCharacters(in: .whitespaces).isEmpty {
             return "Aufgeführt sind alle \(total) Endungen, die im eingelesenen Bestand vorkommen. "
                 + nachtrag
         }
         if lines.isEmpty {
-            return "Keine der \(total) Endungen im Bestand enthält „\(suche)“. " + nachtrag
+            return "Keine der \(total) Endungen im Bestand enthält „\(query)“. " + nachtrag
         }
         return "\(lines.count) von \(total) Endungen im Bestand. " + nachtrag
     }
@@ -69,11 +69,11 @@ struct FileTypesSettingsView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                TextField("Endung suchen, z. B. form", text: $suche)
+                TextField("Endung suchen, z. B. form", text: $query)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Endung suchen")
-                if !suche.isEmpty {
-                    Button("Löschen") { suche = "" }.buttonStyle(.link)
+                if !query.isEmpty {
+                    Button("Löschen") { query = "" }.buttonStyle(.link)
                 }
             }
 

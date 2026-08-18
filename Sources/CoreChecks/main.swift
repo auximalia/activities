@@ -372,21 +372,21 @@ do {
     // zugesicherte Obergrenze von 130 – Faktor 6,5 – und die Achse lief zu einem
     // schwarzen Streifen zusammen. *Wer eine Zusicherung an einem Beispiel
     // festnagelt, prueft sie nicht.*
-    for jahre in [1, 2, 3, 5, 7, 11, 15, 20, 25, 33, 50, 70, 100, 130] {
-        let spanne = jahre * 365
-        let ende = calendar.date(byAdding: .day, value: spanne, to: date(2020, 1, 1))!
+    for years in [1, 2, 3, 5, 7, 11, 15, 20, 25, 33, 50, 70, 100, 130] {
+        let spanDays = years * 365
+        let end = calendar.date(byAdding: .day, value: spanDays, to: date(2020, 1, 1))!
         let balken = FolderAggregator.countFilesPerDayByType(
-            files, startDay: date(2020, 1, 1), endDay: ende,
+            files, startDay: date(2020, 1, 1), endDay: end,
             individual: ["md"], otherKey: nil, ignored: [],
-            granularity: ChartGranularity.automatic(spanDays: spanne)
+            granularity: ChartGranularity.automatic(spanDays: spanDays)
         )
-        expect(!balken.isEmpty, "Spanne \(jahre) J.: Diagramm ist nicht leer")
+        expect(!balken.isEmpty, "Spanne \(years) J.: Diagramm ist nicht leer")
         expect(balken.count <= ChartGranularity.maxBars,
-               "Spanne \(jahre) J.: \(balken.count) Balken bleiben unter \(ChartGranularity.maxBars)")
+               "Spanne \(years) J.: \(balken.count) Balken bleiben unter \(ChartGranularity.maxBars)")
         // Und die Beschriftungen, die daraus folgen.
         let marken = ChartGranularity.labelPositions(barCount: balken.count)
         expect(marken.count <= ChartGranularity.maxLabels,
-               "Spanne \(jahre) J.: \(marken.count) Beschriftungen bleiben unter \(ChartGranularity.maxLabels)")
+               "Spanne \(years) J.: \(marken.count) Beschriftungen bleiben unter \(ChartGranularity.maxLabels)")
     }
 
     // Die Stufenleiter selbst.
@@ -2557,8 +2557,8 @@ do {
 
     // Die Ueberschrift benutzt dieselbe Formulierung wie der Export.
     let start = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2021, month: 3, day: 22))!
-    let ende = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 8, day: 11))!
-    let text = DateFormatting.range(from: start, to: ende, days: 1_969)
+    let end = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 8, day: 11))!
+    let text = DateFormatting.range(from: start, to: end, days: 1_969)
     expect(text.contains("5 Jahre"), "Ueberschrift: nennt die Spanne in Jahren (\(text))")
     expect(!text.contains("1969 Tage"), "Ueberschrift: und nicht mehr in Tagen")
 }
@@ -2823,14 +2823,14 @@ do {
     // Segmentschalter beim Drehen nie ein. Bei einer Raste je Tag ist das
     // selbstverstaendlich - die Zusicherung steht hier fuer den Tag, an dem
     // jemand doch eine Leiter einzieht.
-    for vorgabe in TimePreset.rollingPresets.compactMap(\.days) {
-        expect(DayScrub.dayRange.contains(vorgabe), "Rad: Vorgabe \(vorgabe) ist erreichbar")
+    for preset in TimePreset.rollingPresets.compactMap(\.days) {
+        expect(DayScrub.dayRange.contains(preset), "Rad: Vorgabe \(preset) ist erreichbar")
         // ⚠️ Von oben angefahren, nicht von unten: Fuer die 1 gibt es kein
         // „darunter" - `DayScrub(days: 0)` wird auf 1 geklemmt, und die Raste
         // fuehrte dann auf 2. Der Weg von oben trifft alle Vorgaben gleich.
-        var lauf = DayScrub(days: vorgabe + 1)
-        lauf.advance(.notches(-1))
-        expectEqual(lauf.days, vorgabe, "Rad: Vorgabe \(vorgabe) wird getroffen, nicht uebersprungen")
+        var probe = DayScrub(days: preset + 1)
+        probe.advance(.notches(-1))
+        expectEqual(probe.days, preset, "Rad: Vorgabe \(preset) wird getroffen, nicht uebersprungen")
     }
 }
 
@@ -2946,8 +2946,8 @@ do {
     expect(mixed.first(where: { $0.source == a })!.hadConflict, "Plan: Bericht.docx schon")
 
     // Jede Beschriftung ist gesetzt - eine leere Schaltflaeche waere unbedienbar.
-    for fall in MoveResolution.allCases {
-        expect(!fall.label.isEmpty, "Plan: Beschriftung fuer \(fall.rawValue)")
+    for option in MoveResolution.allCases {
+        expect(!option.label.isEmpty, "Plan: Beschriftung fuer \(option.rawValue)")
     }
 }
 

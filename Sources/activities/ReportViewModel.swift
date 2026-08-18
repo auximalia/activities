@@ -679,7 +679,7 @@ final class ReportViewModel {
         var own: [URL] = []
         var rejected: [String] = []
         for url in urls {
-            let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            let isFolder = url.isDirectoryOnDisk
             if isFolder, let reason = FolderMoveRules.rejection(moving: url, into: folder) {
                 rejected.append("\u{201E}\(url.lastPathComponent)\u{201C}: \(reason.reason)")
             } else {
@@ -735,7 +735,7 @@ final class ReportViewModel {
         // ihre eigene Begruendung („vier Groessenordnungen Unterschied") am
         // staerksten zutrifft.
         let movedFolders = executable.map(\.source).filter {
-            (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            $0.isDirectoryOnDisk
         }
         if !movedFolders.isEmpty {
             let sentence = movedFolders.map { url -> String in
@@ -770,7 +770,7 @@ final class ReportViewModel {
         // weiterhin dorthin.
         if kind == .move {
             for paar in report.moved {
-                let wasFolder = (try? paar.to.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                let wasFolder = paar.to.isDirectoryOnDisk
                 if wasFolder { relocateInventory(from: paar.from, to: paar.to) }
             }
         }
@@ -893,7 +893,7 @@ final class ReportViewModel {
     // MARK: Umbenennen
 
     func requestRename(_ url: URL) {
-        let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        let isFolder = url.isDirectoryOnDisk
         // ⚠️ Umbenennen ist fuer die Versionsverwaltung derselbe Eingriff wie
         // Verschieben – dieselbe Warnung, derselbe fehlende Befehl.
         let counts = repos.versionedCounts([url])
@@ -930,7 +930,7 @@ final class ReportViewModel {
         var allowed: [URL] = []
         var rejected: [String] = []
         for url in urls {
-            let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            let isFolder = url.isDirectoryOnDisk
             if isFolder, !FileMoveService.isEmptyOnDisk(url) {
                 rejected.append("\u{201E}\(url.lastPathComponent)\u{201C}: nicht leer – "
                                  + "in den Papierkorb wandern nur leere Ordner.")
@@ -943,7 +943,7 @@ final class ReportViewModel {
 
         let report = FileMoveService.trash(allowed)
         for paar in report.moved {
-            let war = (try? paar.from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            let war = paar.from.isDirectoryOnDisk
             if war { relocateInventory(from: paar.from, to: paar.to) }
         }
         lastMove = report.moved
@@ -1042,7 +1042,7 @@ final class ReportViewModel {
         // seine ROLLE – Quelle, Anheftung und Ausschluss blieben am neuen Pfad.
         if lastTransferKind == .move {
             for paar in reversedPairs.reversed() {
-                let isFolder = (try? paar.from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                let isFolder = paar.from.isDirectoryOnDisk
                 if isFolder { relocateInventory(from: paar.to, to: paar.from) }
             }
         }

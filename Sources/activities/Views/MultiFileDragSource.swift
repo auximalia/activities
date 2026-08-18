@@ -52,8 +52,52 @@ struct MultiFileDragSource: NSViewRepresentable {
         /// ⚠️ `.leftMouseDragged`, nicht `.leftMouseDown`. Beim Druck ist noch
         /// nicht entschieden, ob es ein Klick oder ein Ziehen wird – dort zu
         /// starten machte jeden Klick zum Ziehen.
-        override var monitoredEvents: NSEvent.EventTypeMask { .leftMouseDragged }
-        override func handle(_ event: NSEvent) -> Bool { start(event) }
+        /// **⚠️ Auch `.leftMouseDown` und `.leftMouseUp`, nicht nur das Ziehen.**
+        /// Ohne den Druckpunkt gibt es keine Strecke, die man messen könnte —
+        /// und ohne Strecke startet **jedes** Zittern eine Ziehsitzung. Aus der
+        /// Praxis gemeldet: *„Fast jeder Klick mit kleinstem Maus-Zeiger-Wackeln
+        /// startet eine Verschiebung … Man kann gar nicht mehr entspannt auf-
+        /// bzw. zuklappen."*
+        override var monitoredEvents: NSEvent.EventTypeMask {
+            [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+        }
+
+        /// Wo die Maus gedrückt wurde – ``nil``, solange sie oben ist.
+        ///
+        /// **⚠️ Er sichert zugleich, dass die Bewegung HIER begonnen hat.**
+        /// Vorher genügte ein Ziehen, das über diese Zeile *hinwegging*; die
+        /// Sitzung riss dann eine Zeile an sich, die der Anwender nie angefasst
+        /// hatte.
+        private var pressedAt: NSPoint?
+
+        /// Wie weit die Maus wandern muss, bevor aus dem Klick ein Ziehen wird.
+        ///
+        /// **⚠️ Gesetzt, nicht gemessen — und das soll man ihr ansehen.** Es
+        /// gibt keine öffentliche Systemgröße dafür; AppKit benutzt seit jeher
+        /// eine Schwelle in dieser Größenordnung. Vier Punkte liegen über dem
+        /// Zittern einer ruhigen Hand und unter dem, was als „ich habe gezogen"
+        /// durchgeht. *Wackelt es weiterhin, ist es genau diese Zahl.*
+        private static let dragThreshold: CGFloat = 4
+
+        override func handle(_ event: NSEvent) -> Bool {
+            switch event.type {
+            case .leftMouseDown:
+                pressedAt = event.locationInWindow
+                return false          // der Klick gehoert weiterhin SwiftUI
+            case .leftMouseUp:
+                pressedAt = nil
+                return false
+            case .leftMouseDragged:
+                guard let from = pressedAt else { return false }
+                let now = event.locationInWindow
+                let distance = hypot(now.x - from.x, now.y - from.y)
+                guard distance >= Self.dragThreshold else { return false }
+                pressedAt = nil       // eine Sitzung je Druck
+                return start(event)
+            default:
+                return false
+            }
+        }
 
         /// Startet die Ziehsitzung – oder überlässt das Ereignis SwiftUI.
         ///

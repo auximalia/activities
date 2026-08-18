@@ -127,6 +127,7 @@ struct HelpView: View {
 
                 section("Dateien verschieben", icon: "arrow.right.doc.on.clipboard", [
                     "Dateien markieren und auf eine **Ordnerzeile** der Liste ziehen – sie liegen danach dort.",
+                    "Ein Ziehen beginnt erst nach einer kurzen Strecke: Ein Klick zum Auf- und Zuklappen löst keines aus.",
                     "**Am Mauszeiger steht, was passiert**: mit grünem Plus wird kopiert, ohne verschoben.",
                     "**⌥ beim Ziehen kopiert, ⌘ verschiebt** – wie im Finder. Auf einen anderen Datenträger wird von sich aus kopiert.",
                     "\(Shortcuts.undoMove.display) macht die letzte Bewegung rückgängig – bei einer Kopie wandert sie in den Papierkorb.",

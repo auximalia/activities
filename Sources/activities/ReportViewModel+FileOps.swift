@@ -42,7 +42,12 @@ extension ReportViewModel {
         for url in urls {
             let isFolder = url.isDirectoryOnDisk
             if isFolder, let reason = FolderMoveRules.rejection(moving: url, into: folder) {
-                rejected.append("\u{201E}\(url.lastPathComponent)\u{201C}: \(reason.reason)")
+                // ⚠️ Nur, was wirklich etwas verhindert. „Derselbe Ordner" und
+                // „liegt bereits dort" haben nie eine Aenderung aufgehalten –
+                // sie zu melden hiesse, dem Anwender zu sagen, was er sieht.
+                if reason.isWorthReporting {
+                    rejected.append("\u{201E}\(url.lastPathComponent)\u{201C}: \(reason.reason)")
+                }
             } else {
                 own.append(url)
             }

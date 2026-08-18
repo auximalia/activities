@@ -798,6 +798,24 @@ func checkSprint19OrdnerVerschiebenBenennenLeerenUmziehenV200() {
                                           into: URL(fileURLWithPath: "/a/b/c/")), .intoItself,
                 "Ordner: Schraegstrich am Ende aendert nichts")
 
+    // ⚠️ Nicht jede Ablehnung ist eine MELDUNG wert. Wer einen Ordner auf sich
+    // selbst oder auf den Ordner zieht, in dem er ohnehin liegt, hat nichts
+    // verhindert bekommen - es war nie eine Aenderung geplant. Aus der Praxis
+    // gemeldet: Ein Klick zum Auf- und Zuklappen erzeugte durch Zittern eine
+    // Ziehsitzung auf derselben Zeile, und darauf ein Blatt „Das ist derselbe
+    // Ordner".
+    expect(!FolderMoveRules.Rejection.sameFolder.isWorthReporting,
+           "Ordner: „derselbe Ordner\u{201C} wird nicht gemeldet")
+    expect(!FolderMoveRules.Rejection.alreadyThere.isWorthReporting,
+           "Ordner: „liegt bereits dort\u{201C} auch nicht")
+    // ⚠️ Bleibt laut: Hier hat der Anwender auf etwas anderes gezielt, und der
+    // Grund ist ihm nicht anzusehen.
+    expect(FolderMoveRules.Rejection.intoItself.isWorthReporting,
+           "Ordner: „in sich selbst\u{201C} wird gemeldet")
+    expectEqual([FolderMoveRules.Rejection.sameFolder, .alreadyThere, .intoItself]
+                    .filter(\.isWorthReporting).count, 1,
+                "Ordner: genau eine der drei Ablehnungen ist eine Meldung wert")
+
     // Jeder Ablehnungsgrund hat einen Satz - eine leere Meldung waere schlimmer
     // als keine Pruefung, weil die Handlung dann wortlos ausbliebe.
     for reason in [FolderMoveRules.Rejection.sameFolder, .alreadyThere, .intoItself] {

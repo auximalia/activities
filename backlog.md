@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.12 · 2026-08-18*
+*Stand: v2.0.13 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,44 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-69 · Jedes Wackeln war ein Ziehen *(v2.0.13)*
+**Aufwand:** XS · **Art:** Defekt aus Sprint 19 · *„Fast jeder Klick mit kleinstem Maus-Zeiger-Wackeln startet eine Verschiebung … Man kann gar nicht mehr entspannt auf- bzw. zuklappen."*
+
+**⚠️ Die Ziehsitzung startete beim ersten Pixel.** `MultiFileDragSource` horchte allein auf
+`.leftMouseDragged` — und dieses Ereignis kommt schon bei einer Bewegung, die kleiner ist
+als die Zittertoleranz einer ruhigen Hand. Ein Klick auf eine Ordnerzeile zum Auf- und
+Zuklappen wurde damit regelmäßig zu einem Verschiebeversuch auf **dieselbe** Zeile.
+
+**Gemacht:** Es wird jetzt auch `.leftMouseDown` und `.leftMouseUp` beobachtet, und aus
+dem Klick wird erst ein Ziehen, wenn die Maus **4 Punkte** gewandert ist.
+
+**⚠️ Die Zahl ist gesetzt, nicht gemessen — und soll es zeigen.** Es gibt keine
+öffentliche Systemgröße dafür. Vier Punkte liegen über dem Zittern einer ruhigen Hand und
+unter dem, was als „ich habe gezogen" durchgeht. *Wackelt es weiterhin, ist es genau diese
+Zahl.*
+
+**⚠️ Der Druckpunkt behebt nebenbei einen zweiten Fehler, den niemand gemeldet hat:**
+Vorher genügte ein Ziehen, das über eine Zeile **hinwegging** — die Sitzung riss dann eine
+Zeile an sich, die der Anwender nie angefasst hatte. Jetzt zählt nur, was hier begonnen
+hat, und je Druck entsteht höchstens eine Sitzung.
+
+## Und die Meldung, die den Fehler erst unangenehm machte
+
+**⚠️ Nicht jede Ablehnung ist ein Befund.** Wer einen Ordner auf sich selbst oder auf den
+Ordner zieht, in dem er ohnehin liegt, hat **nichts verhindert bekommen** — es war nie
+eine Änderung geplant. Ein Blatt „Das ist derselbe Ordner" sagt ihm, was er sieht.
+
+`FolderMoveRules.Rejection.isWorthReporting` trennt das jetzt im Kern: `sameFolder` und
+`alreadyThere` bleiben **still**, `intoItself` bleibt **laut** — dort hat der Anwender auf
+etwas anderes gezielt, und der Grund ist ihm nicht anzusehen.
+
+*Die Schwelle behebt die Ursache; dies behebt, dass der Fall überhaupt laut war. Beides
+war nötig: Auch mit Schwelle bliebe ein absichtliches Ziehen auf denselben Ordner eine
+Meldung über nichts.*
+
+**Zusicherungen:** 1814 → **1818**.
+
 
 ### ✅ Sprint 20 · AP8 — das Modell teilen, ohne es zu öffnen *(v2.0.12)*
 **Aufwand:** M · *E1 war „c — voll aufteilen"; die Sprache hat widersprochen*

@@ -20,6 +20,23 @@ public enum FolderMoveRules {
         /// Das Ziel liegt **im** Ordner selbst.
         case intoItself
 
+        /// Ob diese Ablehnung eine **Meldung** wert ist.
+        ///
+        /// **⚠️ Nicht jede Ablehnung ist ein Befund.** Wer einen Ordner auf sich
+        /// selbst oder auf den Ordner zieht, in dem er ohnehin liegt, hat
+        /// nichts verhindert bekommen — es war nie eine Änderung geplant. Eine
+        /// Meldung sagt ihm dann etwas, das er sieht.
+        ///
+        /// *Aus der Praxis gemeldet, zusammen mit der fehlenden Ziehschwelle:
+        /// Ein Klick zum Auf- und Zuklappen erzeugte durch Zittern eine
+        /// Ziehsitzung, die auf derselben Zeile endete — und darauf ein Blatt
+        /// „Das ist derselbe Ordner". Die Schwelle behebt die Ursache; dies
+        /// behebt, dass der Fall überhaupt laut war.*
+        ///
+        /// ``intoItself`` **bleibt laut**: Dort hat der Anwender auf etwas
+        /// anderes gezielt, und der Grund ist ihm nicht anzusehen.
+        public var isWorthReporting: Bool { self == .intoItself }
+
         public var reason: String {
             switch self {
             case .sameFolder: "Das ist derselbe Ordner."

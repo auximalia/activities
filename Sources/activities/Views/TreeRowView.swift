@@ -124,30 +124,14 @@ struct TreeFolderRowView: View {
             // Hervorhebung ueber die **ganze** Zeile, Einrueckung eingeschlossen –
             // wie im Finder. Nur den Inhalt zu hinterlegen liesse die Markierung
             // bei tiefen Zweigen als schmalen Streifen rechts erscheinen.
-            .background(SelectionBackground(isActive: isSelected))
-            // Zebra ganz hinten: Es beantwortet die **waagerechte** Frage
-            // („welches Datum gehoert zu dieser Zeile?"), die Baumlinien die
-            // senkrechte. Zwei verschiedene Aufgaben – kein doppeltes
-            // Trennsystem.
-            .background(RowMetrics.rowBackground(alternate: isAlternate))
-            // Den Ordner selbst herausziehen (Sprint 19). Die Ziehquelle ist
-            // dieselbe wie bei Dateien – ein Weg, ein Verhalten.
-            .background(
-                MultiFileDragSource(
-                    targets: { [node.folder] },
-                    prepare: { model.noteDragOrigin(node.folder) }
-                )
-            )
-            // Dateien aus der Liste hierher ziehen (v1.19.77).
-            .folderDropTarget(model: model, folder: node.folder)
-            .contentShape(Rectangle())
+            .folderRowChrome(model: model, folder: node.folder,
+                             isSelected: isSelected, isAlternate: isAlternate)
             .help(node.folder.path)
             .onTapGesture {
                 model.select(.folder(node.folder))
                 ClipboardService.copy(node.folder.path)
                 withAnimation(.easeInOut(duration: 0.2)) { model.toggleExpand(node.folder) }
             }
-            .contextMenu { FolderContextMenu(folder: node.folder, model: model) }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(node.isPassThrough ? "Durchgangsordner" : "Ordner") \(node.label)")
             // Ebene und Art gehoeren **gesprochen** dazu: Ohne sie ist ein Baum

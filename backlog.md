@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.10 · 2026-08-18*
+*Stand: v2.0.11 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,37 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP3 — die Ordnerzeile wurde zweimal gebaut *(v2.0.11)*
+**Aufwand:** M
+
+`FolderRowView` (Zeitansicht) und `TreeFolderRowView` (Baum) trugen beide: Ziehquelle,
+Ablegeziel, Kontextmenü, Auswahlhintergrund, Zebra, Trefferfläche.
+
+**⚠️ Die Kosten waren keine Vermutung, sondern gerade erst bezahlt:** In Sprint 19 musste
+**jedes einzelne** Merkmal an beiden Stellen eingebaut werden. Vier Gelegenheiten, eine zu
+vergessen — und bei der Reihenfolge der Modifikatoren am Repo-Anhänger ist mir das in
+einer der beiden zunächst danebengegangen (die Ordnerfarbe hätte den Anhänger mit
+eingefärbt).
+
+Gemeinsam ist jetzt `FolderRowChrome`. Beide Ansichten verlieren rund fünfzehn Zeilen.
+
+## Was **nicht** hineingehört, ist der eigentliche Inhalt der Trennung
+
+**⚠️ Einrückung, Baumlinien und der Bezug des Zebrastreifens bleiben getrennt** — sie sind
+der Grund, warum es zwei Ansichten gibt. Der Zebrastreifen wechselt im Baum je Zeile und
+ist in der Zeitansicht fest, weil er dort nur den Dateiblock unter einem Ordner gliedert.
+
+**⚠️ Und der Kurzhinweis fiel beim Zusammenlegen fast mit hinein.** Beide Ansichten haben
+einen — im Baum steht der **Pfad**, in der Zeitansicht steht, **was ein Klick tut**. Ich
+hatte ihn zunächst in den gemeinsamen Teil gezogen; der Baum hätte danach den falschen
+Text getragen. *Zwei Dinge, die gleich aussehen, sind nicht dasselbe — und die
+Zusammenlegung ist genau der Moment, in dem man das verwechselt.*
+
+Aufgefallen ist es, weil die Zeitansicht ihren Hinweis danach **zweimal** hatte. Ein
+doppelter Modifikator ist harmlos und war hier der einzige sichtbare Hinweis auf einen
+Fehler, der es nicht war.
+
 
 ### ✅ Sprint 20 · AP2 — vier Meldekanäle werden einer *(v2.0.10)*
 **Aufwand:** M · *mit der Kernregel zuerst (Entscheidung E2)*

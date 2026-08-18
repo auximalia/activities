@@ -93,20 +93,8 @@ struct FolderRowView: View {
         .frame(height: RowMetrics.rowHeight)
         .padding(.horizontal, RowMetrics.horizontalPadding)
         .columnRule(isVisible: !isCompact, size: model.rowSize)
-        .background(SelectionBackground(isActive: isSelected))
-        // Gleiche Grundfarbe wie eine gerade Dateizeile: Ohne sie stuende
-        // die Ordnerzeile als graue Bank zwischen weissen Dateizeilen.
-        .background(RowMetrics.rowBackground(alternate: false))
-        // Den Ordner selbst herausziehen (Sprint 19). Die Ziehquelle ist
-        // dieselbe wie bei Dateien – ein Weg, ein Verhalten.
-        .background(
-            MultiFileDragSource(
-                targets: { [entry.folder] },
-                prepare: { model.noteDragOrigin(entry.folder) }
-            )
-        )
-        // Dateien aus der Liste hierher ziehen (v1.19.77).
-        .folderDropTarget(model: model, folder: entry.folder)
+        .folderRowChrome(model: model, folder: entry.folder,
+                         isSelected: isSelected, isAlternate: false)
         // Baum-Stub: leitet vom aufgeklappten Ordner in den Dateiblock ueber.
         .overlay(alignment: .bottom) {
             if isExpanded {
@@ -128,7 +116,6 @@ struct FolderRowView: View {
                 .allowsHitTesting(false)
             }
         }
-        .contentShape(Rectangle())
         .help("Klick: auf-/zuklappen & Pfad kopieren · Finder: Ordner-Symbol oder Kontextmenü")
         // Ein einzelner Einfachklick ohne konkurrierenden Doppelklick reagiert
         // unmittelbar (keine Wartezeit auf das Doppelklick-Intervall).
@@ -138,7 +125,6 @@ struct FolderRowView: View {
             ClipboardService.copy(entry.folder.path)
             withAnimation(.easeInOut(duration: 0.2)) { model.toggleExpand(entry.folder) }
         }
-        .contextMenu { FolderContextMenu(folder: entry.folder, model: model) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Ordner \(entry.folder.lastPathComponent)")
         // **⚠️ Anheftung und Aufklappzustand gehoeren in den Wert.** Das

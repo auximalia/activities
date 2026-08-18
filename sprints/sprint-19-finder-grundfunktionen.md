@@ -1,6 +1,7 @@
 # Sprint 19 – „Der Finder im Werkzeug"
 
-*Geplant am 2026-08-16 · Stand: Entwurf, noch nicht freigegeben · E2 entschieden*
+*Geplant am 2026-08-16 · **Stand: vollständig, alle Entscheidungen getroffen.**
+Die Umsetzung wartet auf die Modellwahl des Eigentümers.*
 
 > **Dieses Dokument ist ein Übergabedokument, kein Merkzettel.** Es kann von einem
 > anderen Modell und in einer anderen Sitzung umgesetzt werden. Alles, was zur
@@ -64,7 +65,7 @@ Neuer Kerntyp: `FolderMoveRules.isDescendant(_:of:)` bzw.
 
 **⚠️ Verschiebt jemand einen Ordner, der als Quelle eingetragen ist**, zeigt
 `SourceList` danach auf einen Pfad, den es nicht mehr gibt. Zwei mögliche Antworten:
-die Quelle mitziehen oder die Verschiebung ablehnen. → **offene Entscheidung E3**.
+die Quelle mitziehen oder die Verschiebung ablehnen. → **E3: sie zieht mit.**
 
 ### AP2 · Ablegen aus fremden Programmen *(M)*
 
@@ -75,12 +76,12 @@ angenommen und in den Zielordner verschoben oder kopiert.
 **⚠️ Damit entsteht die Zweideutigkeit, die dieser Sprint auflösen muss:** Ein aus
 dem Finder gezogener **Ordner** bedeutet heute „Quelle hinzufügen" (Fensterziel) und
 künftig auch „hierhin verschieben" (Zeilenziel). Beides ist dieselbe Geste auf
-demselben Fenster. → **offene Entscheidung E1.**
+demselben Fenster. → **E1: die Zeile schlägt das Fenster**, unter der dort
+genannten Bedingung.
 
-Der Kommentar an `RootView.swift` benennt den Grund, warum das Fensterziel so groß
-ist: *„Ziel ist bewusst das GANZE Fenster, nicht nur die Liste – beim Ziehen zielt man
-nicht genau."* Diese Begründung steht der Zeilen-Genauigkeit entgegen und muss in
-E1 mitverhandelt werden.
+**⚠️ Die beiden Hervorhebungen müssen einander ausschließen** — heute zeigt das
+Fensterziel seinen Rahmen auch, während der Zeiger über einer Zeile steht. Das ist als
+kosmetischer Rest aus v1.19.77 vermerkt und wird mit E1 zur Fehlerquelle.
 
 ### AP3 · Unterordner anlegen *(M)*
 
@@ -102,8 +103,9 @@ abschneiden. Neuer Kerntyp `FolderNaming`.
 
 ### AP4 · Umbenennen *(S)*
 
-Nicht ausdrücklich verlangt, aber die am häufigsten gebrauchte Finder-Handlung, die
-fehlt — und die App ist der Ort, an dem einem ein schlechter Name **auffällt**.
+Im Sprint per E5. Nicht ausdrücklich verlangt, aber die am häufigsten gebrauchte
+fehlende Finder-Handlung — und die App ist der Ort, an dem einem ein schlechter Name
+überhaupt **auffällt**.
 
 Umsetzung als Blatt mit Textfeld, nicht als Bearbeitung in der Zeile: Die Dateizeile
 trägt bereits drei Erkenner mit zwei dokumentierten Regressionen aus ihrem
@@ -156,22 +158,40 @@ man nicht sieht" hier überhaupt greift** — nach E2 ist er sonst überall gege
 
 ---
 
-## 4 · Die offenen Entscheidungen
+## 4 · Die Entscheidungen
 
-**Diese sind vor der Umsetzung zu klären. Wer ohne sie anfängt, rät.**
+**Alle fünf sind getroffen (2026-08-16). Sie stehen mit Begründung hier, damit sie
+beim Umsetzen nicht neu aufgemacht werden** — die Alternativen sind mitsamt ihren
+Gegenargumenten festgehalten, weil eine verworfene Möglichkeit ohne Grund später wie
+ein Versäumnis aussieht.
 
-### E1 · Wie unterscheidet sich „Quelle hinzufügen" von „hierhin verschieben"?
+### ✅ E1 · Wie unterscheidet sich „Quelle hinzufügen" von „hierhin verschieben"?
 
 Beides ist ein Ordner, der aus dem Finder auf dieses Fenster gezogen wird.
 
-| Weg | dafür | dagegen |
-|---|---|---|
-| **a) Zeile schlägt Fenster** — auf einer Ordnerzeile wird verschoben, daneben wird Quelle | Keine neue Geste, kein Dialog | Zielen wird nötig; genau dagegen argumentiert der Kommentar in `RootView.swift` |
-| **b) Rückfrage bei Mehrdeutigkeit** — „Als Quelle hinzufügen" / „Hierhin verschieben" | Nie falsch | Ein Klick bei jedem Ordner-Zug |
-| **c) Quelle nur noch über das Ordner-Menü** — Fensterziel entfällt | Eindeutig, eine Bedeutung je Geste | Nimmt eine bestehende, dokumentierte Funktion weg |
+**Entschieden: die Zeile schlägt das Fenster.** Auf einer Ordnerzeile wird verschoben
+oder kopiert, überall sonst wird der Ordner Quelle.
 
-*Empfehlung: **a**, mit zwei deutlich verschiedenen Hervorhebungen — Zeilenrahmen
-gegen Fensterrahmen —, damit vor dem Loslassen sichtbar ist, was gleich geschieht.*
+**⚠️ Das verlangt Zielgenauigkeit, und genau dagegen argumentiert der Bestand.** Der
+Kommentar an `RootView.swift` begründet das große Fensterziel mit *„Ziel ist bewusst
+das GANZE Fenster, nicht nur die Liste – beim Ziehen zielt man nicht genau."* Dieser
+Satz bleibt wahr; er wird nicht widerlegt, sondern **abgefedert**:
+
+**Die Bedingung, unter der diese Entscheidung trägt: zwei deutlich verschiedene
+Hervorhebungen, sichtbar VOR dem Loslassen.**
+
+| über einer Ordnerzeile | überall sonst |
+|---|---|
+| Rahmen **um die Zeile** (2 pt, Akzentfarbe) — dazu der Anhänger am Zeiger, der Verschieben von Kopieren unterscheidet | Rahmen **um das Fenster** (3 pt, wie heute) |
+
+Beide gibt es bereits (`FolderDropTarget`, `RootView`); neu ist nur, dass sie einander
+**ausschließen** müssen. Heute zeigt das Fensterziel seinen Rahmen auch, während der
+Zeiger über einer Zeile steht — das ist als kosmetischer Rest aus v1.19.77 vermerkt
+und wird hier zur Fehlerquelle: Zwei Rahmen zugleich bedeuten zwei mögliche Ausgänge.
+
+*Verworfen: eine Rückfrage bei Mehrdeutigkeit (nie falsch, aber ein Klick bei jedem
+Ordner-Zug) und der Wegfall des Fensterziels (eindeutig, nimmt aber eine bestehende,
+dokumentierte Funktion weg).*
 
 ### ✅ E2 · Wie wird ein neu angelegter Ordner sichtbar? *(entschieden 2026-08-16)*
 
@@ -207,21 +227,39 @@ sie hindert nicht.
 *Der Grundsatz hinter dem Vorschlag bleibt richtig und findet seinen Platz in AP7: Wo
 eine Handlung wirklich ins Leere liefe, wird das gesagt.*
 
-### E3 · Was geschieht, wenn ein Ordner verschoben wird, der Quelle ist?
+### ✅ E3 · Was geschieht, wenn ein Ordner verschoben wird, der Quelle ist?
 
-*Empfehlung: **die Quelle zieht mit**. Ablehnen wäre eine Bevormundung, und die
-Leitlinie sagt: sagen, nicht hindern. Der Warnsatz nennt es beim Namen.*
+**Entschieden: die Quelle zieht mit.** `SourceList` bekommt den neuen Pfad, die
+Auswahl bleibt erhalten.
 
-### E4 · Gilt die Rückfrage-Schwelle auch für Ordner?
+Ablehnen wäre Bevormundung — die Leitlinie sagt *sagen, nicht hindern*. Und der Fall
+still zu übergehen wäre der schlechteste: Die Quelle zeigte auf einen Pfad, den es
+nicht mehr gibt, und der nächste Suchlauf fände nichts, ohne zu sagen warum.
 
-`BulkAction.confirmationThreshold` zählt **Objekte**. Ein Ordner mit 8.000 Dateien ist
-ein Objekt. *Empfehlung: Bei Ordnern immer zurückfragen und die Zahl der enthaltenen
-Dateien nennen — „Ordner „X" mit 8.412 Dateien verschieben?"*
+**⚠️ Der Warnsatz nennt es beim Namen** — dieselbe Bauform wie bei den versionierten
+Dateien: *„Der Ordner ist als Quelle eingetragen; der Eintrag wandert mit."*
 
-### E5 · Umbenennen mit im Sprint?
+### ✅ E4 · Gilt die Rückfrage-Schwelle auch für Ordner?
 
-Nicht verlangt, von mir vorgeschlagen. *Empfehlung: ja — es ist S und es fehlt am
-meisten.*
+**Entschieden: Bei Ordnern wird immer zurückgefragt, und die Rückfrage nennt die Zahl
+der enthaltenen Dateien** — *„Ordner „Projekt" mit 8.412 Dateien verschieben?"*
+
+**⚠️ `BulkAction.confirmationThreshold` zählt Objekte, und darin liegt der Fehler.**
+Ein Ordner ist **ein** Objekt und kann achttausend Dateien bewegen; die Schwelle von
+zehn griffe nie. Die Begründung der Schwelle — *„ein Handgriff, der sich um vier
+Größenordnungen unterscheiden kann, braucht eine Bremse"* — trifft hier stärker zu als
+irgendwo sonst, und ausgerechnet dort wäre sie wirkungslos.
+
+**⚠️ Die Zahl wird beim Fragen ermittelt, nicht geschätzt.** Ein Ordner mit 8.412
+Dateien zu zählen kostet Zeit; die Rückfrage darf davon nicht hängen. Gezählt wird
+daher **abbrechbar und mit Obergrenze** — steht die Zahl nicht rechtzeitig fest, lautet
+der Text *„mit mehr als 5.000 Dateien"* statt einer erfundenen Genauigkeit.
+
+### ✅ E5 · Umbenennen mit im Sprint?
+
+**Entschieden: ja.** Nicht ausdrücklich verlangt, aber die am häufigsten gebrauchte
+fehlende Finder-Handlung — und diese App ist der Ort, an dem einem ein schlechter Name
+überhaupt auffällt.
 
 ---
 
@@ -250,8 +288,12 @@ Alle im Kern, alle über `swift run CoreChecks` erreichbar:
 - `FolderNaming` — leere Namen, `/`, `.`, `..`, vorhandener Name, Leerzeichen am Rand.
 - `FolderEmptiness` — rekursiv leer; nur `.DS_Store`; leere Unterordner; eine echte
   Datei tief unten macht **nicht** leer.
-- `BulkAction` — die Formulierung für Ordner mit Dateizahl.
+- `BulkAction` — Ordner fragen **immer** zurück, unabhängig von der Schwelle; die
+  Formulierung nennt die Dateizahl, und „mehr als 5.000" bei unbekannter Zahl ist ein
+  eigener Fall.
 - `RepoDetection.moveWarning` — gilt unverändert auch beim Umbenennen.
+- `SourceList` — ein verschobener Ordner behält seinen Platz im Bestand und seine
+  Auswahl; der Pfad ist der neue.
 
 ---
 
@@ -290,6 +332,10 @@ mit `ok` oder `nein: <was stattdessen>` zu beantworten.
 8. ⌘⌫ auf einen Ordner mit Inhalt: wird abgelehnt, mit Grund
 9. ⌘C in der Liste, ⌘V in einem Finder-Fenster: die Dateien kommen an
 10. ⌘C in einem Finder-Fenster, ⌘V auf eine Ordnerzeile: sie werden kopiert
+11. Ordner-Zug über einer Zeile: **nur** der Zeilenrahmen leuchtet, nicht der Fensterrahmen *(E1)*
+12. Ordner verschieben, der Quelle ist: Der Hinweis sagt es, danach zeigt die Quelle auf den neuen Pfad *(E3)*
+13. Einen großen Ordner ziehen: Rückfrage mit Dateizahl, auch bei diesem **einen** Objekt *(E4)*
+14. Datei in einen Ordner verschieben, während ein Typ-Filter sie ausblendet: Die App sagt es *(AP7)*
 
 ---
 

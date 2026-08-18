@@ -263,6 +263,70 @@ fehlende Finder-Handlung — und diese App ist der Ort, an dem einem ein schlech
 
 ---
 
+## 4a · Was am Bestand schiefgehen kann
+
+**⚠️ E3 nennt eine Liste. Es sind drei.** Nach einem Ordner-Verschieben, -Umbenennen
+oder -Löschen sind alle drei nach Pfad gespeicherten Bestände betroffen:
+
+| Bestand | Ort | Folge, wenn nichts geschieht |
+|---|---|---|
+| `knownSources` / `activeSources` | `ActivitiesCore/SourceList.swift` | Quelle zeigt ins Leere; der Suchlauf findet nichts und sagt nicht warum |
+| **`pinnedFolders`** | `ReportViewModel`, `SettingsStore.pinnedKey` | Anheftung geht **stumm** verloren |
+| **`excludedPaths`** | `ReportViewModel`, `SettingsStore.excludedPathsKey` | Der ausgeblendete Ordner **taucht wieder auf**; der alte Eintrag passt auf nichts mehr |
+
+`activeFolderRules` ist **namensbasiert** (`node_modules`, `.build`) und als einzige
+nicht betroffen.
+
+*Die letzten beiden sind die unangenehmeren: Eine tote Quelle merkt man, weil nichts
+mehr kommt. Eine verlorene Anheftung und ein wiederauftauchender ausgeblendeter Ordner
+sind **stille** Zustände.*
+
+### ⚠️ Die Zusicherung bekommt eine zweite Tür — der schärfste Punkt
+
+`SourceList.rejectionReason(forAdding:)` verbietet, dass eine Quelle **in** einer
+anderen liegt (`containedIn` / `contains`). Der Grund steht dort:
+
+> *„Sie brächen die Zusicherung ‚jeder Ordner kommt genau einmal vor', auf der Baum und
+> Zusammenfassung stehen."*
+
+**Durchgesetzt wird die Regel an genau einem Eingang: `add()`.** Ein Verschieben geht
+daran vorbei — zieht jemand Quelle A in Quelle B, entsteht der verbotene Zustand, ohne
+dass `add()` je gefragt wurde. Folge: doppelt gezählte Dateien, ein Ordner in zwei
+Zweigen.
+
+**Entschieden: nicht ablehnen, sondern die innere Quelle entfernen und es sagen** —
+*„„A" liegt jetzt in der Quelle „B"; der eigene Eintrag ist entfallen."* Nach dem
+Verschieben ist A über B ohnehin sichtbar, der Eintrag also überflüssig; es geht nichts
+verloren. Das ist die Leitlinie: sagen, nicht hindern.
+
+### Nicht nur der Ordner selbst, sondern seine Nachfahren
+
+Wird `~/Documents/A` nach `~/Archiv/A` verschoben, während `~/Documents/A/B` eine
+Quelle ist, muss **B** mitwandern. **Wer nur auf exakte Übereinstimmung prüft, lässt
+die Quelle hängen.** Gilt genauso für Anheftungen und ausgeblendete Pfade — der
+Abgleich ist ein Präfixvergleich auf Pfadgrenzen, nicht ein Gleichheitstest.
+
+### ⌘Z muss die Listen mitnehmen
+
+Das Widerrufen macht heute nur die Dateibewegung rückgängig. Nach einem
+Ordner-Verschieben gehören Quelle, Anheftung und Ausschluss dazu — sonst stellt es den
+Ordner wieder her, **aber nicht seine Rolle**.
+
+### Umbenennen nur der Groß-/Kleinschreibung
+
+`Projekt` → `projekt` scheitert auf einem nicht zwischen Groß- und Kleinschreibung
+unterscheidenden Dateisystem mit „Datei existiert bereits". Braucht den Umweg über
+einen Zwischennamen. Trifft AP4.
+
+### Was ausdrücklich **kein** Problem ist
+
+- **Ein Ordner wird in eine Quelle hinein verschoben** — neuer Inhalt, sonst nichts.
+- **Ein Ordner wird angelegt** — er ist Inhalt, keine Quelle.
+- **Der Repo-Puffer** — er wird beim vollständigen Suchlauf ohnehin geleert.
+- **`expandedFolders`** — kosmetisch, heilt sich beim nächsten Aufklappen selbst.
+
+---
+
 ## 5 · Welche Finder-Grundfunktionen sonst noch fehlen
 
 Geprüft und **bewusst nicht** in diesem Sprint:
@@ -293,7 +357,13 @@ Alle im Kern, alle über `swift run CoreChecks` erreichbar:
   eigener Fall.
 - `RepoDetection.moveWarning` — gilt unverändert auch beim Umbenennen.
 - `SourceList` — ein verschobener Ordner behält seinen Platz im Bestand und seine
-  Auswahl; der Pfad ist der neue.
+  Auswahl; der Pfad ist der neue. **Nachfahren wandern mit** (Präfixvergleich auf
+  Pfadgrenzen, nicht Gleichheit). Wandert eine Quelle **in** eine andere, entfällt der
+  innere Eintrag — die Zusicherung „jeder Ordner kommt genau einmal vor" bleibt
+  gewahrt, und zwar an **beiden** Eingängen, nicht nur in `add()`.
+- **Pfadumzug allgemein** — dieselbe Abbildung gilt für `pinnedFolders` und
+  `excludedPaths`; ein gemeinsamer Kerntyp `PathRelocation` verhindert drei Fassungen
+  derselben Rechnung.
 
 ---
 
@@ -334,6 +404,10 @@ mit `ok` oder `nein: <was stattdessen>` zu beantworten.
 10. ⌘C in einem Finder-Fenster, ⌘V auf eine Ordnerzeile: sie werden kopiert
 11. Ordner-Zug über einer Zeile: **nur** der Zeilenrahmen leuchtet, nicht der Fensterrahmen *(E1)*
 12. Ordner verschieben, der Quelle ist: Der Hinweis sagt es, danach zeigt die Quelle auf den neuen Pfad *(E3)*
+12a. Denselben Ordner mit ⌘Z zurückholen: Die Quelle zeigt wieder auf den alten Pfad
+12b. Einen **angehefteten** Ordner verschieben: Er ist danach immer noch angeheftet
+12c. Einen **ausgeblendeten** Ordner verschieben: Er bleibt ausgeblendet
+12d. Quelle A in Quelle B ziehen: A verschwindet aus dem Quellenbestand, die App sagt es
 13. Einen großen Ordner ziehen: Rückfrage mit Dateizahl, auch bei diesem **einen** Objekt *(E4)*
 14. Datei in einen Ordner verschieben, während ein Typ-Filter sie ausblendet: Die App sagt es *(AP7)*
 

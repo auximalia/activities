@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.11 · 2026-08-18*
+*Stand: v2.0.12 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,41 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP8 — das Modell teilen, ohne es zu öffnen *(v2.0.12)*
+**Aufwand:** M · *E1 war „c — voll aufteilen"; die Sprache hat widersprochen*
+
+## Die Entscheidung wurde bei der Umsetzung gemessen widerlegt
+
+**⚠️ `private` gilt in Swift dateiweit.** Eine Erweiterung in einer **anderen** Datei
+sieht es nicht. Der Versuch, `ReportViewModel` in sechs Dateien zu teilen, ergab **567
+Übersetzungsfehler**; die Behebung hätte geheißen, rund **dreißig** von 89 privaten
+Mitgliedern zu `internal` zu erheben — `store`, `relevantFiles`, `invalidateRows`,
+`selectionAnchor`. Danach dürfte **jede Ansicht der App** sie anfassen.
+
+*Eine große Datei mit dichter Kapselung ist besser als sechs kleine ohne.* Die
+Entscheidung des Eigentümers war nicht falsch — sie war unter einer Annahme über die
+Sprache getroffen, die nicht zutrifft. **Aufgefallen ist es erst beim Bauen; im Plan stand
+es nicht, weil ich es nicht wusste.**
+
+## Was stattdessen gebaut wurde
+
+Das **Verhalten** der Dateiverwaltung liegt jetzt in `ReportViewModel+FileOps.swift` (345
+Zeilen), der **Zustand** bleibt. Erreichbar ist er über **vier Nahtstellen**, die eine
+**Absicht** ausdrücken statt eines Feldes: `applyRelocation`, `rememberUndo`,
+`rememberCreatedFolder`, `rememberDragOrigin`.
+
+**⚠️ Kein einziges `private` wurde geöffnet** — die Zahl steht unverändert bei 89.
+
+**⚠️ Und die Erweiterung ist zugleich die Sicherung:** In einer Erweiterung können **keine
+gespeicherten Eigenschaften** stehen. Der Zustand *kann* also gar nicht mitwandern oder
+gespiegelt werden — genau die zweite Wahrheit, vor der der Sprintplan gewarnt hatte, ist
+hier durch die Sprache ausgeschlossen statt durch Disziplin.
+
+`ReportViewModel`: 3.494 → **3.202** Zeilen.
+
+*Das ist weniger, als E1 versprochen hat. Es ist das, was ohne Verlust zu haben war.*
+
 
 ### ✅ Sprint 20 · AP3 — die Ordnerzeile wurde zweimal gebaut *(v2.0.11)*
 **Aufwand:** M

@@ -1,6 +1,6 @@
 # Sprint 20 – „Ballast abwerfen"
 
-*Stand: v2.0.5 · 2026-08-18*
+*Stand: v2.0.12 · 2026-08-18*
 
 *Geplant am 2026-08-16 · **Entscheidungen getroffen, Umsetzung läuft.***
 
@@ -182,8 +182,23 @@ diese Schicht an. `swift build` beweist dabei nur, dass es übersetzt.
 | **b) Nur die Dateiverwaltung herausziehen** | Jüngster Teil, klare Naht, ~350 Zeilen | Der Rest bleibt |
 | **c) Voll aufteilen** | Löst das Problem | In einer ungeprüften Schicht |
 
-**✅ Entschieden: c — voll aufteilen**, gegen meine Empfehlung b. Der Eigentümer nimmt
-das Risiko der ungeprüften Schicht in Kauf.
+**✅ Entschieden: c — voll aufteilen**, gegen meine Empfehlung b.
+
+**⚠️ Bei der Umsetzung gemessen widerlegt — c ist mit Swift nicht zu haben, ohne die
+Kapselung aufzugeben.** `private` gilt in Swift **dateiweit**: Eine Erweiterung in einer
+anderen Datei sieht es nicht. Der Versuch, in sechs Dateien zu teilen, ergab **567
+Übersetzungsfehler**, und die Behebung hätte geheißen, rund **dreißig** von 89 privaten
+Mitgliedern zu `internal` zu erheben — `store`, `relevantFiles`, `invalidateRows`,
+`selectionAnchor`. Danach dürfte **jede Ansicht** sie anfassen.
+
+*Eine große Datei mit dichter Kapselung ist besser als sechs kleine ohne. Die Entscheidung
+war nicht falsch — sie war unter einer Annahme über die Sprache getroffen, die nicht
+zutrifft.*
+
+**Ausgeführt wurde daher b, aber richtig:** Das Verhalten der Dateiverwaltung wandert
+hinaus, der Zustand bleibt — erreichbar über **vier Nahtstellen**, die eine Absicht
+ausdrücken (`applyRelocation`, `rememberUndo`, `rememberCreatedFolder`,
+`rememberDragOrigin`), nicht über rohe Felder. **Kein einziges `private` wurde geöffnet.**
 
 **Daraus folgt die Reihenfolge zwingend, und sie ist Teil der Entscheidung:** erst
 AP1/AP5/AP7 (mechanisch oder im geprüften Kern), dann AP6, dann AP4, dann AP2 mit der

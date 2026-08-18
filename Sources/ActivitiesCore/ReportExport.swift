@@ -11,6 +11,12 @@ public enum ReportExport {
     /// Fuenf sind die Menge, die man noch vorlesen kann. Der Rest wird gezaehlt
     /// („… und 7 weitere"), nicht verschwiegen – eine gekuerzte Liste, die ihre
     /// Kuerzung nicht zugibt, waere eine falsche Auskunft.
+    /// **⚠️ Bleibt `public`, obwohl niemand ausserhalb des Kerns sie liest** –
+    /// sie steht als **Vorgabewert** in der Signatur einer oeffentlichen
+    /// Funktion, und ein Vorgabewert muss dort lesbar sein, wo die Funktion
+    /// gerufen wird. Das ist kein Versehen, sondern eine Folge der Signatur;
+    /// wer die Sichtbarkeit senken will, muss zuerst den Vorgabewert
+    /// herausnehmen.
     public static let summaryFolderLimit = 5
 
     /// Zusammenfassung fuer die Zwischenablage – zwei Zeilen, sofort verwendbar.

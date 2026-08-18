@@ -90,7 +90,7 @@ public enum RowSize: String, CaseIterable, Sendable, Identifiable {
     }
 
     /// Luft neben der gemessenen Textbreite, damit nichts an der Kante klebt.
-    public static let columnPadding: Double = 3
+    static let columnPadding: Double = 3
 
     /// Feste Breite der Datumsspalte.
     public var dateColumnWidth: Double { (measuredDateWidth + Self.columnPadding).rounded(.up) }

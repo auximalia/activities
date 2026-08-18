@@ -48,6 +48,8 @@ public enum ScanFreshness: Equatable, Sendable {
     /// sich nur, *wann* die Frist überhaupt gilt. Wer sie anfasst, ändert damit
     /// nicht mehr, wie oft die Warnung erscheint (das entscheidet der
     /// Beobachter), sondern nur noch, wie geduldig die App ohne ihn ist.
+    /// ⚠️ `public`, weil sie **Vorgabewert** in ``state(lastScanAt:isWatching:now:limit:)``
+    /// ist — ein Vorgabewert muss dort lesbar sein, wo die Funktion gerufen wird.
     public static let stalenessLimit: TimeInterval = 3600
 
     /// Die Aussage der Zeile.

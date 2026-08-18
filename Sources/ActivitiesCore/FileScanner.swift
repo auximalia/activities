@@ -63,7 +63,7 @@ public struct FileScanner: Sendable {
     }
 
     /// Ermittelt das neuere aus Erstell- und Aenderungsdatum.
-    public func effectiveTimestamp(creation: Date?, modification: Date?) -> Date {
+    func effectiveTimestamp(creation: Date?, modification: Date?) -> Date {
         let created = creation ?? .distantPast
         let modified = modification ?? .distantPast
         return max(created, modified)

@@ -67,7 +67,7 @@ public struct ExclusionRules: Sendable, Equatable {
     ///
     /// Rückfall, falls ``URLResourceKey.isPackageKey`` nicht zur Verfügung steht
     /// (Portabilität, siehe Konzept 10.2).
-    public static let packageExtensions: Set<String> = [
+    static let packageExtensions: Set<String> = [
         "app", "bundle", "framework", "plugin", "kext", "xpc",
         "photoslibrary", "musiclibrary", "tvlibrary", "rtfd",
         "xcodeproj", "xcworkspace", "playground", "pages", "numbers", "key",
@@ -101,7 +101,7 @@ public struct ExclusionRules: Sendable, Equatable {
 
     // MARK: - Prüfungen
 
-    public func isExcludedFolder(_ name: String) -> Bool {
+    func isExcludedFolder(_ name: String) -> Bool {
         folders.contains(name)
     }
 
@@ -116,7 +116,7 @@ public struct ExclusionRules: Sendable, Equatable {
     /// Ob ein Verzeichnis als **Dokument** zu werten ist (App-Bündel und
     /// Ähnliches). Solche Verzeichnisse werden nicht betreten, sondern als eine
     /// Einheit gezählt – sonst meldete die App deren Innereien als Arbeit.
-    public static func isPackage(extension ext: String) -> Bool {
+    static func isPackage(extension ext: String) -> Bool {
         packageExtensions.contains(ext.lowercased())
     }
 

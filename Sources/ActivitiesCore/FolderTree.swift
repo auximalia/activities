@@ -63,7 +63,7 @@ public struct FolderNode: Identifiable, Sendable, Hashable {
     public var ownFileCount: Int { entry?.fileCount ?? 0 }
 
     /// Ob die Beschriftung mehrere Pfadstufen zusammenfasst.
-    public var isCompressed: Bool { label.contains("/") }
+    var isCompressed: Bool { label.contains("/") }
 
     /// Derselbe Knoten mit anderer Beschriftung.
     ///

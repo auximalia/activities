@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.6 · 2026-08-18*
+*Stand: v2.0.7 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,40 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP7 — was `public` ist, ist ein Versprechen *(v2.0.7)*
+**Aufwand:** S
+
+Zehn Symbole waren `public` und wurden **ausschließlich im Kern** benutzt. `public` ist
+aber ein Versprechen: Die Oberfläche des Kerns sah größer aus, als sie ist, und
+`CoreChecks` konnte nicht unterscheiden, was **Vertrag** und was **Innenleben** ist.
+
+**Gesenkt:** `DateFormatting.dayLabel` und `.spanYearThreshold`,
+`ExclusionRules.isExcludedFolder`, `.isPackage`, `.packageExtensions`,
+`FileScanner.effectiveTimestamp`, `FolderTree.isCompressed`, `RowSize.columnPadding`,
+`TypePalette.chromatic`, `.lab`, `.rgb`.
+
+## Und drei, die `public` bleiben — mit dem Grund an Ort und Stelle
+
+**⚠️ Nicht pauschal gesenkt, sondern der Übersetzer entscheiden lassen.** Wo er
+widersprach, gab es einen Grund, und der steht jetzt dort:
+
+- **`ReportExport.summaryFolderLimit` und `ScanFreshness.stalenessLimit`** sind
+  **Vorgabewerte** in Signaturen öffentlicher Funktionen. Ein Vorgabewert muss dort
+  lesbar sein, wo die Funktion gerufen wird — das ist keine Nachlässigkeit, sondern eine
+  Folge der Signatur. *Wer die Sichtbarkeit senken will, muss zuerst den Vorgabewert
+  herausnehmen.*
+- **`SemanticVersion.major/minor/patch`** bleiben: Eine Version, deren Bestandteile man
+  nicht lesen kann, ist keine.
+- **Die `Shortcuts`-Einträge** bleiben **alle** `public`, auch die neun, die niemand beim
+  Namen ruft (Maus-Gesten erscheinen nur über `catalogue`). *Eine gemischte Sichtbarkeit
+  wäre hier schlimmer als eine etwas weite: Wer einen Eintrag hinzufügt, müsste raten, ob
+  seiner `public` sein muss — und die Antwort hinge davon ab, ob gerade ein Menübefehl
+  daran hängt.* Der Katalog ist der Vertrag; seine Mitglieder gehören dazu.
+
+*Zwei der drei Ausnahmen hätte ich ohne den Übersetzer nicht gefunden — sie sehen an der
+Deklaration aus wie die anderen zehn.*
+
 
 ### ✅ Sprint 20 · AP5 — eine Frage statt neun *(v2.0.6)*
 **Aufwand:** XS

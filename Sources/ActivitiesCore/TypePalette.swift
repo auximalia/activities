@@ -27,7 +27,7 @@ public struct PaletteColor: Sendable, Equatable {
     public var isNeutral: Bool { saturation < 0.05 }
 
     /// sRGB-Komponenten 0…1.
-    public var rgb: (red: Double, green: Double, blue: Double) {
+    var rgb: (red: Double, green: Double, blue: Double) {
         let h = (hue - hue.rounded(.down)) * 6
         let sector = Int(h)
         let f = h - Double(sector)
@@ -45,7 +45,7 @@ public struct PaletteColor: Sendable, Equatable {
     }
 
     /// CIELAB-Koordinaten (D65) – Grundlage der Abstandsmessung.
-    public var lab: (l: Double, a: Double, b: Double) {
+    var lab: (l: Double, a: Double, b: Double) {
         func linear(_ v: Double) -> Double {
             v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
         }
@@ -88,7 +88,7 @@ public struct PaletteColor: Sendable, Equatable {
 /// sie nie als Datum gelesen werden.
 public enum TypePalette {
     /// Die zehn bunten Farben. Reihenfolge = Index der Zuordnung.
-    public static let chromatic: [PaletteColor] = [
+    static let chromatic: [PaletteColor] = [
         PaletteColor(degrees: 358, saturation: 0.72, brightness: 0.86), // 0 Rot
         PaletteColor(degrees:  26, saturation: 0.85, brightness: 0.90), // 1 Orange
         PaletteColor(degrees:  44, saturation: 0.88, brightness: 0.80), // 2 Amber

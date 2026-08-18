@@ -99,7 +99,7 @@ public enum DateFormatting {
     /// Dieselben zwei Formen wie bei ``dateTime(_:calendar:now:)``, nur ohne
     /// Zeitanteil: Wo ein ganzer Kalendertag gemeint ist (PR-11), waere eine
     /// Uhrzeit eine falsche Genauigkeit.
-    public static func dayLabel(_ date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
+    static func dayLabel(_ date: Date, calendar: Calendar = .current, now: Date = Date()) -> String {
         if let relative = relativeDayLabel(date, calendar: calendar, now: now) { return relative }
         return weekdayDate(date, calendar: calendar)
     }
@@ -165,7 +165,7 @@ public enum DateFormatting {
     /// als „1 Woche" – wer die Woche liest, rechnet zurueck. Erst wo niemand
     /// mehr in Tagen denkt, lohnt die Zerlegung; ein Jahr ist die erste Groesse,
     /// bei der das sicher gilt.
-    public static let spanYearThreshold = 365
+    static let spanYearThreshold = 365
 
     /// Die Laenge einer Spanne in lesbarer Form.
     ///

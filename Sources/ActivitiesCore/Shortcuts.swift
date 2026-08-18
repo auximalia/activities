@@ -134,6 +134,12 @@ public struct ShortcutEntry: Sendable, Hashable, Identifiable {
 /// Die Menübefehle in `ActivitiesApp` binden sich an diese Einträge, die
 /// Hilfetabelle wird aus ihnen erzeugt. Ein neuer Befehl ohne Katalogeintrag
 /// bekommt kein Kürzel; ein Katalogeintrag ohne Hilfezeile ist unmöglich.
+/// **⚠️ Alle Eintraege sind `public`, auch die, die niemand ausserhalb des Kerns
+/// beim Namen ruft** — Maus-Gesten etwa erscheinen nur ueber ``catalogue`` in der
+/// Hilfe. Eine gemischte Sichtbarkeit waere hier schlimmer als eine etwas weite:
+/// Wer einen Eintrag hinzufuegt, muesste raten, ob seiner `public` sein muss,
+/// und die Antwort haenge davon ab, ob gerade ein Menuebefehl daran haengt. Der
+/// Katalog ist der Vertrag; seine Mitglieder gehoeren dazu.
 public enum Shortcuts {
 
     // MARK: Ordner

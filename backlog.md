@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.0 · 2026-08-18*
+*Stand: v2.0.1 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,40 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-65 · „Heute" stand ganz unten *(v2.0.1)*
+**Aufwand:** XS · **Art:** Defekt aus v2.0.0 · *„der Ordner Test wurde angelegt. Aber der Rahmen „Heute" erscheint ganz unten und zerbricht die Chronologie"*
+
+**⚠️ `TimeBucket.group` hat eine Vorbedingung, die nirgends stand und nirgends geprüft
+wurde:** Der Eingang muss nach Datum **absteigend sortiert** sein. Die Funktion vergleicht
+jeden Eintrag nur mit dem **letzten** Abschnitt und bildet die Abschnitte in der Reihenfolge
+des Eingangs — sie sortiert nichts um.
+
+Der neu angelegte Ordner wurde in v2.0.0 an die bereits sortierte Liste **angehängt**. Damit
+lief ein heutiger Eintrag hinter einem jährigen ein, und „Heute" entstand als **neuer**
+Abschnitt am Ende.
+
+**Der gemeldete Fehler war dabei die harmlosere Hälfte.** Dieselbe Verletzung erzeugt
+denselben Abschnittsnamen **mehrfach** — zwei Abschnitte „Heute" in einer Liste, an
+verschiedenen Stellen. Sichtbar wurde nur die Reihenfolge, weil zufällig kein zweiter
+heutiger Ordner im Spiel war.
+
+**Gemacht:** Die Sortierregel heißt `FolderAggregator.byNewestFirst` und ist **öffentlich** —
+sie war eine Closure im Rumpf von `folderEntries`, also für einen zweiten Erzeuger von
+Einträgen unerreichbar. Wer die Liste erweitert, sortiert damit nach, nicht mit einer zweiten
+Fassung derselben Regel.
+
+**⚠️ Nicht defensiv in `group` sortiert.** Die Reihenfolge ist die Entscheidung des Aufrufers
+— er kennt das Kriterium (`FolderSort`), `group` nicht. Sortierte sie selbst, gäbe es zwei
+Stellen, die darüber bestimmen, und eine davon läge eines Tages falsch. Stattdessen steht die
+Vorbedingung jetzt am Kopf der Funktion, **und acht Zusicherungen halten sie fest** —
+darunter der gemeldete Fall selbst und die Doppelung, die niemand gesehen hat.
+
+*Die Lehre ist die alte in neuer Form: Eine Vorbedingung, die nur der erste Aufrufer kennt,
+ist keine — sie ist eine Gewohnheit.*
+
+**Zusicherungen:** 1776 → **1784**.
+
 
 ### ✅ Sprint 19 · „Der Finder im Werkzeug" *(v2.0.0)*
 **Aufwand:** L · **Plan:** `sprints/sprint-19-finder-grundfunktionen.md`

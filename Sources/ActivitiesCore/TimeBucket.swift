@@ -44,6 +44,21 @@ public enum TimeBucket {
     ///
     /// Erwartet ``entries`` nach Datum **absteigend** – nur so entstehen
     /// zusammenhaengende Abschnitte.
+    /// **⚠️ Vorbedingung: ``entries`` ist nach Datum absteigend sortiert**
+    /// (``FolderAggregator/byNewestFirst(_:_:)``). Diese Funktion vergleicht
+    /// jeden Eintrag nur mit dem **letzten** Abschnitt — sie bildet die
+    /// Abschnitte in der Reihenfolge des Eingangs und sortiert nichts um.
+    ///
+    /// Wird sie verletzt, geschieht **zweierlei**, und beides sieht nicht nach
+    /// einem Fehler aus: Die Abschnitte stehen in der falschen Reihenfolge, und
+    /// derselbe Abschnittsname kann **mehrfach** entstehen. In v2.0.0 wurde ein
+    /// neu angelegter Ordner an die sortierte Liste angehängt; „Heute" erschien
+    /// darauf ganz unten.
+    ///
+    /// *Hier wird nicht defensiv sortiert. Die Reihenfolge ist die Entscheidung
+    /// des Aufrufers — er kennt das Kriterium (``FolderSort``), diese Funktion
+    /// nicht. Sortierte sie selbst, gäbe es zwei Stellen, die darüber
+    /// bestimmen, und eine davon läge falsch.*
     public static func group(
         _ entries: [FolderEntry],
         sort: FolderSort = .byNewest,

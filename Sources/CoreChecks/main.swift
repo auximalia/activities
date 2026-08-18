@@ -3283,6 +3283,51 @@ do {
     }
 }
 
+// MARK: - TimeBucket.group: die Vorbedingung, die niemand aufgeschrieben hatte (v2.0.1)
+do {
+    let kalender = Calendar(identifier: .gregorian)
+    let jetzt = kalender.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
+    func tage(_ n: Int) -> Date { jetzt.addingTimeInterval(-Double(n) * 86_400) }
+    func e(_ name: String, _ datum: Date) -> FolderEntry {
+        FolderEntry(folder: URL(fileURLWithPath: "/x/\(name)", isDirectory: true),
+                    newestDate: datum, fileCount: 0)
+    }
+
+    // ⚠️ DER Fall aus der Praxis: Ein neu angelegter Ordner wurde an die bereits
+    // sortierte Liste ANGEHAENGT. `group` vergleicht jeden Eintrag nur mit dem
+    // LETZTEN Abschnitt - also entstand „Heute" ein zweites Mal, ganz unten, und
+    // die Chronologie zerbrach. Gemeldet als „der Rahmen Heute erscheint ganz
+    // unten".
+    let unsortiert = [e("alt", tage(400)), e("test", jetzt)]
+    let kaputt = TimeBucket.group(unsortiert, now: jetzt, calendar: kalender)
+    expect(kaputt.count == 2, "Abschnitte: unsortierter Eingang ergibt zwei Abschnitte")
+    expect(kaputt.last?.label != kaputt.first?.label,
+           "Abschnitte: … und der heutige steht hinten - genau der gemeldete Fehler")
+
+    // Nach dem Sortieren mit DERSELBEN Regel, die `folderEntries` benutzt, steht
+    // er vorn. Die Regel ist oeffentlich, damit es nicht zwei Fassungen gibt.
+    let sortiert = unsortiert.sorted(by: FolderAggregator.byNewestFirst)
+    let heil = TimeBucket.group(sortiert, now: jetzt, calendar: kalender)
+    expectEqual(heil.first?.entries.first?.folder.lastPathComponent, "test",
+                "Abschnitte: der heutige Ordner steht oben")
+    expect(heil.first?.label != heil.last?.label, "Abschnitte: und die Abschnitte sind verschieden")
+
+    // ⚠️ Und der schlimmere Teil desselben Fehlers: Derselbe Abschnittsname darf
+    // nicht ZWEIMAL entstehen. Bei sortiertem Eingang kann er das nicht.
+    let viele = [e("a", jetzt), e("b", tage(400)), e("c", jetzt.addingTimeInterval(-3600))]
+        .sorted(by: FolderAggregator.byNewestFirst)
+    let namen = TimeBucket.group(viele, now: jetzt, calendar: kalender).map(\.label)
+    expectEqual(Set(namen).count, namen.count, "Abschnitte: kein Name kommt zweimal vor")
+
+    // Die Sortierregel selbst: Datum absteigend, bei Gleichstand der Pfad.
+    expect(FolderAggregator.byNewestFirst(e("a", jetzt), e("b", tage(1))),
+           "Reihenfolge: das juengere Datum zuerst")
+    expect(!FolderAggregator.byNewestFirst(e("a", tage(1)), e("b", jetzt)),
+           "Reihenfolge: und nicht umgekehrt")
+    expect(FolderAggregator.byNewestFirst(e("b", jetzt), e("a", jetzt)),
+           "Reihenfolge: bei gleichem Datum der Pfad absteigend")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

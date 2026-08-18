@@ -1827,6 +1827,13 @@ final class ReportViewModel {
             && FileManager.default.fileExists(atPath: neuer.path) {
             eintraege.append(FolderEntry(folder: neuer, newestDate: jetzt, fileCount: 0))
         }
+        // ⚠️ NACH dem Anhaengen neu sortieren. `TimeBucket.group` bildet die
+        // Abschnitte in der Reihenfolge des Eingangs und vergleicht nur mit dem
+        // letzten – ein angehaengter heutiger Eintrag erzeugte sonst einen
+        // zweiten Abschnitt „Heute", ganz unten. Aus der Praxis gemeldet.
+        if eintraege.count != entries.count {
+            eintraege.sort(by: FolderAggregator.byNewestFirst)
+        }
 
         var grouped = TimeBucket.group(
             eintraege,

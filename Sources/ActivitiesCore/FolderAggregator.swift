@@ -39,13 +39,28 @@ public enum FolderAggregator {
             let count = countOnlyInWindow ? inRange.count : visible.count
             entries.append(FolderEntry(folder: folder, newestDate: newest, fileCount: count))
         }
-        entries.sort { first, second in
-            if first.newestDate != second.newestDate {
-                return first.newestDate > second.newestDate
-            }
-            return first.folder.path > second.folder.path
-        }
+        entries.sort(by: byNewestFirst)
         return entries
+    }
+
+    /// Die Reihenfolge, in der Ordner in die Abschnitte laufen.
+    ///
+    /// **⚠️ Sie ist die Vorbedingung von ``TimeBucket/group(_:sort:dominantType:now:calendar:)``,
+    /// und deshalb steht sie hier öffentlich statt als Closure im Rumpf.**
+    /// `group` bildet die Abschnitte in der **Reihenfolge des Eingangs**: Es
+    /// vergleicht jeden Eintrag nur mit dem **letzten** Abschnitt. Kommt ein
+    /// heutiger Eintrag hinter einem jährigen, entsteht ein zweiter Abschnitt
+    /// „Heute" — ganz unten, und die Chronologie zerbricht.
+    ///
+    /// *Genau das ist in v2.0.0 passiert: Ein neu angelegter Ordner wurde an die
+    /// bereits sortierte Liste **angehängt**, und aus der Praxis kam „der Rahmen
+    /// Heute erscheint ganz unten". Wer die Liste erweitert, sortiert danach —
+    /// hiermit, nicht mit einer zweiten Fassung derselben Regel.*
+    public static func byNewestFirst(_ first: FolderEntry, _ second: FolderEntry) -> Bool {
+        if first.newestDate != second.newestDate {
+            return first.newestDate > second.newestDate
+        }
+        return first.folder.path > second.folder.path
     }
 
     /// Zaehlt je Tag, aufgeschluesselt nach Dateityp – mit optionalem Sammel-Eintrag.

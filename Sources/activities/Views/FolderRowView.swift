@@ -24,6 +24,46 @@ struct FolderRowView: View {
         return live > 0 ? live : entry.fileCount
     }
 
+    /// Die Arbeitskopie, in der dieser Ordner liegt.
+    private var repoMark: RepoMark? { model.repos.mark(forFolder: entry.folder) }
+    /// Ob dieser Ordner die **Wurzel** der Arbeitskopie ist.
+    ///
+    /// ⚠️ Als eigene Eigenschaft, nicht als Vergleich in der Symbolkette: Dort
+    /// brach sie `body` mit „unable to type-check this expression in reasonable
+    /// time" – derselbe Grund wie bei ``accessibilityValue`` in ``FileRowView``.
+    private var isRepoRoot: Bool { repoMark?.root == entry.folder }
+
+    /// Was der Tooltip am Ordner-Symbol sagt.
+    ///
+    /// **⚠️ Der Klartext der Arbeitskopie steht HIER, nicht am Anhänger.**
+    /// ``RepoBadge`` liegt in einem Overlay mit `allowsHitTesting(false)`, und
+    /// der Knopf darunter trägt sein eigenes `.help` – der Anhänger-Tooltip war
+    /// seit v1.19.79 unerreichbar, obwohl die Hilfe ihn versprach. Ausführlich
+    /// begründet in ``FileRowView/iconHelp``.
+    private var iconHelp: String {
+        guard let mark = repoMark else { return "Im Finder öffnen · Pfad kopieren" }
+        return "Im Finder öffnen · Pfad kopieren · " + mark.label
+    }
+
+    /// Was VoiceOver nach der Beschriftung vorliest.
+    ///
+    /// **⚠️ Anheftung, Aufklappzustand und Arbeitskopie gehoeren in den Wert.**
+    /// Das Anheft-Symbol trug nur ein `.help`, und `.help` existiert fuer
+    /// Vorleseprogramme nicht; ``RepoBadge`` ist sogar ausdruecklich
+    /// `accessibilityHidden`. Das Label unmittelbar darueber haette beide
+    /// ohnehin verdraengt. Sichtbar war der Zustand, hoerbar nicht (UX-37).
+    ///
+    /// ⚠️ Ausgelagert, weil `body` mit dem Ausdruck an Ort und Stelle „unable to
+    /// type-check this expression in reasonable time" meldete – dieselbe Falle
+    /// wie in ``FileRowView``.
+    private var accessibilityValue: String {
+        let basis = "\(displayCount) Dateien, zuletzt \(DateFormatting.dateTime(displayDate))"
+        let angeheftet = model.isPinned(entry.folder) ? ", angeheftet" : ""
+        let klappe = isExpanded ? ", aufgeklappt" : ", zugeklappt"
+        let repo = repoMark.map { ", \($0.label)" } ?? ""
+        return basis + angeheftet + klappe + repo
+    }
+
     var body: some View {
         HStack(spacing: RowMetrics.itemSpacing) {
             Image(systemName: isExpanded ? "minus.circle" : "plus.circle")
@@ -45,13 +85,12 @@ struct FolderRowView: View {
                     // ⚠️ `isRoot` unterscheidet die WURZEL der Arbeitskopie von
                     // einem Ordner darin: Die Wurzel ist die eigentliche
                     // Einheit – dort liegt `.svn`, dort greift `svn mv`.
-                    .repoBadge(model.repos.mark(forFolder: entry.folder),
-                               isRoot: model.repos.mark(forFolder: entry.folder)?.root == entry.folder)
+                    .repoBadge(repoMark, isRoot: isRepoRoot)
                     .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Im Finder öffnen · Pfad kopieren")
+            .help(iconHelp)
             .accessibilityLabel("Ordner im Finder öffnen")
 
             // Name und Pfad stehen in EINER Zeile hintereinander; bei Platzmangel
@@ -127,16 +166,7 @@ struct FolderRowView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Ordner \(entry.folder.lastPathComponent)")
-        // **⚠️ Anheftung und Aufklappzustand gehoeren in den Wert.** Das
-        // Anheft-Symbol trug nur ein `.help`, und `.help` existiert fuer
-        // Vorleseprogramme nicht; das ausdrueckliche Label unmittelbar darueber
-        // haette es ohnehin verdraengt. Ein angehefteter Ordner klang damit wie
-        // jeder andere (UX-37).
-        .accessibilityValue(
-            "\(displayCount) Dateien, zuletzt \(DateFormatting.dateTime(displayDate))"
-            + (model.isPinned(entry.folder) ? ", angeheftet" : "")
-            + (isExpanded ? ", aufgeklappt" : ", zugeklappt")
-        )
+        .accessibilityValue(accessibilityValue)
         .accessibilityHint("Zum Auf- und Zuklappen aktivieren")
         .accessibilityAddTraits(.isButton)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -172,6 +202,11 @@ struct FolderContextMenu: View {
                 .keyboardShortcut("t", modifiers: [.command, .shift])
         }
         Button("Pfad kopieren") { ClipboardService.copy(folder.path) }
+        // Steht bei den anderen Öffnen- und Kopieren-Befehlen, vor dem Strich:
+        // Es ist einer von ihnen und keine Handlung an der Platte.
+        if let mark = model.repos.mark(forFolder: folder) {
+            RepoMenu(mark: mark, model: model)
+        }
         Divider()
         Button(Shortcuts.newFolder.label) { model.requestNewFolder(in: folder) }
         Button(Shortcuts.renameItem.label) { model.requestRename(folder) }

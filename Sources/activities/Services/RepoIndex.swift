@@ -29,11 +29,22 @@ final class RepoIndex {
     @ObservationIgnored private var byFolder: [URL: RepoMark?] = [:]
     /// Wurzel → geführte Dateien. `nil` = noch nicht geladen.
     @ObservationIgnored private var tracked: [URL: Set<URL>] = [:]
+    /// Wurzel → eingetragene Fernadresse. Schlüssel fehlt = noch nicht gelesen,
+    /// `.some(nil)` = gelesen und keine vorhanden.
+    ///
+    /// **⚠️ Kommt im selben Durchgang wie ``tracked``.** Beides braucht denselben
+    /// Unterprozess-Ausflug je Arbeitskopie; zwei getrennte Ladewege wären zwei
+    /// Zustände, die auseinanderlaufen können – und der zweite käme dann
+    /// ausgerechnet dann noch nicht an, wenn das Menü schon offen ist.
+    @ObservationIgnored private var remotes: [URL: String?] = [:]
 
     /// Steigt bei jedem abgeschlossenen Ladevorgang – die Ansicht hängt daran.
     private(set) var generation = 0
 
+    /// Läuft gerade – **wird nur von ``invalidate()`` abgebrochen**.
     @ObservationIgnored private var laufend: Task<Void, Never>?
+    /// Arbeitskopien, die noch zu lesen sind. Wächst bei jedem ``refresh(folders:)``.
+    @ObservationIgnored private var offen: Set<RepoMark> = []
 
     // MARK: - Auskunft
 
@@ -55,8 +66,37 @@ final class RepoIndex {
             return nil
         }
         for folder in visited { byFolder[folder] = found }
+        if let found { vormerken(found) }
         return found
     }
+
+    /// Meldet den Bedarf an: Diese Arbeitskopie soll gelesen werden.
+    ///
+    /// **⚠️ Der Index füttert sich selbst – das ist der eigentliche Fund.**
+    /// Bisher hing das Laden allein an ``refresh(folders:)``, und das musste ein
+    /// **Aufrufer** zur richtigen Zeit auslösen. Genau dort ist es liegen
+    /// geblieben: Das Untermenü zeigte dauerhaft „Adresse wird gelesen …", weil
+    /// nie jemand gelesen hat. *Eine Zusicherung, die davon abhängt, dass ein
+    /// fremdes Bauteil sich erinnert, ist keine.*
+    ///
+    /// Jetzt gilt der Zusammenhang, der ohnehin stimmt: **Wer nach der
+    /// Arbeitskopie eines Ordners fragt, braucht die Auskunft dazu.** Jede
+    /// gezeichnete Zeile mit Anhänger meldet den Bedarf damit selbst an — und
+    /// eine Zeile wird lange vor dem Rechtsklick gezeichnet.
+    ///
+    /// **⚠️ Nur beim Puffer-Fehlschlag, nicht bei jedem Treffer.** Das hier
+    /// läuft im Rumpf einer Zeile; auf dem heißen Pfad darf nichts stehen, was
+    /// je Neuzeichnung Arbeit macht. Nach ``invalidate()`` fehlt der Puffer
+    /// wieder, und damit wird auch wieder angemeldet.
+    ///
+    /// **⚠️ Der Anstoß wird auf die nächste Runde verschoben.** `mark(forFolder:)`
+    /// wird aus Ansichtsrümpfen gerufen; einen Zustand mitten in einer
+    /// Aktualisierung zu ändern, ist genau das, wovor SwiftUI warnt.
+    private func vormerken(_ mark: RepoMark) {
+        guard tracked[mark.root] == nil, offen.insert(mark).inserted else { return }
+        Task { @MainActor [weak self] in self?.starteNaechsten() }
+    }
+
 
     /// Steht diese Datei unter Versionsverwaltung?
     ///
@@ -78,46 +118,83 @@ final class RepoIndex {
         return result
     }
 
+    /// Welche Fernadresse trägt diese Arbeitskopie?
+    ///
+    /// **⚠️ Fragt die Platte NICHT.** Diese Auskunft wird aus dem Kontextmenü
+    /// gelesen, und dessen Rumpf läuft erst beim Aufklappen – ein Unterprozess
+    /// darin ließe das Menü sichtbar später aufgehen, auf einem Netzlaufwerk
+    /// spürbar lange. Geladen wird in ``refresh(folders:)``, hier steht nur der
+    /// Puffer. Solange er leer ist, lautet die Antwort ``RepoRemote/unknown``
+    /// und nicht ``RepoRemote/missing``.
+    func remote(for mark: RepoMark) -> RepoRemote {
+        guard let entry = remotes[mark.root] else { return .unknown }
+        guard let address = entry else { return .missing }
+        return .address(address)
+    }
+
     // MARK: - Laden
 
-    /// Lädt die Listen der geführten Dateien für alle vorkommenden Arbeitskopien.
+    /// Wärmt die Arbeitskopien vor, die in dieser Ordnerliste vorkommen.
     ///
-    /// **⚠️ Im Hintergrund und abbrechbar.** Ein `svn status` auf einer großen
-    /// Arbeitskopie dauert Zehntelsekunden; auf einem Netzlaufwerk kann es
-    /// deutlich länger dauern. Auf dem Hauptstrang stünde dann die Liste.
+    /// **⚠️ Nur noch ein Vorlauf, keine Zusicherung mehr.** Die Zusicherung
+    /// hängt seit v2.0.14 an ``vormerken(_:)``: Jede Zeile, die einen Anhänger
+    /// zeichnet, meldet ihren Bedarf selbst an. Diese Methode nimmt die Arbeit
+    /// nur **früher** vorweg — vor dem ersten Zeichnen, für alle Ordner auf
+    /// einmal — und darf deshalb ausfallen, ohne dass etwas fehlt.
+    ///
+    /// **⚠️ Sie bricht nichts mehr ab, aber das war NICHT die Ursache.** Bis
+    /// v2.0.13 begann sie mit `laufend?.cancel()`, und weil sie aus
+    /// ``ReportViewModel/applyWindowChange()`` kommt, warf jeder Filter-,
+    /// Zeitraum- und Beobachterlauf die halb fertige Arbeit weg. Das sah nach
+    /// der Erklärung aus. *Ein Nachbau hat sie widerlegt:* Unter dreißig
+    /// Abbrüchen im 30-ms-Takt lieferte auch der alte Bau — 25 ms nachdem der
+    /// Sturm aufhörte. **Ein Abbruch, dem ein weiterer Aufruf folgt, verliert
+    /// nichts.** Der Abbruch ist trotzdem raus, weil Wegwerfen von gültiger
+    /// Arbeit keinen Vorteil hat; als Fehlererklärung taugt er nicht.
+    ///
+    /// **⚠️ Die Ursache war die Abhängigkeit selbst.** Das Laden fand nur statt,
+    /// wenn ein **Aufrufer** sich erinnerte. Gemessen im Nachbau: Wird
+    /// `refresh` nie gerufen, kommt die Auskunft nie — und genau das war zu
+    /// sehen. Mit ``vormerken(_:)`` kommt sie **ohne jeden Aufrufer** nach
+    /// 75 ms, allein vom Zeichnen der Zeilen.
     func refresh(folders: [URL]) {
-        laufend?.cancel()
-        var wurzeln: Set<RepoMark> = []
-        for folder in folders {
-            if let found = mark(forFolder: folder) { wurzeln.insert(found) }
-        }
-        let pending = wurzeln.filter { tracked[$0.root] == nil }
-        guard !pending.isEmpty else { return }
+        for folder in folders { _ = mark(forFolder: folder) }
+    }
 
+    /// Nimmt sich die nächste offene Arbeitskopie vor – eine nach der anderen.
+    ///
+    /// ⚠️ Seriell: Ein `svn status` je Wurzel gleichzeitig wäre der
+    /// Unterprozess-Sturm, den der Hintergrundlauf vermeiden soll.
+    private func starteNaechsten() {
+        guard laufend == nil, let mark = offen.first else { return }
+        offen.remove(mark)
         laufend = Task { [weak self] in
-            for mark in pending {
-                if Task.isCancelled { return }
-                let amount = await Self.load(mark)
-                guard let self, !Task.isCancelled else { return }
-                self.tracked[mark.root] = amount
-                self.generation &+= 1
-            }
+            let amount = await Self.load(mark)
+            guard let self, !Task.isCancelled else { return }
+            self.tracked[mark.root] = amount.tracked
+            self.remotes[mark.root] = amount.remote
+            self.generation &+= 1
+            self.laufend = nil
+            self.starteNaechsten()
         }
     }
 
     /// Vergisst alles – nach einem vollständigen Suchlauf.
     func invalidate() {
         laufend?.cancel()
+        laufend = nil
+        offen = []
         byFolder = [:]
         tracked = [:]
+        remotes = [:]
         generation &+= 1
     }
 
-    nonisolated private static func load(_ mark: RepoMark) async -> Set<URL> {
+    nonisolated private static func load(_ mark: RepoMark) async -> (tracked: Set<URL>, remote: String?) {
         await Task.detached(priority: .utility) {
             switch mark.kind {
-            case .git: gitTracked(at: mark.root)
-            case .svn: svnTracked(at: mark.root)
+            case .git: (gitTracked(at: mark.root), gitRemote(at: mark.root))
+            case .svn: (svnTracked(at: mark.root), svnRemote(at: mark.root))
             }
         }.value
     }
@@ -155,6 +232,43 @@ final class RepoIndex {
         parser.delegate = leser
         parser.parse()
         return leser.versioned
+    }
+
+    /// Die eingetragene Fernadresse einer git-Arbeitskopie.
+    ///
+    /// **⚠️ `config --get`, nicht `remote get-url`.** Beide lesen dasselbe Feld,
+    /// aber `config` gibt es seit jeher und schweigt, wenn nichts da ist;
+    /// `remote get-url` schreibt in einem solchen Fall auf die Fehlerausgabe.
+    /// Hier ist „nichts eingetragen" ein **Ergebnis**, kein Fehler.
+    ///
+    /// **⚠️ Nur `origin`.** Ein Repository kann mehrere Gegenstellen führen;
+    /// welche davon „das Repository" ist, weiß nur der Anwender. `origin` ist
+    /// die Antwort, die git selbst überall voraussetzt – und eine Auswahlliste
+    /// im Kontextmenü wäre eine Frage an einen, der sie nicht gestellt hat.
+    nonisolated private static func gitRemote(at root: URL) -> String? {
+        clean(run("/usr/bin/git",
+                  ["--no-optional-locks", "config", "--get", "remote.origin.url"],
+                  in: root))
+    }
+
+    /// Die Adresse, unter der die svn-Arbeitskopie ausgecheckt wurde.
+    ///
+    /// **⚠️ `svn info` auf einem PFAD fragt keinen Server.** Es liest die
+    /// örtliche `.svn/wc.db`; nur `svn info <URL>` ginge ins Netz. Gemessen:
+    /// 70–110 ms je Arbeitskopie, also in derselben Größenordnung wie das
+    /// `svn status`, das ohnehin schon läuft.
+    ///
+    /// **⚠️ Die Adresse der Arbeitskopie, nicht die Repository-Wurzel.** In svn
+    /// arbeitet man in `…/trunk` oder `…/branches/x`; `repos-root-url` führte
+    /// auf eine Ebene, die mit der Arbeit nichts zu tun hat.
+    nonisolated private static func svnRemote(at root: URL) -> String? {
+        clean(run("/usr/bin/svn", ["info", "--show-item", "url", "."], in: root))
+    }
+
+    /// Eine Zeile Prozessausgabe → Adresse oder ``nil``.
+    nonisolated private static func clean(_ ausgabe: String) -> String? {
+        let getrimmt = ausgabe.trimmingCharacters(in: .whitespacesAndNewlines)
+        return getrimmt.isEmpty ? nil : getrimmt
     }
 
     nonisolated private static func run(_ path: String, _ argumente: [String], in folder: URL) -> String {

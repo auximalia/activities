@@ -150,7 +150,9 @@ struct HelpView: View {
 
                 section("Versionsverwaltung", icon: "arrow.triangle.branch", [
                     "Steht eine Datei oder ein Ordner unter git oder svn, trägt das Symbol einen kleinen Anhänger.",
-                    "**Verzweigung = git, Schichtung = svn.** Überfahren nennt die Arbeitskopie im Klartext.",
+                    "**Verzweigung = git, Schichtung = svn.** Auf dem Symbol stehenbleiben nennt die Arbeitskopie im Klartext – der Anhänger selbst ist dafür zu klein.",
+                    "**Rechtsklick** führt dieselbe Auskunft als Untermenü: „git-Arbeitskopie: …“. Darin „Repository im Browser öffnen“ und „Repository-Adresse kopieren“.",
+                    "Der Browser-Eintrag erscheint nur, wenn sich aus der eingetragenen Adresse verlässlich eine Webseite ergibt. Bei `svn+ssh` oder einem Repository auf der Platte gibt es keine – kopieren lässt sich die Adresse trotzdem.",
                     "Gezeigt wird **versioniert**, nicht „liegt in einem Repo“ – Bauwerk wie `.build` bleibt unmarkiert.",
                     "Beim Verschieben versionierter Dateien fragt die App **immer** zurück, auch bei einer einzelnen, und nennt den Befehl, der dabei nicht ausgeführt wird (`git mv`, `svn mv`).",
                     "Die App führt die Verschiebung trotzdem aus – sie warnt, sie hindert nicht.",
@@ -204,6 +206,7 @@ struct HelpView: View {
                     "Nichts wird verändert, verschoben oder gelöscht – die App liest nur.",
                     "Einstellungen liegen lokal in den macOS-Voreinstellungen.",
                     "Die einzige Netzverbindung ist die Update-Suche bei GitHub (siehe unten).",
+                    "„Repository im Browser öffnen“ ist keine Ausnahme: Die App übergibt die Adresse an den Browser – verbunden wird dort, unter dessen Einstellungen. Zugangsdaten aus der Repository-Adresse gibt sie dabei nicht weiter.",
                 ])
 
                 section("Updates", icon: "arrow.down.circle", [

@@ -759,6 +759,106 @@ func checkRepodetectionLiegtDieDateiUnterVersionsverwaltungV11979() {
            "Satz: gezaehlt wird ueber beide Systeme")
 }
 
+// MARK: - RepoRemote: aus der Fernadresse eine Seite im Browser (v2.0.14)
+func checkRepoRemoteAusDerFernadresseEineSeiteImBrowserV2014() {
+
+    func web(_ remote: String, _ kind: RepoKind = .git) -> String? {
+        RepoRemote.webURL(from: remote, kind: kind)?.absoluteString
+    }
+
+    // ── Die haeufigen git-Formen. ──
+    expectEqual(web("https://github.com/auximalia/activities.git"),
+                "https://github.com/auximalia/activities",
+                "Fernadresse: .git faellt weg")
+    expectEqual(web("https://github.com/auximalia/activities"),
+                "https://github.com/auximalia/activities",
+                "Fernadresse: ohne .git unveraendert")
+    expectEqual(web("https://github.com/auximalia/activities.git/"),
+                "https://github.com/auximalia/activities",
+                "Fernadresse: der Schraegstrich am Ende faellt weg")
+
+    // ⚠️ Die scp-Kurzform ist die Form, in der die meisten Arbeitskopien
+    // eingerichtet sind. Ohne sie waere der Menuepunkt fuer die Mehrheit weg.
+    expectEqual(web("git@github.com:auximalia/activities.git"),
+                "https://github.com/auximalia/activities",
+                "Fernadresse: die scp-Kurzform wird zu https")
+    expectEqual(web("ssh://git@gitlab.firma.de:2222/gruppe/projekt.git"),
+                "https://gitlab.firma.de/gruppe/projekt",
+                "Fernadresse: der ssh-Port sagt ueber den Webserver nichts")
+    expectEqual(web("git://github.com/auximalia/activities.git"),
+                "https://github.com/auximalia/activities",
+                "Fernadresse: auch das git-Protokoll")
+
+    // ⚠️ Ein abweichender Port gehoert bei http(s) dagegen DAZU - dort ist er
+    // Teil der Adresse, die der Anwender im Browser eingeben wuerde.
+    expectEqual(web("http://intern:8080/git/projekt.git"),
+                "http://intern:8080/git/projekt",
+                "Fernadresse: http bleibt http, samt Port")
+
+    // ── ⚠️ Zugangsdaten duerfen nicht in den Browser. ──
+    // Diese Zeichenkette geht an ein fremdes Programm und landet in dessen
+    // Verlauf; ein Token darin waere dort dauerhaft.
+    let token = web("https://oauth2:GEHEIM@gitlab.firma.de/gruppe/projekt.git")
+    expectEqual(token, "https://gitlab.firma.de/gruppe/projekt",
+                "Fernadresse: der Benutzerteil faellt weg")
+    expect(!(token ?? "").contains("GEHEIM"), "Fernadresse: und kein Geheimnis bleibt stehen")
+
+    // ── Was KEINE Seite im Browser ist. ──
+    //
+    // ⚠️ Im Zweifel nil, und dann entfaellt der Menuepunkt. Ein Eintrag, der
+    // den Browser auf eine geratene Adresse schickt, laesst den Fehler im
+    // fremden Programm erscheinen - dort sieht er nach einem Serverproblem aus.
+    expect(web("file:///Users/mtri/bare/projekt.git") == nil,
+           "Fernadresse: ein Repository auf der Platte hat keine Seite")
+    expect(web("/Users/mtri/bare/projekt.git") == nil,
+           "Fernadresse: ein blosser Pfad auch nicht")
+    expect(web("../nachbar/projekt.git") == nil,
+           "Fernadresse: ein relativer Pfad ebenso wenig")
+    expect(web("") == nil, "Fernadresse: nichts bleibt nichts")
+    expect(web("   \n") == nil, "Fernadresse: Leerraum ist nichts")
+
+    // ── svn: dieselbe Frage, andere Antwort. ──
+    //
+    // ⚠️ Bei svn ist der Pfad hinter svn+ssh ein DATEIPFAD auf dem Server. Ihn
+    // zu einer Web-Adresse zu erklaeren hiesse raten - und der Anwender merkte
+    // es erst im Browser.
+    expect(web("svn+ssh://svn.firma.de/srv/svn/repo/trunk", .svn) == nil,
+           "Fernadresse: svn+ssh ergibt keine Web-Adresse")
+    expect(web("git@svn.firma.de:repo/trunk", .svn) == nil,
+           "Fernadresse: die scp-Kurzform gilt nur bei git")
+    // Ueber https liefert mod_dav_svn dieselbe Adresse aus, die der Browser
+    // aufschlaegt - hier ist die Umrechnung keine.
+    expectEqual(web("https://svn.firma.de/repos/projekt/trunk", .svn),
+                "https://svn.firma.de/repos/projekt/trunk",
+                "Fernadresse: svn ueber https ist selbst schon die Seite")
+    // ⚠️ `.git` faellt bei svn NICHT weg - dort waere es ein Ordnername.
+    expectEqual(web("https://svn.firma.de/repos/projekt.git", .svn),
+                "https://svn.firma.de/repos/projekt.git",
+                "Fernadresse: bei svn bleibt .git stehen")
+
+    // ── Die drei Zustaende. ──
+    //
+    // ⚠️ „Noch nicht gelesen" und „keine eingetragen" sind verschiedene
+    // Aussagen. Wer sie zusammenwirft, behauptet in den ersten Zehntelsekunden,
+    // eine Arbeitskopie habe kein Repository.
+    expect(RepoRemote.unknown.address == nil, "Zustand: unbekannt hat keine Adresse")
+    expect(RepoRemote.missing.address == nil, "Zustand: keine hinterlegt, keine Adresse")
+    expect(RepoRemote.unknown != RepoRemote.missing,
+           "Zustand: unbekannt ist nicht dasselbe wie keine")
+    expectEqual(RepoRemote.address("x").address, "x", "Zustand: die Adresse kommt durch")
+    expect(RepoRemote.unknown.webURL(kind: .git) == nil,
+           "Zustand: ohne Adresse keine Seite")
+    expectEqual(RepoRemote.address("git@github.com:a/b.git").webURL(kind: .git)?.absoluteString,
+                "https://github.com/a/b",
+                "Zustand: mit Adresse die Seite")
+
+    // Beide Ersatztexte sagen, was ist - kein leeres Untermenue (UX-06).
+    expect(!RepoRemote.unknownLabel.isEmpty, "Zustand: der Zwischenstand hat einen Wortlaut")
+    expect(!RepoRemote.missingLabel.isEmpty, "Zustand: das Ergebnis auch")
+    expect(RepoRemote.unknownLabel != RepoRemote.missingLabel,
+           "Zustand: und die beiden sagen nicht dasselbe")
+}
+
 // MARK: - Notice: die Form ist eine Regel, keine Gewohnheit (v2.0.10)
 func checkNotice() {
     // ⚠️ Die Form folgt der Frage „was kann der Anwender jetzt noch tun?",

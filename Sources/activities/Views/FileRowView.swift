@@ -40,6 +40,28 @@ struct FileRowView: View {
     private var isCursor: Bool { model.cursor == .file(file.url) }
     /// Ob die Datei im gewaehlten Zeitfenster liegt (sonst: Hinweis-Symbol).
     private var isInWindow: Bool { model.isInWindow(file) }
+    /// Die Arbeitskopie, in der die Datei **versioniert** ist.
+    private var repoMark: RepoMark? { model.repos.mark(forFile: file.url) }
+
+    /// Was der Tooltip am Datei-Symbol sagt.
+    ///
+    /// **⚠️ Der Klartext der Arbeitskopie steht HIER, nicht am Anhänger.** Er
+    /// stand dort – und war unerreichbar: ``RepoBadge`` liegt in einem Overlay
+    /// mit `allowsHitTesting(false)`, und darunter trägt der Knopf sein eigenes
+    /// `.help`. Wer über den Anhänger fuhr, las „Mit Standard-App öffnen". Die
+    /// Hilfe versprach seit v1.19.79 „Überfahren nennt die Arbeitskopie im
+    /// Klartext"; gemeldet wurde folgerichtig, das Sinnbild sei nicht zu
+    /// verstehen.
+    ///
+    /// **⚠️ Den Anhänger selbst treffbar zu machen wäre der falsche Weg.** Er
+    /// misst 8 pt – ein Mausziel dieser Größe unterschreitet jede Richtlinie,
+    /// und der Anwender müsste raten, dass es eines ist. Das Symbol darunter
+    /// ist 16 pt groß, trägt den Anhänger und ist die Fläche, die man ohnehin
+    /// ansteuert.
+    private var iconHelp: String {
+        guard let mark = repoMark else { return "Mit Standard-App öffnen" }
+        return "Mit Standard-App öffnen · " + mark.label
+    }
 
     /// Was VoiceOver nach der Beschriftung vorliest: Ebene (nur im Baum),
     /// Zeitstempel und der Hinweis „ausserhalb des Zeitraums".
@@ -47,11 +69,18 @@ struct FileRowView: View {
     /// ⚠️ Ausgelagert, weil derselbe Ausdruck direkt am `.accessibilityValue`
     /// den Typpruefer zum Aufgeben brachte („unable to type-check this
     /// expression in reasonable time") – die Zeile bricht `body` als Ganzes.
+    ///
+    /// **⚠️ Die Arbeitskopie gehoert dazu.** ``RepoBadge`` ist
+    /// `accessibilityHidden`, und das ausdrueckliche Label unmittelbar darueber
+    /// verdraengt ohnehin, was `children: .combine` zusammengetragen haette –
+    /// wer nur hoert, erfuhr von der Versionsverwaltung bisher nichts. Genau
+    /// dieselbe Luecke wie bei Anheftung und Zeitfenster (UX-37).
     private var accessibilityValue: String {
         let ebene = treeLevel.map { "Ebene \($0 + 1), " } ?? ""
         let zeit = DateFormatting.dateTime(file.timestamp)
         let ausserhalb = isInWindow ? "" : ", außerhalb des Zeitraums"
-        return ebene + zeit + ausserhalb
+        let repo = repoMark.map { ", \($0.label)" } ?? ""
+        return ebene + zeit + ausserhalb + repo
     }
 
     var body: some View {
@@ -72,13 +101,13 @@ struct FileRowView: View {
                     .saturation(isInWindow ? 1 : RowMetrics.outOfWindowIconSaturation)
                     // Anhaenger, wenn die Datei unter Versionsverwaltung steht
                     // (v1.19.79). Er liegt AUF dem Symbol und kostet keine Breite.
-                    .repoBadge(model.repos.mark(forFile: file.url))
+                    .repoBadge(repoMark)
                     .opacity(isInWindow ? 1 : RowMetrics.outOfWindowIconOpacity)
                     .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Mit Standard-App öffnen")
+            .help(iconHelp)
             .accessibilityLabel("Mit Standard-App öffnen")
 
             Text(file.url.lastPathComponent)
@@ -252,6 +281,13 @@ struct FileContextMenu: View {
         }
         Button((targets.count > 1 ? "Pfade kopieren" : "Pfad kopieren") + suffix) {
             ClipboardService.copy(targets.map(\.path).joined(separator: "\n"))
+        }
+        // **⚠️ Ohne Anzahl, und immer zur angeklickten Datei.** Das Repository
+        // ist keine Eigenschaft der Auswahl – bei einer Mehrfachauswahl über
+        // zwei Arbeitskopien hinweg gäbe es kein „das Repository". Genau so
+        // hält es der Terminal-Eintrag zwei Zeilen darüber.
+        if let mark = model.repos.mark(forFile: url) {
+            RepoMenu(mark: mark, model: model)
         }
         Divider()
         Button(Shortcuts.renameItem.label) { model.requestRename(url) }

@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.13 · 2026-08-18*
+*Stand: v2.0.14 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,164 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-66 · Der Anhänger sagt nichts – und der Tooltip, der es sollte, war unerreichbar *(v2.0.14)*
+**Aufwand:** M · **Art:** Defekt aus v1.19.79 **+ Wunsch aus der Praxis** · *„Allein, das Icon ist nicht intuitiv verständlich. Vielleicht kann man auch im Kontextmenü zu Ordner bzw. Datei einen Link (URL) zum Repository anbieten."*
+
+## Der Defekt, den erst die Meldung sichtbar machte
+
+Der Klartext gab es seit PR-65: `RepoMark.label` → „git-Arbeitskopie: activities". Erreichbar
+war er **nie**. `RepoBadge` trug `.help(mark.label)`, lag aber in einer Überlagerung mit
+`allowsHitTesting(false)`, und der Knopf darunter trug sein eigenes `.help`. Wer über den
+Anhänger fuhr, las „Mit Standard-App öffnen".
+
+**⚠️ Die Hilfe behauptete es unterdessen wörtlich:** *„Überfahren nennt die Arbeitskopie im
+Klartext."* Damit ist das hier auch ein Fall der Regel aus `AGENTS.md` — *„eine Hilfe, die
+etwas anderes sagt als die App, ist schlechter als keine: Der eine wird geglaubt."* Die Regel
+war eingehalten worden, der Satz war im selben Commit geschrieben — und trotzdem falsch, weil
+niemand nachgesehen hat, ob das Versprechen im laufenden Programm eintrifft. *Ein Tooltip, den
+nur der Quelltext kennt, sieht aus wie eine erledigte Aufgabe.*
+
+## Die Diagnose war nicht das Sinnbild
+
+Gemeldet war „das Icon ist nicht intuitiv verständlich", und der naheliegende Griff wäre ein
+anderer Symbolname gewesen — PR-65 hatte die Zwei-Symbol-Wahl selbst *„die schwächste Stelle
+des Entwurfs"* genannt.
+
+**⚠️ Der Anhänger misst 8 pt.** `arrow.triangle.branch` hat drei Striche und zwei Knoten,
+`square.stack.3d.up` mehrere Parallelkanten in Perspektive; auf dieser Fläche löst **kein**
+Sinnbild auf. Ein besserer Name hätte dieselbe Meldung in einem halben Jahr erneut erzeugt.
+*Die Symbole bleiben deshalb unverändert, und die 88 % aus PR-65 gelten weiter: leise, klein,
+`.secondary`.* Verständlich wird der Anhänger über **Wörter**.
+
+**⚠️ Ein eigenes Mausziel bekommt er trotzdem nicht.** 8 pt unterschreiten jede Richtlinie für
+eine Trefferfläche, und niemand steuert an, was er nicht für einen Knopf hält. Der Klartext
+sitzt am **Symbol** darunter (16 pt), das ohnehin getroffen wird.
+
+## Drei Kanäle statt einem – und damit fallen beide Wünsche zusammen
+
+| Kanal | wo | Wortlaut |
+|---|---|---|
+| Tooltip | am Datei-/Ordnersymbol | „Im Finder öffnen · Pfad kopieren · svn-Arbeitskopie: Projekte" |
+| Vorleseprogramm | im `accessibilityValue` der Zeile | derselbe Klartext |
+| Kontextmenü | Titel des Untermenüs | „git-Arbeitskopie: activities" ▸ |
+
+**⚠️ Das Kontextmenü IST die Legende des Anhängers.** Wer ein Zeichen nicht versteht, klickt
+mit rechts — dort steht es in Wörtern. Deshalb erscheint das Untermenü **genau dann, wenn der
+Anhänger erscheint**: Dateizeilen fragen `mark(forFile:)`, Ordnerzeilen `mark(forFolder:)`.
+Ein Menü, das an einer Zeile ohne Anhänger von einer Arbeitskopie spräche, machte ihn
+unerklärlicher statt erklärter.
+
+**⚠️ Der Anhänger war auch für Vorleseprogramme nicht da** (`accessibilityHidden`, und das
+ausdrückliche Zeilenlabel verdrängt ohnehin, was `children: .combine` sammelt). PR-65 berief
+sich auf UX-34 — *„eine Aussage nie allein in einer Form"* —, und genau die zweite Form fehlte.
+Dieselbe Lücke wie bei Anheftung und Zeitfenster in UX-37.
+
+## Die Adresse: raten wäre schlimmer als schweigen
+
+`RepoRemote` im Kern rechnet die eingetragene Fernadresse in eine Web-Adresse um.
+
+**⚠️ Im Zweifel `nil`, und dann entfällt der Menüpunkt.** Eine Fernadresse ist keine Web-Adresse
+— gemessen an einer Wegwerf-Arbeitskopie meldet svn `file:///var/folders/…`. Ein Eintrag, der
+einen Browser auf eine geratene Adresse schickt, lässt den Fehler im **fremden** Programm
+erscheinen, und dort sieht er nach einem Serverproblem aus. Umgerechnet wird nur, was verlässlich
+geht: `https`/`http` unverändert, `ssh://`, `git://` und die scp-Kurzform (`git@host:a/b.git`)
+auf `https://host/a/b`.
+
+**⚠️ Die scp-Kurzform gilt nur bei git, und das ist keine Nachlässigkeit.** Bei git ist der Pfad
+hinter dem Rechner auf allen verbreiteten Diensten derselbe wie im Web. Bei svn ist er ein
+**Dateipfad auf dem Server** (`svn+ssh://host/srv/svn/repo`) — daraus eine Seite zu bilden hieße
+raten. svn über `https` ist dagegen selbst schon die Seite, die mod_dav_svn ausliefert.
+
+**⚠️ Zugangsdaten fallen weg.** In `https://oauth2:TOKEN@gitlab…` steht ein Geheimnis, und der
+Rückgabewert geht an einen Browser und in dessen Verlauf. Übernommen werden nur Rechner, Port
+und Pfad.
+
+**⚠️ „Adresse kopieren" kopiert die EINGETRAGENE, nicht die umgerechnete.** Sie ist die, mit der
+`git clone` bzw. `svn checkout` arbeitet, und sie stimmt in **jedem** Fall — auch dort, wo es
+keine Webseite gibt. Deshalb steht sie immer da, während der Browser-Eintrag entfallen kann.
+
+**⚠️ Drei Zustände, nicht zwei.** „Noch nicht gelesen" und „keine eingetragen" sehen im Menü
+gleich aus, sind aber verschiedene Aussagen; zusammengeworfen behauptete die App in den ersten
+Zehntelsekunden nach dem Suchlauf, eine Arbeitskopie habe kein Repository. Ein leeres Untermenü
+gibt es nicht — beide Fälle sagen ihren Grund (UX-06).
+
+## Gemessen, nicht geschätzt
+
+| | Befehl | je Arbeitskopie |
+|---|---|---|
+| git | `config --get remote.origin.url` | **30–40 ms** |
+| svn | `info --show-item url .` | **70–110 ms** |
+
+**⚠️ `svn info` auf einem PFAD fragt keinen Server** — es liest die örtliche `.svn/wc.db`; nur
+`svn info <URL>` ginge ins Netz. **⚠️ `git config --get`, nicht `remote get-url`:** Beide lesen
+dasselbe Feld, aber hier ist „nichts eingetragen" ein **Ergebnis**, kein Fehler. **⚠️ Geladen
+wird im selben Durchgang wie die Liste der geführten Dateien** — der Rumpf eines Kontextmenüs
+läuft beim Aufklappen, ein Unterprozess darin ließe das Menü sichtbar später aufgehen.
+
+**⚠️ Nur `origin`.** Ein Repository kann mehrere Gegenstellen führen; eine Auswahlliste im
+Kontextmenü wäre eine Frage an einen, der sie nicht gestellt hat.
+
+## Die App verbindet sich weiterhin nicht
+
+`BrowserService` übergibt eine Adresse an ein anderes Programm; verbunden wird dort. Der Satz in
+der Hilfe — *„Die einzige Netzverbindung ist die Update-Suche bei GitHub"* — bleibt wahr und sagt
+das jetzt ausdrücklich dazu.
+
+## Der Befund, den erst das Menü ans Licht gebracht hat
+
+Der Abnahmelauf zeigte im Untermenü dauerhaft *„Repository-Adresse wird gelesen …"* — auch nach
+Minuten, auch beim zweiten und dritten Rechtsklick. Die Ursache liegt nicht im Menü.
+
+**⚠️ Meine erste Erklärung war falsch, und der Weg dahin ist die eigentliche Lehre.**
+`RepoIndex.refresh(folders:)` begann mit `laufend?.cancel()`; gerufen wird die Methode aus
+`applyWindowChange()`, also bei jeder Filter- und Zeitraumänderung und nach jedem Suchlauf des
+Beobachters. Jeder Aufruf warf die halb fertige Arbeit weg. Das war schlüssig, es passte zur
+Beobachtung, und ich habe es aufgeschrieben, bevor ich es geprüft hatte.
+
+*Ein Nachbau der Kette hat es widerlegt.* Unter **dreißig Abbrüchen im 30-ms-Takt** lieferte auch
+der alte Bau — 25 ms nachdem der Sturm aufhörte. **Ein Abbruch, dem ein weiterer Aufruf folgt,
+verliert nichts.** Der Abbruch ist trotzdem entfernt, weil das Wegwerfen gültiger Arbeit keinen
+Vorteil hat; als *Erklärung* taugte er nicht.
+
+## Die Ursache war die Abhängigkeit, nicht der Abbruch
+
+Das Laden fand überhaupt nur statt, wenn ein **Aufrufer** sich zur richtigen Zeit erinnerte.
+Gemessen im Nachbau: Wird `refresh` nie gerufen, kommt die Auskunft nie — und genau das war zu
+sehen. *Eine Zusicherung, die davon abhängt, dass ein fremdes Bauteil sich erinnert, ist keine.*
+
+**Gemacht:** Der Index füttert sich selbst. `mark(forFolder:)` meldet den Bedarf beim
+Puffer-Fehlschlag über `vormerken(_:)` an — der Zusammenhang, der ohnehin stimmt: **Wer nach der
+Arbeitskopie eines Ordners fragt, braucht die Auskunft dazu.** Jede gezeichnete Zeile mit
+Anhänger meldet sich damit selbst, und eine Zeile wird lange vor dem Rechtsklick gezeichnet.
+
+**Gemessen am Nachbau gegen das echte Repository:**
+
+| | Ergebnis |
+|---|---|
+| ohne **jeden** `refresh()`-Aufruf, nur Zeilen zeichnen | Adresse nach **75 ms** |
+| vier Ordner derselben Wurzel | **ein** Unterprozess |
+| 30 × `invalidate` + neu zeichnen im 30-ms-Takt | Adresse **25 ms** nach dem Sturm |
+
+**⚠️ Ein aufgeklapptes Kontextmenü ist eine Momentaufnahme** — der Einwand des Eigentümers, und
+er trifft. AppKit baut die Einträge beim Öffnen und zeichnet sie nicht nach; ein „wird gelesen …"
+würde in *diesem* Menü nie zur Adresse. Deshalb darf die Zusicherung nicht im Menü liegen,
+sondern muss vor dem ersten Zeichnen greifen. Der Ersatztext ist ein Notnagel für die ersten
+Zehntelsekunden, kein Zustand, in dem man landen soll.
+
+## Und die unangenehme Nebenwirkung: `tracked` traf dasselbe
+
+Was für die Adresse gilt, galt seit v1.19.79 auch für die Liste der geführten Dateien — **und
+niemand hat es gemerkt, weil die Rückfallantwort gut war.** Fehlt `tracked`, antwortet
+`mark(forFile:)` mit „liegt in einer Arbeitskopie" statt „ist versioniert", und das sieht auf dem
+Bildschirm gleich aus. Damit lief die eigentliche Aussage von PR-65 — der Unterschied, für den
+die Messreihe mit den 88 % gemacht wurde — vermutlich ins Leere. `remote(for:)` hat keine
+Rückfallantwort, und deshalb ist es aufgefallen.
+
+**Eine gute Rückfallantwort kann einen Defekt beliebig lange zudecken.** Sie war richtig
+entworfen, richtig begründet und richtig dokumentiert — und hat dem Fehler jeden Zeugen genommen.
+
+**Zusicherungen:** 1818 → **1845**.
 
 ### ✅ UX-69 · Jedes Wackeln war ein Ziehen *(v2.0.13)*
 **Aufwand:** XS · **Art:** Defekt aus Sprint 19 · *„Fast jeder Klick mit kleinstem Maus-Zeiger-Wackeln startet eine Verschiebung … Man kann gar nicht mehr entspannt auf- bzw. zuklappen."*

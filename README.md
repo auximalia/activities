@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v2.0.0 · 2026-08-18*
+*Stand: v2.0.14 · 2026-08-18*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -59,8 +59,11 @@ bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege
   Aus dem Finder lassen sich Dateien und Ordner auf eine Ordnerzeile ziehen; auf freie Flaeche
   gezogen wird ein Ordner zur Quelle. ⌘Z nimmt den letzten Handgriff zurueck.
 - **Versionsverwaltung sichtbar**: Dateien und Ordner unter git oder svn tragen einen Anhaenger
-  am Symbol. Beim Verschieben versionierter Dateien fragt die App zurueck und nennt den Befehl,
-  der dabei nicht ausgefuehrt wird (`git mv`, `svn mv`) – sie warnt, sie hindert nicht.
+  am Symbol; auf dem Symbol stehenbleiben nennt die Arbeitskopie im Klartext, der Rechtsklick
+  fuehrt sie als Untermenue („git-Arbeitskopie: …") mit „Repository im Browser oeffnen" und
+  „Repository-Adresse kopieren". Beim Verschieben versionierter Dateien fragt die App zurueck
+  und nennt den Befehl, der dabei nicht ausgefuehrt wird (`git mv`, `svn mv`) – sie warnt, sie
+  hindert nicht.
 - **Verschieben in der Liste**: Dateien auf eine Ordnerzeile ziehen verschiebt sie dorthin.
   Am Mauszeiger steht, was geschieht; **⌥** kopiert, **⌘** verschiebt, ueber Datentraeger-Grenzen
   wird von sich aus kopiert – wie im Finder.
@@ -96,7 +99,7 @@ Mit vollem Xcode zusaetzlich `swift test`. Der Ablauf fuer Freigaben steht in
 |---|---|
 | `ActivitiesCore` | Gesamte Fachlogik – **nur `Foundation`**, damit sie plattformunabhaengig bleibt (Fernziel Windows). |
 | `activities` | Die Oberflaeche (SwiftUI/AppKit, nur macOS). |
-| `CoreChecks` | Zusicherungen der Fachlogik (derzeit ueber 1500), laufen ohne Apple-Frameworks. |
+| `CoreChecks` | Zusicherungen der Fachlogik (derzeit ueber 1800), laufen ohne Apple-Frameworks. |
 
 > ---
 

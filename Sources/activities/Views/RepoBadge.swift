@@ -18,6 +18,23 @@ import ActivitiesCore
 /// klare Metaphern. Die Unterscheidung liegt in der **Form**, nicht in der
 /// Farbe – und der Wortlaut steht in Tooltip und Vorleseprogramm, weil eine
 /// Aussage nie allein in einer Form stehen darf (UX-34).
+///
+/// **⚠️ Der Wortlaut steht NICHT hier, sondern an der umgebenden Zeile.**
+/// Genau das war der Fehler bis v2.0.13: Hier stand `.help(mark.label)`, und
+/// erreichbar war es nie – die Überlagerung setzt `allowsHitTesting(false)`,
+/// und der Knopf darunter trägt sein eigenes `.help`. Gemeldet wurde, das
+/// Sinnbild sei nicht zu verstehen; die Hilfe versprach unterdessen
+/// „Überfahren nennt die Arbeitskopie im Klartext". *Ein Tooltip, den nur der
+/// Quelltext kennt, ist schlimmer als keiner: Er sieht wie eine erledigte
+/// Aufgabe aus.* Er sitzt jetzt an ``FileRowView/iconHelp``,
+/// ``FolderRowView/iconHelp`` und ``TreeRowView/iconHelp``, und der Klartext
+/// steht zusätzlich als Titel des Untermenüs im Kontextmenü (``RepoMenu``) –
+/// dort sucht ihn, wer ein Zeichen nicht versteht.
+///
+/// **⚠️ Ein eigenes Mausziel bekommt er trotzdem nicht.** 8 pt unterschreiten
+/// jede Richtlinie für eine Trefferfläche, und niemand steuert an, was er nicht
+/// für einen Knopf hält. Das Symbol darunter misst 16 pt und wird ohnehin
+/// getroffen.
 struct RepoBadge: View {
     let mark: RepoMark
     /// Ordnerzeilen tragen ihn etwas größer – dort ist er die eigentliche Aussage.
@@ -38,7 +55,6 @@ struct RepoBadge: View {
             .foregroundStyle(.secondary)
             .padding(1)
             .background(.background, in: Circle())
-            .help(mark.label)
             .accessibilityHidden(true)
     }
 }

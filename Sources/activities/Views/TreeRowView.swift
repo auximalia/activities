@@ -152,15 +152,32 @@ struct TreeFolderRowView: View {
     /// Das Anheft-Symbol trug nur ein `.help`, und die Zeile fasst ihre Kinder
     /// mit `children: .combine` zusammen – das ausdrueckliche Label verdraengt
     /// deren Beschriftungen. Sichtbar war der Zustand, hoerbar nicht (UX-37).
+    ///
+    /// **⚠️ Die Arbeitskopie gehoert aus demselben Grund dazu.** ``RepoBadge``
+    /// ist `accessibilityHidden`; wer nur hoert, erfuhr von der
+    /// Versionsverwaltung bisher nichts.
     private var accessibilityValue: String {
         let ebene = "Ebene \(guides.level + 1)"
         let datum = "zuletzt \(DateFormatting.dateTime(displayDate))"
         let zusatz = (model.isPinned(node.folder) ? ", angeheftet" : "")
             + (node.children.isEmpty ? "" : (isExpanded ? ", aufgeklappt" : ", zugeklappt"))
+            + (repoMark.map { ", \($0.label)" } ?? "")
         if node.isPassThrough {
             return "\(ebene), keine eigenen Dateien, \(node.subtreeFileCount) im Unterbaum, \(datum)\(zusatz)"
         }
         return "\(ebene), \(ownCount) Dateien, \(datum)\(zusatz)"
+    }
+
+    /// Die Arbeitskopie, in der dieser Ordner liegt.
+    private var repoMark: RepoMark? { model.repos.mark(forFolder: node.folder) }
+
+    /// Was der Tooltip am Ordner-Symbol sagt.
+    ///
+    /// **⚠️ Der Klartext der Arbeitskopie steht HIER, nicht am Anhänger** – er
+    /// war dort unerreichbar. Begründung in ``FileRowView/iconHelp``.
+    private var iconHelp: String {
+        guard let mark = repoMark else { return "Im Finder öffnen · Pfad kopieren" }
+        return "Im Finder öffnen · Pfad kopieren · " + mark.label
     }
 
     private var content: some View {
@@ -192,13 +209,12 @@ struct TreeFolderRowView: View {
                     // Ordnerfarbe den Anhaenger mit ein, und die Ueberlagerung
                     // richtete sich an der natuerlichen statt an der gesetzten
                     // Symbolgroesse aus.
-                    .repoBadge(model.repos.mark(forFolder: node.folder),
-                               isRoot: model.repos.mark(forFolder: node.folder)?.root == node.folder)
+                    .repoBadge(repoMark, isRoot: repoMark?.root == node.folder)
                     .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Im Finder öffnen · Pfad kopieren")
+            .help(iconHelp)
             .accessibilityLabel("Ordner im Finder öffnen")
 
             HStack(spacing: RowMetrics.itemSpacing) {

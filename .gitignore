@@ -16,3 +16,8 @@ activities.xcodeproj/
 # Python-Altbestand
 **/__pycache__/
 legacy-python-cli/.pytest_cache/
+
+# Sitzungsmitschriften des Agenten – Notizen des Eigentuemers, kein Bestandteil
+# des Projekts. ⚠️ `release.sh` macht `git add -A`; ohne diese Zeile landen sie
+# im naechsten Release-Commit.
+session-*.md

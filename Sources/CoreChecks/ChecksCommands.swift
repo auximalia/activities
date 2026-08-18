@@ -758,3 +758,56 @@ func checkRepodetectionLiegtDieDateiUnterVersionsverwaltungV11979() {
     expect(mixed.contains("5 der 5") || mixed.contains("Alle 5"),
            "Satz: gezaehlt wird ueber beide Systeme")
 }
+
+// MARK: - Notice: die Form ist eine Regel, keine Gewohnheit (v2.0.10)
+func checkNotice() {
+    // ⚠️ Die Form folgt der Frage „was kann der Anwender jetzt noch tun?",
+    // nicht der Schwere. Genau daran sind `errorMessage` und `actionError`
+    // auseinandergelaufen: das eine ersetzte die Ansicht, das andere nicht,
+    // und entschieden wurde es je Fall neu.
+    expectEqual(NoticeRule.kind(hasContent: false, wasRequested: true), .blocking,
+                "Meldung: ohne Inhalt wird die Ansicht ersetzt")
+    expectEqual(NoticeRule.kind(hasContent: false, wasRequested: false), .blocking,
+                "Meldung: auch ungefragt")
+    expectEqual(NoticeRule.kind(hasContent: true, wasRequested: true), .alert,
+                "Meldung: ein ausgeloester Handgriff bekommt ein Blatt")
+    expectEqual(NoticeRule.kind(hasContent: true, wasRequested: false), .banner,
+                "Meldung: ungefragte Auskunft haelt nicht an")
+
+    let banner = Notice(kind: .banner, title: "b")
+    let alert = Notice(kind: .alert, title: "a")
+    let blocking = Notice(kind: .blocking, title: "x")
+
+    // ⚠️ Blockierendes zuerst, dann Blaetter, dann Streifen – nicht weil es
+    // wichtiger waere, sondern weil es die anderen ohnehin verdeckt.
+    expectEqual(NoticeRule.next(from: [banner, alert, blocking])?.title, "x",
+                "Meldung: Blockierendes zuerst")
+    expectEqual(NoticeRule.next(from: [banner, alert])?.title, "a",
+                "Meldung: dann das Blatt")
+    expectEqual(NoticeRule.next(from: [banner])?.title, "b", "Meldung: dann der Streifen")
+    expect(NoticeRule.next(from: []) == nil, "Meldung: leere Schlange meldet nichts")
+
+    // ⚠️ Bei gleicher Form gewinnt die AELTERE. Sonst verdraengt ein zweiter
+    // Fehlschlag den ersten, und niemand liest, was zuerst schiefging - genau
+    // das tat SwiftUI mit zwei gleichzeitigen Blaettern, nur unbeabsichtigt.
+    let first = Notice(kind: .alert, title: "erste")
+    let second = Notice(kind: .alert, title: "zweite")
+    expectEqual(NoticeRule.next(from: [first, second])?.title, "erste",
+                "Meldung: bei gleicher Form gewinnt die aeltere")
+
+    // ⚠️ Derselbe Text zweimal ist keine zweite Meldung: Ein Handgriff ueber
+    // fuenf Dateien, der fuenfmal an derselben Schranke scheitert, erzeugte
+    // sonst fuenf Blaetter hintereinander.
+    let once = NoticeRule.appending(first, to: [])
+    let twice = NoticeRule.appending(Notice(kind: .alert, title: "erste"), to: once)
+    expectEqual(twice.count, 1, "Meldung: dieselbe Meldung wird nicht gedoppelt")
+    let other = NoticeRule.appending(second, to: once)
+    expectEqual(other.count, 2, "Meldung: eine andere schon")
+    // Gleicher Text, andere Form ist eine andere Meldung.
+    let mixed = NoticeRule.appending(Notice(kind: .banner, title: "erste"), to: once)
+    expectEqual(mixed.count, 2, "Meldung: gleicher Text in anderer Form ist eine andere")
+
+    for kind in NoticeKind.allCases {
+        expect(!kind.rawValue.isEmpty, "Meldung: jede Form hat einen Namen (\(kind))")
+    }
+}

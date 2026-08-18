@@ -173,7 +173,7 @@ struct RootView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let message = model.errorMessage {
+        if let message = model.blockingNotice?.title {
             EmptyStateView(systemImage: "exclamationmark.triangle", title: "Es ist ein Problem aufgetreten", message: message)
         } else if model.isScanning && !model.hasScanResults {
             VStack(spacing: 12) {
@@ -212,7 +212,7 @@ private struct DialogsModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .modifier(ActionErrorAlert(model: model))
+            .modifier(NoticeHost(model: model))
             .modifier(UpdateAlert(updates: updates))
             .modifier(BulkActionConfirmation(model: model))
             .modifier(SourceConflictDialog(model: model))
@@ -237,25 +237,34 @@ private struct DialogsModifier: ViewModifier {
 /// Ein Programm, das sich nicht starten laesst, muss **dastehen**. Der stille
 /// Rueckfall auf den Finder waere schlimmer als gar nichts: Der Anwender haelt
 /// den Handgriff fuer erledigt und sucht das Fenster im falschen Programm.
-private struct ActionErrorAlert: ViewModifier {
+/// **Ein** Ort für alle Meldungen.
+///
+/// **⚠️ Hier standen bis v2.0.10 zwei getrennte Blätter** — der Fehlschlag eines
+/// Handgriffs und der Bericht des Verschiebens — und daneben zwei weitere
+/// Kanäle. **Zwei Blätter können nicht gleichzeitig stehen**; SwiftUI verschluckt
+/// eines **wortlos**. Welche Form gilt und was zuerst kommt, entscheidet jetzt
+/// ``NoticeRule`` im Kern und ist zugesichert; hier steht nur, wie es aussieht.
+private struct NoticeHost: ViewModifier {
     @Bindable var model: ReportViewModel
 
     func body(content: Content) -> some View {
         content.alert(
-            "Öffnen nicht möglich",
+            model.currentNotice?.title ?? "",
             isPresented: Binding(
-                get: { model.actionError != nil },
-                set: { if !$0 { model.actionError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { model.actionError = nil }
-        } message: {
-            Text(model.actionError ?? "")
+                get: { model.currentNotice?.kind == .alert },
+                set: { shown in
+                    if !shown, let notice = model.currentNotice { model.dismissNotice(notice) }
+                }
+            ),
+            presenting: model.currentNotice
+        ) { notice in
+            Button("OK", role: .cancel) { model.dismissNotice(notice) }
+        } message: { notice in
+            if let detail = notice.detail { Text(detail) }
         }
     }
 }
 
-/// Ergebnis der **manuell** ausgeloesten Update-Suche.
 private struct UpdateAlert: ViewModifier {
     var updates: UpdateChecker
 
@@ -363,19 +372,6 @@ private struct MoveConflictDialog: ViewModifier {
             Button("Abbrechen", role: .cancel) { model.cancelMove() }
         } message: { pending in
             Text(pending.explanation)
-        }
-        // Nur Fehler werden gemeldet – siehe `ReportViewModel.melde(_:)`.
-        .alert(
-            "Nicht alles konnte verschoben werden",
-            isPresented: Binding(
-                get: { model.moveReport != nil },
-                set: { if !$0 { model.moveReport = nil } }
-            ),
-            presenting: model.moveReport
-        ) { _ in
-            Button("OK", role: .cancel) { model.moveReport = nil }
-        } message: { report in
-            Text(report)
         }
     }
 }

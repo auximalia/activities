@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.9 · 2026-08-18*
+*Stand: v2.0.10 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,47 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 20 · AP2 — vier Meldekanäle werden einer *(v2.0.10)*
+**Aufwand:** M · *mit der Kernregel zuerst (Entscheidung E2)*
+
+`errorMessage` ersetzte die ganze Ansicht, `actionError` und `moveReport` waren Blätter,
+`sourceNotice` ein Streifen. **Drei davon sagten dasselbe** — „etwas ging schief" — in
+drei Darstellungen, und **welche ein neuer Fall bekam, wurde jedes Mal neu entschieden**.
+Sprint 19 allein hatte drei Kanäle hinzugefügt.
+
+**⚠️ Der teuerste Teil war nicht die Vierzahl, sondern ein stiller Verlust:** Zwei
+Blätter können in SwiftUI nicht gleichzeitig stehen. Löste ein Handgriff `actionError`
+**und** `moveReport` aus, verschluckte SwiftUI eines — **wortlos**. Das ließ sich nicht
+sehen, nicht messen und nicht reproduzieren, weil es von der Reihenfolge abhing.
+
+## Die Regel zuerst in den Kern — deshalb ist das hier eine geprüfte Änderung
+
+**Entscheidung E2 aus dem Sprintplan**, und sie hat sich sofort bezahlt gemacht: `Notice`,
+`NoticeKind` und `NoticeRule` liegen im Kern mit **15 Zusicherungen**. Die App-Schicht hat
+danach nur noch eine Schlange und eine Ansicht.
+
+**⚠️ Die Form folgt der Frage „was kann der Anwender jetzt noch tun?", nicht der
+Schwere.** Genau daran waren `errorMessage` und `actionError` auseinandergelaufen:
+
+- **blockierend**, wenn es *nichts* mehr zu sehen gibt — ein Blatt über einer leeren
+  Fläche wäre eine Meldung über nichts
+- **Blatt**, wenn ein Handgriff fehlschlug und die Ansicht steht — der Anwender hat etwas
+  ausgelöst und muss die Antwort sehen
+- **Streifen** sonst — ungefragte Auskünfte dürfen nicht anhalten
+
+**⚠️ Reihenfolge zugesichert:** Blockierendes zuerst, dann Blätter, dann Streifen — nicht
+weil es wichtiger wäre, sondern weil es die anderen ohnehin verdeckt. Und **bei gleicher
+Form gewinnt die ältere**: Sonst verdrängt ein zweiter Fehlschlag den ersten, und niemand
+liest, was zuerst schiefging.
+
+**⚠️ Derselbe Text zweimal ist keine zweite Meldung.** Ein Handgriff über fünf Dateien,
+der fünfmal an derselben Rechteschranke scheitert, erzeugte sonst fünf Blätter
+hintereinander.
+
+**Zusicherungen:** 1799 → **1814** — das einzige Paket dieses Sprints, in dem die Zahl
+steigen **darf**, weil E2 es so vorsah.
+
 
 ### ✅ Sprint 20 · AP4 — ein Lebenszyklus statt zweier *(v2.0.9)*
 **Aufwand:** S

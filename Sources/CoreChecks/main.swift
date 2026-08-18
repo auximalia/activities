@@ -93,6 +93,8 @@ checkFilenamingDanebenAblegenZaehltHochV11977()
 checkMoveplanDerPlanBevorDiePlatteAngefasstWirdV11977()
 checkRepodetectionLiegtDieDateiUnterVersionsverwaltungV11979()
 
+checkNotice()
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

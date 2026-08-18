@@ -228,7 +228,10 @@ final class ReportViewModel {
     var detailDone = 0
     var detailTotal = 0
     /// Zeigt die Warnung „sehr grosser Zeitraum" an (View bindet daran).
-    var errorMessage: String?
+    /// **⚠️ Ersetzt durch ``notices``** — hier stand bis v2.0.10 ein eigener
+    /// Kanal, der die ganze Ansicht austauscht. Er ist jetzt eine **Form** von
+    /// Meldung (``NoticeKind/blocking``), keine eigene Größe.
+    var blockingNotice: Notice? { notices.first { $0.kind == .blocking } }
     var scannedFileCount = 0
     /// Dauer des letzten Scans in Sekunden (fuer die Statuszeile).
     var lastScanDuration: Double = 0
@@ -316,10 +319,12 @@ final class ReportViewModel {
     /// stimmen weiter, es fehlt nur ein Ordner, den man ohnehin doppelt gesehen
     /// haette. Wer dafuer das Fenster leert, bestraft eine richtige Entscheidung
     /// des Programms wie einen Absturz.
-    private(set) var sourceNotice: String?
+    /// **⚠️ Ersetzt durch ``notices``** — der Streifen ist jetzt eine **Form**
+    /// von Meldung (``NoticeKind/banner``).
+    var sourceNotice: String? { notices.first { $0.kind == .banner }?.title }
 
     /// Verwirft den Hinweis.
-    func clearSourceNotice() { sourceNotice = nil }
+    func clearSourceNotice() { notices.removeAll { $0.kind == .banner } }
 
     /// Wartet eine abgelehnte Quelle auf die Entscheidung des Anwenders?
     ///
@@ -374,7 +379,46 @@ final class ReportViewModel {
     /// und ist fuer „der Suchlauf ging nicht" gedacht. Ein Programm, das sich
     /// nicht starten laesst, darf die Auswertung nicht vom Bildschirm nehmen –
     /// verschweigen darf man es aber auch nicht.
-    var actionError: String?
+    /// Die Warteschlange der Meldungen — **ein** Kanal statt vier.
+    ///
+    /// **⚠️ Bis v2.0.9 gab es `errorMessage`, `actionError`, `moveReport` und
+    /// `sourceNotice`.** Drei davon sagten dasselbe („etwas ging schief") in
+    /// drei verschiedenen Darstellungen, und welche ein neuer Fall bekam, wurde
+    /// jedes Mal neu entschieden. **Zwei Blätter konnten nicht gleichzeitig
+    /// stehen** — SwiftUI verschluckte eines wortlos.
+    ///
+    /// Die Regel, welche Form gilt und was zuerst kommt, liegt jetzt in
+    /// ``NoticeRule`` im Kern und ist zugesichert. Hier steht nur die Schlange.
+    private(set) var notices: [Notice] = []
+
+    /// Die Meldung, die gerade zu zeigen ist.
+    var currentNotice: Notice? { NoticeRule.next(from: notices) }
+
+    /// Nimmt eine Meldung auf.
+    ///
+    /// - Parameter wasRequested: Hat der Anwender den Handgriff ausgelöst? Das
+    ///   entscheidet zusammen mit ``hasScanResults`` über die Form — siehe
+    ///   ``NoticeRule/kind(hasContent:wasRequested:)``.
+    func notify(_ title: String, detail: String? = nil, wasRequested: Bool = true) {
+        let kind = NoticeRule.kind(hasContent: hasScanResults, wasRequested: wasRequested)
+        notices = NoticeRule.appending(
+            Notice(kind: kind, title: title, detail: detail), to: notices
+        )
+    }
+
+    /// Eine Meldung, die die **Ansicht ersetzt** — es gibt dann nichts zu sehen.
+    ///
+    /// ⚠️ Eigener Weg statt ``notify(_:detail:wasRequested:)``, weil die Form
+    /// hier **nicht** aus dem Zustand folgt: Sie ist der Grund, warum es keinen
+    /// gibt.
+    func notifyBlocking(_ title: String) {
+        notices = NoticeRule.appending(Notice(kind: .blocking, title: title), to: notices)
+    }
+
+    /// Räumt die gezeigte Meldung weg.
+    func dismissNotice(_ notice: Notice) {
+        notices.removeAll { $0.id == notice.id }
+    }
 
     /// Woher die letzte Auswahl stammt. Entscheidet, ob die Liste zur Auswahl
     /// scrollen darf: Bei einem **Mausklick** ist die Zeile bereits sichtbar –
@@ -619,7 +663,6 @@ final class ReportViewModel {
 
     var pendingMove: PendingMove?
     /// Ergebnisbericht des letzten Verschiebens – nur bei Fehlern gesetzt.
-    var moveReport: String?
 
     /// Die Paare der **letzten** Verschiebung, für das Widerrufen.
     ///
@@ -686,7 +729,7 @@ final class ReportViewModel {
                 own.append(url)
             }
         }
-        if !rejected.isEmpty { moveReport = rejected.joined(separator: "\n") }
+        if !rejected.isEmpty { notify(rejected.joined(separator: "\n")) }
         guard !own.isEmpty else { return }
         let present = FileMoveService.existingNames(in: folder)
         let conflicts = MovePlan.conflicts(sources: own, into: folder, existing: present)
@@ -877,7 +920,7 @@ final class ReportViewModel {
         pendingFolderName = nil
         let result = FileMoveService.createFolder(named: name, in: pending.parent)
         guard let new = result.url else {
-            moveReport = result.failure
+            notify(result.failure ?? "Der Handgriff ist fehlgeschlagen.")
             return
         }
         sessionCreatedFolders.append(new)
@@ -910,7 +953,7 @@ final class ReportViewModel {
         pendingRename = nil
         let result = FileMoveService.rename(pending.url, to: name)
         guard let new = result.url else {
-            moveReport = result.failure
+            notify(result.failure ?? "Der Handgriff ist fehlgeschlagen.")
             return
         }
         if pending.isFolder { relocateInventory(from: pending.url, to: new) }
@@ -938,7 +981,7 @@ final class ReportViewModel {
                 allowed.append(url)
             }
         }
-        if !rejected.isEmpty { moveReport = rejected.joined(separator: "\n") }
+        if !rejected.isEmpty { notify(rejected.joined(separator: "\n")) }
         guard !allowed.isEmpty else { return }
 
         let report = FileMoveService.trash(allowed)
@@ -1028,8 +1071,9 @@ final class ReportViewModel {
         if !dropped.isEmpty {
             let names = dropped.map { "\u{201E}\($0.lastPathComponent)\u{201C}" }
                 .joined(separator: ", ")
-            moveReport = "\(names) liegt jetzt in einer anderen Quelle; der eigene Eintrag ist "
-                + "entfallen. Der Ordner bleibt über die umschließende Quelle sichtbar."
+            notify("\(names) liegt jetzt in einer anderen Quelle; der eigene Eintrag ist "
+                   + "entfallen. Der Ordner bleibt über die umschließende Quelle sichtbar.",
+                   wasRequested: false)
         }
     }
 
@@ -1080,7 +1124,7 @@ final class ReportViewModel {
         }
 
         guard !lines.isEmpty else { return }
-        moveReport = lines.joined(separator: "\n")
+        notify(lines.joined(separator: "\n"))
     }
 
     /// Oeffnet Objekte mit ihrem jeweiligen Standardprogramm.
@@ -1165,7 +1209,7 @@ final class ReportViewModel {
         case .openInApp:
             guard let app = action.app else { return }
             ExternalAppService.open(action.urls, with: app) { [weak self] message in
-                self?.actionError = message
+                self?.notify(message)
             }
         case .transfer:
             // Oben abgefangen – der Zweig ist unerreichbar und steht hier nur,
@@ -1641,7 +1685,7 @@ final class ReportViewModel {
     /// Zeitfenster nicht leer, nur der Filter blendet ihn aus. Bei
     /// `.emptyFolder` und `.noSource` gibt es nichts zu zeigen.*
     var showsChartHeader: Bool {
-        guard errorMessage == nil else { return false }
+        guard blockingNotice == nil else { return false }
         if hasScanResults { return true }
         switch emptyReason {
         case .timeWindow, .nameFilter: return true
@@ -2853,7 +2897,8 @@ final class ReportViewModel {
         if rejected.count == 1, let konflikt = conflicts.first {
             pendingSourceConflict = konflikt
         } else {
-            sourceNotice = rejected.isEmpty ? nil : rejected.joined(separator: " ")
+            notices.removeAll { $0.kind == .banner }
+            if !rejected.isEmpty { notify(rejected.joined(separator: " "), wasRequested: false) }
         }
     }
 
@@ -2883,7 +2928,8 @@ final class ReportViewModel {
     /// da: Fuer den Anwender war „Quelle hinzufuegen" schlicht kaputt. Ein
     /// Fehlschlag, den niemand sieht, ist schlimmer als eine Fehlermeldung.
     func reportSourceImportFailure(_ failure: Error) {
-        sourceNotice = "Der Ordner konnte nicht übernommen werden: \(failure.localizedDescription)"
+        notify("Der Ordner konnte nicht übernommen werden: \(failure.localizedDescription)",
+               wasRequested: false)
     }
 
     /// Der Grund einer Ablehnung im Klartext.
@@ -2938,7 +2984,7 @@ final class ReportViewModel {
     /// bekommt einen Suchlauf ueber **diese**; wer eine abhakt, bekommt gar
     /// keinen – ihr Eimer faellt einfach weg.
     private func applySourceChange() {
-        sourceNotice = nil
+        notices.removeAll { $0.kind == .banner }
         store.saveSources(sources)
         updateWatcher()
 
@@ -2993,7 +3039,7 @@ final class ReportViewModel {
             return
         }
         store.save(days: days, namePattern: namePattern)
-        errorMessage = nil
+        notices.removeAll { $0.kind == .blocking }
         relevantFiles = filteredFromScan()
         scannedFileCount = relevantFiles.count
         recomputeLegend()
@@ -3167,13 +3213,13 @@ final class ReportViewModel {
         let w = window
         if useDateRange {
             guard w.chartStartDay <= w.chartEndDay else {
-                errorMessage = "Das Anfangsdatum muss vor dem Enddatum liegen."
+                notifyBlocking("Das Anfangsdatum muss vor dem Enddatum liegen.")
                 resetResults()
                 return
             }
         } else {
             guard days > 0 else {
-                errorMessage = "Der Zeitraum muss groesser als 0 Tage sein."
+                notifyBlocking("Der Zeitraum muss groesser als 0 Tage sein.")
                 resetResults()
                 return
             }
@@ -3206,7 +3252,7 @@ final class ReportViewModel {
             if replacingAll { resetResults() }
             return
         }
-        errorMessage = nil
+        notices.removeAll { $0.kind == .blocking }
         isScanning = true
         scanProgress = 0
         let started = Date()

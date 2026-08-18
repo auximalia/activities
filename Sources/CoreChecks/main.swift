@@ -3082,6 +3082,207 @@ do {
            "Satz: gezaehlt wird ueber beide Systeme")
 }
 
+// MARK: - Sprint 19: Ordner verschieben, benennen, leeren, umziehen (v2.0.0)
+do {
+    func u(_ p: String) -> URL { URL(fileURLWithPath: p, isDirectory: true) }
+
+    // ── FolderMoveRules ──────────────────────────────────────────────
+    //
+    // ⚠️ DER Fall, wegen dem es diese Regel gibt: `mv a a/b` zerstoert einen
+    // Baum, und je nach Dateisystem entsteht eine Schleife, ein Verlust oder
+    // eine unklare Meldung. Der Schaden ist nicht rueckholbar - es gibt kein
+    // „Vorher" mehr, in das ⌘Z zurueckfuehren koennte.
+    expectEqual(FolderMoveRules.rejection(moving: u("/a/b"), into: u("/a/b/c")), .intoItself,
+                "Ordner: nicht in den eigenen Unterordner")
+    expectEqual(FolderMoveRules.rejection(moving: u("/a/b"), into: u("/a/b/c/d/e")), .intoItself,
+                "Ordner: auch nicht tief hinein")
+    expectEqual(FolderMoveRules.rejection(moving: u("/a/b"), into: u("/a/b")), .sameFolder,
+                "Ordner: nicht auf sich selbst")
+    expectEqual(FolderMoveRules.rejection(moving: u("/a/b"), into: u("/a")), .alreadyThere,
+                "Ordner: liegt dort bereits")
+    expect(FolderMoveRules.rejection(moving: u("/a/b"), into: u("/x/y")) == nil,
+           "Ordner: anderswohin ist erlaubt")
+
+    // ⚠️ Verglichen wird auf PFADGRENZEN. Sonst gaelte `/a/bc` als Nachfahre
+    // von `/a/b` - dieselbe Falle, die `PathFormatting.withTilde` schon einmal
+    // aufgeschrieben hat (`/Users/mtri2` ist nicht `/Users/mtri`).
+    expect(!FolderMoveRules.isSelfOrDescendant(u("/a/bc"), of: u("/a/b")),
+           "Ordner: /a/bc ist KEIN Nachfahre von /a/b")
+    expect(FolderMoveRules.isSelfOrDescendant(u("/a/b/c"), of: u("/a/b")),
+           "Ordner: /a/b/c schon")
+    expect(FolderMoveRules.isSelfOrDescendant(u("/a/b"), of: u("/a/b")),
+           "Ordner: der Ordner selbst zaehlt mit")
+
+    // Ein Schrägstrich am Ende darf nichts aendern.
+    expectEqual(FolderMoveRules.rejection(moving: URL(fileURLWithPath: "/a/b/"),
+                                          into: URL(fileURLWithPath: "/a/b/c/")), .intoItself,
+                "Ordner: Schraegstrich am Ende aendert nichts")
+
+    // Jeder Ablehnungsgrund hat einen Satz - eine leere Meldung waere schlimmer
+    // als keine Pruefung, weil die Handlung dann wortlos ausbliebe.
+    for grund in [FolderMoveRules.Rejection.sameFolder, .alreadyThere, .intoItself] {
+        expect(!grund.reason.isEmpty, "Ordner: Grund ist formuliert (\(grund))")
+    }
+
+    // ── FolderNaming ─────────────────────────────────────────────────
+    expect(FolderNaming.rejection(for: "Archiv", existing: []) == nil, "Name: gewoehnlicher Name")
+    expectEqual(FolderNaming.rejection(for: "", existing: []), .empty, "Name: leer")
+    expectEqual(FolderNaming.rejection(for: "   ", existing: []), .empty, "Name: nur Leerzeichen")
+    expectEqual(FolderNaming.rejection(for: "a/b", existing: []), .containsSeparator, "Name: Schraegstrich")
+    expectEqual(FolderNaming.rejection(for: ".", existing: []), .reserved, "Name: Punkt")
+    expectEqual(FolderNaming.rejection(for: "..", existing: []), .reserved, "Name: zwei Punkte")
+    expectEqual(FolderNaming.rejection(for: "Archiv", existing: ["Archiv"]), .alreadyExists,
+                "Name: schon vergeben")
+
+    // ⚠️ Leerzeichen am Rand fallen weg - `„Archiv "` ist im Finder von
+    // `„Archiv"` nicht zu unterscheiden und sortiert doch woanders. Der
+    // haeufigste versehentliche Doppelordner ueberhaupt.
+    expectEqual(FolderNaming.sanitized("  Archiv  "), "Archiv", "Name: Raender abgeschnitten")
+    expectEqual(FolderNaming.rejection(for: " Archiv ", existing: ["Archiv"]), .alreadyExists,
+                "Name: und der beschnittene Name kollidiert")
+
+    // Ein fuehrender Punkt ist ein versteckter Ordner, kein verbotener Name.
+    expect(FolderNaming.rejection(for: ".config", existing: []) == nil, "Name: versteckt ist erlaubt")
+
+    for grund in [FolderNaming.Rejection.empty, .containsSeparator, .reserved, .alreadyExists] {
+        expect(!grund.reason.isEmpty, "Name: Grund ist formuliert (\(grund))")
+    }
+
+    // ⚠️ Nur die Gross-/Kleinschreibung zu aendern ist ERLAUBT - und zugleich
+    // der Fall, an dem `moveItem` auf einem nicht unterscheidenden Dateisystem
+    // mit „Datei existiert bereits" scheitert.
+    expect(FolderNaming.isCaseOnlyChange(from: "Projekt", to: "projekt"),
+           "Name: reine Schreibweisenaenderung erkannt")
+    expect(!FolderNaming.isCaseOnlyChange(from: "Projekt", to: "Projekt"),
+           "Name: derselbe Name ist keine Aenderung")
+    expect(!FolderNaming.isCaseOnlyChange(from: "Projekt", to: "Archiv"),
+           "Name: ein anderer Name ist keine Schreibweisenaenderung")
+
+    // ── FolderEmptiness ──────────────────────────────────────────────
+    //
+    // Eine erfundene Platte: Ordner → Eintraege.
+    func platte(_ baum: [String: [(name: String, isFolder: Bool)]]) -> (URL) -> [(name: String, isFolder: Bool)] {
+        { url in baum[url.path] ?? [] }
+    }
+
+    expect(FolderEmptiness.isEmpty(u("/leer"), contents: platte(["/leer": []])),
+           "Leer: ein wirklich leerer Ordner")
+    expect(!FolderEmptiness.isEmpty(u("/voll"), contents: platte(["/voll": [("a.md", false)]])),
+           "Leer: eine Datei hebt die Leere auf")
+
+    // ⚠️ `.DS_Store` zaehlt nicht mit - „gleiches Verhalten wie im Finder",
+    // Entscheidung des Eigentuemers. Der Finder loescht diese Reste
+    // stillschweigend mit; eine App, die deswegen ablehnt, wirkt kaputt.
+    expect(FolderEmptiness.isEmpty(u("/x"), contents: platte(["/x": [(".DS_Store", false)]])),
+           "Leer: nur .DS_Store gilt als leer")
+
+    // ⚠️ Rekursiv: leere Unterordner heben die Leere nicht auf …
+    expect(FolderEmptiness.isEmpty(u("/r"), contents: platte([
+        "/r": [("a", true), ("b", true)],
+        "/r/a": [], "/r/b": [(".DS_Store", false), ("c", true)], "/r/b/c": []
+    ])), "Leer: leere Unterordner heben die Leere nicht auf")
+
+    // … eine echte Datei TIEF UNTEN aber schon. Die Kurzfassung „hat
+    // Unterordner, also nicht leer" waere einfacher und wuerde genau den Fall
+    // ablehnen, der gemeint ist; die hier lehnt genau den ab, der gemeint ist.
+    expect(!FolderEmptiness.isEmpty(u("/r"), contents: platte([
+        "/r": [("a", true)], "/r/a": [("b", true)], "/r/a/b": [("wichtig.docx", false)]
+    ])), "Leer: eine Datei tief unten macht NICHT leer")
+
+    expect(FolderEmptiness.isIgnorable(".DS_Store"), "Leer: .DS_Store ist ein Artefakt")
+    expect(!FolderEmptiness.isIgnorable("Bericht.docx"), "Leer: ein Dokument nicht")
+    expectEqual(FolderEmptiness.ignorableNames.count, 2,
+                "Leer: die Artefaktliste bleibt kurz - jeder Eintrag wird ungefragt geloescht")
+
+    // ── PathRelocation ───────────────────────────────────────────────
+    let von = u("/Users/x/Documents/A")
+    let nach = u("/Users/x/Archiv/A")
+
+    expectEqual(PathRelocation.relocated(von, from: von, to: nach)?.path, nach.path,
+                "Umzug: der Ordner selbst")
+
+    // ⚠️ NACHFAHREN ziehen mit. Ein Gleichheitstest liesse eine Quelle
+    // `/Documents/A/B` haengen, waehrend `/Documents/A` umzieht.
+    expectEqual(PathRelocation.relocated(u("/Users/x/Documents/A/B"), from: von, to: nach)?.path,
+                "/Users/x/Archiv/A/B", "Umzug: Nachfahren wandern mit")
+    expectEqual(PathRelocation.relocated(u("/Users/x/Documents/A/B/C/d.md"), from: von, to: nach)?.path,
+                "/Users/x/Archiv/A/B/C/d.md", "Umzug: auch tief liegende")
+
+    // ⚠️ Verglichen wird auf Pfadgrenzen - `AB` zieht NICHT mit, wenn `A` umzieht.
+    expect(PathRelocation.relocated(u("/Users/x/Documents/AB"), from: von, to: nach) == nil,
+           "Umzug: /Documents/AB ist nicht betroffen")
+    expect(PathRelocation.relocated(u("/Users/x/Anderes"), from: von, to: nach) == nil,
+           "Umzug: Unbeteiligte bleiben unbeteiligt")
+
+    // ⚠️ Die FORM der URL wird durchgereicht. `URL` vergleicht sich als
+    // Zeichenkette: `/y/A/B` und `/y/A/B/` sind zwei verschiedene Werte, und
+    // eine Menge, die den einen enthaelt, findet den anderen nicht. Ohne das
+    // verloere eine Quelle beim Umzug STUMM ihre Auswahl.
+    expect(PathRelocation.relocated(u("/Users/x/Documents/A/B"), from: von, to: nach)!.hasDirectoryPath,
+           "Umzug: aus einer Ordner-URL wird wieder eine")
+    let datei = URL(fileURLWithPath: "/Users/x/Documents/A/b.md")
+    expect(!PathRelocation.relocated(datei, from: von, to: nach)!.hasDirectoryPath,
+           "Umzug: aus einer Datei-URL keine Ordner-URL")
+    expectEqual(PathRelocation.relocated(datei, from: von, to: nach)?.path,
+                "/Users/x/Archiv/A/b.md", "Umzug: und der Pfad stimmt trotzdem")
+
+    // Listen und Zeichenketten-Mengen benutzen dieselbe Rechnung.
+    let liste = PathRelocation.relocated([von, u("/Users/x/Documents/A/B"), u("/Users/x/Anderes")],
+                                          from: von, to: nach)
+    expectEqual(liste.map(\.path),
+                ["/Users/x/Archiv/A", "/Users/x/Archiv/A/B", "/Users/x/Anderes"],
+                "Umzug: die Liste behaelt ihre Reihenfolge")
+    let menge = PathRelocation.relocated(Set(["/Users/x/Documents/A/B", "/Users/x/Anderes"]),
+                                          from: von, to: nach)
+    expectEqual(menge, Set(["/Users/x/Archiv/A/B", "/Users/x/Anderes"]),
+                "Umzug: dieselbe Rechnung fuer ausgeblendete Pfade")
+}
+
+// MARK: - SourceList.relocate: die zweite Tuer zur Zusicherung (v2.0.0)
+do {
+    func u(_ p: String) -> URL { URL(fileURLWithPath: p, isDirectory: true) }
+
+    // Der einfache Fall: die Quelle zieht mit, die Auswahl bleibt.
+    var liste = SourceList(known: [u("/x/A"), u("/x/B")], active: [u("/x/A")])
+    liste.relocate(from: u("/x/A"), to: u("/y/A"))
+    expectEqual(liste.known.map(\.path), ["/y/A", "/x/B"], "Quelle: der Pfad ist der neue")
+    expect(liste.active.contains(u("/y/A")), "Quelle: und sie bleibt ausgewaehlt")
+    expect(!liste.active.contains(u("/x/A")), "Quelle: der alte Pfad ist fort")
+
+    // ⚠️ NACHFAHREN: Zieht `/x/A` um, waehrend `/x/A/B` eine Quelle ist, muss B
+    // mitwandern - ein Gleichheitstest liesse sie haengen.
+    var tief = SourceList(known: [u("/x/A/B")], active: [u("/x/A/B")])
+    tief.relocate(from: u("/x/A"), to: u("/y/A"))
+    expectEqual(tief.known.map(\.path), ["/y/A/B"], "Quelle: Nachfahren wandern mit")
+    expect(tief.active.contains(u("/y/A/B")), "Quelle: samt Auswahl")
+
+    // Unbeteiligte bleiben unbeteiligt - auch die mit gemeinsamem Praefix.
+    var fremd = SourceList(known: [u("/x/AB")], active: [])
+    fremd.relocate(from: u("/x/A"), to: u("/y/A"))
+    expectEqual(fremd.known.map(\.path), ["/x/AB"], "Quelle: /x/AB ist nicht betroffen")
+
+    // ⚠️ DER Fall, wegen dem `relocate` mehr tut als umschreiben: Zieht Quelle A
+    // in Quelle B, entstuende der Zustand, den `rejectionReason` verbietet -
+    // doppelt gezaehlte Dateien und ein Ordner in zwei Zweigen. Die Regel wurde
+    // bis v2.0.0 nur in `add` durchgesetzt, und ein Verschieben geht daran
+    // vorbei. Der innere Eintrag entfaellt.
+    var kollision = SourceList(known: [u("/x/A"), u("/x/B")], active: [u("/x/A"), u("/x/B")])
+    let entfallen = kollision.relocate(from: u("/x/A"), to: u("/x/B/A"))
+    expectEqual(entfallen.map(\.path), ["/x/B/A"], "Quelle: die innere faellt weg")
+    expectEqual(kollision.known.map(\.path), ["/x/B"], "Quelle: nur die aeussere bleibt")
+    expect(!kollision.active.contains(u("/x/B/A")), "Quelle: und ist auch nicht mehr ausgewaehlt")
+    expect(kollision.active.contains(u("/x/B")), "Quelle: die aeussere bleibt ausgewaehlt")
+
+    // Gegenprobe: Der Bestand ist danach wieder ueberschneidungsfrei - genau
+    // die Zusicherung, auf der Baum und Zusammenfassung stehen.
+    for quelle in kollision.known {
+        var ohne = kollision
+        ohne.remove(quelle)
+        expect(ohne.rejectionReason(forAdding: quelle) == nil,
+               "Quelle: \(quelle.lastPathComponent) ueberschneidet sich mit keiner anderen")
+    }
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

@@ -135,6 +135,17 @@ struct HelpView: View {
                     "Ziehen in ein **Finder-Fenster** kopiert stattdessen – dort entscheidet der Finder.",
                 ])
 
+                section("Verwalten", icon: "folder.badge.gearshape", [
+                    "**Ordner anlegen**: \(Shortcuts.newFolder.display) im markierten Ordner, \(Shortcuts.newFolderWithSelection.display) legt an **und** verschiebt die Auswahl hinein.",
+                    "Ein neu angelegter Ordner erscheint unter „Heute“, auch wenn er leer ist – dort wurde gerade gearbeitet.",
+                    "**Umbenennen**: \(Shortcuts.renameItem.display) oder Rechtsklick.",
+                    "**In den Papierkorb**: \(Shortcuts.moveToTrash.display). Ordner nur, wenn sie **auf der Platte** leer sind – eine Zeile mit „0 Dateien“ kann hunderte enthalten, sie zeigt nur den gefilterten Ausschnitt.",
+                    "**Zwischenablage**: \(Shortcuts.copyFiles.display) legt die Auswahl als Dateien ab (nicht als Text), \(Shortcuts.pasteFiles.display) kopiert sie in den markierten Ordner, \(Shortcuts.pasteMoveFiles.display) verschiebt.",
+                    "Damit geht auch der Weg ohne zweites Fenster: hier \(Shortcuts.copyFiles.display), im Finder ⌘V.",
+                    "Aus dem **Finder** lassen sich Dateien und Ordner auf eine Ordnerzeile ziehen. Auf freie Fläche gezogen wird ein Ordner dagegen zur **Quelle** – welches von beidem gilt, zeigt der Rahmen vor dem Loslassen.",
+                    "\(Shortcuts.undoMove.display) nimmt den letzten Handgriff zurück – samt Quelle, Anheftung und Ausblendung des Ordners.",
+                ])
+
                 section("Versionsverwaltung", icon: "arrow.triangle.branch", [
                     "Steht eine Datei oder ein Ordner unter git oder svn, trägt das Symbol einen kleinen Anhänger.",
                     "**Verzweigung = git, Schichtung = svn.** Überfahren nennt die Arbeitskopie im Klartext.",

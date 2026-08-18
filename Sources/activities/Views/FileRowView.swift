@@ -253,6 +253,10 @@ struct FileContextMenu: View {
         Button((targets.count > 1 ? "Pfade kopieren" : "Pfad kopieren") + suffix) {
             ClipboardService.copy(targets.map(\.path).joined(separator: "\n"))
         }
+        Divider()
+        Button(Shortcuts.renameItem.label) { model.requestRename(url) }
+            .disabled(targets.count > 1)
+        Button(Shortcuts.moveToTrash.label + suffix) { model.requestTrash(targets) }
     }
 }
 

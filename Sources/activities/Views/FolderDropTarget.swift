@@ -13,11 +13,22 @@ import ActivitiesCore
 /// ``DropDelegate/dropUpdated(info:)`` gibt es keine Antwort und damit auch
 /// keinen Anhänger.
 ///
-/// **⚠️ Nur Dateien aus dem eigenen Bestand.** Die Unterscheidung „von innen"
-/// gegen „von außen" kommt ohne Kennzeichen am Zug aus:
-/// ``ReportViewModel/isKnownFile(_:)`` fragt, ob diese App die Datei eingelesen
-/// hat. Damit behält das fensterweite Ablegeziel seine Bedeutung — ein aus dem
-/// Finder gezogener **Ordner** wird weiterhin zur Quelle.
+/// **⚠️ Seit v2.0.0 auch Fremdes — und damit ist die Zweideutigkeit da.** Ein
+/// aus dem Finder gezogener **Ordner** bedeutete bisher „Quelle hinzufügen"
+/// (Fensterziel) und bedeutet jetzt zusätzlich „hierhin verschieben"
+/// (Zeilenziel): dieselbe Geste auf demselben Fenster.
+///
+/// **Entschieden (E1): die Zeile schlägt das Fenster.** Auf einer Ordnerzeile
+/// wird verschoben oder kopiert, überall sonst wird der Ordner zur Quelle.
+///
+/// **⚠️ Das verlangt Zielgenauigkeit, und genau dagegen argumentiert der
+/// Bestand:** `RootView` begründet sein großes Fensterziel mit *„beim Ziehen
+/// zielt man nicht genau."* Der Satz bleibt wahr — er wird nicht widerlegt,
+/// sondern **abgefedert**, und das ist die Bedingung, unter der E1 trägt:
+/// **Die beiden Hervorhebungen schließen einander aus.** Solange der Zeiger über
+/// einer Zeile steht, meldet ``ReportViewModel/isRowDropTargeted`` das dem
+/// Fenster, und dessen Rahmen bleibt aus. Zwei Rahmen zugleich hießen zwei
+/// mögliche Ausgänge.
 struct FolderDropTarget: ViewModifier {
     @Bindable var model: ReportViewModel
     let folder: URL
@@ -36,6 +47,9 @@ struct FolderDropTarget: ViewModifier {
             .onDrop(of: [.fileURL], delegate: FolderDropDelegate(
                 model: model, folder: folder, istZiel: $istZiel
             ))
+            .onChange(of: istZiel) { _, neu in
+                model.isRowDropTargeted = neu
+            }
     }
 }
 
@@ -68,6 +82,7 @@ private struct FolderDropDelegate: DropDelegate {
 
     func performDrop(info: DropInfo) -> Bool {
         istZiel = false
+        model.isRowDropTargeted = false
         let art = art()
         let anbieter = info.itemProviders(for: [.fileURL])
         guard !anbieter.isEmpty else { return false }
@@ -93,9 +108,8 @@ private struct FolderDropDelegate: DropDelegate {
         }
 
         gruppe.notify(queue: .main) {
-            let eigene = gesammelt.filter { model.isKnownFile($0) }
-            guard !eigene.isEmpty else { return }
-            model.requestTransfer(eigene, to: folder, kind: art)
+            guard !gesammelt.isEmpty else { return }
+            model.requestTransfer(gesammelt, to: folder, kind: art)
         }
         return true
     }

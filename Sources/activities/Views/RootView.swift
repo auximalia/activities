@@ -44,7 +44,10 @@ struct RootView: View {
             isDropTargeted = targeted
         }
         .overlay {
-            if isDropTargeted {
+            // ⚠️ Nicht, solange eine Ordnerzeile das Ziel ist – siehe
+            // `ReportViewModel.isRowDropTargeted`. Zwei Rahmen zugleich hiessen
+            // zwei moegliche Ausgaenge fuer dieselbe Bewegung.
+            if isDropTargeted && !model.isRowDropTargeted {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Color.accentColor, lineWidth: 3)
                     .padding(4)
@@ -214,6 +217,18 @@ private struct DialogsModifier: ViewModifier {
             .modifier(BulkActionConfirmation(model: model))
             .modifier(SourceConflictDialog(model: model))
             .modifier(MoveConflictDialog(model: model))
+            .sheet(item: Binding(
+                get: { model.pendingFolderName },
+                set: { if $0 == nil { model.cancelNewFolder() } }
+            )) { offen in
+                NewFolderSheet(model: model, pending: offen)
+            }
+            .sheet(item: Binding(
+                get: { model.pendingRename },
+                set: { if $0 == nil { model.cancelRename() } }
+            )) { offen in
+                RenameSheet(model: model, pending: offen)
+            }
     }
 }
 

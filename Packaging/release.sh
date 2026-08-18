@@ -7,7 +7,11 @@
 #
 # So wird – wie gewuenscht – VOR jedem Push die Patch-Nummer um eins erhoeht.
 #
-# Aufruf:  ./Packaging/release.sh ["Commit-Nachricht"]
+# Aufruf:  ./Packaging/release.sh ["Commit-Nachricht"] [Version]
+#
+# Ohne zweites Argument wird die Patch-Nummer erhoeht; mit einem wird sie
+# gesetzt (fuer Spruenge, die aus der ART einer Aenderung folgen, nicht aus
+# ihrer Groesse).
 
 set -euo pipefail
 
@@ -25,9 +29,24 @@ VERSION_FILE="$ROOT/VERSION"
 current="$(cat "$VERSION_FILE" 2>/dev/null | tr -d '[:space:]')"
 [ -z "$current" ] && current="1.0.0"
 
-IFS='.' read -r major minor patch <<< "$current"
-patch=$((patch + 1))
-new="$major.$minor.$patch"
+# Eine ausdrueckliche Version als zweites Argument schlaegt die Patch-Erhoehung.
+#
+# ⚠️ Gebraucht fuer Spruenge, die nicht aus der Groesse einer Aenderung folgen,
+# sondern aus ihrer ART: 2.0.0 steht dafuer, dass dieses Programm bis dahin
+# ausschliesslich gelesen hat. Ohne diesen Weg muesste man VERSION von Hand
+# setzen und das Skript trotzdem laufen lassen - dann stimmte die Ausgabe
+# "Version x -> y" nicht mehr mit dem ueberein, was geschieht.
+if [ -n "${2:-}" ]; then
+  new="$2"
+  case "$new" in
+    [0-9]*.[0-9]*.[0-9]*) ;;
+    *) echo "Fehler: '$new' ist keine Version der Form major.minor.patch" >&2; exit 1 ;;
+  esac
+else
+  IFS='.' read -r major minor patch <<< "$current"
+  patch=$((patch + 1))
+  new="$major.$minor.$patch"
+fi
 echo "$new" > "$VERSION_FILE"
 echo "==> Version $current -> $new"
 

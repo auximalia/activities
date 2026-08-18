@@ -163,6 +163,52 @@ public struct SourceList: Sendable, Equatable {
     }
 
     /// Entfernt eine Quelle aus dem Bestand – samt Auswahl.
+    /// Zieht den Bestand mit, wenn ein Ordner umzieht.
+    ///
+    /// **⚠️ Die Zusicherung „jeder Ordner kommt genau einmal vor" wurde bis
+    /// v2.0.0 an genau EINEM Eingang durchgesetzt — in ``add(_:)``.** Ein
+    /// Verschieben im Programm geht daran vorbei: Zieht jemand Quelle A in
+    /// Quelle B, entstünde der Zustand, den ``rejectionReason(forAdding:)``
+    /// ausdrücklich verbietet — doppelt gezählte Dateien und ein Ordner in zwei
+    /// Zweigen. *Eine Zusicherung, die nur den bekannten Weg absichert, sieht
+    /// vollständig aus.*
+    ///
+    /// **Deshalb wird hier nicht nur umgeschrieben, sondern auch aufgeräumt:**
+    /// Landet eine Quelle **in** einer anderen, entfällt der innere Eintrag. Sie
+    /// ist über die äußere ohnehin sichtbar; es geht nichts verloren, und die
+    /// Zusicherung bleibt an beiden Eingängen gewahrt.
+    ///
+    /// - Returns: die Quellen, deren Eintrag dabei entfallen ist.
+    @discardableResult
+    public mutating func relocate(from von: URL, to nach: URL) -> [URL] {
+        let vorher = known
+        known = PathRelocation.relocated(known, from: von, to: nach)
+        // Die Auswahl folgt den Pfaden, nicht den Positionen.
+        var neueAuswahl: Set<URL> = []
+        for (alt, neuPfad) in zip(vorher, known) where active.contains(alt) {
+            neueAuswahl.insert(neuPfad)
+        }
+        active = neueAuswahl
+
+        // Aufraeumen: Was jetzt in einer anderen Quelle liegt, faellt weg.
+        var entfallen: [URL] = []
+        var behalten: [URL] = []
+        for kandidat in known {
+            let drin = behalten.contains { FolderTree.isRootOrBelow(Self.key(kandidat), root: Self.key($0)) }
+                || known.contains { anderer in
+                    anderer != kandidat
+                        && FolderTree.isRootOrBelow(Self.key(kandidat), root: Self.key(anderer))
+                        && !entfallen.contains(anderer)
+                }
+            if drin { entfallen.append(kandidat) } else { behalten.append(kandidat) }
+        }
+        if !entfallen.isEmpty {
+            known = behalten
+            active.subtract(entfallen)
+        }
+        return entfallen
+    }
+
     public mutating func remove(_ url: URL) {
         let schluessel = Self.key(url)
         known.removeAll { Self.key($0) == schluessel }

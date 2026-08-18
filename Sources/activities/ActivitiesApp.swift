@@ -249,6 +249,11 @@ struct ActivitiesApp: App {
             // rueckgaengig" neben einem grauen „Widerrufen" waere zwei Antworten
             // auf dieselbe Frage; im Textfeld greift ohnehin dessen eigenes Undo,
             // und dafuer wird der Befehl an den Responder weitergereicht.
+            // ⚠️ `Group` nur, weil `CommandsBuilder` hoechstens zehn Elemente
+            // nimmt und das Menue „Verwalten" das elfte war. Ohne diese Klammer
+            // lautet die Meldung „extra argument in call" an einer ganz anderen
+            // Zeile – sie nennt das Symptom und nicht die Ursache.
+            Group {
             CommandGroup(replacing: .undoRedo) {
                 Button(model.canUndoMove ? "Verschieben widerrufen" : "Widerrufen") {
                     if NSApp.keyWindow?.firstResponder is NSText {
@@ -263,10 +268,29 @@ struct ActivitiesApp: App {
             CommandGroup(replacing: .pasteboard) {
                 Button("Ausschneiden") { sendToResponder("cut:") }
                     .keyboardShortcut("x", modifiers: .command)
-                Button("Kopieren") { sendToResponder("copy:") }
-                    .keyboardShortcut("c", modifiers: .command)
-                Button("Einsetzen") { sendToResponder("paste:") }
-                    .keyboardShortcut("v", modifiers: .command)
+                // **⚠️ Im Textfeld Text, in der Liste Dateien** – dieselbe
+                // Fallunterscheidung, die „Alles auswaehlen" hier schon macht.
+                // Ohne sie waere ⌘C in der Liste ein Befehl ohne Wirkung, und
+                // im Suchfeld einer, der die falsche Sache kopiert.
+                Button("Kopieren") {
+                    if NSApp.keyWindow?.firstResponder is NSText {
+                        sendToResponder("copy:")
+                    } else {
+                        model.copySelectionToPasteboard()
+                    }
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                Button("Einsetzen") {
+                    if NSApp.keyWindow?.firstResponder is NSText {
+                        sendToResponder("paste:")
+                    } else {
+                        model.pasteFromPasteboard(kind: .copy)
+                    }
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                Button(Shortcuts.pasteMoveFiles.label) { model.pasteFromPasteboard(kind: .move) }
+                    .keyboardShortcut(Shortcuts.pasteMoveFiles)
+                    .disabled(model.cursor == nil)
                 Divider()
                 Button("Alles auswählen") {
                     // Im Textfeld weiterhin den Text auswaehlen, sonst die Dateien.
@@ -281,8 +305,43 @@ struct ActivitiesApp: App {
                     .keyboardShortcut("a", modifiers: [.command, .shift])
                     .disabled(model.selectedFiles.isEmpty)
             }
+            // MARK: Verwalten (Sprint 19)
+            //
+            // ⚠️ Eigenes Menue statt Anhaengsel an „Auswahl": Was hier steht,
+            // **veraendert** etwas. Zwischen Befehlen, die nur anzeigen, waere
+            // das der falsche Nachbar – und die Rueckfragen, die diese Befehle
+            // ausloesen, waeren dort eine Ueberraschung.
+            CommandMenu("Verwalten") {
+                Button(Shortcuts.newFolder.label) {
+                    if let ziel = model.newFolderParent { model.requestNewFolder(in: ziel) }
+                }
+                .keyboardShortcut(Shortcuts.newFolder)
+                .disabled(model.newFolderParent == nil)
+
+                Button(Shortcuts.newFolderWithSelection.label) {
+                    if let ziel = model.newFolderParent {
+                        model.requestNewFolder(in: ziel, withSelection: true)
+                    }
+                }
+                .keyboardShortcut(Shortcuts.newFolderWithSelection)
+                .disabled(model.newFolderParent == nil || model.selectedFiles.isEmpty)
+
+                Divider()
+
+                Button(Shortcuts.renameItem.label) {
+                    if let ziel = model.renameTarget { model.requestRename(ziel) }
+                }
+                .keyboardShortcut(Shortcuts.renameItem)
+                .disabled(model.renameTarget == nil)
+
+                Button(Shortcuts.moveToTrash.label) { model.requestTrash(model.commandTargets) }
+                    .keyboardShortcut(.delete, modifiers: .command)
+                    .disabled(!model.hasCommandTargets)
+            }
+
             CommandGroup(replacing: .help) {
                 HelpMenuButton()
+            }
             }
 
             // **⚠️ Drei eigene Menues statt eines Sammelbeckens.**

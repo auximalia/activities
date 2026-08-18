@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.79 · 2026-08-18*
+*Stand: v2.0.0 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,89 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ Sprint 19 · „Der Finder im Werkzeug" *(v2.0.0)*
+**Aufwand:** L · **Plan:** `sprints/sprint-19-finder-grundfunktionen.md`
+
+**Die erste Arbeit seit fünfunddreißig Auslieferungen, die nicht in einen Nachmittag
+passt** — und der Anlass, aus dem Sprints zurückkehren und der Plan zum **Übergabedokument**
+wird (`AGENTS.md`). Sieben Arbeitspakete: Ordner als Ziehgut, Ablegen aus fremden Programmen,
+Unterordner anlegen, Umbenennen, Papierkorb, Zwischenablage, und die Rückmeldung, wenn ein
+Ergebnis vom Filter verdeckt wird.
+
+**Die Versionsnummer springt auf 2.0.0.** Nicht wegen des Umfangs, sondern weil sich die
+**Art** des Programms geändert hat: Es hat bis v1.19.76 ausschließlich gelesen.
+
+## Was beim Planen gefunden wurde, bevor Code entstand
+
+**⚠️ „Alle" als Vorbedingung fürs Anlegen wäre wirkungslos gewesen.** Der Vorschlag lautete,
+Verwaltungsfunktionen nur bei Zeitraum „Alle" zuzulassen. `FolderAggregator.folderEntries`
+läuft aber über `for (folder, files) in filesByFolder` — eine Abbildung aus **gefundenen
+Dateien**. Ein leerer Ordner ist dort in **keinem** Modus ein Schlüssel. „Alle" verbreitert
+nur das Intervall und erzeugt keinen Eintrag aus dem Nichts: **weder notwendig noch
+hinreichend.** Stattdessen erscheinen selbst angelegte Ordner unter „Heute" — *dort wurde
+gerade gearbeitet, und genau das zeigt diese App.*
+
+**⚠️ Die Zusicherung „jeder Ordner kommt genau einmal vor" wurde an EINEM Eingang
+durchgesetzt.** `SourceList.rejectionReason` verbietet eine Quelle in einer Quelle; geprüft
+wurde das nur in `add()`. Ein Verschieben geht daran vorbei — zieht jemand Quelle A in Quelle
+B, entstünde der verbotene Zustand mit doppelt gezählten Dateien und einem Ordner in zwei
+Zweigen. *Eine Zusicherung, die nur den bekannten Weg absichert, sieht vollständig aus.*
+`SourceList.relocate` schließt die zweite Tür und entfernt den inneren Eintrag — er ist über
+den äußeren ohnehin sichtbar.
+
+**⚠️ Es sind drei Listen, nicht eine.** Quellen, **Anheftungen** und **ausgeblendete Pfade**
+sind alle nach Pfad gespeichert; die Ordnerregeln des Rauschfilters sind namensbasiert und als
+einzige nicht betroffen. *Eine tote Quelle merkt man, weil nichts mehr kommt — eine verlorene
+Anheftung und ein wiederauftauchender ausgeblendeter Ordner sind **stille** Zustände.* Eine
+Rechnung für alle drei: `PathRelocation`.
+
+## Der Fund, den eine Zusicherung gemacht hat
+
+**⚠️ `URL` vergleicht sich als Zeichenkette: `/y/A/B` und `/y/A/B/` sind zwei Werte.** Die
+erste Fassung von `PathRelocation` gab die Ordner-Form nicht weiter — eine Quelle hätte beim
+Umzug ihre **Auswahl** verloren, eine Anheftung ihre Wirkung, und zwar **stumm**, weil beides
+einfach nicht mehr getroffen hätte. Gefunden, weil die Zusicherung „samt Auswahl" fehlschlug.
+*Dieselbe Falle steht in `addSources` seit v1.19.51 aufgeschrieben:* `hasDirectoryPath` *ist
+eine Eigenschaft der URL, nicht des Ordners.*
+
+## Entscheidungen, die den Zuschnitt bestimmt haben
+
+**⚠️ E1 — die Zeile schlägt das Fenster**, und die Bedingung dafür ist, dass sich die beiden
+Hervorhebungen **ausschließen**. `RootView` begründet sein großes Fensterziel mit *„beim Ziehen
+zielt man nicht genau"*; der Satz bleibt wahr und wird abgefedert statt widerlegt. Zwei Rahmen
+zugleich hießen zwei mögliche Ausgänge.
+
+**⚠️ E4 — Ordner fragen immer zurück, mit Dateizahl.** `BulkAction.confirmationThreshold`
+zählt **Objekte**, und ein Ordner ist eines und bewegt achttausend Dateien: Die Schwelle von
+zehn griffe nie, ausgerechnet dort, wo ihre eigene Begründung am stärksten zutrifft. Gezählt
+wird **mit Obergrenze** — ohne rechtzeitiges Ergebnis heißt es „mehr als 5.000 Dateien" statt
+einer erfundenen Genauigkeit.
+
+**⚠️ „Leer" heißt rekursiv und auf der Platte**, geprüft im Moment des Ausführens. Eine
+Ordnerzeile mit „0 Dateien" kann fünfhundert enthalten — sie zeigt einen gefilterten
+Ausschnitt. `.DS_Store` und leere Unterordner heben die Leere nicht auf (Finder-Verhalten,
+Entscheidung des Eigentümers); eine echte Datei tief unten schon. **Die Artefaktliste bleibt
+kurz und ist zugesichert** — jeder weitere Eintrag ist eine Datei, die ungefragt gelöscht wird.
+
+**⚠️ Umbenennen nur der Schreibweise braucht den Umweg über einen Zwischennamen.** `Projekt` →
+`projekt` scheitert sonst mit „Datei existiert bereits", und die Meldung sagte etwas, das nicht
+stimmt.
+
+**⚠️ ⌘Z nimmt den Bestand mit.** Sonst stellte das Widerrufen den Ordner wieder her, **aber
+nicht seine Rolle** — Quelle, Anheftung und Ausschluss blieben am neuen Pfad.
+
+**Zusicherungen:** 1697 → **1776**.
+
+## Bewusst nicht gebaut
+
+Duplizieren (fällt mit ⌘C/⌘V ab), „Informationen" (die App zeigt Datum, Größe, Typ und
+Standardprogramm bereits), „Öffnen mit …", Alias, Komprimieren, Zurück/Vorwärts. **Tags** wären
+ein zweites Ordnungssystem neben Zeit, Typ und Rauschfilter — eigener Sprint, wenn überhaupt.
+
+**Nicht am laufenden Programm geprüft.** Ziehen lässt sich nicht ohne Maus prüfen; die
+Abnahmeliste steht im Sprintplan.
+
 
 ### ✅ PR-65 · Versionsverwaltung sichtbar – und ein Satz an der Entscheidungsstelle *(v1.19.79)*
 **Aufwand:** M · **Art:** Wunsch aus der Praxis · *„Es wäre gut zu sehen, ob eine Datei in einem Repo liegt – das signalisiert mir: Achtung, hier erst nachdenken beim Verschieben."*

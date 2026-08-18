@@ -97,6 +97,14 @@ struct FolderRowView: View {
         // Gleiche Grundfarbe wie eine gerade Dateizeile: Ohne sie stuende
         // die Ordnerzeile als graue Bank zwischen weissen Dateizeilen.
         .background(RowMetrics.rowBackground(alternate: false))
+        // Den Ordner selbst herausziehen (Sprint 19). Die Ziehquelle ist
+        // dieselbe wie bei Dateien – ein Weg, ein Verhalten.
+        .background(
+            MultiFileDragSource(
+                targets: { [entry.folder] },
+                prepare: { model.noteDragOrigin(entry.folder) }
+            )
+        )
         // Dateien aus der Liste hierher ziehen (v1.19.77).
         .folderDropTarget(model: model, folder: entry.folder)
         // Baum-Stub: leitet vom aufgeklappten Ordner in den Dateiblock ueber.
@@ -178,6 +186,13 @@ struct FolderContextMenu: View {
                 .keyboardShortcut("t", modifiers: [.command, .shift])
         }
         Button("Pfad kopieren") { ClipboardService.copy(folder.path) }
+        Divider()
+        Button(Shortcuts.newFolder.label) { model.requestNewFolder(in: folder) }
+        Button(Shortcuts.renameItem.label) { model.requestRename(folder) }
+        // ⚠️ Der Papierkorb steht auch dann da, wenn der Ordner nicht leer ist.
+        // Abgeblendet waere er ein Raetsel; geklickt nennt er den Grund. Das ist
+        // die Leitlinie: sagen, nicht hindern.
+        Button(Shortcuts.moveToTrash.label) { model.requestTrash([folder]) }
         Divider()
         Button(model.isPinned(folder) ? "Nicht mehr anheften" : "Anheften") {
             model.togglePinned(folder)

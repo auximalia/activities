@@ -130,6 +130,14 @@ struct TreeFolderRowView: View {
             // senkrechte. Zwei verschiedene Aufgaben – kein doppeltes
             // Trennsystem.
             .background(RowMetrics.rowBackground(alternate: isAlternate))
+            // Den Ordner selbst herausziehen (Sprint 19). Die Ziehquelle ist
+            // dieselbe wie bei Dateien – ein Weg, ein Verhalten.
+            .background(
+                MultiFileDragSource(
+                    targets: { [node.folder] },
+                    prepare: { model.noteDragOrigin(node.folder) }
+                )
+            )
             // Dateien aus der Liste hierher ziehen (v1.19.77).
             .folderDropTarget(model: model, folder: node.folder)
             .contentShape(Rectangle())

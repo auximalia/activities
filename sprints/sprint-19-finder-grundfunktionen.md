@@ -1,7 +1,15 @@
 # Sprint 19 – „Der Finder im Werkzeug"
 
-*Geplant am 2026-08-16 · **Stand: vollständig, alle Entscheidungen getroffen.**
-Die Umsetzung wartet auf die Modellwahl des Eigentümers.*
+*Stand: v2.0.0 · 2026-08-18*
+
+*Geplant am 2026-08-16 · **Umgesetzt am 2026-08-16, ausgeliefert als v2.0.0.***
+
+> **Nachtrag zur Umsetzung.** Alle sieben Arbeitspakete sind gebaut. Zwei Dinge kamen
+> beim Bauen dazu und stehen in `backlog.md`: `PathRelocation` gab die Ordner-Form der
+> URL nicht weiter, was eine Quelle beim Umzug **stumm** ihre Auswahl gekostet hätte
+> (gefunden durch eine fehlschlagende Zusicherung), und `CommandsBuilder` nimmt
+> höchstens zehn Elemente — das Menü „Verwalten" war das elfte. Zusicherungen
+> 1697 → 1776.
 
 > **Dieses Dokument ist ein Übergabedokument, kein Merkzettel.** Es kann von einem
 > anderen Modell und in einer anderen Sitzung umgesetzt werden. Alles, was zur

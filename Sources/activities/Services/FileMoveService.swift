@@ -126,3 +126,111 @@ enum FileMoveService {
         }
     }
 }
+
+// MARK: - Ordner-Handgriffe (Sprint 19)
+
+extension FileMoveService {
+
+    /// Die Einträge eines Ordners, in der Form, die ``FolderEmptiness`` erwartet.
+    static func contents(of folder: URL) -> [(name: String, isFolder: Bool)] {
+        let fm = FileManager.default
+        guard let inhalt = try? fm.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: []
+        ) else { return [] }
+        return inhalt.map { url in
+            let ordner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            return (name: url.lastPathComponent, isFolder: ordner)
+        }
+    }
+
+    /// Ob dieser Ordner **auf der Platte** leer ist – rekursiv, Artefakte ausgenommen.
+    ///
+    /// **⚠️ Geprüft im Moment des Ausführens, nicht beim Aufbau des Menüs.**
+    /// Zwischen beidem liegt beliebig viel Zeit, und ein Ordner, der beim
+    /// Anzeigen leer war, kann es beim Klicken nicht mehr sein.
+    static func isEmptyOnDisk(_ folder: URL) -> Bool {
+        FolderEmptiness.isEmpty(folder, contents: contents(of:))
+    }
+
+    /// Wie viele Dateien unter diesem Ordner liegen.
+    ///
+    /// **⚠️ Mit Obergrenze und abbrechbar.** Ein Ordner mit 8.412 Dateien zu
+    /// zählen kostet Zeit; eine Rückfrage darf davon nicht hängen. Wird die
+    /// Grenze überschritten, meldet die Zählung ``nil`` – der Text sagt dann
+    /// „mehr als N" statt einer erfundenen Genauigkeit.
+    static func fileCount(under folder: URL, limit: Int = 5000) -> Int? {
+        let fm = FileManager.default
+        guard let lauf = fm.enumerator(at: folder, includingPropertiesForKeys: [.isDirectoryKey],
+                                       options: [.skipsPackageDescendants]) else { return 0 }
+        var n = 0
+        for fall in lauf {
+            guard let url = fall as? URL else { continue }
+            let ordner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if !ordner {
+                n += 1
+                if n > limit { return nil }
+            }
+        }
+        return n
+    }
+
+    /// Legt einen Ordner an.
+    static func createFolder(named name: String, in parent: URL) -> (url: URL?, failure: String?) {
+        let ziel = parent.appendingPathComponent(FolderNaming.sanitized(name), isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: ziel, withIntermediateDirectories: false)
+            return (ziel, nil)
+        } catch {
+            return (nil, error.localizedDescription)
+        }
+    }
+
+    /// Benennt eine Datei oder einen Ordner um.
+    ///
+    /// **⚠️ Der Umweg über einen Zwischennamen ist kein Übereifer.** Ändert der
+    /// neue Name nur die Groß-/Kleinschreibung, scheitert `moveItem` auf einem
+    /// nicht unterscheidenden Dateisystem – und macOS ist das üblicherweise –
+    /// mit „Datei existiert bereits". Aus `Projekt` würde nie `projekt`, und die
+    /// Meldung sagte etwas, das nicht stimmt.
+    static func rename(_ url: URL, to name: String) -> (url: URL?, failure: String?) {
+        let sauber = FolderNaming.sanitized(name)
+        let ziel = url.deletingLastPathComponent().appendingPathComponent(sauber)
+        let fm = FileManager.default
+        do {
+            if FolderNaming.isCaseOnlyChange(from: url.lastPathComponent, to: sauber) {
+                let zwischen = url.deletingLastPathComponent()
+                    .appendingPathComponent(".\(UUID().uuidString)")
+                try fm.moveItem(at: url, to: zwischen)
+                try fm.moveItem(at: zwischen, to: ziel)
+            } else {
+                try fm.moveItem(at: url, to: ziel)
+            }
+            return (ziel, nil)
+        } catch {
+            return (nil, error.localizedDescription)
+        }
+    }
+
+    /// Legt Objekte in den Papierkorb.
+    ///
+    /// **⚠️ Papierkorb, nicht löschen** – wie überall in diesem Programm. Was
+    /// dort liegt, holt der Finder mit „Zurücklegen" zurück; ⌘Z macht dasselbe
+    /// für den letzten Handgriff.
+    static func trash(_ urls: [URL]) -> Report {
+        var report = Report()
+        for url in urls {
+            do {
+                var neu: NSURL?
+                try FileManager.default.trashItem(at: url, resultingItemURL: &neu)
+                if let ziel = neu as URL? {
+                    report.moved.append((from: url, to: ziel))
+                }
+            } catch {
+                report.failures.append(
+                    "\u{201E}\(url.lastPathComponent)\u{201C}: \(error.localizedDescription)"
+                )
+            }
+        }
+        return report
+    }
+}

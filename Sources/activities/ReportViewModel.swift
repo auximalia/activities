@@ -647,6 +647,15 @@ final class ReportViewModel {
 
     func noteDragOrigin(_ url: URL) { dragOriginFolder = url.deletingLastPathComponent() }
 
+    /// Steht der Zeiger gerade über einer Ordnerzeile, die ablegen würde?
+    ///
+    /// **⚠️ Das Fensterziel liest das mit und lässt seinen Rahmen dann aus.**
+    /// Ohne diese Rückmeldung leuchteten beim Ziehen eines Ordners **beide**
+    /// Rahmen — der der Zeile und der des Fensters —, und das hieße zwei
+    /// mögliche Ausgänge für dieselbe Bewegung. Bis v1.19.78 war das ein
+    /// kosmetischer Rest; mit E1 wird es zur Fehlerquelle.
+    var isRowDropTargeted = false
+
     func isKnownFile(_ url: URL) -> Bool {
         filesByFolder[url.deletingLastPathComponent()]?.contains { $0.url == url } ?? false
     }
@@ -658,8 +667,27 @@ final class ReportViewModel {
     /// Blättern genau die Rückfrage, die weggeklickt wird, ohne gelesen zu
     /// werden – dieselbe Überlegung, die in ``BulkAction`` die Schwelle
     /// begründet.
+    /// **⚠️ Seit v2.0.0 nicht mehr auf den eigenen Bestand beschränkt.** Bis
+    /// dahin filterte `isKnownFile` alles heraus, was diese App nicht eingelesen
+    /// hatte — sinnvoll, solange nur intern gezogen wurde. Jetzt kommen Dateien
+    /// und **Ordner** aus fremden Programmen dazu; die Unterscheidung „von
+    /// innen/von außen" trägt die Ablegestelle, nicht mehr diese Methode.
     func requestTransfer(_ urls: [URL], to folder: URL, kind: TransferKind) {
-        let eigene = urls.filter { isKnownFile($0) }
+        // ⚠️ Ordner zuerst pruefen: `mv a a/b` zerstoert einen Baum, und der
+        // Schaden ist nicht rueckholbar – es gibt kein „Vorher", in das ⌘Z
+        // zurueckfuehren koennte.
+        var eigene: [URL] = []
+        var abgelehnt: [String] = []
+        for url in urls {
+            let istOrdner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if istOrdner, let grund = FolderMoveRules.rejection(moving: url, into: folder) {
+                abgelehnt.append("\u{201E}\(url.lastPathComponent)\u{201C}: \(grund.reason)")
+            } else {
+                eigene.append(url)
+            }
+        }
+        if !abgelehnt.isEmpty { moveReport = abgelehnt.joined(separator: "\n") }
+        guard !eigene.isEmpty else { return }
         let vorhanden = FileMoveService.existingNames(in: folder)
         let konflikte = MovePlan.conflicts(sources: eigene, into: folder, existing: vorhanden)
         let bewegt = MovePlan.steps(sources: eigene, into: folder, existing: vorhanden) { _ in .keepBoth }
@@ -697,8 +725,31 @@ final class ReportViewModel {
         // genau in dem Fall verschwiegen, in dem man sie liest: bei der einen
         // Datei, die man gerade bewusst anfasst.
         let versioniert = repos.versionedCounts(auszufuehren.map(\.source))
-        let warnung = RepoDetection.moveWarning(versioned: versioniert,
+        var warnung = RepoDetection.moveWarning(versioned: versioniert,
                                                 total: auszufuehren.count)
+
+        // **⚠️ Ordner fragen IMMER zurueck, unabhaengig von der Schwelle.**
+        // `BulkAction.confirmationThreshold` zaehlt Objekte, und darin liegt
+        // der Fehler: Ein Ordner ist EIN Objekt und kann achttausend Dateien
+        // bewegen – die Schwelle von zehn griffe nie, ausgerechnet dort, wo
+        // ihre eigene Begruendung („vier Groessenordnungen Unterschied") am
+        // staerksten zutrifft.
+        let ordner = auszufuehren.map(\.source).filter {
+            (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        }
+        if !ordner.isEmpty {
+            let satz = ordner.map { url -> String in
+                // ⚠️ Gezaehlt wird mit Obergrenze: Ein Ordner mit 8.412 Dateien
+                // zu zaehlen kostet Zeit, und die Rueckfrage darf davon nicht
+                // haengen. Ohne rechtzeitiges Ergebnis „mehr als N" statt einer
+                // erfundenen Genauigkeit.
+                let n = FileMoveService.fileCount(under: url)
+                let menge = n.map { "\($0) \($0 == 1 ? "Datei" : "Dateien")" } ?? "mehr als 5.000 Dateien"
+                return "\u{201E}\(url.lastPathComponent)\u{201C} enthält \(menge)."
+            }.joined(separator: "\n")
+            warnung = [satz, warnung].compactMap { $0 }.joined(separator: "\n\n")
+        }
+
         if warnung != nil || BulkAction.needsConfirmation(count: auszufuehren.count) {
             pendingBulkAction = PendingBulkAction(
                 kind: .transfer(kind, folder.lastPathComponent),
@@ -714,6 +765,15 @@ final class ReportViewModel {
 
     func fuehreVerschiebenAus(_ schritte: [MoveStep], kind: TransferKind) {
         let bericht = FileMoveService.execute(schritte, kind: kind)
+        // ⚠️ NUR beim Verschieben zieht der Bestand mit. Eine Kopie laesst das
+        // Original an seinem Platz – Quelle, Anheftung und Ausschluss gehoeren
+        // weiterhin dorthin.
+        if kind == .move {
+            for paar in bericht.moved {
+                let warOrdner = (try? paar.to.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                if warOrdner { zieheBestandUm(from: paar.from, to: paar.to) }
+            }
+        }
         lastMove = bericht.moved
         lastTransferKind = kind
         melde(bericht)
@@ -723,10 +783,239 @@ final class ReportViewModel {
     /// Was die letzte Bewegung war – entscheidet, wie ⌘Z sie zurücknimmt.
     private(set) var lastTransferKind: TransferKind = .move
 
+    // MARK: - Ordner-Handgriffe (Sprint 19)
+
+    /// Ordner, die in **dieser Sitzung** hier angelegt wurden.
+    ///
+    /// **⚠️ Sie werden gezeigt, auch wenn sie leer sind — und das ist keine
+    /// Ausnahme von der Regel, sondern ihre Anwendung.** Die Liste beantwortet
+    /// „wo habe ich zuletzt gearbeitet"; einen Ordner anzulegen **ist** Arbeit.
+    /// Ohne diese Menge geschähe beim Anlegen sichtbar nichts:
+    /// `FolderAggregator.folderEntries` läuft über die Ordner, die **Dateien
+    /// haben**, und ein leerer ist dort kein Schlüssel — in **keinem** Modus,
+    /// auch nicht in „Alle".
+    ///
+    /// *Sitzungslokal und damit selbstaufräumend: Beim nächsten Start ist ein
+    /// Ordner entweder gefüllt und von selbst sichtbar, oder er war ein Irrtum.*
+    private(set) var sessionCreatedFolders: [URL] = []
+
+    /// Ein Blatt wartet auf einen Ordnernamen.
+    struct PendingFolderName: Identifiable {
+        let id = UUID()
+        /// Wo der Ordner entsteht.
+        let parent: URL
+        /// Dateien, die anschließend hineinwandern (⌃⌘N).
+        let withSelection: [URL]
+        /// Namen, die dort schon vergeben sind.
+        let existing: Set<String>
+    }
+    var pendingFolderName: PendingFolderName?
+
+    /// Ein Blatt wartet auf einen neuen Namen für ein vorhandenes Objekt.
+    struct PendingRename: Identifiable {
+        let id = UUID()
+        let url: URL
+        let isFolder: Bool
+        let existing: Set<String>
+        /// Hinweis auf Versionsverwaltung – ``nil``, wenn keine im Spiel ist.
+        let repoWarning: String?
+    }
+    var pendingRename: PendingRename?
+
+    // MARK: Anlegen
+
+    func requestNewFolder(in parent: URL, withSelection: Bool = false) {
+        let auswahl = withSelection ? orderedSelection : []
+        pendingFolderName = PendingFolderName(
+            parent: parent,
+            withSelection: auswahl,
+            existing: FileMoveService.existingNames(in: parent)
+        )
+    }
+
+    /// Der Ordner für ⇧⌘N / ⌃⌘N: der markierte Ordner, sonst der der Auswahl.
+    var newFolderParent: URL? {
+        switch cursor {
+        case .folder(let url): url
+        case .file(let url): url.deletingLastPathComponent()
+        case nil: activeSources.count == 1 ? activeSources[0] : nil
+        }
+    }
+
+    func confirmNewFolder(named name: String) {
+        guard let offen = pendingFolderName else { return }
+        pendingFolderName = nil
+        let ergebnis = FileMoveService.createFolder(named: name, in: offen.parent)
+        guard let neu = ergebnis.url else {
+            moveReport = ergebnis.failure
+            return
+        }
+        sessionCreatedFolders.append(neu)
+        if !offen.withSelection.isEmpty {
+            requestTransfer(offen.withSelection, to: neu, kind: .move)
+        } else {
+            rescan(preservingState: true)
+        }
+    }
+
+    func cancelNewFolder() { pendingFolderName = nil }
+
+    // MARK: Umbenennen
+
+    func requestRename(_ url: URL) {
+        let istOrdner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        // ⚠️ Umbenennen ist fuer die Versionsverwaltung derselbe Eingriff wie
+        // Verschieben – dieselbe Warnung, derselbe fehlende Befehl.
+        let zaehlung = repos.versionedCounts([url])
+        pendingRename = PendingRename(
+            url: url,
+            isFolder: istOrdner,
+            existing: FileMoveService.existingNames(in: url.deletingLastPathComponent()),
+            repoWarning: RepoDetection.moveWarning(versioned: zaehlung, total: 1)
+        )
+    }
+
+    func confirmRename(to name: String) {
+        guard let offen = pendingRename else { return }
+        pendingRename = nil
+        let ergebnis = FileMoveService.rename(offen.url, to: name)
+        guard let neu = ergebnis.url else {
+            moveReport = ergebnis.failure
+            return
+        }
+        if offen.isFolder { zieheBestandUm(from: offen.url, to: neu) }
+        lastMove = [(from: offen.url, to: neu)]
+        lastTransferKind = .move
+        rescan(preservingState: true)
+    }
+
+    func cancelRename() { pendingRename = nil }
+
+    // MARK: Papierkorb
+
+    /// **⚠️ Ordner nur, wenn sie auf der PLATTE leer sind** – rekursiv geprüft,
+    /// im Moment des Ausführens. Eine Ordnerzeile mit „0 Dateien" kann
+    /// fünfhundert enthalten; sie zeigt einen gefilterten Ausschnitt.
+    func requestTrash(_ urls: [URL]) {
+        var erlaubt: [URL] = []
+        var abgelehnt: [String] = []
+        for url in urls {
+            let istOrdner = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if istOrdner, !FileMoveService.isEmptyOnDisk(url) {
+                abgelehnt.append("\u{201E}\(url.lastPathComponent)\u{201C}: nicht leer – "
+                                 + "in den Papierkorb wandern nur leere Ordner.")
+            } else {
+                erlaubt.append(url)
+            }
+        }
+        if !abgelehnt.isEmpty { moveReport = abgelehnt.joined(separator: "\n") }
+        guard !erlaubt.isEmpty else { return }
+
+        let bericht = FileMoveService.trash(erlaubt)
+        for paar in bericht.moved {
+            let war = (try? paar.from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if war { zieheBestandUm(from: paar.from, to: paar.to) }
+        }
+        lastMove = bericht.moved
+        lastTransferKind = .move
+        melde(bericht)
+        rescan(preservingState: true)
+    }
+
+    /// Worauf ⌃⌘R wirkt: die Cursorzeile, Datei oder Ordner.
+    ///
+    /// **⚠️ Immer genau EIN Objekt.** Umbenennen ist die einzige Handlung, die
+    /// sich nicht sinnvoll auf eine Menge anwenden lässt — fünf Dateien
+    /// gleichzeitig denselben Namen zu geben ist keine Handlung, sondern ein
+    /// Fehler mit vier Schritten.
+    var renameTarget: URL? {
+        switch cursor {
+        case .folder(let url): url
+        case .file(let url): url
+        case nil: nil
+        }
+    }
+
+    // MARK: - Zwischenablage (Sprint 19)
+
+    /// Legt die Auswahl als **Datei-URLs** auf die Zwischenablage.
+    ///
+    /// **⚠️ Nicht Text, sondern Dateien.** ⇧⌘C kopiert weiterhin die *Pfade* als
+    /// Text; hier gehen die Objekte selbst hinaus. Der Unterschied ist im Finder
+    /// sichtbar: Das eine fügt Text ein, das andere Dateien.
+    ///
+    /// **Warum das mehr ist als Bequemlichkeit:** Es ist der Weg, der **ohne
+    /// zweites Fenster** auskommt — und der Anlass dieser ganzen Reihe war
+    /// *„Ich mag nicht mit so vielen Fenstern parallel arbeiten."* ⌘C hier, ⌘V
+    /// im Finder wirkt sofort, ohne dass diese App etwas dafür tun muss.
+    func copySelectionToPasteboard() {
+        let objekte = commandTargets
+        guard !objekte.isEmpty else { return }
+        let brett = NSPasteboard.general
+        brett.clearContents()
+        brett.writeObjects(objekte.map { $0 as NSURL })
+    }
+
+    /// Fügt Dateien von der Zwischenablage in den markierten Ordner ein.
+    ///
+    /// **⚠️ Das Ziel ist der Ordner der Cursorzeile.** Steht der Cursor auf
+    /// einer Datei, ist ihr Ordner gemeint — dieselbe Ableitung wie bei „Ordner
+    /// im Terminal öffnen", damit es nicht zwei Regeln dafür gibt, worauf ein
+    /// Befehl wirkt.
+    func pasteFromPasteboard(kind: TransferKind) {
+        guard let ziel = newFolderParent else { return }
+        let objekte = NSPasteboard.general.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL] ?? []
+        guard !objekte.isEmpty else { return }
+        requestTransfer(objekte, to: ziel, kind: kind)
+    }
+
+    // MARK: Der Bestand zieht mit
+
+    /// **⚠️ Drei Listen, nicht eine.** Quellen, Anheftungen und ausgeblendete
+    /// Pfade sind alle nach Pfad gespeichert; die Ordnerregeln des
+    /// Rauschfilters sind namensbasiert und als einzige nicht betroffen.
+    ///
+    /// *Eine tote Quelle merkt man, weil nichts mehr kommt. Eine verlorene
+    /// Anheftung und ein wiederauftauchender ausgeblendeter Ordner sind
+    /// **stille** Zustände — und genau die sind hier die gefährlicheren.*
+    private func zieheBestandUm(from von: URL, to nach: URL) {
+        var bestand = sources
+        let entfallen = bestand.relocate(from: von, to: nach)
+        sources = bestand
+        store.saveSources(sources)
+
+        pinnedFolders = PathRelocation.relocated(pinnedFolders, from: von, to: nach)
+        store.savePinnedFolders(pinnedFolders)
+
+        excludedPaths = PathRelocation.relocated(excludedPaths, from: von, to: nach)
+        store.saveExclusions(folderRules: activeFolderRules, paths: excludedPaths)
+
+        sessionCreatedFolders = PathRelocation.relocated(sessionCreatedFolders, from: von, to: nach)
+
+        if !entfallen.isEmpty {
+            let namen = entfallen.map { "\u{201E}\($0.lastPathComponent)\u{201C}" }
+                .joined(separator: ", ")
+            moveReport = "\(namen) liegt jetzt in einer anderen Quelle; der eigene Eintrag ist "
+                + "entfallen. Der Ordner bleibt über die umschließende Quelle sichtbar."
+        }
+    }
+
     /// ⌘Z – die letzte Verschiebung zurücknehmen.
     func undoLastMove() {
         guard !lastMove.isEmpty else { return }
+        let rueckwaerts = lastMove
         let bericht = FileMoveService.undo(lastMove, kind: lastTransferKind)
+        // ⚠️ Sonst stellt das Widerrufen den Ordner wieder her, aber nicht
+        // seine ROLLE – Quelle, Anheftung und Ausschluss blieben am neuen Pfad.
+        if lastTransferKind == .move {
+            for paar in rueckwaerts.reversed() {
+                let istOrdner = (try? paar.from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                if istOrdner { zieheBestandUm(from: paar.to, to: paar.from) }
+            }
+        }
         lastMove = []
         melde(bericht)
         rescan(preservingState: true)
@@ -736,8 +1025,32 @@ final class ReportViewModel {
     /// Vorgang, dessen Ergebnis man unmittelbar sieht, wäre ein Blatt, das man
     /// wegklickt – und das nächste, das etwas Wichtiges sagt, dann auch.
     private func melde(_ bericht: FileMoveService.Report) {
-        guard !bericht.failures.isEmpty else { return }
-        moveReport = bericht.failures.joined(separator: "\n")
+        var zeilen = bericht.failures
+
+        // **⚠️ Der eine Fall, in dem eine Handlung ins Leere zu laufen scheint**
+        // (AP7): Die Datei liegt im Zielordner, und ein Typ- oder Namensfilter
+        // blendet sie aus. Der Ordner steht da, die Datei nicht — das sieht wie
+        // ein Fehlschlag aus und ist keiner.
+        //
+        // Dafuer wird **gesagt**, nicht ausgeblendet: Eine Funktion zu
+        // verstecken, weil ein Zustand unguenstig ist, hiesse stellvertretend
+        // entscheiden – und die Leitlinie lautet „die Sorgfaltspflicht liegt
+        // beim Nutzer".
+        let unsichtbar = bericht.moved.filter { paar in
+            guard !paar.to.hasDirectoryPath else { return false }
+            let datei = RelevantFile(url: paar.to, folder: paar.to.deletingLastPathComponent(),
+                                     timestamp: Date(), size: nil)
+            return !visibility.passesType(datei.url)
+        }
+        if !unsichtbar.isEmpty {
+            let namen = unsichtbar.map { "\u{201E}\($0.to.lastPathComponent)\u{201C}" }
+                .joined(separator: ", ")
+            zeilen.append("\(namen) liegt jetzt am Ziel, wird aber vom aktiven Filter "
+                          + "ausgeblendet.")
+        }
+
+        guard !zeilen.isEmpty else { return }
+        moveReport = zeilen.joined(separator: "\n")
     }
 
     /// Oeffnet Objekte mit ihrem jeweiligen Standardprogramm.
@@ -1502,8 +1815,21 @@ final class ReportViewModel {
         ) { file in
             self.visibility.passesTypeAndName(file)
         }
+        // ⚠️ In dieser Sitzung angelegte Ordner erscheinen, auch wenn sie leer
+        // sind – siehe `sessionCreatedFolders`. Ohne das geschaehe beim Anlegen
+        // sichtbar nichts, denn `folderEntries` laeuft ueber Ordner, die
+        // Dateien HABEN, und ein leerer ist dort kein Schluessel.
+        var eintraege = entries
+        let bekannt = Set(eintraege.map { $0.folder.standardizedFileURL })
+        let jetzt = Date()
+        for neuer in sessionCreatedFolders
+        where !bekannt.contains(neuer.standardizedFileURL)
+            && FileManager.default.fileExists(atPath: neuer.path) {
+            eintraege.append(FolderEntry(folder: neuer, newestDate: jetzt, fileCount: 0))
+        }
+
         var grouped = TimeBucket.group(
-            entries,
+            eintraege,
             sort: sort,
             dominantType: { [weak self] in self?.dominantExtension(of: $0) }
         )

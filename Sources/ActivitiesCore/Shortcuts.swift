@@ -60,6 +60,11 @@ public struct ShortcutEntry: Sendable, Hashable, Identifiable {
     public enum Section: String, Sendable, CaseIterable {
         case commands = "Befehle"
         case list = "In der Liste"
+        /// **⚠️ Eigener Abschnitt seit v2.0.0.** Die verwaltenden Befehle unter
+        /// „Befehle" zu fuehren waere richtig und unbrauchbar: Der Abschnitt
+        /// haette dann zwanzig Zeilen, und die vier, die etwas **veraendern**,
+        /// staenden zwischen denen, die nur anzeigen.
+        case manage = "Verwalten"
         case mouse = "Mit der Maus"
     }
 
@@ -342,6 +347,44 @@ public enum Shortcuts {
     /// scrollt die Liste – deshalb steht der Ort in der Beschriftung und nicht
     /// nur in der Hilfeprosa. Ohne ihn wäre der Eintrag eine Behauptung, die
     /// beim ersten Versuch an der falschen Stelle scheitert.
+    // MARK: Verwalten (Sprint 19)
+
+    /// **⚠️ ⇧⌘N wie im Finder.** Eine eigene Belegung waere hier keine
+    /// Verbesserung, sondern eine zweite Wahrheit neben einer, die im ganzen
+    /// System gilt.
+    public static let newFolder = ShortcutEntry(
+        id: "newFolder", key: .character("n"), modifiers: [.command, .shift],
+        label: "Neuer Ordner", section: .manage
+    )
+    public static let newFolderWithSelection = ShortcutEntry(
+        id: "newFolderWithSelection", key: .character("n"), modifiers: [.command, .control],
+        label: "Neuer Ordner mit Auswahl", section: .manage
+    )
+    /// **⚠️ Enter benennt im Finder um – hier nicht.** Enter oeffnet in dieser
+    /// App die Auswahl (`openSelection`), und das ist die haeufigere Handlung.
+    /// Ein Tausch waere ein Bruch mit dem eigenen Bestand zugunsten einer
+    /// Fremdkonvention.
+    public static let renameItem = ShortcutEntry(
+        id: "renameItem", key: .character("r"), modifiers: [.command, .control],
+        label: "Umbenennen …", section: .manage
+    )
+    public static let moveToTrash = ShortcutEntry(
+        id: "moveToTrash", key: nil, displayOverride: "⌘⌫",
+        label: "In den Papierkorb (Ordner nur, wenn leer)", section: .manage
+    )
+    public static let copyFiles = ShortcutEntry(
+        id: "copyFiles", key: .character("c"), modifiers: [.command],
+        label: "Dateien kopieren (Zwischenablage)", section: .manage
+    )
+    public static let pasteFiles = ShortcutEntry(
+        id: "pasteFiles", key: .character("v"), modifiers: [.command],
+        label: "Einsetzen – kopiert in den markierten Ordner", section: .manage
+    )
+    public static let pasteMoveFiles = ShortcutEntry(
+        id: "pasteMoveFiles", key: .character("v"), modifiers: [.command, .option],
+        label: "Einsetzen und verschieben", section: .manage
+    )
+
     /// **⚠️ Das erste Kuerzel, das etwas RUECKGAENGIG macht.** Bearbeiten →
     /// Widerrufen stand in dieser App bis v1.19.77 dauerhaft abgeblendet, weil
     /// es nichts zu widerrufen gab. Mit dem Verschieben gibt es das – und ⌘Z
@@ -349,7 +392,7 @@ public enum Shortcuts {
     /// eigene Erfindung fuer eine Handlung, die jeder kennt.
     public static let undoMove = ShortcutEntry(
         id: "undoMove", key: .character("z"), modifiers: [.command],
-        label: "Verschieben rückgängig", section: .list
+        label: "Verschieben rückgängig", section: .manage
     )
 
     /// **⚠️ „auch mehrere" steht ausdruecklich da.** Bis v1.19.75 kam beim
@@ -380,6 +423,8 @@ public enum Shortcuts {
         selectAll, clearSelection, closeWindow, settings, help, bringToFront,
         moveSelection, extendSelection, expandCollapse, openSelection,
         quickLookSpace, escapeSelection, undoMove,
+        newFolder, newFolderWithSelection, renameItem, moveToTrash,
+        copyFiles, pasteFiles, pasteMoveFiles,
         commandClick, shiftClick, dragFiles, dragCopy, wheelDays,
     ]
 

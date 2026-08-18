@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.1 · 2026-08-18*
+*Stand: v2.0.2 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,36 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ UX-66 · Das Blatt kam ohne Fokus *(v2.0.2)*
+**Aufwand:** XS · **Art:** Defekt aus v2.0.0 · *„Nach dem Aufruf zum Anlegen eines neuen Ordners kommt ein Fenster – es hat aber keinen Fokus. Man muss es erst anklicken."*
+
+**⚠️ `@FocusState` in `onAppear` reicht bei einem Blatt nicht.** Ein Blatt hat ein **eigenes**
+`NSWindow`, und zum Zeitpunkt von `onAppear` ist es noch nicht Schlüsselfenster — der gesetzte
+Fokus läuft ins Leere. Wer einen Ordner anlegen will, muss erst klicken; die Tastatur, mit der
+er den Befehl ausgelöst hat, ist plötzlich nutzlos.
+
+**Der Umweg über AppKit war im Haus bereits etabliert** und wurde nicht angewandt:
+`SearchFieldFocus` macht seit v1.19.x dasselbe für das Suchfeld der Werkzeugleiste, weil
+`searchFocused` erst ab macOS 15 existiert. *Ein Muster, das man nicht kennt, hilft nicht —
+und es stand keine zwanzig Zeilen entfernt in derselben Datei, aus der ich das Blatt gerufen
+habe.* Hier wird allerdings **nicht im ganzen Programm gesucht**: Die Hilfsansicht liegt im
+Blatt, also ist ihr eigenes Fenster bereits das richtige.
+
+**⚠️ Dazu ein zweiter Fund, den niemand gemeldet hat, weil er ohne den ersten gar nicht
+auftreten konnte:** Mit Fokus, aber ohne Markierung stünde „Neuer Ordner" im Feld und das
+Getippte hinge hinten dran — `Neuer OrdnerArchiv`. Der Text wird deshalb **markiert**, wie im
+Finder.
+
+**⚠️ Und beim Umbenennen einer Datei nur der Namensstamm**, nicht die Endung. Wer `.docx`
+mitmarkiert, tippt sie versehentlich weg, und aus der Datei wird eine ohne Typ. Ein führender
+Punkt zählt dabei nicht als Endung — `.gitignore` ist ein verstecktes Objekt, kein Typ.
+
+**Offen benannt:** Die Verzögerung um eine Runloop-Runde ist als Vorsichtsmaßnahme eingebaut
+und **nicht am laufenden Programm geprüft**. Sie wäre widerlegt, wenn der Fokus auch ohne sie
+sitzt — das entscheidet die Abnahme. *Der Quelltext sagt das an Ort und Stelle, statt die
+Vermutung als Begründung auszugeben.*
+
 
 ### ✅ UX-65 · „Heute" stand ganz unten *(v2.0.1)*
 **Aufwand:** XS · **Art:** Defekt aus v2.0.0 · *„der Ordner Test wurde angelegt. Aber der Rahmen „Heute" erscheint ganz unten und zerbricht die Chronologie"*

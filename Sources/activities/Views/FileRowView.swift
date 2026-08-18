@@ -70,6 +70,9 @@ struct FileRowView: View {
                     // Ausserhalb des Zeitraums: Icon entfaerben und leicht dimmen,
                     // damit die farbigen Icons die relevanten Treffer markieren.
                     .saturation(isInWindow ? 1 : RowMetrics.outOfWindowIconSaturation)
+                    // Anhaenger, wenn die Datei unter Versionsverwaltung steht
+                    // (v1.19.79). Er liegt AUF dem Symbol und kostet keine Breite.
+                    .repoBadge(model.repos.mark(forFile: file.url))
                     .opacity(isInWindow ? 1 : RowMetrics.outOfWindowIconOpacity)
                     .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())

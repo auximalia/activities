@@ -196,6 +196,12 @@ struct TreeFolderRowView: View {
                 Image(systemName: node.isPassThrough ? "folder" : "folder.fill")
                     .foregroundStyle(node.isPassThrough ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
                     .frame(width: RowMetrics.folderIconSize, height: RowMetrics.folderIconSize)
+                    // ⚠️ NACH `foregroundStyle` und `frame`: davor faerbte die
+                    // Ordnerfarbe den Anhaenger mit ein, und die Ueberlagerung
+                    // richtete sich an der natuerlichen statt an der gesetzten
+                    // Symbolgroesse aus.
+                    .repoBadge(model.repos.mark(forFolder: node.folder),
+                               isRoot: model.repos.mark(forFolder: node.folder)?.root == node.folder)
                     .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())
             }

@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v1.19.78 · 2026-08-18*
+*Stand: v1.19.79 · 2026-08-18*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -54,6 +54,9 @@ bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege
 - **Sortierung** nach Datum, Name oder Typ – innerhalb der Zeitabschnitte.
 - **Mehrfachauswahl** nach macOS-Standard: ⌘-Klick, ⇧-Klick, ⇧↑/⇧↓, ⌘A, Esc.
 - **Drag & Drop**: Dateien lassen sich einzeln oder mehrfach in andere Programme ziehen.
+- **Versionsverwaltung sichtbar**: Dateien und Ordner unter git oder svn tragen einen Anhaenger
+  am Symbol. Beim Verschieben versionierter Dateien fragt die App zurueck und nennt den Befehl,
+  der dabei nicht ausgefuehrt wird (`git mv`, `svn mv`) – sie warnt, sie hindert nicht.
 - **Verschieben in der Liste**: Dateien auf eine Ordnerzeile ziehen verschiebt sie dorthin.
   Am Mauszeiger steht, was geschieht; **⌥** kopiert, **⌘** verschiebt, ueber Datentraeger-Grenzen
   wird von sich aus kopiert – wie im Finder.

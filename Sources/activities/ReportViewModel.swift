@@ -477,6 +477,8 @@ final class ReportViewModel {
     /// Eigenschaft bekommt **jede** Aufrufstelle automatisch die aktuellen Regeln.
     private var scanner: FileScanner { FileScanner(exclusions: currentExclusions) }
     private let store = SettingsStore()
+    /// Weiss, welche Dateien unter Versionsverwaltung stehen (v1.19.79).
+    let repos = RepoIndex()
     private let watcher = FolderWatcher()
     /// Haken auf `NSWorkspace.didWakeNotification` – siehe ``startWakeObserver()``.
     private var wakeObserver: NSObjectProtocol?
@@ -565,6 +567,8 @@ final class ReportViewModel {
         var moveSteps: [MoveStep] = []
         /// Verschieben oder Kopieren bei ``BulkAction/Kind/transfer(_:_:)``.
         var transferKind: TransferKind = .move
+        /// Hinweis auf versionierte Dateien – ``nil``, wenn keine dabei sind.
+        var repoWarning: String?
 
         var question: String { BulkAction.question(kind: kind, count: urls.count) }
         /// Wie viele Objekte der Menge beim Oeffnen **ausgefuehrt** wuerden.
@@ -576,7 +580,12 @@ final class ReportViewModel {
             return urls.count { FileTypeInspector.refusesToOpen($0) != nil }
         }
         var explanation: String {
-            BulkAction.explanation(kind: kind, count: urls.count, executables: executableCount)
+            let grund = BulkAction.explanation(kind: kind, count: urls.count,
+                                               executables: executableCount)
+            // ⚠️ Der Hinweis steht HINTER der Folge, nicht davor: Zuerst was
+            // geschieht, dann was dabei zu bedenken ist.
+            guard let repoWarning else { return grund }
+            return grund + "\n\n" + repoWarning
         }
         var confirmLabel: String { BulkAction.confirmLabel(kind: kind) }
     }
@@ -680,14 +689,23 @@ final class ReportViewModel {
         let auszufuehren = MovePlan.executable(schritte)
         guard !auszufuehren.isEmpty else { return }
 
-        // ⚠️ Dieselbe Bremse wie bei den fuenf anderen Wegen – „der sechste Weg,
-        // der spaeter dazukommt" aus dem Kommentar in `BulkAction`.
-        if BulkAction.needsConfirmation(count: auszufuehren.count) {
+        // **⚠️ Versionierte Dateien fragen IMMER zurueck, auch eine einzelne.**
+        // Ausdrueckliche Festlegung des Eigentuemers. Die Folge ist bekannt und
+        // hingenommen: Bei seinem Bestand sind 88 % der sichtbaren Dateien
+        // versioniert, ein Verschieben wird also fast immer zweistufig. Die
+        // Gegenrechnung – nur ab zehn Objekten zu fragen – haette die Warnung
+        // genau in dem Fall verschwiegen, in dem man sie liest: bei der einen
+        // Datei, die man gerade bewusst anfasst.
+        let versioniert = repos.versionedCounts(auszufuehren.map(\.source))
+        let warnung = RepoDetection.moveWarning(versioned: versioniert,
+                                                total: auszufuehren.count)
+        if warnung != nil || BulkAction.needsConfirmation(count: auszufuehren.count) {
             pendingBulkAction = PendingBulkAction(
                 kind: .transfer(kind, folder.lastPathComponent),
                 urls: auszufuehren.map(\.source),
                 moveSteps: auszufuehren,
-                transferKind: kind
+                transferKind: kind,
+                repoWarning: warnung
             )
         } else {
             fuehreVerschiebenAus(auszufuehren, kind: kind)
@@ -2625,6 +2643,11 @@ final class ReportViewModel {
         // speicher liegen. Beim Verkleinern des Zeitraums ist das keiner.
         let folders = Set(relevantFiles.map(\.folder))
         filesByFolder = filesByFolder.filter { folders.contains($0.key) }
+        // ⚠️ Erst NACH dem Aufbau der Ordnerliste: Vorher weiss niemand, welche
+        // Arbeitskopien ueberhaupt vorkommen – und ein Vorratsladen ueber alle
+        // Ordner der Platte waere genau der Unterprozess-Sturm, den der
+        // Hintergrundlauf vermeiden soll.
+        repos.refresh(folders: Array(folders))
         if folders.subtracting(filesByFolder.keys).isEmpty {
             isLoadingDetails = false
             detailTotal = 0
@@ -2836,7 +2859,13 @@ final class ReportViewModel {
                 bisher += result.files.count
             }
             guard let self else { return }
-            if replacingAll { self.scannedFilesBySource = [:] }
+            if replacingAll {
+                self.scannedFilesBySource = [:]
+                // ⚠️ Ein vollstaendiges Neulesen vergisst auch, was ueber die
+                // Arbeitskopien bekannt war: Zwischen zwei Suchlaeufen kann ein
+                // Repo entstanden, geloescht oder ausgecheckt worden sein.
+                self.repos.invalidate()
+            }
             for (quelle, dateien) in ergebnis { self.scannedFilesBySource[quelle] = dateien }
             self.rebuildScannedFiles()
             self.skippedByRuleCount = replacingAll ? nachRegel : self.skippedByRuleCount + nachRegel

@@ -42,6 +42,11 @@ struct FolderRowView: View {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(.tint)
                     .frame(width: RowMetrics.folderIconSize, height: RowMetrics.folderIconSize)
+                    // ⚠️ `isRoot` unterscheidet die WURZEL der Arbeitskopie von
+                    // einem Ordner darin: Die Wurzel ist die eigentliche
+                    // Einheit – dort liegt `.svn`, dort greift `svn mv`.
+                    .repoBadge(model.repos.mark(forFolder: entry.folder),
+                               isRoot: model.repos.mark(forFolder: entry.folder)?.root == entry.folder)
                     .padding(RowMetrics.folderIconPadding)
                     .contentShape(Rectangle())
             }

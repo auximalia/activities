@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v1.19.78 · 2026-08-18*
+*Stand: v1.19.79 · 2026-08-18*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,108 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-65 · Versionsverwaltung sichtbar – und ein Satz an der Entscheidungsstelle *(v1.19.79)*
+**Aufwand:** M · **Art:** Wunsch aus der Praxis · *„Es wäre gut zu sehen, ob eine Datei in einem Repo liegt – das signalisiert mir: Achtung, hier erst nachdenken beim Verschieben."*
+
+## Die Messung hat das Merkmal ausgewechselt
+
+Gefragt war „liegt in einem Repo". Gemessen am Bestand des Anwenders:
+
+| | Dateien | davon | Anteil |
+|---|---|---|---|
+| auf der Platte, in einem Repo | 70.863 → **53.979** | | **76,2 %** |
+| **git**: auf der Platte gegen versioniert | 35.182 | **470** | **1,3 %** |
+| **svn**: auf der Platte gegen versioniert | 18.797 | 18.243 | 97 % |
+| im **sichtbaren** Bestand versioniert | 19.876 | ~17.504 | **88 %** |
+
+**⚠️ In git-Repos sind 98,7 % der Dateien Bauwerk** — `.build`, `node_modules`, `dist`. Ein
+Anhänger für „liegt in einem Repo" hätte genau die markiert, deren Verschieben völlig harmlos
+ist. Der Eigentümer hat den Fokus daraufhin selbst verschoben: *„Die Gefahr ist nicht ‚liegt
+in einem Repo', sondern ‚ist versioniert'. Ja — das sollte der Fokus sein."*
+
+**⚠️ Und die unbequeme Zahl bleibt: 88 % des sichtbaren Bestands sind versioniert**, weil die
+Dokumentenarbeit in svn-Arbeitskopien liegt. Der Anhänger steht also auf neun von zehn Zeilen.
+*Er ist deshalb bewusst leise gestaltet — klein, `.secondary`, kein Blickfang. In dieser Lage
+beantwortet er vor allem die Frage nach seiner **Abwesenheit**.*
+
+## Zwei Auskünfte, weil sie verschieden teuer sind
+
+| | wie | gemessen |
+|---|---|---|
+| „liegt in einer Arbeitskopie" | Aufstieg bis `.git`/`.svn` | 8.763 Ordner, ohne Puffer 71.205 Schritte / 738 ms — **mit** Ahnen-Puffer einer je Ordner |
+| „ist versioniert" | `git ls-files` / `svn status --xml` | git 26–29 ms, svn 98–230 ms je Arbeitskopie |
+
+**⚠️ Solange die zweite noch lädt, antwortet die erste.** Versioniert ist immer eine Teilmenge
+von „liegt in einer Arbeitskopie" — die Rückfallantwort irrt also nur in Richtung **Warnung**,
+nie in Richtung Sorglosigkeit.
+
+**⚠️ `--no-optional-locks`**, damit die Abfrage die Index-Datei nicht anfasst. Ohne das
+schreibt git beim Lesen zurück — ein Programm, das nur **anzeigen** will, hätte fremde
+Arbeitskopien verändert. **⚠️ `svn status`, nicht `svn list`:** Letzteres fragt den Server.
+**⚠️ `--xml`, nicht die Spaltenausgabe:** Statusspalten fester Breite und Pfade mit
+Leerzeichen sind nicht zuverlässig zu trennen.
+
+## Der Satz an der Entscheidungsstelle
+
+> *9 der 12 Dateien sind in svn versioniert – die Verschiebung geschieht ohne „svn mv".*
+
+**⚠️ Er erscheint auch bei einer einzelnen Datei** — ausdrückliche Festlegung des Eigentümers
+gegen meinen Vorschlag. Mein Einwand war die Häufigkeit: Bei 88 % wird ein Verschieben damit
+fast immer zweistufig. *Sein Argument ist das bessere: Die Warnung ausgerechnet dort zu
+verschweigen, wo man sie liest — bei der einen Datei, die man gerade bewusst anfasst — wäre
+die falsche Sparsamkeit.* Unversionierte Dateien bleiben reibungslos.
+
+**⚠️ Der Satz nennt die Folge und den fehlenden Befehl, nicht die Kategorie.** „Achtung,
+versioniert" wäre eine Warnung ohne Inhalt; „geschieht ohne `svn mv`" sagt, was gleich **nicht**
+passiert und wonach man hinterher suchen muss. Bei zwei Systemen steht das zerbrechlichere
+zuerst — sonst hinge die Reihenfolge an der Laune eines Dictionaries.
+
+**⚠️ svn ist der zerbrechlichere Fall**, und das steht als Zusicherung im Kern: Bei git
+erscheint eine von Hand verschobene Datei als gelöscht plus unversioniert — heilbar. Bei svn
+liegt seit 1.7 **ein** `.svn` an der Wurzel; ohne `svn mv` bleiben „missing" plus
+„unversioned" zurück.
+
+## Zwei Symbole, und beide sind Hauskonvention statt Logo
+
+git = Verzweigung (`arrow.triangle.branch`), svn = Schichtung (`square.stack.3d.up`). **SF
+Symbols kennt kein svn-Zeichen** — zwei erfundene Logos wären schlechter als zwei klare
+Metaphern. Unterschieden wird in der **Form**, nicht in der Farbe; der Wortlaut steht in
+Tooltip und Vorleseprogramm (UX-34).
+
+*Ich hatte nach dem Nachsehen auf **ein** Symbol umgeschwenkt; der Eigentümer blieb bei zwei.
+Das ist die schwächste Stelle des Entwurfs und am Bildschirm zu beurteilen — im Zweifel ist es
+ein Symbolname.*
+
+**⚠️ Der Anhänger liegt AUF dem Symbol**, unten rechts wie im Finder. Ein Präfix kostete auf
+jeder Zeile Breite; die Dateizeile hat 284 pt feste Kosten, der Pfad weicht heute schon als
+Erster.
+
+## Drei Fallen, die in die Zusicherungen gingen
+
+1. **`.git` kann eine *Datei* sein** — bei Worktrees und Submodulen steht dort `gitdir: …`.
+   Wer nur auf Ordner prüft, übersieht jedes Submodul.
+2. **Der nächstliegende Fund gewinnt.** Ein git-Repo in einer svn-Arbeitskopie kommt vor; der
+   oberste Fund benennte die falsche Verwaltung — und damit den falschen Befehl im Warnsatz.
+3. **Der Aufstieg terminiert am Fixpunkt**, nicht an `"/"` als Zeichenkette. Sonst hinge die
+   App genau hier, auf dem Hauptstrang.
+
+**Zusicherungen:** 1673 → **1697**.
+
+## Der Grenzeintrag ist gestrichen
+
+*„Dateiverwaltung: dafür gibt es den Finder"* stand seit Anbeginn und wurde an **einem Tag
+dreimal** gedehnt. Er ist jetzt eine Richtungsangabe mit der Leitlinie des Eigentümers im
+Wortlaut: **„Die Sorgfaltspflicht liegt beim Nutzer, nicht beim Tool."**
+
+## Als Nächstes vorgemerkt: „ungesichert"
+
+Mit den heute gemessenen Zahlen, damit die nächste Entscheidung nicht bei null anfängt:
+**git 12 geänderte von 35.182**, **svn 75 in drei gemessenen Arbeitskopien**, Kosten
+`git status` 42–110 ms und `svn status` 77–237 ms je Arbeitskopie. *Das ist das Merkmal mit
+dem höchsten Signalgehalt — 0,03 % statt 88 % — und zugleich das teuerste.*
+
+**Nicht am laufenden Programm geprüft.**
 
 ### ✅ PR-64 · Am Mauszeiger steht, was passiert – und ⌥ schaltet um *(v1.19.78)*
 **Aufwand:** M · **Art:** Wunsch aus der Praxis **+ Defekt aus v1.19.77**
@@ -2133,26 +2235,30 @@ greift **den Grund** an – nicht die Entscheidung.
   anderen Wettbewerbern. PR-15/PR-16 liefern den Nutzen ohne den Anspruch.
 - **Cloud-Abgleich zwischen Geräten:** widerspricht der Stärke „liest nur lokal, sendet
   nichts" (PR-24).
-- **Dateiverwaltung** (umbenennen, Ordner anlegen): dafür gibt es den Finder. Die App
-  soll *finden*, nicht *verwalten*.
+- **Dateiverwaltung:** ⚠️ **Dieser Eintrag war eine Grenze und ist seit dem 2026-08-16 eine
+  Richtung.** Er lautete *„umbenennen, verschieben, löschen: dafür gibt es den Finder. Die App
+  soll finden, nicht verwalten."* Er wurde an einem Tag **dreimal** gedehnt — Verschieben
+  (PR-63), Kopieren (PR-64), die Warnung vor beidem (PR-65) —, und beim dritten Mal sollte er
+  laut seinem eigenen Zusatz gestrichen werden. *Er wird gestrichen.* Der Eigentümer hat die
+  Richtung ausdrücklich benannt: **„Wir wollen das Tool ein Stück Richtung Verwalten
+  entwickeln."**
 
-  **⚠️ Diese Grenze hat sich am 2026-08-16 um genau eine Handlung verschoben — Verschieben
-  innerhalb der Liste (PR-63).** Der Satz stand hier seit Anbeginn und war richtig, bis die App
-  etwas konnte, was der Finder nicht kann: dasselbe Dokument an fünf Stellen über zwei Jahre
-  zeigen. *Sie erzeugt damit ein Problembewusstsein und schickte den Anwender zum Aufräumen
-  weg.* Gemeldet wurde nicht die fehlende Funktion, sondern ihre Folge: *„Ich mag nicht mit so
-  vielen Fenstern parallel arbeiten. Aktiviert man eines, verschwindet manchmal das andere."*
+  **Was die App verwaltet:** Dateien verschieben und kopieren — in der Liste und in den Finder
+  hinaus —, mit Konfliktdialog, Papierkorb statt Löschen und ⌘Z.
 
-  **⚠️ Am selben Tag ein zweites Mal verschoben (PR-64): Kopieren mit ⌥ kam dazu** – weil der
-  Anhänger am Mauszeiger ohne die zweite Operation nichts zu zeigen hätte. Der Satz „nur diese
-  eine noch" ist damit zweimal gefallen; beim dritten Mal ist dieser Eintrag zu streichen und
-  durch eine ehrliche Aufzählung dessen zu ersetzen, was die App **kann**.
+  **Was sie heute nicht tut:** umbenennen, Ordner anlegen. *Vorgesehen:* Dateien und leere
+  Ordner in den Papierkorb.
 
-  **Verschoben sind zwei Handlungen, nicht die Kategorie.** Umbenennen und Ordner anlegen
-  bleiben draußen; Papierkorb ist als Folgeschritt vorgesehen. *Wer die nächste Handlung
-  hinzufügen will, muss diesen Absatz erweitern — und wenn er dabei merkt, dass er zum vierten
-  Mal schreibt „nur diese eine noch", ist die Grenze in Wahrheit gefallen und der Eintrag
-  gehört gestrichen statt gedehnt.*
+  **⚠️ Die Leitlinie, an der die nächsten Entscheidungen hängen — Wortlaut des Eigentümers:
+  „Die Sorgfaltspflicht liegt beim Nutzer, nicht beim Tool."** Daraus folgt die Bauform, die
+  PR-65 zum ersten Mal umsetzt: **Die App sagt, was gleich geschieht, und tut es dann.** Sie
+  blockiert nicht, sie repariert nicht hinterher, und sie entscheidet nicht stellvertretend.
+  Wer eine Funktion vorschlägt, die den Anwender *hindert*, hat gegen diesen Satz zu
+  argumentieren.
+
+  *Was diese Dehnung ausgelöst hat, bleibt hier stehen, weil es die Richtung erklärt: Die App
+  zeigt dasselbe Dokument an fünf Stellen über zwei Jahre — eine Ansicht, die der Finder nicht
+  herstellen kann. Sie erzeugt das Problembewusstsein und schickte zum Aufräumen weg.*
 
 ---
 

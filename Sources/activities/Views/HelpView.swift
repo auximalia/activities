@@ -135,6 +135,14 @@ struct HelpView: View {
                     "Ziehen in ein **Finder-Fenster** kopiert stattdessen – dort entscheidet der Finder.",
                 ])
 
+                section("Versionsverwaltung", icon: "arrow.triangle.branch", [
+                    "Steht eine Datei oder ein Ordner unter git oder svn, trägt das Symbol einen kleinen Anhänger.",
+                    "**Verzweigung = git, Schichtung = svn.** Überfahren nennt die Arbeitskopie im Klartext.",
+                    "Gezeigt wird **versioniert**, nicht „liegt in einem Repo“ – Bauwerk wie `.build` bleibt unmarkiert.",
+                    "Beim Verschieben versionierter Dateien fragt die App **immer** zurück, auch bei einer einzelnen, und nennt den Befehl, der dabei nicht ausgeführt wird (`git mv`, `svn mv`).",
+                    "Die App führt die Verschiebung trotzdem aus – sie warnt, sie hindert nicht.",
+                ])
+
                 section("Dateitypen", icon: "doc.badge.gearshape", [
                     "Einstellungen → Dateitypen (\(Shortcuts.settings.display)): je Endung Anzahl, Standardprogramm und zwei Häkchen.",
                     "Aufgeführt sind **alle** Endungen des eingelesenen Bestands – die Tabelle scrollt, das Suchfeld darüber findet schneller.",

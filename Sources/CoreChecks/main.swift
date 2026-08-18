@@ -2994,6 +2994,94 @@ do {
                 "Zug: der Knopf heisst wie die Handlung")
 }
 
+// MARK: - RepoDetection: liegt die Datei unter Versionsverwaltung? (v1.19.79)
+do {
+    let wurzel = URL(fileURLWithPath: "/a/projekt", isDirectory: true)
+    let tief = URL(fileURLWithPath: "/a/projekt/src/kern/tief", isDirectory: true)
+
+    // Eine erfundene Platte: nur diese Ordner tragen eine Marke.
+    func platte(_ marken: [String: RepoKind]) -> (URL) -> RepoKind? {
+        { url in marken[url.path] }
+    }
+
+    // ── Der Aufstieg. ──
+    let git = RepoDetection.find(from: tief, marker: platte(["/a/projekt": .git]))
+    expectEqual(git?.kind, .git, "Repo: der Aufstieg findet die Wurzel")
+    expectEqual(git?.root.path, wurzel.path, "Repo: und meldet sie als Wurzel")
+
+    expect(RepoDetection.find(from: tief, marker: platte([:])) == nil,
+           "Repo: ohne Fund kein Treffer")
+
+    // ⚠️ Der Aufstieg terminiert auch, wenn NICHTS gefunden wird - sonst haenge
+    // die App an dieser Stelle, und zwar auf dem Hauptstrang.
+    expect(RepoDetection.find(from: URL(fileURLWithPath: "/"), marker: platte([:])) == nil,
+           "Repo: der Aufstieg endet an der Wurzel des Dateisystems")
+
+    // ⚠️ Der NAECHSTLIEGENDE Fund gewinnt. Ein Submodul in einem Repo und ein
+    // git-Repo in einer svn-Arbeitskopie kommen beide vor; wer den obersten
+    // Fund naehme, benennte die falsche Verwaltung - und damit den falschen
+    // Befehl im Warnsatz.
+    let verschachtelt = RepoDetection.find(
+        from: tief,
+        marker: platte(["/a/projekt": .svn, "/a/projekt/src": .git])
+    )
+    expectEqual(verschachtelt?.kind, .git, "Repo: der naechste Fund gewinnt")
+    expectEqual(verschachtelt?.root.path, "/a/projekt/src", "Repo: und nicht der oberste")
+
+    // Der Ordner selbst traegt die Marke.
+    expectEqual(RepoDetection.find(from: wurzel, marker: platte(["/a/projekt": .svn]))?.kind, .svn,
+                "Repo: der Ordner selbst zaehlt mit")
+
+    // ── Die Beschriftung. ──
+    let marke = RepoMark(kind: .svn, root: wurzel)
+    expect(marke.label.contains("svn"), "Repo: die Beschriftung nennt das System")
+    expect(marke.label.contains("projekt"), "Repo: und die Arbeitskopie")
+
+    // ⚠️ svn ist der zerbrechlichere Fall: Seit 1.7 liegt EIN `.svn` an der
+    // Wurzel, ein Verschieben ohne `svn mv` hinterlaesst „missing" plus
+    // „unversioned". Bei git ist es vollstaendig heilbar.
+    expect(RepoKind.svn.isFragile, "Repo: svn ist der zerbrechlichere Fall")
+    expect(!RepoKind.git.isFragile, "Repo: git nicht")
+    for art in RepoKind.allCases {
+        expect(art.moveCommand.contains(art.rawValue), "Repo: der Befehl nennt das System (\(art))")
+    }
+
+    // ── Der Satz im Verschieben-Dialog. ──
+    //
+    // ⚠️ KEIN Satz, wenn nichts versioniert ist. Einer, der immer dasteht, wird
+    // nicht gelesen - und dann auch nicht, wenn er einmal zutrifft.
+    expect(RepoDetection.moveWarning(versioned: [:], total: 5) == nil,
+           "Satz: ohne versionierte Dateien kein Hinweis")
+    expect(RepoDetection.moveWarning(versioned: [.git: 0], total: 5) == nil,
+           "Satz: eine Null ist kein Vorkommen")
+    expect(RepoDetection.moveWarning(versioned: [.git: 1], total: 0) == nil,
+           "Satz: ohne Dateien kein Hinweis")
+
+    // ⚠️ Auch bei EINER Datei - ausdrueckliche Festlegung des Eigentuemers.
+    // Die Warnung gerade dort zu verschweigen, wo man sie liest, waere die
+    // falsche Sparsamkeit.
+    let eine = RepoDetection.moveWarning(versioned: [.svn: 1], total: 1)
+    expect(eine != nil, "Satz: auch bei einer einzelnen Datei")
+    expect(eine!.contains("svn mv"), "Satz: und er nennt den fehlenden Befehl")
+    expect(eine!.contains("Die Datei ist"), "Satz: in der Einzahl (\(eine!))")
+
+    let alle = RepoDetection.moveWarning(versioned: [.git: 4], total: 4)!
+    expect(alle.contains("Alle 4"), "Satz: alle betroffen wird als solches gesagt")
+    expect(alle.contains("git mv"), "Satz: mit dem git-Befehl")
+
+    let teil = RepoDetection.moveWarning(versioned: [.svn: 9], total: 12)!
+    expect(teil.contains("9 der 12"), "Satz: sonst der Anteil (\(teil))")
+
+    // ⚠️ Bei zwei Systemen zuerst das zerbrechlichere - sonst haengt die
+    // Reihenfolge an der Laune des Dictionaries und wechselt von Fall zu Fall.
+    let gemischt = RepoDetection.moveWarning(versioned: [.git: 2, .svn: 3], total: 5)!
+    let svnPos = gemischt.range(of: "svn")!.lowerBound
+    let gitPos = gemischt.range(of: "git")!.lowerBound
+    expect(svnPos < gitPos, "Satz: svn zuerst, weil zerbrechlicher (\(gemischt))")
+    expect(gemischt.contains("5 der 5") || gemischt.contains("Alle 5"),
+           "Satz: gezaehlt wird ueber beide Systeme")
+}
+
 print("Pruefungen: \(checks), Fehlschlaege: \(failures)")
 if failures > 0 {
     exit(1)

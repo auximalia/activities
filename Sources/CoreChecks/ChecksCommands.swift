@@ -416,10 +416,14 @@ func checkFilescannerTemporaeresVerzeichnis() {
     makeFile("data/gut.txt")
     makeFile("data/.DS_Store")
     makeFile("data/.versteckt")
+    makeFile("data/.env")
+    makeFile("data/._Bericht.xlsx")
+    makeFile("data/.localized")
     makeFile("data/~$offen.docx")
     makeFile("code/main.py")
     makeFile("code/node_modules/lib.js")
     makeFile("code/.git/config")
+    makeFile("code/.env")
     makeFile("uni/Studium Noten.xlsx")
     makeFile("uni/Urlaub.xlsx")
     makeFile("alt/veraltet.txt", modified: Date().addingTimeInterval(-60 * 60 * 24 * 40))
@@ -429,12 +433,43 @@ func checkFilescannerTemporaeresVerzeichnis() {
     let allNames = names(all)
     expect(allNames.contains("gut.txt"), "findet regulaere Datei")
     expect(allNames.contains("main.py"), "findet Datei in code")
+
+    // ── ⚠️ Versteckte Dateien werden GELESEN (v2.0.17). ──
+    //
+    // Gemeldet: „Ich habe nach .env-Dateien gesucht, um zu sehen, ob die
+    // Credentials noch stimmen - keine Chance." Das war kein Filter-Problem:
+    // Der Scanner lief mit `.skipsHiddenFiles`, und ein Muster kann nichts
+    // finden, was nie eingelesen wurde. DIESE Zusicherung stand vorher
+    // umgekehrt da - sie hielt die alte Regel fest, und das war ihr Zweck.
+    expect(allNames.contains(".versteckt"), "versteckte Datei wird gelesen")
+    // ⚠️ Auf `all` gezaehlt, nicht auf `allNames`: Letzteres ist eine MENGE und
+    // haette die zweite `.env` verschluckt - die Zusicherung haette bestanden,
+    // ohne die Frage zu beantworten.
+    expectEqual(all.filter { $0.url.lastPathComponent == ".env" }.count, 2,
+                "versteckte Dateien in mehreren Ordnern, jede einzeln")
+
+    // ⚠️ Der Rauschanteil traegt sich selbst - sonst waere das Lesen ein
+    // Rueckschritt. Gemessen im Bestand des Anwenders: 167 von 223 versteckten
+    // Dateien sind `.DS_Store`.
     expect(!allNames.contains(".DS_Store"), "Junk .DS_Store ausgeschlossen")
-    expect(!allNames.contains(".versteckt"), "versteckte Datei ausgeschlossen")
+    // ⚠️ `._name` ist die AppleDouble-Haelfte einer Datei auf Fremddateisystemen.
+    // Sie traegt den Zeitstempel ihrer Partnerdatei und stuende als ZWEITE
+    // Zeile daneben - eine Datei, die es zweimal zu geben scheint.
+    expect(!allNames.contains("._Bericht.xlsx"), "AppleDouble-Haelfte ausgeschlossen")
+    expect(!allNames.contains(".localized"), "leere Finder-Marke ausgeschlossen")
     expect(!allNames.contains("~$offen.docx"), "Office-Sperrdatei ausgeschlossen")
     expect(!allNames.contains("lib.js"), "node_modules geprunt")
-    expect(!allNames.contains("config"), ".git geprunt")
+    // ⚠️ `.git` wird weiterhin BESCHNITTEN, nicht etwa mitgelesen: Die
+    // Ordnerregel greift vor dem Betreten (`skipDescendants`), unabhaengig
+    // davon, ob der Ordner versteckt ist. Ohne das liefe der Suchlauf jetzt in
+    // jede Repo-Innerei.
+    expect(!allNames.contains("config"), ".git geprunt, auch ohne skipsHiddenFiles")
     expect(!allNames.contains("veraltet.txt"), "alte Datei ausserhalb Zeitraum")
+
+    // Und die Suche, die der Anwender versucht hat, findet jetzt beide.
+    let env = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart,
+                                                  end: .distantFuture, namePattern: ".env")).files
+    expectEqual(env.count, 2, "die gemeldete Suche nach .env findet sie")
 
     let filtered = scanner.scan(settings: ScanSettings(rootURL: root, start: scanStart, end: .distantFuture, namePattern: "*Studium*.xls*")).files
     expectEqual(names(filtered), ["Studium Noten.xlsx"], "Namensfilter im Scan")

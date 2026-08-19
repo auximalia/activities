@@ -96,7 +96,27 @@ public struct FileScanner: Sendable {
         guard let enumerator = fileManager.enumerator(
             at: settings.rootURL,
             includingPropertiesForKeys: Array(keys),
-            options: [.skipsHiddenFiles],
+            // **⚠️ Versteckte Dateien werden GELESEN (v2.0.17).** Bis dahin stand
+            // hier `.skipsHiddenFiles`, und gemeldet wurde: *„Ich habe nach
+            // .env-Dateien gesucht, um zu sehen, ob die Credentials noch
+            // stimmen – keine Chance."* Das war kein Filter-Problem: Ein Muster
+            // kann nichts finden, was nie eingelesen wurde. `.env` ist als
+            // Suchmuster seit jeher gueltig; es fehlte allein der Bestand.
+            //
+            // ⚠️ Der Rauschanteil traegt sich selbst: `.DS_Store` steht laengst
+            // in ``ExclusionRules/filePatterns`` (gemessen 167 von 223
+            // versteckten Dateien), `.git`, `.svn`, `.venv` und `.build` in
+            // ``ExclusionRules/unambiguousBuildFolders`` – und die werden hier
+            // mit `skipDescendants()` beschnitten, BEVOR hineingelaufen wird.
+            // Gemessen am Bestand des Anwenders bleiben **51 Dateien auf rund
+            // 20.000** uebrig, darunter die 14 gesuchten `.env`.
+            //
+            // ⚠️ Schluesselspeicher wie `.ssh` oder `.aws` sind ausdruecklich
+            // NICHT ausgeschlossen – Festlegung des Eigentuemers gegen meinen
+            // Vorschlag. Sein Argument ist das bessere und steht als Leitlinie
+            // im Backlog: **„Die Sorgfaltspflicht liegt beim Nutzer, nicht beim
+            // Tool."** Gelesen werden ohnehin nur Name, Datum und Groesse.
+            options: [],
             errorHandler: { url, error in
                 Self.logSkipped(url, error)
                 return true
@@ -225,7 +245,11 @@ public struct FileScanner: Sendable {
         guard let contents = try? fileManager.contentsOfDirectory(
             at: folder,
             includingPropertiesForKeys: Array(keys),
-            options: [.skipsHiddenFiles]
+            // ⚠️ Wie im Hauptlauf: versteckte Dateien werden gelesen (v2.0.17).
+            // **Beide Stellen muessen dasselbe tun.** Stuende hier weiterhin
+            // `.skipsHiddenFiles`, faende die Suche eine `.env` im Diagramm und
+            // in der Ordnerzeile – und die aufgeklappte Detailliste waere leer.
+            options: []
         ) else {
             return []
         }

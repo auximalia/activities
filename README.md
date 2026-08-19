@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v2.0.16 · 2026-08-19*
+*Stand: v2.0.17 · 2026-08-19*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -33,6 +33,8 @@ bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege
   nicht. Ein Wort genuegt (`studium`); Platzhalter `*` und `?` sind zusaetzlich moeglich.
   Gesucht wird in **Datei- und Ordnernamen**: Trifft ein Ordnername, erscheint der Ordner mit
   allem, was darin im Zeitraum liegt – aufgestiegen wird bis zur Quelle, nicht darueber.
+  **Versteckte Dateien sind dabei** (`.env`, `.gitignore`); ihr Rauschen (`.DS_Store`, `._…`)
+  nicht. Ein Praefix braucht es nicht – `.env` genuegt, `.*` zeigt alle versteckten.
 - **Zeitraum** in drei Modi: **Tage** (7/30/90 oder frei), **Spanne** (von–bis) oder
   **Alle** – letzteres macht das Werkzeug zur reinen Suche ueber den Gesamtbestand.
 - **Gescannt wird sparsam**: bei Programmstart, beim Anhaken einer neuen Quelle, mit ⌘R und

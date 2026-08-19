@@ -50,8 +50,28 @@ public struct ExclusionRules: Sendable, Equatable {
         ".git", ".svn", ".hg",
         "node_modules", "__pycache__", ".venv", "venv",
         ".build", "DerivedData", "Pods", ".gradle", ".next", ".nuxt",
+        // **⚠️ `.build-x86` ist kein Sonderfall dieses Projekts, sondern der
+        // Regelfall von SwiftPM.** `swift build --scratch-path` legt beliebig
+        // benannte Streuordner an; `Packaging/build_app.sh` benutzt genau
+        // diesen für den Intel-Teil des universellen Programms. Gemessen, als
+        // versteckte Ordner erstmals gelesen wurden: **375 der 607 neu
+        // erreichbaren Dateien** kamen allein von hier — der größte Einzelposten
+        // und reines Bauwerk. Er steht in der `.gitignore` dieses Projekts.
+        ".build-x86",
         ".pytest_cache", ".mypy_cache", ".tox", ".parcel-cache", ".turbo",
         "Library", "$RECYCLE.BIN", "System Volume Information",
+        // **⚠️ Ablagen des Betriebssystems, seit v2.0.17 nötig.** Vorher hielt
+        // `.skipsHiddenFiles` sie fern; seit versteckte Dateien gelesen werden,
+        // müssen sie hier stehen. In keiner davon hat je ein Mensch gearbeitet.
+        //
+        // ⚠️ **Schlüsselspeicher wie `.ssh`, `.gnupg` und `.aws` stehen
+        // ausdrücklich NICHT hier** – Festlegung des Eigentümers gegen meinen
+        // Vorschlag. Mein Einwand war der weitergegebene HTML-Bericht; sein
+        // Argument ist das bessere und ist die Leitlinie dieses Programms:
+        // *„Die Sorgfaltspflicht liegt beim Nutzer, nicht beim Tool."* Wer dort
+        // Zugangsdaten pflegt, will auch sehen, wann zuletzt.
+        ".Trash", ".Spotlight-V100", ".fseventsd", ".TemporaryItems",
+        ".DocumentRevisions-V100",
     ]
 
     /// Ordnernamen, die **auch** legitime Projektordner sein können.
@@ -76,7 +96,15 @@ public struct ExclusionRules: Sendable, Equatable {
 
     public static let `default` = ExclusionRules(
         folders: unambiguousBuildFolders,
-        filePatterns: [".DS_Store", "Thumbs.db", "desktop.ini", "~$*"]
+        // **⚠️ `._*` und `.localized` kamen mit v2.0.17 dazu.** Seit versteckte
+        // Dateien gelesen werden, tauchen sie sonst auf: `._name` ist die
+        // AppleDouble-Hälfte einer Datei auf Fremddateisystemen – sie trägt den
+        // Zeitstempel ihrer Partnerdatei und stünde als **zweite** Zeile
+        // daneben. `.localized` ist eine leere Marke des Finders.
+        //
+        // `.DS_Store` stand schon vorher hier und trägt jetzt die Hauptlast:
+        // gemessen **167 von 223** versteckten Dateien im Bestand des Anwenders.
+        filePatterns: [".DS_Store", "Thumbs.db", "desktop.ini", "~$*", "._*", ".localized"]
     )
 
     /// Alle Ordnernamen, die zur Auswahl stehen – die Grundmenge der Liste in

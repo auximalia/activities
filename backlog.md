@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.16 · 2026-08-19*
+*Stand: v2.0.17 · 2026-08-19*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,71 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-69 · Versteckte Dateien werden gelesen – und das Präfix, das es nicht gibt *(v2.0.17)*
+**Aufwand:** S · **Art:** Wunsch aus der Praxis · *„Ich brauche noch ein Präfix, um auch nach versteckten Ordnern und Dateien suchen zu können. Z. B. habe ich nach `.env`-Dateien gesucht, um zu sehen, ob die Credentials noch stimmen – keine Chance."*
+
+## Gefragt war ein Präfix. Es gibt keins, und das ist die Antwort
+
+`.env` war als Suchmuster **immer** gültig (`*.env*`). Der Suchlauf lief mit `.skipsHiddenFiles`
+(`FileScanner.swift:99` und `:228`) – **ein Muster kann nichts finden, was nie eingelesen wurde.**
+Der erste Versuch des Anwenders war richtig; leer war der Bestand, nicht die Syntax.
+
+**⚠️ Beide Stellen mussten fallen, nicht nur die erste.** Der Hauptlauf füllt Diagramm und
+Ordnerzeile, `listDirectoryFiles` die aufgeklappte Detailliste. Wäre nur eine geändert worden,
+fände die Suche eine `.env` – und die aufgeklappte Zeile darunter wäre leer gewesen.
+
+**Und für „alle versteckten auf einmal" gibt es einen Ausdruck, den niemand gebaut hat:** `.*`.
+Sobald ein Platzhalter vorkommt, bindet ``NameFilter`` das Muster an den **ganzen** Namen, ohne
+die sonst automatischen Sterne außen herum – `.*` heißt damit „beginnt mit Punkt" und traf im
+Bestand des Anwenders genau die 41 versteckten Dateien. *Ein Punkt allein ist die Falle:* `.`
+wird zu `*.*` und trifft jede Datei mit Endung. Beides steht jetzt in der Hilfe.
+
+## Der Rauschanteil trägt sich selbst – das war die Vorbedingung
+
+| | Anteil |
+|---|---|
+| versteckte Dateien unter `~/Documents` | 223 |
+| davon `.DS_Store` | **167** – stand längst in `filePatterns` |
+| neu ausgeschlossen: `._*`, `.localized` | 6 |
+
+**⚠️ `._name` ist die AppleDouble-Hälfte** einer Datei auf Fremddateisystemen. Sie trägt den
+Zeitstempel ihrer Partnerdatei und stünde als **zweite** Zeile daneben – eine Datei, die es
+zweimal zu geben scheint. Dazu die Systemablagen `.Trash`, `.Spotlight-V100`, `.fseventsd`,
+`.TemporaryItems`, `.DocumentRevisions-V100`.
+
+**⚠️ Schlüsselspeicher wie `.ssh`, `.gnupg` und `.aws` sind ausdrücklich NICHT ausgeschlossen** –
+Festlegung des Eigentümers gegen meinen Vorschlag. Mein Einwand war der weitergegebene
+HTML-Bericht. *Sein Argument ist das bessere und ist die Leitlinie dieses Programms: „Die
+Sorgfaltspflicht liegt beim Nutzer, nicht beim Tool."* Wer dort Zugangsdaten pflegt, will auch
+sehen, wann zuletzt – und gelesen werden ohnehin nur Name, Datum und Größe.
+
+## Die Schätzung war um den Faktor zwölf daneben
+
+Ich hatte „**+51** Dateien auf 20.000" vorgerechnet — gezählt hatte ich nur versteckte
+**Dateien**. Gemessen wurden **+607**: Der Rest steckte in versteckten **Ordnern**, deren Inhalt
+gar nicht mit einem Punkt anfängt (`.github/workflows/*.yml`, `.vscode/settings.json`).
+
+**Der größte Einzelposten waren 375 Dateien aus `.build-x86`** – dem Streuordner, den
+`Packaging/build_app.sh` für den Intel-Teil des universellen Programms anlegt. Reines Bauwerk,
+in der `.gitignore` dieses Projekts, und `.build` stand längst auf der Liste. Er ist jetzt
+dabei; das ist dieselbe Kategorie wie `node_modules`, kein neuer Beschluss.
+
+| | vorher | nachher |
+|---|---|---|
+| Dateien unter `~/Documents` | 14.934 | **15.166** (+232, +1,6 %) |
+| Suchlauf | 539–546 ms | 545–571 ms – im Rauschen |
+| Suche `.env` | **0** | **19** |
+
+## Ein Nebeneffekt behebt eine Fehlbehauptung
+
+Das Auge in der Kopfzone verspricht, Ausgeblendetes vorübergehend zu zeigen – und ließ
+ausgerechnet die Punkt-Ordner aus, weil `.skipsHiddenFiles` **vor** jeder Ausschlussregel griff.
+Eine Zusicherung hielt genau das fest, mitsamt Begründung. *Sie stand also da und beschrieb
+einen stillen Zustand in dem Bedienelement, das gegen stille Zustände gebaut wurde.* Sie ist
+jetzt umgekehrt: Das Auge hält sein Versprechen.
+
+**Zusicherungen:** 1888 → **1892**.
 
 ### ✅ PR-68 · Die Suche kennt jetzt auch Ordnernamen *(v2.0.16)*
 **Aufwand:** M · **Art:** Wunsch aus der Praxis · *„Ich möchte zusätzlich auch nach Ordnernamen suchen können – und dann, wie gehabt, Ordner und Dateien in der Zeitspanne finden."* · *„Manchmal fällt mir nur der Ordnername ein."*

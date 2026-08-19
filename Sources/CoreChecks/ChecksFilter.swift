@@ -611,11 +611,16 @@ func checkSignalStattRauschenPr01Pr02Pr04() {
     ).scan(settings: settings)
     let enthuelltNamen = Set(enthuellt.files.map { $0.url.lastPathComponent })
     expect(enthuelltNamen.contains("index.js"), "Enthuellen: node_modules wird wieder gezeigt")
-    // Punkt-Ordner wie `.build` bleiben aus: Sie werden bereits durch
-    // `skipsHiddenFiles` uebersprungen, bevor eine Ausschlussregel greift –
-    // und zaehlen deshalb auch nicht als „ausgeblendet".
-    expect(!enthuelltNamen.contains("zwischenstand.o"),
-           "Enthuellen: versteckte Punkt-Ordner bleiben aus (eigene Regel)")
+    // **⚠️ Diese Zusicherung stand bis v2.0.17 umgekehrt da, und die Umkehrung
+    // ist eine Fehlerbehebung.** Der Kommentar lautete: *„Punkt-Ordner wie
+    // `.build` bleiben aus: Sie werden bereits durch `skipsHiddenFiles`
+    // uebersprungen, bevor eine Ausschlussregel greift."* Das Auge versprach
+    // also, Ausgeblendetes zu zeigen — und liess ausgerechnet die Punkt-Ordner
+    // aus, ohne es zu sagen. Ein stiller Zustand im Bedienelement gegen stille
+    // Zustaende. Seit versteckte Dateien gelesen werden, zeigt das Auge
+    // wirklich, was es verspricht.
+    expect(enthuelltNamen.contains("zwischenstand.o"),
+           "Enthuellen: jetzt auch Punkt-Ordner - das Auge haelt sein Versprechen")
     expect(!enthuelltNamen.contains("CodeResources"),
            "Enthuellen: Buendel bleiben Einheit – das ist keine Ausblendung, sondern richtige Wertung")
     expectEqual(enthuellt.skippedFolders, 0, "Enthuellen: nichts mehr uebersprungen")

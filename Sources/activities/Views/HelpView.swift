@@ -40,6 +40,8 @@ struct HelpView: View {
                 section("Nach Namen filtern", icon: "line.3.horizontal.decrease.circle", [
                     "Einfach einen Teil des Namens eingeben, z. B. studium.",
                     "**Gesucht wird in Datei- und Ordnernamen.** Trifft ein Ordnername, erscheint der Ordner mit **allem**, was darin im Zeitraum liegt – auch tiefer geschachtelt. Für den Fall, dass einem nur der Ordner einfällt.",
+                    "**Versteckte Dateien sind dabei**: `.env`, `.gitignore` und Ähnliches werden gelesen und gefunden – einfach `.env` eingeben. Ein Präfix braucht es nicht.",
+                    "**Alle** versteckten auf einmal: `.*` – der Platzhalter bindet das Muster an den ganzen Namen, also „beginnt mit Punkt“. Ein Punkt **allein** wird dagegen zu `*.*` und trifft fast alles.",
                     "Gesucht wird bis zur Quelle hinauf, nicht darüber: Der Name der Quelle zählt noch mit, die Ordner oberhalb nicht.",
                     "**Enter** startet die Suche – beim Tippen rechnet das Programm nicht. Bis dahin steht unter dem Diagramm, dass noch nichts gesucht wurde.",
                     "Feld leeren hebt den Filter sofort auf, ohne Enter.",
@@ -185,6 +187,8 @@ struct HelpView: View {
 
                 section("Rauschfilter", icon: "eye.slash", [
                     "Erzeugnisse von Werkzeugen (node_modules, .build …) werden übersprungen.",
+                    "**Versteckte Dateien werden gelesen** – aber ihr Rauschen nicht: `.DS_Store`, `._…` und `.localized` fallen weg, Systemablagen wie `.Trash` ebenso.",
+                    "Schlüsselspeicher wie `.ssh` oder `.aws` sind **nicht** ausgenommen – gelesen werden ohnehin nur Name, Datum und Größe.",
                     "App-Bündel zählen als eine Datei, nicht als Ordner voller Dateien.",
                     "Kontextmenü: Ordner anheften oder dauerhaft ausblenden.",
                     "Was übersprungen wurde, steht über der Liste; das Auge davor zeigt es vorübergehend an.",
@@ -202,7 +206,7 @@ struct HelpView: View {
                 // seinen Dateien tut, sucht eine Ueberschrift – keinen
                 // Halbsatz zwischen Bedienhinweisen.
                 section("Was gelesen wird", icon: "lock.shield", [
-                    "activities liest den gesamten Ordnerbaum unter dem gewählten Ordner.",
+                    "activities liest den gesamten Ordnerbaum unter dem gewählten Ordner – **versteckte Dateien und Ordner eingeschlossen**.",
                     "Gelesen werden nur Name, Datum und Größe – nie der Inhalt einer Datei.",
                     "Nichts verlässt das Gerät: keine Server, keine Konten, keine Telemetrie.",
                     "Nichts wird verändert, verschoben oder gelöscht – die App liest nur.",

@@ -932,6 +932,95 @@ func checkRepoToolingWoGitUndSvnWirklichLiegenV2015() {
     }
 }
 
+// MARK: - FolderNameMatch: manchmal faellt einem nur der Ordnername ein (v2.0.16)
+func checkFolderNameMatchManchmalFaelltEinemNurDerOrdnernameEinV2016() {
+    let quelle = URL(fileURLWithPath: "/Users/m/Documents/lerngruppe", isDirectory: true)
+    let tief = URL(fileURLWithPath: "/Users/m/Documents/lerngruppe/AsciiDoc/kapitel", isDirectory: true)
+
+    func trifft(_ ordner: URL, _ muster: String, quellen: [URL] = [quelle]) -> Bool {
+        FolderNameMatch.matches(folder: ordner, sources: quellen, filter: NameFilter(muster))
+    }
+
+    // ── Der gemeldete Fall. ──
+    expect(trifft(quelle, "lerngruppe"), "Ordnersuche: der Ordner selbst")
+    expect(trifft(tief, "lerngruppe"),
+           "Ordnersuche: und alles darunter - sonst faende man den Ordner, nicht den Inhalt")
+    expect(trifft(tief, "asciidoc"), "Ordnersuche: ein Zwischenordner zaehlt auch")
+    expect(trifft(tief, "kapitel"), "Ordnersuche: der unterste zaehlt auch")
+
+    // ⚠️ DIE GRENZE. Ohne sie stuende in jedem Pfad „Users" und „Documents",
+    // und die Suche danach traefe ALLES - eine Antwort, die wie ein Ergebnis
+    // aussieht. Genau der Fehlertyp aus PR-67, nur an anderer Stelle.
+    expect(!trifft(tief, "Documents"),
+           "Ordnersuche: oberhalb der Quelle wird nicht mehr gesucht")
+    expect(!trifft(tief, "Users"), "Ordnersuche: erst recht nicht der Benutzername")
+    // ⚠️ Die Quelle selbst zaehlt aber NOCH mit - wer sie eingetragen hat,
+    // meint sie. Die Grenze wird nach der Pruefung gezogen, nicht davor.
+    expect(trifft(quelle, "lerngruppe", quellen: [quelle]),
+           "Ordnersuche: die Quelle ist die Grenze, nicht das erste Ausgeschlossene")
+
+    // Mehrere Quellen: jede ist fuer ihren eigenen Ast die Grenze.
+    let zweite = URL(fileURLWithPath: "/Volumes/Archiv/2026", isDirectory: true)
+    expect(trifft(URL(fileURLWithPath: "/Volumes/Archiv/2026/q1", isDirectory: true), "2026",
+                  quellen: [quelle, zweite]),
+           "Ordnersuche: mehrere Quellen, jede fuer ihren Ast")
+    expect(!trifft(URL(fileURLWithPath: "/Volumes/Archiv/2026/q1", isDirectory: true), "Volumes",
+                   quellen: [quelle, zweite]),
+           "Ordnersuche: und oberhalb jeder von ihnen ist Schluss")
+
+    // ⚠️ Ohne Quellen terminiert der Aufstieg trotzdem - am Fixpunkt, nicht an
+    // „/" als Zeichenkette. Sonst haenge die App hier, auf dem Hauptstrang.
+    expect(trifft(tief, "lerngruppe", quellen: []),
+           "Ordnersuche: ohne Quellen laeuft der Aufstieg durch, ohne zu haengen")
+    expect(!trifft(URL(fileURLWithPath: "/"), "irgendwas", quellen: []),
+           "Ordnersuche: und endet an der Wurzel des Dateisystems")
+
+    // ── Kein Filter heisst KEIN Ordnertreffer. ──
+    //
+    // ⚠️ Das ist nicht dasselbe wie „alles trifft": Ein leeres Muster passt
+    // zwar auf jede Datei, aber ``foldersMatchingName`` ist dann leer - sonst
+    // stuende in der Menge der gesamte Bestand, und sie waere sinnlos gross.
+    expect(!trifft(tief, ""), "Ordnersuche: ohne Muster kein Ordnertreffer")
+    expect(!trifft(tief, "   "), "Ordnersuche: Leerraum ist kein Muster")
+
+    // Die Schreibweisen des Namensfilters gelten hier genauso.
+    expect(trifft(tief, "LERNGRUPPE"), "Ordnersuche: Gross- und Kleinschreibung egal")
+    // ⚠️ Das UND wirkt INNERHALB eines Ordnernamens, nicht ueber die Kette
+    // hinweg: `lern gruppe` sucht beide Teile im selben Namen - und findet
+    // „lerngruppe". Nuetzlich genau dort, wo Trenner im Spiel sind.
+    expect(trifft(tief, "lern gruppe"),
+           "Ordnersuche: UND sucht beide Teile im selben Ordnernamen")
+    expect(!trifft(tief, "lerngruppe unsinn"),
+           "Ordnersuche: und beide muessen wirklich drinstehen")
+    expect(trifft(tief, "lerngruppe ODER unsinn"), "Ordnersuche: ODER gilt auch hier")
+
+    // ── Die Menge, die ``FileVisibility`` hereingereicht bekommt. ──
+    let alle = [quelle, tief, URL(fileURLWithPath: "/Volumes/Archiv/2026", isDirectory: true)]
+    let treffer = FolderNameMatch.matchingFolders(among: alle, sources: [quelle],
+                                                  filter: NameFilter("lerngruppe"))
+    expectEqual(treffer.count, 2, "Ordnersuche: beide Ordner des Astes, der dritte nicht")
+    expect(treffer.contains(quelle) && treffer.contains(tief), "Ordnersuche: und zwar die richtigen")
+    expect(FolderNameMatch.matchingFolders(among: alle, sources: [quelle],
+                                           filter: NameFilter("")).isEmpty,
+           "Ordnersuche: ohne Muster eine leere Menge")
+
+    // ── Und die Wirkung in der einen Sichtbarkeitsentscheidung. ──
+    let datei = RelevantFile(url: quelle.appendingPathComponent("Telekom-MMS.docx"),
+                             folder: quelle, timestamp: Date(), size: 10)
+    let ohne = FileVisibility(nameFilter: NameFilter("lerngruppe"))
+    expect(!ohne.passesName(datei),
+           "Sicht: ohne die hereingereichte Menge traegt der Dateiname allein nicht")
+    let mit = FileVisibility(nameFilter: NameFilter("lerngruppe"), foldersMatchingName: [quelle])
+    expect(mit.passesName(datei),
+           "Sicht: mit ihr gilt die ganze Datei als gemeint, obwohl ihr Name nicht passt")
+    // ⚠️ Echte Obermenge: Wer den Dateinamen trifft, kommt weiterhin durch -
+    // das ist das Argument, mit dem dies dasselbe Suchfeld sein darf.
+    let nachName = RelevantFile(url: quelle.appendingPathComponent("lerngruppe-notiz.md"),
+                                folder: URL(fileURLWithPath: "/woanders"), timestamp: Date(), size: 10)
+    expect(FileVisibility(nameFilter: NameFilter("lerngruppe")).passesName(nachName),
+           "Sicht: der Dateiname trifft weiterhin ohne jeden Ordnertreffer")
+}
+
 // MARK: - Notice: die Form ist eine Regel, keine Gewohnheit (v2.0.10)
 func checkNotice() {
     // ⚠️ Die Form folgt der Frage „was kann der Anwender jetzt noch tun?",

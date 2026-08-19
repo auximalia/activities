@@ -61,6 +61,17 @@ public struct FileVisibility: Sendable, Equatable {
     /// Der Namensfilter aus dem Suchfeld.
     public let nameFilter: NameFilter
 
+    /// Ordner, deren **Name** der Filter selbst trägt – ihr ganzer Inhalt gilt
+    /// damit als gemeint.
+    ///
+    /// **⚠️ Wird hereingereicht und nicht selbst bestimmt** – wie
+    /// ``topExtensions``, und aus demselben Grund: Die Rechnung
+    /// (``FolderNameMatch/matchingFolders(among:sources:filter:)``) hängt nur
+    /// vom Ordner ab, nicht von der Datei. Sie hier je Datei zu wiederholen
+    /// hieße, denselben Aufstieg zwanzigtausendmal zu laufen, in einer
+    /// Schleife, die bei jeder Neuzeichnung startet.
+    public let foldersMatchingName: Set<URL>
+
     /// Beginn des Zeitfensters (einschließlich).
     public let windowStart: Date
     /// Ende des Zeitfensters (ausschließlich).
@@ -74,6 +85,7 @@ public struct FileVisibility: Sendable, Equatable {
         showsOnlyWorkFiles: Bool = false,
         typeRules: FileTypeRules = .empty,
         nameFilter: NameFilter = NameFilter(""),
+        foldersMatchingName: Set<URL> = [],
         windowStart: Date = .distantPast,
         windowEnd: Date = .distantFuture,
         showsOutOfWindow: Bool = true
@@ -83,6 +95,7 @@ public struct FileVisibility: Sendable, Equatable {
         self.showsOnlyWorkFiles = showsOnlyWorkFiles
         self.typeRules = typeRules
         self.nameFilter = nameFilter
+        self.foldersMatchingName = foldersMatchingName
         self.windowStart = windowStart
         self.windowEnd = windowEnd
         self.showsOutOfWindow = showsOutOfWindow
@@ -103,14 +116,25 @@ public struct FileVisibility: Sendable, Equatable {
         return true
     }
 
-    /// Namens-Ebene.
-    public func passesName(_ url: URL) -> Bool {
-        nameFilter.matches(url.lastPathComponent)
+    /// Namens-Ebene: **Dateiname oder Ordnername**.
+    ///
+    /// **⚠️ Der Ordner zählt mit, und deshalb bekommt diese Methode die ganze
+    /// ``RelevantFile``.** Gemeldet aus der Praxis: *„Manchmal fällt mir nur der
+    /// Ordnername ein."* Trägt der Name eines Ordners den Filter, gelten alle
+    /// seine Dateien als gemeint – ``FolderNameMatch`` hat den Aufstieg bis zur
+    /// Quelle bereits gelaufen, hier steht nur noch das Nachschlagen.
+    ///
+    /// **⚠️ Der Dateiname wird zuerst geprüft.** Er ist der häufigere Treffer
+    /// und kostet einen Vergleich; das Nachschlagen im Mengenwert ist zwar
+    /// billig, aber nicht billiger.
+    public func passesName(_ file: RelevantFile) -> Bool {
+        nameFilter.matches(file.url.lastPathComponent)
+            || foldersMatchingName.contains(file.folder)
     }
 
     /// Typ **und** Name – die Ebene der Ordnerliste und des Baums.
     public func passesTypeAndName(_ file: RelevantFile) -> Bool {
-        passesType(file.url) && passesName(file.url)
+        passesType(file.url) && passesName(file)
     }
 
     /// Ob die Datei im gewählten Zeitfenster liegt.
@@ -123,7 +147,7 @@ public struct FileVisibility: Sendable, Equatable {
 
     /// Alle drei Ebenen – die Ebene der Detailliste.
     public func isVisible(_ file: RelevantFile) -> Bool {
-        guard passesType(file.url), passesName(file.url) else { return false }
+        guard passesType(file.url), passesName(file) else { return false }
         return showsOutOfWindow || isInWindow(file)
     }
 

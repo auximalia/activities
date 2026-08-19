@@ -94,6 +94,7 @@ checkMoveplanDerPlanBevorDiePlatteAngefasstWirdV11977()
 checkRepodetectionLiegtDieDateiUnterVersionsverwaltungV11979()
 checkRepoRemoteAusDerFernadresseEineSeiteImBrowserV2014()
 checkRepoToolingWoGitUndSvnWirklichLiegenV2015()
+checkFolderNameMatchManchmalFaelltEinemNurDerOrdnernameEinV2016()
 
 checkNotice()
 

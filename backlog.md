@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.15 · 2026-08-18*
+*Stand: v2.0.16 · 2026-08-19*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,78 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-68 · Die Suche kennt jetzt auch Ordnernamen *(v2.0.16)*
+**Aufwand:** M · **Art:** Wunsch aus der Praxis · *„Ich möchte zusätzlich auch nach Ordnernamen suchen können – und dann, wie gehabt, Ordner und Dateien in der Zeitspanne finden."* · *„Manchmal fällt mir nur der Ordnername ein."*
+
+## Ein Feld, nicht zwei – und das ist die eigentliche Entscheidung
+
+Der Filter prüft jetzt Datei- **und** Ordnernamen. Trifft ein Ordnername, gelten alle seine
+Dateien als gemeint; der Ordner erscheint mit seinem Inhalt im gewählten Zeitraum.
+
+**⚠️ Es ist eine echte Obermenge, und nur deshalb darf es dasselbe Suchfeld sein.** Wer bisher
+`Angebot` tippte, bekommt weiterhin alle Dateien mit „Angebot" im Namen – und zusätzlich den
+Inhalt eines Ordners „Angebote". *Niemand verliert einen Treffer.* Genau dieses Argument hat in
+Sprint 16 das Leerzeichen von „wörtlich" auf „UND" umgestellt (`NameFilter.swift:17`). Ein
+zweites Suchfeld hätte Kopfzeilenbreite gekostet, ohne mehr zu können; ein Präfix
+`ordner:` fände niemand ohne Hilfe.
+
+`decision-check` lief vorher: **sechs von sechs Zeilen der Geschwisterprobe gleich** – Ort,
+Rücksetzung, Zustandsanzeige, Speicherung, Kürzel, Vorleseprogramm. Es ist dieselbe Sache,
+kein neues Ding.
+
+## ⚠️ Die Grenze ist der gefährlichste Teil
+
+Aufgestiegen wird bis zur **Quelle**, und die Quelle selbst zählt noch mit – wer sie eingetragen
+hat, meint sie. Ohne diese Grenze stünde in jedem Pfad `Users` und `Documents`, und die Suche
+danach träfe **alles**: wieder eine Antwort, die aussieht wie ein Ergebnis. Zugesichert in
+`CoreChecks`, zusammen mit dem Fall „ohne Quellen terminiert der Aufstieg trotzdem".
+
+## Der Kreis, der beinahe entstanden wäre
+
+`filteredFromScan()` filtert schon **vor** allem anderen nach Dateinamen
+(`ReportViewModel.swift:2908`). Ein Ordner, der erst durch seinen **eigenen** Namen sichtbar
+wird, wäre dort bereits herausgefallen – *er stünde nicht in seiner eigenen Grundlage.* Die
+Treffermenge entsteht deshalb aus dem **vollen** Bestand (`scannedFiles`), nicht aus dem
+Ergebnis.
+
+**⚠️ Und die Namensregel steht weiterhin an genau einer Stelle.** Es wäre bequem gewesen,
+`filter.matches(…) || treffer.contains(…)` in `filteredFromScan()` noch einmal hinzuschreiben –
+das ist die PR-46-Falle im Wortlaut: dieselbe Frage an zwei Stellen, fünfhundert Zeilen
+auseinander, und als eine wuchs, wuchs die andere nicht mit. `filteredFromScan()` ruft jetzt
+`visibility.passesName(_:)`; die Zuweisung darüber hat den Puffer bereits verworfen.
+
+## Gemessen an 2.100 echten Ordnern
+
+| Eingabe | Treffer | Zeit |
+|---|---|---|
+| `lerngruppe` | 1.259 Ordner (der ganze Ast) | **35 ms** |
+| `lern gruppe` | dieselben 1.259 – UND wirkt **innerhalb** eines Ordnernamens | 35 ms |
+| `asciidoc` | 1 Ordner | 35 ms |
+
+**⚠️ Die erste Fassung brauchte 187 ms**, und die Ursache war nicht der Aufstieg: Die Grenzmenge
+wurde **je Ordner** neu gebaut, und gelaufen wurde über
+`deletingLastPathComponent().standardizedFileURL`. Auf Teilzeichenketten und mit einmal gebauter
+Grenzmenge sind es 35 ms. *Im Doc-Kommentar stand zwischenzeitlich „1,5 ms" – geraten, nicht
+gemessen, und noch vor dem Einchecken durch die gemessene Zahl ersetzt.*
+
+## Zwei scharfe Kanten, bewusst in Kauf genommen
+
+- **Kurze Begriffe ziehen viel mehr.** `esp` trifft 30 Ordner, darunter `Korrespondenz` – „esp"
+  steckt als Teilzeichenkette darin, und dann kommt der ganze Unterbaum mit. Der Preis der
+  Obermenge.
+- **Der Name der Quelle trifft alles.** Quelle `~/Documents`, Suche `Documents` → alle 2.100
+  Ordner. Regelkonform, weil die Quelle mitzählt, aber überraschend.
+
+## Nebenbei bestätigt
+
+Das Ordnerdatum ist die jüngste Datei, **die den Filter überlebt** (`FolderAggregator.swift:38`) –
+ein Ordner ohne sichtbare Datei im Zeitraum wird gar keine Zeile. Trifft der Ordnername, passieren
+alle Dateien den Filter, und das Datum wird die jüngste überhaupt im Zeitraum. Der Ordner kann
+dadurch in einen anderen Zeitabschnitt rutschen. Kein Nebeneffekt – dass das Datum filterabhängig
+ist, war schon immer so (`FolderRowView.swift:19`).
+
+**Zusicherungen:** 1865 → **1888**.
 
 ### ✅ PR-67 · `/usr/bin/svn` gibt es nicht – und die App hat es als Ergebnis ausgegeben *(v2.0.15)*
 **Aufwand:** S · **Art:** Defekt aus PR-65, sichtbar geworden durch v2.0.14 · *„Oh nein – jetzt tragen scheinbar nur noch die Ordner das git/svn-Symbol, nicht aber die Dateien selbst."*

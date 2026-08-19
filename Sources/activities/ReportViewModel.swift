@@ -1708,12 +1708,26 @@ final class ReportViewModel {
                 showsOnlyWorkFiles: showsOnlyWorkFiles,
                 typeRules: typeRules,
                 nameFilter: NameFilter(namePattern),
+                foldersMatchingName: foldersMatchingName,
                 windowStart: cachedWindowStart,
                 windowEnd: cachedWindowEnd,
                 showsOutOfWindow: showOutOfWindowFiles
             )
         }
     }
+
+    /// Ordner, deren **Name** der Filter selbst trägt (v2.0.16).
+    ///
+    /// **⚠️ Gesetzt in ``filteredFromScan()``, und nur dort.** Der Aufstieg
+    /// braucht den **vollen** Bestand: Ein Ordner, der erst durch seinen eigenen
+    /// Namenstreffer sichtbar wird, stünde in der bereits gefilterten Liste
+    /// nicht mehr drin — er wäre nicht in seiner eigenen Grundlage. Genau
+    /// deshalb ist dies ein gespeicherter Wert und keine berechnete
+    /// Eigenschaft auf ``filesByFolder``.
+    ///
+    /// `didSet { invalidateRows() }` wie jeder andere Filtereingang, damit
+    /// ``visibility`` nicht auf einem alten Stand stehenbleibt.
+    private(set) var foldersMatchingName: Set<URL> = [] { didSet { invalidateRows() } }
 
     /// Sichtbare, **sortierte** Detaildateien je Ordner.
     ///
@@ -2891,10 +2905,22 @@ final class ReportViewModel {
     /// Die Dateien des letzten Suchlaufs, eingegrenzt auf Zeitfenster und Namensmuster.
     private func filteredFromScan() -> [RelevantFile] {
         let w = window
-        let filter = NameFilter(namePattern)
+        // **⚠️ Der Aufstieg läuft je ORDNER, nicht je Datei** – und über den
+        // **vollen** Bestand, nicht über das Ergebnis. Je Datei gerechnet wäre
+        // es derselbe Aufstieg zwanzigtausendmal.
+        foldersMatchingName = FolderNameMatch.matchingFolders(
+            among: Set(scannedFiles.map(\.folder)),
+            sources: activeSources,
+            filter: NameFilter(namePattern)
+        )
+        // **⚠️ Die Namensregel wird NICHT hier zum zweiten Mal geschrieben.**
+        // Genau daran ist PR-46 zweimal gescheitert: dieselbe Frage an zwei
+        // Stellen, fünfhundert Zeilen auseinander – und als eine wuchs, wuchs
+        // die andere nicht mit. ``FileVisibility/passesName(_:)`` ist die eine
+        // Fassung; die Zuweisung darüber hat ``visibility`` bereits verworfen.
+        let sicht = visibility
         return scannedFiles.filter {
-            $0.timestamp >= w.start && $0.timestamp < w.end
-                && filter.matches($0.url.lastPathComponent)
+            $0.timestamp >= w.start && $0.timestamp < w.end && sicht.passesName($0)
         }
     }
 

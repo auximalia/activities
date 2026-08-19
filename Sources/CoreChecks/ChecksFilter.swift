@@ -285,7 +285,7 @@ func checkFilevisibilityDieEineEntscheidungSprint17Ap1() {
     let nurName = FileVisibility(nameFilter: NameFilter("Angebot"))
     expect(nurName.passesType(URL(fileURLWithPath: "/t/Skript.py")),
            "Ebenen: der Namensfilter beruehrt die Typ-Ebene nicht")
-    expect(!nurName.passesName(URL(fileURLWithPath: "/t/Skript.py")),
+    expect(!nurName.passesName(f("Skript.py")),
            "Ebenen: er wirkt auf der Namens-Ebene")
 
     let ausserhalb = FileVisibility(windowStart: fenster, showsOutOfWindow: false)

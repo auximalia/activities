@@ -39,6 +39,8 @@ struct HelpView: View {
 
                 section("Nach Namen filtern", icon: "line.3.horizontal.decrease.circle", [
                     "Einfach einen Teil des Namens eingeben, z. B. studium.",
+                    "**Gesucht wird in Datei- und Ordnernamen.** Trifft ein Ordnername, erscheint der Ordner mit **allem**, was darin im Zeitraum liegt – auch tiefer geschachtelt. Für den Fall, dass einem nur der Ordner einfällt.",
+                    "Gesucht wird bis zur Quelle hinauf, nicht darüber: Der Name der Quelle zählt noch mit, die Ordner oberhalb nicht.",
                     "**Enter** startet die Suche – beim Tippen rechnet das Programm nicht. Bis dahin steht unter dem Diagramm, dass noch nichts gesucht wurde.",
                     "Feld leeren hebt den Filter sofort auf, ohne Enter.",
                     "Groß-/Kleinschreibung spielt keine Rolle.",
@@ -139,8 +141,7 @@ struct HelpView: View {
                 section("Verwalten", icon: "folder.badge.gearshape", [
                     "**Ordner anlegen**: \(Shortcuts.newFolder.display) im markierten Ordner, \(Shortcuts.newFolderWithSelection.display) legt an **und** verschiebt die Auswahl hinein.",
                     "Ein neu angelegter Ordner erscheint unter „Heute“, auch wenn er leer ist – dort wurde gerade gearbeitet.",
-                    "**Der Filter geht vor**: Ist ein Namens- oder Typ-Filter aktiv, erscheint ein leerer Ordner nicht – er hat keine Datei, die durchkäme. Das Blatt sagt es, bevor angelegt wird.",
-                    "**Umbenennen**: \(Shortcuts.renameItem.display) oder Rechtsklick.",
+                    "**Der Filter geht vor**: Ist ein Namens- oder Typ-Filter aktiv, erscheint ein leerer Ordner nicht – er hat keine Datei, die durchkäme. Das Blatt sagt es, bevor angelegt wird.",                    "**Umbenennen**: \(Shortcuts.renameItem.display) oder Rechtsklick.",
                     "**In den Papierkorb**: \(Shortcuts.moveToTrash.display). Ordner nur, wenn sie **auf der Platte** leer sind – eine Zeile mit „0 Dateien“ kann hunderte enthalten, sie zeigt nur den gefilterten Ausschnitt.",
                     "**Zwischenablage**: \(Shortcuts.copyFiles.display) legt die Auswahl als Dateien ab (nicht als Text), \(Shortcuts.pasteFiles.display) kopiert sie in den markierten Ordner, \(Shortcuts.pasteMoveFiles.display) verschiebt.",
                     "Damit geht auch der Weg ohne zweites Fenster: hier \(Shortcuts.copyFiles.display), im Finder ⌘V.",

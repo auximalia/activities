@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.17 · 2026-08-19*
+*Stand: v2.0.18 · 2026-08-20*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -49,6 +49,42 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-70 · „Arbeit fortsetzen" zwang zum Klicken pro Tag *(v2.0.18)*
+**Aufwand:** S · **Art:** Wunsch aus der Praxis · *„Bei Arbeit fortsetzen muss es auch eine Option alle geben – sonst muss ich jeden Tag einzeln klicken – das ist aufwändig."*
+
+Das Untermenü bot die letzten Arbeitstage einzeln an und **nur** einzeln. Wer nach dem
+Wochenende weitermacht, meint aber *seine Arbeit*, nicht *den Freitag* — die Aufteilung nach
+Tagen ist eine Hilfe beim Auswählen und war eine Pflicht zum Auswählen. Neu steht am Ende des
+Untermenüs, hinter einem Trennstrich, **„Alle (n)"**; die Fachlogik dazu liegt in
+`WorkDays.allFiles(_:)` und `WorkDays.allDaysLabel(for:)` (`WorkDays.swift:189-222`), beide
+Menüwege benutzen sie (`FolderRowView.swift:276-279`, `ActivitiesApp.swift:471-476`).
+
+**⚠️ Der Eintrag steht unten, nicht oben – und das ist gegen die HIG entschieden.** Die HIG
+sagt *„Prefer listing important or frequently used menu items first"*, und für den Melder ist
+„Alle" der häufigste Griff. Dagegen stehen zwei Gründe, die zusammen schwerer wiegen. Erstens
+liest sich „Alle" nach der Liste als **deren Summe**, davor dagegen als Zusage über den
+ganzen Ordner – und die wäre falsch, weil `WorkDays.maxDays` bei acht Tagen kappt. Zweitens
+tragen die beiden anderen Sammelbefehle der App dieselbe Bauform: „Alle" im Menü „Zeitraum"
+(`ActivitiesApp.swift:410-411`) und „Alles auswählen" in „Bearbeiten" (`:294-295`) stehen
+beide unten hinter dem Strich. *Ein drittes Muster für dieselbe Sache wäre teurer als der
+gesparte Weg von acht Menüzeilen.*
+
+**⚠️ „Alle" heißt: alle Einträge darüber. Getragen wird das allein von der Zahl.** Bei
+zwanzig Arbeitstagen zeigt das Menü acht, und „Alle (37)" öffnet die 37 Dateien dieser acht –
+nicht den ganzen Ordner. Das ist die schwache Stelle des Wortes; die Klammer ist die Zusage,
+die immer hält, derselbe Handel wie bei den Tageseinträgen seit PR-11. Verworfen wurden
+„Alle angezeigten Tage (37)" (ehrlicher, im Regelfall zweier Tage albern) und „Letzte 8 Tage
+(37)" (zwei Zahlen in einem Menüpunkt).
+
+**Bewusst nicht gebaut:** keine eigene Rückfrage. Der Weg läuft über `requestOpen`, also
+greift die Schwelle aus PR-26 von selbst – „Alle" ist genau der Befehl, der sie zuerst reißt,
+und das ist ihr Zweck, nicht ihre Umgehung. Ebenfalls nicht: eine Lockerung der
+Erlaubnisliste. Was ein Tag nicht öffnen darf, zählt auch im Sammeleintrag nicht mit
+(zugesichert in `ChecksTime.swift`, `checkArbeitFortsetzenSammeleintragAlleV209`).
+
+**Nicht angeboten wird er bei genau einem Tag** – dort öffnet der Befehl ohnehin schon alles,
+und ein „Alle" über einem einzigen Eintrag entscheidet nichts.
 
 ### ✅ PR-69 · Versteckte Dateien werden gelesen – und das Präfix, das es nicht gibt *(v2.0.17)*
 **Aufwand:** S · **Art:** Wunsch aus der Praxis · *„Ich brauche noch ein Präfix, um auch nach versteckten Ordnern und Dateien suchen zu können. Z. B. habe ich nach `.env`-Dateien gesucht, um zu sehen, ob die Credentials noch stimmen – keine Chance."*

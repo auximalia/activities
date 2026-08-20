@@ -252,6 +252,16 @@ struct FolderContextMenu: View {
     /// *Information*, sondern eine Handlung, die dort keinen Sinn ergibt. Der
     /// richtige Handgriff fuer ein Softwareprojekt steht direkt darunter –
     /// „Ordner im Editor oeffnen" (⇧⌘E).
+    ///
+    /// **⚠️ „Alle" steht am ENDE, hinter einem Strich – nicht oben.** Gemeldet
+    /// wurde „sonst muss ich jeden Tag einzeln klicken – das ist aufwaendig".
+    /// Die Stelle ist die Entscheidung: Nach der Liste liest sich der Eintrag
+    /// als deren Summe, davor als Zusage ueber den ganzen Ordner – und die
+    /// waere falsch, weil ``WorkDays/maxDays`` bei acht Tagen kappt. Dieselbe
+    /// Bauform tragen die beiden anderen Sammelbefehle der App („Alle" im Menue
+    /// „Zeitraum", „Alles auswaehlen" in „Bearbeiten"): unten, hinter dem
+    /// Strich. Bei genau einem Tag entfaellt er – dort oeffnet der Befehl
+    /// ohnehin schon alles.
     @ViewBuilder
     private var resumeWork: some View {
         let days = model.workDays(in: folder)
@@ -262,6 +272,10 @@ struct FolderContextMenu: View {
             Menu("Arbeit fortsetzen") {
                 ForEach(days) { day in
                     Button(model.workDayLabel(day)) { model.requestOpen(day.files) }
+                }
+                Divider()
+                Button(WorkDays.allDaysLabel(for: days)) {
+                    model.requestOpen(WorkDays.allFiles(days))
                 }
             }
             Divider()

@@ -208,6 +208,88 @@ func checkArbeitFortsetzenGruppierungNachKalendertagPr11() {
            "Erlaubnisliste: reiner Quelltext-Ordner bietet nichts an")
 }
 
+// MARK: - Arbeit fortsetzen: der Sammeleintrag „Alle" (v2.0.9)
+func checkArbeitFortsetzenSammeleintragAlleV209() {
+    let folder = URL(fileURLWithPath: "/r/a")
+    func file(_ name: String, _ y: Int, _ m: Int, _ d: Int, _ h: Int) -> RelevantFile {
+        RelevantFile(url: folder.appendingPathComponent(name), folder: folder, timestamp: date(y, m, d, h))
+    }
+
+    // Gemeldet wurde: „sonst muss ich jeden Tag einzeln klicken – das ist
+    // aufwaendig". Genau der Fall aus der Meldung: zwei Tage, je eine Datei.
+    let zweiTage = WorkDays.group([
+        file("hinweis.docx", 2026, 8, 14, 9),
+        file("fliesstext.docx", 2026, 8, 13, 16)
+    ], calendar: calendar)
+    expectEqual(WorkDays.allDaysLabel(for: zweiTage), "Alle (2)",
+                "Alle: der gemeldete Fall – zwei Tage, zwei Dateien")
+
+    let files = [
+        file("b.docx", 2026, 8, 1, 9),
+        file("a.docx", 2026, 8, 3, 22),
+        file("c.docx", 2026, 8, 2, 14),
+        file("d.docx", 2026, 8, 3, 8),
+        file("e.docx", 2026, 8, 1, 17)
+    ]
+    let days = WorkDays.group(files, calendar: calendar)
+    let alle = WorkDays.allFiles(days)
+
+    // ⚠️ Die Zahl im Menuepunkt ist die einzige Zusage, die „Alle" macht –
+    // deshalb muss sie die Summe der Tagesanzahlen sein und bleiben.
+    expectEqual(alle.count, days.reduce(0) { $0 + $1.count },
+                "Alle: die Zahl ist die Summe der Tagesanzahlen")
+    expectEqual(WorkDays.allDaysLabel(for: days), "Alle (5)",
+                "Alle: Beschriftung nennt die Menge vorab")
+    expectEqual(alle.count, Set(alle).count,
+                "Alle: keine Datei doppelt – jeder Zeitstempel liegt in genau einem Tag")
+
+    // Reihenfolge: juengster Tag zuerst, wie im Menue darueber.
+    expectEqual(alle.first?.lastPathComponent, "a.docx",
+                "Alle: beginnt beim juengsten Tag")
+    expectEqual(alle.map(\.lastPathComponent).suffix(2).sorted(), ["b.docx", "e.docx"],
+                "Alle: endet beim aeltesten Tag")
+
+    // ⚠️ „Alle" heisst: alle Eintraege DARUEBER. Bei mehr als ``maxDays``
+    // Tagen zaehlt es genau die angebotenen mit – waere es die Summe des
+    // ganzen Ordners, staende eine Zahl da, die das Menue nicht haelt.
+    let viele = (1...30).map { file("f\($0).docx", 2026, 7, $0, 10) }
+    let gedeckelt = WorkDays.group(viele, calendar: calendar)
+    expectEqual(WorkDays.allFiles(gedeckelt).count, WorkDays.maxDays,
+                "Alle: zaehlt die angebotenen Tage, nicht den ganzen Ordner")
+    expectEqual(WorkDays.allDaysLabel(for: gedeckelt), "Alle (8)",
+                "Alle: die Beschriftung haelt auch bei Kappung")
+
+    // ⚠️ Was nicht geoeffnet werden darf, zaehlt auch hier nicht mit – sonst
+    // umginge der Sammeleintrag die Erlaubnisliste aus dem Hotfix v1.19.27.
+    let gemischt = WorkDays.group([
+        file("bericht.docx", 2026, 8, 3, 9),
+        file("skript.py", 2026, 8, 3, 10),
+        file("start.sh", 2026, 8, 2, 11)
+    ], calendar: calendar)
+    expectEqual(WorkDays.allDaysLabel(for: gemischt), "Alle (1)",
+                "Alle: Skripte zaehlen nicht mit")
+    expect(!WorkDays.allFiles(gemischt).map(\.lastPathComponent).contains("skript.py"),
+           "Alle: das Skript ist auch im Sammeleintrag nicht dabei")
+
+    // Randfall: kein Tag, keine Dateien. Im Menue erscheint der Eintrag dann
+    // ohnehin nicht – die Beschriftung darf trotzdem nicht luegen.
+    expect(WorkDays.allFiles([]).isEmpty, "Alle: keine Tage, keine Dateien")
+    expectEqual(WorkDays.allDaysLabel(for: []), "Alle (0)", "Alle: leere Menge nennt Null")
+
+    // ⚠️ Ab der Schwelle aus PR-26 fragt die App zurueck – und „Alle" ist der
+    // Befehl, der sie zuerst reisst. Der Weg dorthin ist ``requestOpen``, also
+    // derselbe wie bei den Tageseintraegen; hier steht, dass die Menge das
+    // ausloest.
+    let vieleDokumente = (1...4).map { tag in
+        (1...5).map { file("d\(tag)-\($0).docx", 2026, 8, tag, 10) }
+    }.flatMap { $0 }
+    let grosseTage = WorkDays.group(vieleDokumente, calendar: calendar)
+    expect(!BulkAction.needsConfirmation(count: grosseTage[0].count),
+           "Alle: ein einzelner Tag mit 5 Dateien fragt nicht zurueck")
+    expect(BulkAction.needsConfirmation(count: WorkDays.allFiles(grosseTage).count),
+           "Alle: 20 Dateien auf einmal loesen die Rueckfrage aus (PR-26)")
+}
+
 // MARK: - Aufklappzustand je Wurzelordner (PR-14b)
 func checkAufklappzustandJeWurzelordnerPr14B() {
     let projekte = "/r/Projekte", doks = "/r/Dokumente"

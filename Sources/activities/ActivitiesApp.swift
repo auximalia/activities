@@ -461,6 +461,19 @@ struct ActivitiesApp: App {
                         ForEach(days) { tag in
                             Button(model.workDayLabel(tag)) { model.requestOpen(tag.files) }
                         }
+                        // ⚠️ Wortgleich zum Kontextmenue, samt Strich und
+                        // Platzierung am Ende – die Begruendung steht bei
+                        // `FolderRowView.resumeWork`. Zwei Wege zum selben
+                        // Befehl duerfen nicht verschieden aussehen; wer den
+                        // einen lernt, hat den anderen mitgelernt. Ab zwei
+                        // Tagen, weil ein „Alle" ueber einem einzigen Eintrag
+                        // nichts entscheidet.
+                        if days.count > 1 {
+                            Divider()
+                            Button(WorkDays.allDaysLabel(for: days)) {
+                                model.requestOpen(WorkDays.allFiles(days))
+                            }
+                        }
                     }
                 }
                 Divider()

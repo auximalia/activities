@@ -185,4 +185,39 @@ public enum WorkDays {
         let files = workDay.count == 1 ? "1 Datei" : "\(workDay.count) Dateien"
         return "Arbeit fortsetzen (\(files))"
     }
+
+    /// Alle Dateien mehrerer Arbeitstage, jüngster Tag zuerst.
+    ///
+    /// **Warum es das gibt:** Gemeldet wurde „sonst muss ich jeden Tag einzeln
+    /// klicken – das ist aufwaendig". Wer nach dem Wochenende weitermacht, meint
+    /// *seine Arbeit*, nicht *den Freitag*; die Aufteilung nach Tagen ist eine
+    /// Hilfe beim Auswaehlen und darf keine Pflicht zum Auswaehlen sein.
+    ///
+    /// **⚠️ Keine Entdopplung noetig, und das ist kein Versaeumnis.** Jede Datei
+    /// hat genau einen Zeitstempel und liegt darum in genau einem Tagesbuendel –
+    /// ``group(_:calendar:limit:isResumable:)`` steckt sie in `byDay[day]` und
+    /// sonst nirgendwohin. Ein `Set` hier wuerde die Reihenfolge kosten und
+    /// nichts finden. ``CoreChecks`` sichert die Zusicherung ab: Die Anzahl hier
+    /// ist die Summe der Tagesanzahlen.
+    public static func allFiles(_ days: [WorkDay]) -> [URL] {
+        days.flatMap(\.files)
+    }
+
+    /// Beschriftung des Sammeleintrags – „Alle (37)".
+    ///
+    /// **⚠️ „Alle" heisst: alle Eintraege darueber – nicht alle Tage des
+    /// Ordners.** Das ist der schwache Punkt dieses Wortes, denn ``maxDays``
+    /// kappt die Liste bei acht. Getragen wird es von der Zahl in Klammern: Sie
+    /// nennt vorab genau die Menge, die aufgeht, und sie haelt immer. Derselbe
+    /// Handel wie bei ``menuLabel(for:calendar:now:)`` – lieber eine knappe
+    /// Beschriftung mit einer belastbaren Zahl als eine lange, die versucht, die
+    /// Kappung im Menuepunkt zu erklaeren („Alle angezeigten Tage (37)" war die
+    /// ehrlichere und im Regelfall zweier Tage die alberne Variante).
+    ///
+    /// Der Eintrag steht deshalb **hinter einem Trennstrich am Ende** des
+    /// Untermenues: Ein „Alle" nach der Liste liest sich als deren Summe, ein
+    /// „Alle" davor als Zusage ueber den ganzen Ordner.
+    public static func allDaysLabel(for days: [WorkDay]) -> String {
+        "Alle (\(days.reduce(0) { $0 + $1.count }))"
+    }
 }

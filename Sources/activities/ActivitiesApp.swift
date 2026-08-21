@@ -161,18 +161,49 @@ struct ActivitiesApp: App {
                 Button(Shortcuts.toggleViewMode.label) { model.toggleViewMode() }
                     .keyboardShortcut(Shortcuts.toggleViewMode)
                 Divider()
-                Button(Shortcuts.sortByDate.label) { model.setSortField(.date) }
-                    .keyboardShortcut(Shortcuts.sortByDate)
-                Button(Shortcuts.sortByName.label) { model.setSortField(.name) }
-                    .keyboardShortcut(Shortcuts.sortByName)
-                Button(Shortcuts.sortByType.label) { model.setSortField(.type) }
-                    .keyboardShortcut(Shortcuts.sortByType)
-                // ⚠️ „nur Dateien" steht im Menuepunkt selbst, nicht in einem
-                // Hilfetext. Ein Ordner hat in dieser App keine Groesse (siehe
-                // `SortField.size`); wer das erst nach dem Klick merkt, haelt
-                // es fuer einen Fehler.
-                Button(Shortcuts.sortBySize.label) { model.setSortField(.size) }
-                    .keyboardShortcut(Shortcuts.sortBySize)
+                // **⚠️ `Toggle` statt `Button` – und der Haken ist hier keine
+                // Verzierung (UX-71).** Bis v2.0.18 standen hier vier nackte
+                // `Button`: Das Menue nannte vier Moeglichkeiten und verschwieg,
+                // welche gilt. Das Symbol in der Werkzeugleiste
+                // (`arrow.up.arrow.down`) ist bei allen acht Sortierungen
+                // dasselbe – damit war die wirkende Sortierung der einzige
+                // Zustand der App **ohne jede sichtbare Klartextangabe**, nur
+                // ueber Stehenbleiben auf dem Kurzhinweis erreichbar. Ein
+                // Kurzhinweis ist keine Anzeige, sondern eine Nachfrage. HIG,
+                // *Menus*: „Consider using a checkmark to show that an attribute
+                // is currently in effect."
+                //
+                // **⚠️ Die Richtung steht im Text des angehakten Eintrags, nicht
+                // in einem Pfeil.** Bei „Datum" kann niemand sagen, ob „↓"
+                // neueste oder aelteste zuerst meint; „absteigend" ist eindeutig
+                // und benutzt dasselbe Wort wie der Kurzhinweis der
+                // Werkzeugleiste (``FolderSort/summary``). Angehaengt mit „·",
+                // nicht in Klammern: `sortBySize` traegt bereits „(nur Dateien)",
+                // und zwei Klammerpaare hintereinander liest niemand.
+                //
+                // **⚠️ Der Setter ignoriert seinen Wert, und das ist Absicht.**
+                // Dies ist eine Auswahl aus vier Moeglichkeiten, kein
+                // Ein-/Ausschalter: Es muss immer genau eine gelten. Ein Klick
+                // auf die bereits gesetzte kehrt deshalb die **Richtung** um –
+                // dasselbe Verhalten wie im Menue der Werkzeugleiste
+                // (`MainToolbar.swift:157-168`) und wie ``setSortField(_:)`` es
+                // seit jeher tut. Ein `Picker` waere die genauere Bauform und
+                // scheidet aus: Er traegt keine Kuerzel je Eintrag, und ⌥⌘1–4
+                // sind gesetzt.
+                ForEach(SortField.allCases, id: \.self) { field in
+                    Toggle(isOn: Binding(
+                        get: { model.sort.field == field },
+                        set: { _ in model.setSortField(field) }
+                    )) {
+                        // „nur Dateien" steckt bereits in `sortBySize.label` –
+                        // die Einschraenkung gehoert an den Ort der Entscheidung
+                        // und nicht in einen Hilfetext (siehe `SortField.size`).
+                        Text(model.sort.field == field
+                             ? "\(Shortcuts.sorting(field).label) · \(model.sort.directionLabel)"
+                             : Shortcuts.sorting(field).label)
+                    }
+                    .keyboardShortcut(Shortcuts.sorting(field))
+                }
                 Divider()
                 // **⚠️ Ein Name, der sich nicht mit der Gliederung aendert.**
                 // Der Schalter in der Werkzeugleiste heisst im Baum anders als

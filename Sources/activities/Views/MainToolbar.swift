@@ -170,9 +170,9 @@ struct MainToolbar: ToolbarContent {
                 Image(systemName: "arrow.up.arrow.down")
                     .foregroundStyle(ToolbarStateToggle.idleTint)
             }
-            .help("Sortierung \(model.viewMode == .tree ? "unter Geschwistern" : "innerhalb der Zeitabschnitte") · aktuell: \(model.sort.field.label) \(model.sort.ascending ? "aufsteigend" : "absteigend")\(model.sort.field.sortsFolders ? "" : " · ordnet nur Dateizeilen")")
+            .help("Sortierung \(model.viewMode == .tree ? "unter Geschwistern" : "innerhalb der Zeitabschnitte") · aktuell: \(model.sort.field.label) \(model.sort.directionLabel)\(model.sort.field.sortsFolders ? "" : " · ordnet nur Dateizeilen")")
             .accessibilityLabel("Sortierung")
-            .accessibilityValue("\(model.sort.field.label), \(model.sort.ascending ? "aufsteigend" : "absteigend")")
+            .accessibilityValue(model.sort.summary)
         }
 
         // 4b. Weiter Darstellung: die beiden Zustandsschalter.

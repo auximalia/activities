@@ -191,10 +191,19 @@ struct ChartHeaderView: View {
     /// Leisten kosteten doppelt Höhe und legten nahe, es seien zwei getrennte
     /// Sachverhalte.
     ///
-    /// **Warum der Rauschfilter links steht:** Er ist dauerhaft sichtbar, der
-    /// Typ-Filter kommt und geht. Stünde der Typ-Filter zuerst, spränge das
-    /// Auge bei jedem Ein- und Ausblenden nach rechts – ein ortsfestes
-    /// Bedienelement darf nicht von einem flüchtigen verschoben werden.
+    /// **Warum der Rauschfilter ganz links steht:** Er ist dauerhaft sichtbar,
+    /// die drei anderen kommen und gehen. Stünde ein flüchtiges Segment davor,
+    /// spränge das ortsfeste bei jedem Ein- und Ausblenden waagerecht weg – und
+    /// man sucht eine Zeile ab, die man eigentlich schon kennt.
+    ///
+    /// **⚠️ Genau das war bis v2.0.18 der Fall, und die Begründung stand
+    /// daneben (UX-72).** Sie war für **zwei** Segmente geschrieben („der
+    /// Typ-Filter kommt und geht") und stimmte damals. Mit dem Namenssegment aus
+    /// UX-29 kam ein **drittes, flüchtiges** links davor, und der Rauschfilter
+    /// stand plötzlich in der Mitte – der Grund, der gegen den Typ-Filter
+    /// sprach, traf das Namenssegment genauso. *Eine Begründung, die
+    /// stehenbleibt, während der Aufbau sich ändert, schützt nicht mehr; sie
+    /// lässt den Fehler nur begründet aussehen.*
     ///
     /// **Warum `ViewThatFits`?** Nebeneinander ist schlanker – aber bei schmalem
     /// Fenster würde Text abgeschnitten, und ein abgeschnittener Hinweis auf
@@ -248,25 +257,27 @@ struct ChartHeaderView: View {
         }
         if model.nameFilterPending || model.hasNameFilter || model.hasTypeFilter || zeigtRauschen {
             ViewThatFits(in: .horizontal) {
+                // Reihenfolge: das Ortsfeste zuerst, die Flüchtigen dahinter –
+                // Begründung im Doc-Kommentar oben (UX-72).
                 HStack(spacing: 10) {
+                    if zeigtRauschen { noiseSegment }
+                    if zeigtRauschen && (model.nameFilterPending || model.hasNameFilter || model.hasTypeFilter) {
+                        Divider().frame(height: 11)
+                    }
                     if model.nameFilterPending { pendingSegment }
-                    if model.nameFilterPending && (model.hasNameFilter || model.hasTypeFilter || zeigtRauschen) {
+                    if model.nameFilterPending && (model.hasNameFilter || model.hasTypeFilter) {
                         Divider().frame(height: 11)
                     }
                     if model.hasNameFilter { nameSegment }
-                    if model.hasNameFilter && (model.hasTypeFilter || zeigtRauschen) {
-                        Divider().frame(height: 11)
-                    }
-                    if zeigtRauschen { noiseSegment }
-                    if model.hasTypeFilter && zeigtRauschen {
+                    if model.hasNameFilter && model.hasTypeFilter {
                         Divider().frame(height: 11)
                     }
                     if model.hasTypeFilter { typeSegment }
                 }
                 VStack(alignment: .leading, spacing: 3) {
+                    if zeigtRauschen { noiseSegment }
                     if model.nameFilterPending { pendingSegment }
                     if model.hasNameFilter { nameSegment }
-                    if zeigtRauschen { noiseSegment }
                     if model.hasTypeFilter { typeSegment }
                 }
             }

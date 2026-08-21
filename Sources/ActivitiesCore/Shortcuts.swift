@@ -281,6 +281,23 @@ public enum Shortcuts {
         label: "Nach Größe sortieren (nur Dateien)"
     )
 
+    /// Das Kuerzel zu einem Sortierkriterium.
+    ///
+    /// **⚠️ Die Zuordnung gehoert hierher, nicht in die Menue-Sicht.** Sie wird
+    /// seit v2.0.19 von zwei Menues gebraucht (Menueleiste und Werkzeugleiste);
+    /// eine Abbildung, die in einer Sicht liegt, waere beim zweiten Aufrufer
+    /// abgeschrieben worden. `switch` ohne `default`: Kaeme ein fuenftes
+    /// Kriterium dazu, meldet es der Uebersetzer – eine Tabelle mit `default`
+    /// haette geschwiegen.
+    public static func sorting(_ field: SortField) -> ShortcutEntry {
+        switch field {
+        case .date: sortByDate
+        case .name: sortByName
+        case .type: sortByType
+        case .size: sortBySize
+        }
+    }
+
     // MARK: Ablage, Bearbeiten, Fenster
 
     public static let exportCSV = ShortcutEntry(

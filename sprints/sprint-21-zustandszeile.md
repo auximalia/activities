@@ -1,8 +1,9 @@
 # Sprint 21 – „Ein Ort, ein Blick"
 
-*Stand: v2.0.18 · 2026-08-21*
+*Stand: v2.0.19 · 2026-08-21*
 
-*Geplant am 2026-08-21 · **Nicht freigegeben. E1 ist offen und gehört dem Eigentümer.***
+*Geplant am 2026-08-21 · **E1 entschieden am 2026-08-21: Variante a).** Umsetzung von AP1,
+AP2, AP5–AP8 noch nicht freigegeben.*
 
 > **Übergabedokument.** Es kann von einem anderen Modell und in einer anderen Sitzung
 > umgesetzt werden. Was ein Umsetzender fragen müsste, ist ein Fehler dieses Plans.
@@ -224,11 +225,23 @@ etwas anderes sagt als die App, ist schlechter als keine: der glaubt man."*
 
 ## 5 · Die offene Entscheidung
 
-### ⚠️ E1 · Wo steht die Zustandszeile? — **offen, gehört dem Eigentümer**
+### ⚠️ E1 · Wo steht die Zustandszeile? — **entschieden am 2026-08-21: a)**
 
-Ein Umsetzender, der hier ohne Antwort ankommt, rät. AP2, AP5 und der Aufwand hängen daran.
+> **Entscheidung des Eigentümers: a) Die Überschrift über dem Diagramm wird zur
+> Zustandszeile.** b) und c) sind verworfen; die Erörterung bleibt stehen, damit ein
+> späterer Umbau weiß, was schon abgewogen wurde.
 
-#### a) Die Überschrift über dem Diagramm wird zur Zustandszeile *(Empfehlung)*
+AP2 baut damit auf `ChartHeaderView.headline` (`ChartHeaderView.swift:121-158`) auf. **⚠️
+Zwei Folgen, die dabei nicht untergehen dürfen:**
+1. Die Zeile **entfällt** bei `showsChartHeader == false` (`ReportViewModel.swift:1395-1402`),
+   also bei `.emptyFolder`, `.noSource` und blockierendem Hinweis. Dort trägt der
+   Leerzustand die Erklärung selbst (`RootView.swift:129-172`) — **das ist zu prüfen, nicht
+   anzunehmen.**
+2. Die Zeile ist auch **eingeklappt** sichtbar (`:119-120`) und trägt dann zusätzlich die
+   Legendenkurzfassung (`:130-136`). Der Platz ist dann am knappsten — die Kürzungsregel aus
+   AP2 wird genau hier geprüft, nicht im breiten Fenster.
+
+#### a) Die Überschrift über dem Diagramm wird zur Zustandszeile *(gewählt)*
 
 ```
 Documents · Sa., 15.08.2026 – Fr., 21.08.2026 · 7 Tage · Name „scr" · Office · Datum ↓
@@ -269,6 +282,13 @@ secondary` auf derselben Grundlinie.
 trennt sauber, was heute vermischt ist: oben steht, **was wirkt**; darunter steht, **was du
 dagegen tun kannst**. b) ist die zweite Wahl, falls die Unabhängigkeit von der Kopfzone
 schwerer wiegt als die Nähe zu den Bedienelementen.
+
+### ✅ Vorab ausgeliefert am 2026-08-21 (v2.0.19): AP3 Teil 1 und AP4
+
+Beide sind von E1 unabhängig und eigenständige Defekte, keine Vorarbeiten — sie warteten
+sonst ohne Grund. Was davon **noch offen** ist: **AP3 Teil 2** (die Sortierung als Achse 6
+der Zustandszeile). Der Wortlaut dafür liegt seit v2.0.19 als `FolderSort.summary` im Kern
+und ist von AP1 nur noch abzurufen.
 
 ---
 

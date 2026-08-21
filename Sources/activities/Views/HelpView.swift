@@ -107,6 +107,7 @@ struct HelpView: View {
                     "Der Uhr-Schalter oben zeigt sie bei Bedarf (grau/gedimmt, Uhr-Symbol).",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",
                     "Sortieren nach Datum, Name, Typ oder Größe (⇅-Menü, \(Shortcuts.sortByDate.display) bis \(Shortcuts.sortBySize.display)).",
+                    "**Welche Sortierung gilt**, steht angehakt im Menü „Darstellung“ – samt Richtung. Dasselbe Kriterium erneut wählen kehrt sie um.",
                     "Dateien lassen sich in andere Programme ziehen.",
                 ])
 

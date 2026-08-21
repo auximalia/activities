@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.18 · 2026-08-20*
+*Stand: v2.0.19 · 2026-08-21*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -109,61 +109,85 @@ Filter benennen, ohne Werkzeugleiste, Legende oder Menü zu lesen. Zusicherung: 
 Filter gilt „wirkt ⟺ wird in `ActiveFilters` genannt" — dieselbe Äquivalenzprüfung, die
 `ChecksFilter.swift:340-344` bereits für `typeFilterSummary` fährt.
 
-### UX-71 · Die Sortierung steht nirgends im Fenster
+### ✅ UX-71 · Die Sortierung stand nirgends im Fenster *(v2.0.19)*
 **Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
 
 **Beobachtet:** Der Werkzeugleisten-Knopf zeigt nur `arrow.up.arrow.down` — dasselbe Bild
-bei jeder der acht Sortierungen. Welche wirkt, erfährt man **erst nach dem Aufklappen** am
-Chevron, oder durch Stehenbleiben auf dem Tooltip. Im Menü „Darstellung" sind die vier
-Sortierbefehle als `Button` gebaut, **nicht als `Toggle`** — dort steht also nicht einmal
-ein Haken.
+bei jeder der acht Sortierungen. Welche wirkt, erfuhr man **erst nach dem Aufklappen** am
+Chevron, oder durch Stehenbleiben auf dem Kurzhinweis. Im Menü „Darstellung" standen die
+vier Sortierbefehle als `Button`, **nicht als `Toggle`** — dort stand nicht einmal ein Haken.
 
 **Warum das schadet:** Bei „Name aufsteigend" steht der zuletzt bearbeitete Ordner
 irgendwo in der Mitte. Wer das nicht weiß, hält die Liste für falsch, nicht für sortiert.
-Es ist der einzige wirkende Zustand ohne jede sichtbare Klartextangabe — Tooltip und
-VoiceOver-Wert sind vorhanden (`MainToolbar.swift:173-175`), aber ein Tooltip ist keine
-Anzeige, er ist eine Nachfrage.
+Es war der einzige wirkende Zustand ohne jede sichtbare Klartextangabe — Kurzhinweis und
+VoiceOver-Wert waren da (`MainToolbar.swift:173-175`), aber *ein Kurzhinweis ist keine
+Anzeige, er ist eine Nachfrage.*
 
-**Beleg:** `MainToolbar.swift:156-176` (Symbol ohne Zustand, Chevron erst im offenen Menü
-`:163`), `ActivitiesApp.swift:164-175` (`Button` statt `Toggle`). HIG, *Menus*: *„Consider
-using a checkmark to show that an attribute is currently in effect."*
+**Was gemacht wurde:** Die vier Menübefehle sind `Toggle` mit Haken
+(`ActivitiesApp.swift:163-200`); der angehakte Eintrag nennt zusätzlich die **Richtung**
+(„Nach Datum sortieren · absteigend"). HIG, *Menus*: *„Consider using a checkmark to show
+that an attribute is currently in effect."*
 
-**Vorschlag:** Zwei Handgriffe, unabhängig voneinander wirksam: (1) die vier Menübefehle
-als `Toggle` mit Haken; (2) die Sortierung in die Zustandszeile aus UX-70 aufnehmen
-(„Datum ↓"). Verworfen: Beschriftung am Werkzeugleisten-Knopf — sie kostet dauerhaft
-Breite für einen Zustand, den man selten wechselt.
+**⚠️ Die Richtung steht in Worten, nicht in einem Pfeil.** Bei „Datum" kann niemand sagen,
+ob „↓" neueste oder älteste zuerst meint. Angehängt mit „·" statt in Klammern, weil
+`sortBySize` bereits „(nur Dateien)" trägt — zwei Klammerpaare hintereinander liest niemand.
 
-**Akzeptanz:** Die wirkende Sortierung ist ohne Mausbewegung und ohne Menüklick ablesbar.
+**⚠️ Der Setter der Bindung ignoriert seinen Wert.** Das ist eine Auswahl aus vier
+Möglichkeiten, kein Ein-/Ausschalter: Es muss immer genau eine gelten, und ein Klick auf die
+gesetzte kehrt die Richtung um — wie `setSortField(_:)` es seit jeher tut. Ein `Picker` wäre
+die genauere Bauform und scheidet aus: Er trägt keine Kürzel je Eintrag, und ⌥⌘1–4 sind
+gesetzt.
 
-### UX-72 · Die Filterzeile bricht ihre eigene Ortsregel
+**Nebenbei behoben:** Der Satz „Datum, absteigend" wurde an **drei** Stellen aus denselben
+zwei Feldern neu zusammengesetzt. Er liegt jetzt als `FolderSort.summary` /
+`directionLabel` im Kern (`RowSorting.swift:58-79`) und ist zugesichert — derselbe
+Grundsatz wie bei `typeFilterSummary`. Ebenso die Zuordnung Kriterium → Kürzel
+(`Shortcuts.sorting(_:)`), die seit dieser Änderung zwei Menüs brauchen.
+
+**Bewusst nicht gemacht:** (1) Eine Beschriftung am Werkzeugleisten-Knopf — dauerhafte
+Breite für einen selten gewechselten Zustand. (2) Das Menü der Werkzeugleiste auf dieselbe
+Bauform umgestellt: Es zeigt Feld **und** Richtung bereits über den Chevron
+(`MainToolbar.swift:157-168`), ist also nicht defekt. *Dass zwei Menüs für dieselbe Sache
+verschieden aussehen, bleibt damit stehen und ist hier festgehalten* — der Umbau des
+funktionierenden Teils wäre eine eigene Entscheidung, keine Fehlerbehebung.
+
+**Noch offen:** Die Sortierung als Achse 6 der Zustandszeile (Sprint 21, AP3 Teil 2). Der
+Wortlaut dafür liegt jetzt bereit.
+
+### ✅ UX-72 · Die Filterzeile brach ihre eigene Ortsregel *(v2.0.19)*
 **Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
 
 **Beobachtet:** Der Rauschfilter-Hinweis ist der längste und beständigste Text der
-Filterzeile („77 Ordner samt Inhalt übersprungen · davon 2 von dir ausgeblendet"). Er steht
-**in der Mitte** — zwischen Namensfilter und Typ-Filter — und wandert daher waagerecht,
-sobald der Namensfilter erscheint oder verschwindet.
+Filterzeile („77 Ordner samt Inhalt übersprungen · davon 2 von dir ausgeblendet"). Er stand
+**in der Mitte** — zwischen Namensfilter und Typ-Filter — und wanderte daher waagerecht,
+sobald der Namensfilter erschien oder verschwand.
 
 **Warum das schadet:** Genau das sollte die Reihenfolge verhindern. Der Doc-Kommentar
-begründet sie selbst so (`ChartHeaderView.swift:194-197`):
+begründete sie selbst so:
 
 > „**Warum der Rauschfilter links steht:** Er ist dauerhaft sichtbar, der Typ-Filter kommt
 > und geht. Stünde der Typ-Filter zuerst, spränge das Auge bei jedem Ein- und Ausblenden
 > nach rechts – ein ortsfestes Bedienelement darf nicht von einem flüchtigen verschoben
 > werden."
 
-Die Regel ist richtig. Sie wurde formuliert, als es zwei Segmente gab; mit dem
+**⚠️ Die Regel war richtig, und sie war für zwei Segmente geschrieben.** Mit dem
 Namenssegment aus UX-29 kam ein **drittes, flüchtiges** links davor — und der Grund, der
-gegen den Typ-Filter sprach, trifft es genauso. **Die Begründung steht noch da und
-beschreibt den Aufbau nicht mehr.**
+gegen den Typ-Filter sprach, traf es genauso. *Eine Begründung, die stehenbleibt, während
+der Aufbau sich ändert, schützt nicht mehr; sie lässt den Fehler nur begründet aussehen.*
+Das ist die eigentliche Lehre dieses Eintrags und der Grund, warum er trotz zweier Zeilen
+Code hier steht.
 
-**Beleg:** Reihenfolge `ChartHeaderView.swift:249-272`: `pending → Name → Rauschen → Typ`.
+**Was gemacht wurde:** Reihenfolge `Rauschen → schwebend → Name → Typ`
+(`ChartHeaderView.swift:260-283`), in beiden Zweigen von `ViewThatFits`. Die
+Trennstrich-Bedingungen sind dabei geradegezogen worden — sie waren korrekt, aber
+verschachtelt. Doc-Kommentar auf drei flüchtige Segmente nachgeführt.
 
-**Vorschlag:** `Rauschen → pending → Name → Typ` — das Ortsfeste ganz nach links, die
-Flüchtigen dahinter, und den Doc-Kommentar auf drei Segmente nachziehen. Verworfen:
-Rauschen nach ganz rechts (dann wandert es bei jeder Änderung der beiden anderen).
+**Verworfen:** Rauschen nach ganz rechts — dann wanderte es bei jeder Änderung der beiden
+anderen.
 
-**Akzeptanz:** Der Rauschfilter-Hinweis behält seine waagerechte Position, gleich welche
-anderen Segmente ein- oder ausblenden.
+**⚠️ Nicht zusicherbar.** Die Reihenfolge lebt in einem `ViewBuilder`; `CoreChecks` kommt
+nicht heran. Sie hängt allein am Doc-Kommentar und an der Abnahme — genau die Lage, in der
+die alte Fassung entgleist ist.
 
 ### UX-73 · Für VoiceOver ist der Zustand nur erlaufbar
 **Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
@@ -209,10 +233,14 @@ ortsfeste Zeile die Grundlast, und die Ausnahmezeile darf springen.
 
 ### Rangfolge
 
-1. **UX-70** — der Auftrag selbst, und er zieht UX-71 und UX-73 mit.
-2. **UX-72** — zwei Zeilen Code, behebt eine Begründung, die nicht mehr stimmt; unabhängig
-   von der offenen Ortsentscheidung sofort machbar.
-3. **UX-71** (Menü-Haken) — ebenfalls unabhängig und klein.
+**Entschieden am 2026-08-21:** E1 (Ort der Zustandszeile) → **Variante a)**, die Überschrift
+über dem Diagramm. **UX-71 und UX-72 sind mit v2.0.19 vorab ausgeliefert** — beide sind von
+E1 unabhängige Defekte, keine Vorarbeiten.
+
+1. ~~**UX-72**~~ ✅ v2.0.19
+2. ~~**UX-71** (Menü-Haken)~~ ✅ v2.0.19 · offen bleibt Teil 2 (Sortierung als Achse der
+   Zustandszeile, Sprint 21 AP3)
+3. **UX-70** — der Auftrag selbst, Plan liegt als Sprint 21 vor, Umsetzung nicht freigegeben.
 4. **UX-73** (die vier fehlenden Labels) — nach UX-70, damit nicht zweimal angefasst wird.
 5. **UX-74** — erst danach neu bewerten.
 

@@ -30,6 +30,30 @@ func checkRownavigation() {
 
 // MARK: - Sortierung (UX-19)
 func checkSortierungUx19() {
+    // ⚠️ Die wirkende Sortierung war bis v2.0.18 der einzige Zustand der App
+    // OHNE sichtbare Klartextangabe – nur ueber den Kurzhinweis erreichbar, und
+    // im Menue „Darstellung" standen vier nackte Buttons ohne Haken (UX-71).
+    // Der Wortlaut liegt seitdem im Kern, damit ihn Menue, Kurzhinweis und
+    // Bedienhilfe nicht dreimal verschieden zusammensetzen.
+    expectEqual(FolderSort.byNewest.summary, "Datum, absteigend",
+                "Sortierung: die Vorgabe in Worten")
+    expectEqual(FolderSort.byNewest.directionLabel, "absteigend",
+                "Sortierung: Richtung der Vorgabe")
+    expectEqual(FolderSort(field: .name, ascending: true).summary, "Name, aufsteigend",
+                "Sortierung: Gegenrichtung in Worten")
+    expectEqual(FolderSort(field: .size, ascending: true).summary, "Größe, aufsteigend",
+                "Sortierung: der Zusatz zu „nur Dateien“ gehoert ins Menue, nicht in die Ansage")
+
+    // ⚠️ Jedes Kriterium hat genau ein Kuerzel, und die Beschriftungen sind
+    // paarweise verschieden – sonst nennte das Menue zweimal dasselbe.
+    let kuerzel = SortField.allCases.map { Shortcuts.sorting($0) }
+    expectEqual(kuerzel.map(\.id), ["sortByDate", "sortByName", "sortByType", "sortBySize"],
+                "Sortierung: jedes Kriterium hat sein Kuerzel, in der Reihenfolge von SortField")
+    expectEqual(Set(kuerzel.map(\.label)).count, SortField.allCases.count,
+                "Sortierung: keine zwei Kriterien tragen dieselbe Beschriftung")
+    expect(Shortcuts.sorting(.size).label.contains("nur Dateien"),
+           "Sortierung: die Einschraenkung steht im Menuepunkt selbst (SortField.size)")
+
     let root = URL(fileURLWithPath: "/docs", isDirectory: true)
     func f(_ name: String, _ y: Int, _ m: Int, _ d: Int) -> RelevantFile {
         RelevantFile(url: root.appendingPathComponent(name), folder: root, timestamp: date(y, m, d))

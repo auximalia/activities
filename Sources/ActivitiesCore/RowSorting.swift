@@ -57,6 +57,23 @@ public struct FolderSort: Sendable, Equatable {
 
     /// Vorgabe der App: neueste zuerst.
     public static let byNewest = FolderSort(field: .date, ascending: false)
+
+    /// Die Richtung in Worten – „aufsteigend" · „absteigend".
+    public var directionLabel: String { ascending ? "aufsteigend" : "absteigend" }
+
+    /// Die wirkende Sortierung in Worten – „Datum, absteigend".
+    ///
+    /// **⚠️ Der Satz gehoert in den Kern, obwohl ihn nur die Oberflaeche zeigt.**
+    /// Er wurde bis v2.0.18 an **drei** Stellen aus denselben zwei Feldern neu
+    /// zusammengesetzt – im Kurzhinweis der Werkzeugleiste, in ihrem
+    /// Bedienhilfen-Wert und (fehlend) im Menue. Drei Gelegenheiten, sich zu
+    /// widersprechen, fuer eine Aussage. Derselbe Grundsatz wie bei
+    /// ``FileVisibility/typeFilterSummary``: *Wer filtert oder ordnet, sagt es –
+    /// und sagt es ueberall gleich.*
+    ///
+    /// Der Wortlaut ist bewusst **nicht** „Datum ↓". Ein Pfeil ist bei Datumsangaben
+    /// mehrdeutig – niemand kann sagen, ob „↓" neueste oder aelteste zuerst meint.
+    public var summary: String { "\(field.label), \(directionLabel)" }
 }
 
 /// Sortierung von Ordner- und Dateizeilen.

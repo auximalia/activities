@@ -20,6 +20,202 @@ bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschn
 
 # Offen
 
+## Aus der UX-Durchsicht v2.0.18 *(2026-08-21)* — „ein Ort, ein Blick"
+
+Durchgeführt mit dem Skill `ux-review` auf Meldung aus der Praxis: *„Ich habe Mühe den
+Überblick zu behalten, welche Filter (Name, Zeitspanne) gerade wirken. Ich muss mir die
+Informationen über das Fenster verteilt einzeln einsammeln. Ich brauche einen Ort, einen
+Blick um zu wissen, was wirkt."*
+
+### Der Rahmenbefund: es wurde eine andere Frage beantwortet
+
+**Die Anzeigen der App beantworten „Warum sehe ich nicht alles?" — gefragt wird
+„In welchem Zustand bin ich?"** Das ist kein Versäumnis, sondern eine nie gestellte
+Frage. Der Satz steht wörtlich im eigenen Quelltext (`ChartHeaderView.swift:189-192`):
+
+> „Typ-Filter und Rauschfilter beantworten dem Anwender **dieselbe Frage**: ‚Warum sehe
+> ich nicht alles?'"
+
+Seit UX-06 (v1.6.0, Sprint 1 hieß „Der Nutzer sieht, was gerade wirkt") wurde für **jeden
+einzelnen** Filter ein Hinweis gebaut, jeweils **neben dem, worauf er wirkt** — Gesetz der
+Nähe, jedes Mal richtig begründet: der Zeitraum am Diagramm (Entscheidung 6), der
+Office-Schalter in der Legende (PR-44/v1.19.37), der Namensrahmen am Suchfeld
+(`MainToolbar.swift:60-63`), der Rauschfilter in der Statuszeile (UX-57).
+
+**Zwanzig lokal richtige Entscheidungen ergeben zusammen keine Übersicht.** Das Ergebnis
+sind **28 Einzelanzeigen in 6 Bildschirmbereichen und 11 Dateien**. Die beiden vom Melder
+genannten Zustände sind dabei nicht etwa unsichtbar, sondern **mehrfach** sichtbar:
+Namensfilter an 5 Stellen, Zeitraum an 6. *Redundanz ist nicht Übersicht — sie ist ihr
+Gegenteil, weil jede Stelle nur einen Ausschnitt trägt.*
+
+**⚠️ Und genau deshalb kann die vorhandene Filterzeile diese Rolle nicht übernehmen.**
+Sprint 17, Festlegung 3 hat es entschieden und richtig entschieden: Der Vorgabezustand
+darf sich dort nicht ansagen, sonst *„feuerte sie immer und wäre Grundrauschen statt
+Hinweis"*. Eine **Ausnahmezeile** und ein **Zustandsanzeiger** sind zwei Bauteile mit
+gegensätzlicher Regel — das eine schweigt im Normalfall, das andere muss dann gerade
+reden. Wer das eine ins andere baut, zerstört beides.
+
+### UX-70 · Kein Ort nennt den wirkenden Zustand vollständig
+**Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt
+
+**Beobachtet:** Um zu wissen, was gerade wirkt, muss der Anwender vier Bereiche absuchen:
+Werkzeugleiste (Quelle, Suchfeld, Zeitraum-Segmente, Sortierung), Überschrift (Zeitraum
+ausgeschrieben), Legende (Office- und Typ-Plättchen), Filterzeile (Name, Rauschen, Typ).
+Im vorliegenden Bildschirmfoto (1919 pt breit) liegen allein die Anzeigen zu **Name** und
+**Zeitspanne** auf **drei Höhen** und über rund **900 pt Breite** verteilt.
+
+**Warum das schadet:** Die Frage „sehe ich gerade alles?" ist die Frage, die vor **jeder**
+Deutung des Diagramms steht. Wer sie nur durch Absuchen beantworten kann, beantwortet sie
+irgendwann nicht mehr — und hält eine gefilterte Liste für den Bestand. Das ist derselbe
+Schaden, den UX-06 abgeschafft hat, nur eine Ebene höher: nicht der einzelne Filter ist
+still, sondern **ihre Summe**.
+
+**Beleg:** Inventur der 28 Anzeigen: Werkzeugleiste `MainToolbar.swift:29-341`, Überschrift
+`ChartHeaderView.swift:121-158`, Legende `HistoryChartView.swift:409-445`, Filterzeile
+`ChartHeaderView.swift:203-283`, Fußzeile `RootView.swift:410-646`, Menüs
+`ActivitiesApp.swift:121-493`. **Es gibt keinen Typ, der „was wirkt" zusammenfasst:**
+`FileVisibility` (`FileVisibility.swift:28`) kommt am nächsten, kennt aber weder Quelle
+noch Rauschfilter noch Sortierung — und das ist dort ausdrücklich so entschieden
+(`FileVisibility.swift:12-27`, „Wer die Schichten einebnet, bekommt kein einfacheres
+Modell, sondern ein falsches").
+
+**Vorschlag:** Eine **Zustandszeile**, die alles Wirkende in **fester Reihenfolge** nennt,
+gespeist aus **einem** neuen Kerntyp `ActiveFilters`. Der Ort ist die eine offene
+Entscheidung — drei Kandidaten, Erörterung im Sprintplan
+(`sprints/sprint-21-zustandszeile.md`, E1):
+- **a) Die Überschrift über dem Diagramm wird zur Zustandszeile** *(Empfehlung)* — sie ist
+  bereits immer sichtbar, trägt bereits den Zeitraum und steht bereits zwei Zeilen über der
+  Filterzeile. Ergebnis: **Zustand oben, Handlungen darunter.** Kein neuer Ort.
+- b) Die Fußzeile — klassischer macOS-Ort, immer sichtbar, trägt bereits Quelle und
+  Ergebniszahl; aber am weitesten von den Bedienelementen entfernt.
+- c) Filterknopf mit Zähler und Aufklapper in der Werkzeugleiste — skaliert am besten, ist
+  aber **ein Klick, kein Blick**, und UX-57 hat ein Popover an dieser Stelle schon einmal
+  als *„vierter Mechanismus"* zurückgewiesen.
+
+**⚠️ Berührt dokumentierte Entscheidungen — keine wird aufgerollt:** Entscheidung 6 (der
+Zeitraum bleibt am Diagramm) bleibt unangetastet, Variante a) baut sie sogar aus. Sprint 17
+Festlegung 3 bleibt gültig: Die Filterzeile bleibt Ausnahmezeile und bekommt **nichts**
+Vorgabemäßiges hinzu. PR-44 bleibt gültig: Der Office-Schalter bleibt in der Legende — die
+Zustandszeile **nennt** ihn, bedient ihn aber nicht.
+
+**⚠️ Die Falle heißt PR-46, und sie ist hier größer als je zuvor.** `FileVisibility.swift:158-170`
+warnt: *„ausdrücklich KEINE zweite Abfrage derselben Eingänge an anderer Stelle. Genau
+daran ist die Vorgängerfassung zweimal gescheitert."* Eine Zustandszeile ist per Definition
+eine zweite Anzeige derselben Sache. Sie ist nur zu verantworten, wenn sie aus **einem**
+Typ abgeleitet wird, den `CoreChecks` gegen die tatsächlich wirkenden Filter prüft.
+
+**Akzeptanz:** Ein Anwender kann bei ruhendem Blick auf **eine** Zeile alle wirkenden
+Filter benennen, ohne Werkzeugleiste, Legende oder Menü zu lesen. Zusicherung: Für jeden
+Filter gilt „wirkt ⟺ wird in `ActiveFilters` genannt" — dieselbe Äquivalenzprüfung, die
+`ChecksFilter.swift:340-344` bereits für `typeFilterSummary` fährt.
+
+### UX-71 · Die Sortierung steht nirgends im Fenster
+**Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
+
+**Beobachtet:** Der Werkzeugleisten-Knopf zeigt nur `arrow.up.arrow.down` — dasselbe Bild
+bei jeder der acht Sortierungen. Welche wirkt, erfährt man **erst nach dem Aufklappen** am
+Chevron, oder durch Stehenbleiben auf dem Tooltip. Im Menü „Darstellung" sind die vier
+Sortierbefehle als `Button` gebaut, **nicht als `Toggle`** — dort steht also nicht einmal
+ein Haken.
+
+**Warum das schadet:** Bei „Name aufsteigend" steht der zuletzt bearbeitete Ordner
+irgendwo in der Mitte. Wer das nicht weiß, hält die Liste für falsch, nicht für sortiert.
+Es ist der einzige wirkende Zustand ohne jede sichtbare Klartextangabe — Tooltip und
+VoiceOver-Wert sind vorhanden (`MainToolbar.swift:173-175`), aber ein Tooltip ist keine
+Anzeige, er ist eine Nachfrage.
+
+**Beleg:** `MainToolbar.swift:156-176` (Symbol ohne Zustand, Chevron erst im offenen Menü
+`:163`), `ActivitiesApp.swift:164-175` (`Button` statt `Toggle`). HIG, *Menus*: *„Consider
+using a checkmark to show that an attribute is currently in effect."*
+
+**Vorschlag:** Zwei Handgriffe, unabhängig voneinander wirksam: (1) die vier Menübefehle
+als `Toggle` mit Haken; (2) die Sortierung in die Zustandszeile aus UX-70 aufnehmen
+(„Datum ↓"). Verworfen: Beschriftung am Werkzeugleisten-Knopf — sie kostet dauerhaft
+Breite für einen Zustand, den man selten wechselt.
+
+**Akzeptanz:** Die wirkende Sortierung ist ohne Mausbewegung und ohne Menüklick ablesbar.
+
+### UX-72 · Die Filterzeile bricht ihre eigene Ortsregel
+**Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
+
+**Beobachtet:** Der Rauschfilter-Hinweis ist der längste und beständigste Text der
+Filterzeile („77 Ordner samt Inhalt übersprungen · davon 2 von dir ausgeblendet"). Er steht
+**in der Mitte** — zwischen Namensfilter und Typ-Filter — und wandert daher waagerecht,
+sobald der Namensfilter erscheint oder verschwindet.
+
+**Warum das schadet:** Genau das sollte die Reihenfolge verhindern. Der Doc-Kommentar
+begründet sie selbst so (`ChartHeaderView.swift:194-197`):
+
+> „**Warum der Rauschfilter links steht:** Er ist dauerhaft sichtbar, der Typ-Filter kommt
+> und geht. Stünde der Typ-Filter zuerst, spränge das Auge bei jedem Ein- und Ausblenden
+> nach rechts – ein ortsfestes Bedienelement darf nicht von einem flüchtigen verschoben
+> werden."
+
+Die Regel ist richtig. Sie wurde formuliert, als es zwei Segmente gab; mit dem
+Namenssegment aus UX-29 kam ein **drittes, flüchtiges** links davor — und der Grund, der
+gegen den Typ-Filter sprach, trifft es genauso. **Die Begründung steht noch da und
+beschreibt den Aufbau nicht mehr.**
+
+**Beleg:** Reihenfolge `ChartHeaderView.swift:249-272`: `pending → Name → Rauschen → Typ`.
+
+**Vorschlag:** `Rauschen → pending → Name → Typ` — das Ortsfeste ganz nach links, die
+Flüchtigen dahinter, und den Doc-Kommentar auf drei Segmente nachziehen. Verworfen:
+Rauschen nach ganz rechts (dann wandert es bei jeder Änderung der beiden anderen).
+
+**Akzeptanz:** Der Rauschfilter-Hinweis behält seine waagerechte Position, gleich welche
+anderen Segmente ein- oder ausblenden.
+
+### UX-73 · Für VoiceOver ist der Zustand nur erlaufbar
+**Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
+
+**Beobachtet:** Sämtliche **Bedienelemente** sind vorbildlich beschriftet. Die reinen
+**Textanzeigen**, die den Zustand tragen, sind es nicht: die Zeitraum-Überschrift trägt nur
+`.help(…)` (`ChartHeaderView.swift:128`), die eingeklappte Legendenkurzfassung
+(`:130-136`), die Ergebniszahl „24 Ordner · 103 Dateien" (`RootView.swift:413-415`) und der
+Quellenpfad der Fußzeile (`:456-462`) sind nackte `Text`.
+
+**Warum das schadet:** Ein Tooltip existiert für Vorleseprogramme nicht — das steht als
+Entscheidung 20 bereits im eigenen Backlog und wurde für `FolderRowView.swift:50-54` schon
+einmal so entschieden. Wer nicht sieht, hat das Problem des Melders in verschärfter Form:
+Er muss das ganze Fenster durchtabben, um zu erfahren, was wirkt.
+
+**Vorschlag:** Die Zustandszeile aus UX-70 wird **ein** Bedienhilfen-Element
+(`accessibilityElement(children: .combine)`) mit dem vollständigen Satz als Label. Damit
+löst UX-70 diesen Befund mit — *das ist das stärkste Argument für die Zustandszeile
+überhaupt: Für Vorleseprogramme gibt es „ein Blick" sonst gar nicht.* Die vier fehlenden
+Labels werden unabhängig davon nachgetragen.
+
+**Akzeptanz:** Ein einziger VoiceOver-Halt nennt Quelle, Zeitraum, Namensfilter,
+Typ-Filter, Rauschfilter und Sortierung.
+
+### UX-74 · Die Kopfzone springt in der Höhe
+**Aufwand:** S · **Nutzen:** gering · **Art:** Geschmack
+
+**Beobachtet:** Die Kopfzone trägt bis zu drei unabhängig ein-/ausblendbare Blöcke
+(Quellenhinweis, Zukunftsdateien, Filterzeile), die Filterzeile selbst null bis vier
+Segmente mit Umbruch. Diagramm und Liste rutschen dadurch senkrecht, sobald ein Filter
+gesetzt oder gelöscht wird.
+
+**Beleg:** `ChartHeaderView.swift:210, 211, 230, 249` — vier voneinander unabhängige
+Sichtbarkeitsbedingungen im selben `VStack`; `ViewThatFits` (`:250`) wechselt zusätzlich
+zwischen ein- und mehrzeilig.
+
+**Warum das (nur) Geschmack ist:** Es ist der Preis der Ausnahmezeile, und der ist bewusst
+bezahlt — eine Zeile, die immer da ist, wäre Grundrauschen (Sprint 17, Festlegung 3). Erst
+**wenn** UX-70 eine dauerhafte Zustandszeile bringt, wird die Frage neu: Dann trägt eine
+ortsfeste Zeile die Grundlast, und die Ausnahmezeile darf springen.
+
+**Vorschlag:** Nicht einzeln behandeln. Nach UX-70 erneut ansehen.
+
+### Rangfolge
+
+1. **UX-70** — der Auftrag selbst, und er zieht UX-71 und UX-73 mit.
+2. **UX-72** — zwei Zeilen Code, behebt eine Begründung, die nicht mehr stimmt; unabhängig
+   von der offenen Ortsentscheidung sofort machbar.
+3. **UX-71** (Menü-Haken) — ebenfalls unabhängig und klein.
+4. **UX-73** (die vier fehlenden Labels) — nach UX-70, damit nicht zweimal angefasst wird.
+5. **UX-74** — erst danach neu bewerten.
+
 ## Aus der UX-Durchsicht v1.19.33 *(2026-08-10)*
 
 Durchgeführt mit dem Skill `ux-review`. **Drei der neun Befunde waren am Quelltext nicht zu

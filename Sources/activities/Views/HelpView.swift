@@ -16,6 +16,18 @@ struct HelpView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
+                // ⚠️ Ganz oben, vor allem anderen. Diese Zeile beantwortet die
+                // Frage, die VOR jeder Deutung des Diagramms steht: „sehe ich
+                // gerade alles?" (UX-70). Wer sie in der Hilfe erst unter
+                // „Diagramm" fände, hätte sie schon nicht mehr gesucht.
+                section("Was gerade wirkt", icon: "text.magnifyingglass", [
+                    "Über dem Diagramm stehen **zwei Zeilen**: oben der Gegenstand – Quelle und Zeitraum –, darunter, was davon weggelassen und wie es geordnet wird.",
+                    "Die untere Zeile ist **immer** da und nennt in fester Reihenfolge: übersprungene Ordner, Namensfilter, ausgeblendete Typen, Sortierung.",
+                    "Steht dort nur „nach Datum, absteigend“, filtert nichts.",
+                    "Sie **zeigt nur** – abschalten lässt sich jeder Filter dort, wo er gesetzt wurde: Suchfeld, Legende, Werkzeugleiste.",
+                    "Die Zeile **darunter** erscheint nur, wenn etwas ausgeblendet ist, und trägt die Knöpfe „Löschen“ und „Zurücksetzen“.",
+                ])
+
                 section("Quellen wählen", icon: "folder", [
                     "Knopf links in der Titelleiste: Quellen einzeln an- und abwählen.",
                     "Mehrere Quellen gleichzeitig möglich – jede erscheint als eigener Wurzelknoten.",

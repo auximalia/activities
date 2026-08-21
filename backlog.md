@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.19 · 2026-08-21*
+*Stand: v2.0.20 · 2026-08-21*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -55,59 +55,86 @@ Hinweis"*. Eine **Ausnahmezeile** und ein **Zustandsanzeiger** sind zwei Bauteil
 gegensätzlicher Regel — das eine schweigt im Normalfall, das andere muss dann gerade
 reden. Wer das eine ins andere baut, zerstört beides.
 
-### UX-70 · Kein Ort nennt den wirkenden Zustand vollständig
+### ✅ UX-70 · Kein Ort nannte den wirkenden Zustand vollständig *(v2.0.20)*
 **Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt
 
-**Beobachtet:** Um zu wissen, was gerade wirkt, muss der Anwender vier Bereiche absuchen:
+**Beobachtet:** Um zu wissen, was gerade wirkt, musste der Anwender vier Bereiche absuchen:
 Werkzeugleiste (Quelle, Suchfeld, Zeitraum-Segmente, Sortierung), Überschrift (Zeitraum
-ausgeschrieben), Legende (Office- und Typ-Plättchen), Filterzeile (Name, Rauschen, Typ).
-Im vorliegenden Bildschirmfoto (1919 pt breit) liegen allein die Anzeigen zu **Name** und
+ausgeschrieben), Legende (Office- und Typ-Plättchen), Filterzeile (Name, Rauschen, Typ). Im
+gemeldeten Bildschirmfoto (1919 pt breit) lagen allein die Anzeigen zu **Name** und
 **Zeitspanne** auf **drei Höhen** und über rund **900 pt Breite** verteilt.
 
-**Warum das schadet:** Die Frage „sehe ich gerade alles?" ist die Frage, die vor **jeder**
-Deutung des Diagramms steht. Wer sie nur durch Absuchen beantworten kann, beantwortet sie
-irgendwann nicht mehr — und hält eine gefilterte Liste für den Bestand. Das ist derselbe
-Schaden, den UX-06 abgeschafft hat, nur eine Ebene höher: nicht der einzelne Filter ist
-still, sondern **ihre Summe**.
+**⚠️ Der Rahmenbefund: es war eine andere Frage beantwortet worden.** Die Anzeigen der App
+beantworten *„Warum sehe ich nicht alles?"* — gefragt war *„In welchem Zustand bin ich?"*
+Der erste Satz stand wörtlich im eigenen Quelltext. Seit UX-06 war für **jeden einzelnen**
+Filter ein Hinweis gebaut worden, jeweils neben dem, worauf er wirkt — Gesetz der Nähe,
+jedes Mal richtig begründet. **Zwanzig lokal richtige Entscheidungen ergeben zusammen keine
+Übersicht:** 28 Einzelanzeigen in 6 Bildschirmbereichen, der Namensfilter an fünf Stellen,
+der Zeitraum an sechs. *Redundanz ist nicht Übersicht — jede Stelle trug einen Ausschnitt,
+keine das Ganze.*
 
-**Beleg:** Inventur der 28 Anzeigen: Werkzeugleiste `MainToolbar.swift:29-341`, Überschrift
-`ChartHeaderView.swift:121-158`, Legende `HistoryChartView.swift:409-445`, Filterzeile
-`ChartHeaderView.swift:203-283`, Fußzeile `RootView.swift:410-646`, Menüs
-`ActivitiesApp.swift:121-493`. **Es gibt keinen Typ, der „was wirkt" zusammenfasst:**
-`FileVisibility` (`FileVisibility.swift:28`) kommt am nächsten, kennt aber weder Quelle
-noch Rauschfilter noch Sortierung — und das ist dort ausdrücklich so entschieden
-(`FileVisibility.swift:12-27`, „Wer die Schichten einebnet, bekommt kein einfacheres
-Modell, sondern ein falsches").
+**Was gebaut wurde:** `ActiveFilters` im Kern liefert sechs Achsen in fester Reihenfolge —
+Quelle, Zeitraum, Rauschen, Name, Typen, Sortierung. Die Kopfzone über dem Diagramm ist
+daraus **zweizeilig**: oben der **Gegenstand** (Quelle · Zeitraum), darunter die
+**Behandlung** (was weggelassen, wie geordnet). Die zweite Zeile ist **immer** da; steht
+dort nur „nach Datum, absteigend", filtert nichts.
 
-**Vorschlag:** Eine **Zustandszeile**, die alles Wirkende in **fester Reihenfolge** nennt,
-gespeist aus **einem** neuen Kerntyp `ActiveFilters`. Der Ort ist die eine offene
-Entscheidung — drei Kandidaten, Erörterung im Sprintplan
-(`sprints/sprint-21-zustandszeile.md`, E1):
-- **a) Die Überschrift über dem Diagramm wird zur Zustandszeile** *(Empfehlung)* — sie ist
-  bereits immer sichtbar, trägt bereits den Zeitraum und steht bereits zwei Zeilen über der
-  Filterzeile. Ergebnis: **Zustand oben, Handlungen darunter.** Kein neuer Ort.
-- b) Die Fußzeile — klassischer macOS-Ort, immer sichtbar, trägt bereits Quelle und
-  Ergebniszahl; aber am weitesten von den Bedienelementen entfernt.
-- c) Filterknopf mit Zähler und Aufklapper in der Werkzeugleiste — skaliert am besten, ist
-  aber **ein Klick, kein Blick**, und UX-57 hat ein Popover an dieser Stelle schon einmal
-  als *„vierter Mechanismus"* zurückgewiesen.
+**⚠️ Ein zweites Bauteil, kein Ausbau der Filterzeile.** Die Filterzeile ist eine
+**Ausnahmezeile** und muss im Normalfall schweigen (Sprint 17, Festlegung 3 — gilt
+unverändert). Ein **Zustandsanzeiger** muss dann gerade reden. Gegensätzliche Regeln, zwei
+Bauteile; wer sie zusammenlegt, zerstört beide. Die Filterzeile behält die **Rücksetzwege**,
+die neue Zeile trägt die **Auskunft** und bedient nichts — zwei Bedienorte für dieselbe
+Sache wären der Fehler, den PR-44 behoben hat.
 
-**⚠️ Berührt dokumentierte Entscheidungen — keine wird aufgerollt:** Entscheidung 6 (der
-Zeitraum bleibt am Diagramm) bleibt unangetastet, Variante a) baut sie sogar aus. Sprint 17
-Festlegung 3 bleibt gültig: Die Filterzeile bleibt Ausnahmezeile und bekommt **nichts**
-Vorgabemäßiges hinzu. PR-44 bleibt gültig: Der Office-Schalter bleibt in der Legende — die
-Zustandszeile **nennt** ihn, bedient ihn aber nicht.
+**⚠️ Drei Achsen erscheinen immer, und das widerspricht Festlegung 3 nicht.** Quelle,
+Zeitraum und Sortierung haben **kein „aus"**. Eine Ansage darüber ist keine Ausnahmemeldung,
+sondern die Antwort auf die gestellte Frage.
 
-**⚠️ Die Falle heißt PR-46, und sie ist hier größer als je zuvor.** `FileVisibility.swift:158-170`
-warnt: *„ausdrücklich KEINE zweite Abfrage derselben Eingänge an anderer Stelle. Genau
-daran ist die Vorgängerfassung zweimal gescheitert."* Eine Zustandszeile ist per Definition
-eine zweite Anzeige derselben Sache. Sie ist nur zu verantworten, wenn sie aus **einem**
-Typ abgeleitet wird, den `CoreChecks` gegen die tatsächlich wirkenden Filter prüft.
+**Gemessen, nicht geschätzt** (`measure-ui`, System):
 
-**Akzeptanz:** Ein Anwender kann bei ruhendem Blick auf **eine** Zeile alle wirkenden
-Filter benennen, ohne Werkzeugleiste, Legende oder Menü zu lesen. Zusicherung: Für jeden
-Filter gilt „wirkt ⟺ wird in `ActiveFilters` genannt" — dieselbe Äquivalenzprüfung, die
-`ChecksFilter.swift:340-344` bereits für `typeFilterSummary` fährt.
+| | Breite |
+|---|---|
+| Behandlungszeile, alles wörtlich | 862,9 pt |
+| **Behandlungszeile, Rauschen gekürzt** | **600,7 pt** |
+| Rauschen *und* Typ gekürzt | 491,8 pt |
+| Gegenstandszeile (15 pt) | 379,1 pt |
+| Einklapp-Knopf (10 pt) | 107,6 pt |
+
+Daraus drei Festlegungen: **(1) zwei Zeilen statt einer** — zusammen über 1.000 pt, und eine
+Überschrift, die zur Aufzählung wird. **(2) Nur der Rauschfilter wird gekürzt**
+(`ExclusionRules.skippedShort`) — er bringt 262 pt, der Typ nur weitere 109, und für den
+Wortlaut, um den PR-44 gerungen hat, wird keine zweite Fassung erfunden. **(3) Voller
+Kontrast statt `.secondary`** — gemessen 3,82:1 hell, unter AA; die Rangfolge trägt die
+Größe (11 gegen 15 pt), nicht das Grau.
+
+**⚠️ Das Messen fand einen Fehler, den der Entwurf nicht sah.** Als **eine** Zeichenkette
+mit `.truncationMode(.tail)` hätte ein langer Quellenname den **Zeitraum** vom Ende her
+abgeschnitten — ausgerechnet die Angabe, ohne die die Balken nicht deutbar sind
+(Entscheidung 6). Bei 820 pt Mindestfensterbreite bleiben 265 pt Luft; ein Ordnername mit
+vierzig Zeichen frisst sie auf. Quelle und Zeitraum sind deshalb zwei `Text` mit getrennter
+Layout-Priorität: *Schmückendes weicht Auskunft.*
+
+**⚠️ Die Falle hieß PR-46, und sie war hier größer als je zuvor.** Eine Zustandszeile **ist**
+eine zweite Anzeige derselben Sache. Sie ist nur zu verantworten, weil sie aus **einem** Typ
+kommt, der `FileVisibility` **liest** statt es nachzubauen, und weil `CoreChecks` die
+Äquivalenz „wirkt ⟺ wird genannt" für jede Achse prüft — über alle 16 Kombinationen der vier
+wegfallbaren Achsen.
+
+**Bewusst in Kauf genommen:** Der Typ-Text steht **zweimal untereinander**, wörtlich gleich,
+zwei Zeilen auseinander. Die Alternative wäre eine zweite Formulierung — der Fehler von
+v1.19.37. *Als Kosten festgehalten, nicht wegdiskutiert; erneut anzusehen nach der Praxis,
+nicht nach weiterem Nachdenken.*
+
+**Bewusst nicht gebaut:** „Alle Filter zurücksetzen" (geplant als AP5, bei der Umsetzung von
+`decision-check` verworfen). Er hätte nur Namens- und Typ-Filter löschen können und wäre in
+**derselben Auslieferung** falsch geworden, die „77 Ordner übersprungen" als wirkend
+ausweist. Ehrlich benannt („Name- und Typ-Filter zurücksetzen") fasst er zwei Befehle
+zusammen, die bereits untereinander im selben Menü stehen. *Der Auftrag lautete sehen, nicht
+löschen.*
+
+**Plan:** `sprints/sprint-21-zustandszeile.md`, samt Abschnitt „Was die Umsetzung am Plan
+geändert hat".
+
 
 ### ✅ UX-71 · Die Sortierung stand nirgends im Fenster *(v2.0.19)*
 **Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
@@ -189,28 +216,30 @@ anderen.
 nicht heran. Sie hängt allein am Doc-Kommentar und an der Abnahme — genau die Lage, in der
 die alte Fassung entgleist ist.
 
-### UX-73 · Für VoiceOver ist der Zustand nur erlaufbar
+### ✅ UX-73 · Für VoiceOver war der Zustand nur erlaufbar *(v2.0.20)*
 **Aufwand:** S · **Nutzen:** mittel · **Art:** Defekt
 
-**Beobachtet:** Sämtliche **Bedienelemente** sind vorbildlich beschriftet. Die reinen
-**Textanzeigen**, die den Zustand tragen, sind es nicht: die Zeitraum-Überschrift trägt nur
-`.help(…)` (`ChartHeaderView.swift:128`), die eingeklappte Legendenkurzfassung
-(`:130-136`), die Ergebniszahl „24 Ordner · 103 Dateien" (`RootView.swift:413-415`) und der
-Quellenpfad der Fußzeile (`:456-462`) sind nackte `Text`.
+**Beobachtet:** Sämtliche **Bedienelemente** waren vorbildlich beschriftet. Die reinen
+**Textanzeigen**, die den Zustand tragen, nicht: die Zeitraum-Überschrift trug nur `.help`,
+ebenso der Quellenpfad der Fußzeile; die eingeklappte Legendenkurzfassung und die
+Ergebniszahl „24 Ordner · 103 Dateien" waren nackte `Text`.
 
-**Warum das schadet:** Ein Tooltip existiert für Vorleseprogramme nicht — das steht als
-Entscheidung 20 bereits im eigenen Backlog und wurde für `FolderRowView.swift:50-54` schon
-einmal so entschieden. Wer nicht sieht, hat das Problem des Melders in verschärfter Form:
-Er muss das ganze Fenster durchtabben, um zu erfahren, was wirkt.
+**Warum das schadet:** Ein Tooltip existiert für Vorleseprogramme nicht (Entscheidung 20).
+Wer nicht sieht, hatte das Problem des Melders in verschärfter Form — das ganze Fenster
+durchtabben, um zu erfahren, was wirkt.
 
-**Vorschlag:** Die Zustandszeile aus UX-70 wird **ein** Bedienhilfen-Element
-(`accessibilityElement(children: .combine)`) mit dem vollständigen Satz als Label. Damit
-löst UX-70 diesen Befund mit — *das ist das stärkste Argument für die Zustandszeile
-überhaupt: Für Vorleseprogramme gibt es „ein Blick" sonst gar nicht.* Die vier fehlenden
-Labels werden unabhängig davon nachgetragen.
+**Was gemacht wurde:** Die Zustandszeile aus UX-70 ist **ein** Bedienhilfen-Element mit dem
+vollständigen Satz als Wert; Quelle und Zeitraum tragen eigene Label. Dazu die vier
+Nachträge: Ergebniszahl („Ergebnis"), Quellenpfad der Fußzeile („Quelle"),
+Legendenkurzfassung, Überschrift.
 
-**Akzeptanz:** Ein einziger VoiceOver-Halt nennt Quelle, Zeitraum, Namensfilter,
-Typ-Filter, Rauschfilter und Sortierung.
+**⚠️ Der gesprochene Satz trennt mit Komma, nicht mit „·".** Ein Mittelpunkt wird von
+Vorleseprogrammen entweder verschluckt oder vorgelesen; beides ist falsch. Das Komma erzeugt
+die Pause, die das Auge aus dem Punkt liest.
+
+*Das war zugleich das stärkste Argument für die Zustandszeile überhaupt: **Für
+Vorleseprogramme gibt es „einen Blick" sonst gar nicht.***
+
 
 ### UX-74 · Die Kopfzone springt in der Höhe
 **Aufwand:** S · **Nutzen:** gering · **Art:** Geschmack
@@ -233,16 +262,17 @@ ortsfeste Zeile die Grundlast, und die Ausnahmezeile darf springen.
 
 ### Rangfolge
 
-**Entschieden am 2026-08-21:** E1 (Ort der Zustandszeile) → **Variante a)**, die Überschrift
-über dem Diagramm. **UX-71 und UX-72 sind mit v2.0.19 vorab ausgeliefert** — beide sind von
-E1 unabhängige Defekte, keine Vorarbeiten.
+**E1 (Ort der Zustandszeile) entschieden am 2026-08-21: Variante a)**, die Überschrift über
+dem Diagramm. **Vier der fünf Befunde sind erledigt.**
 
 1. ~~**UX-72**~~ ✅ v2.0.19
-2. ~~**UX-71** (Menü-Haken)~~ ✅ v2.0.19 · offen bleibt Teil 2 (Sortierung als Achse der
-   Zustandszeile, Sprint 21 AP3)
-3. **UX-70** — der Auftrag selbst, Plan liegt als Sprint 21 vor, Umsetzung nicht freigegeben.
-4. **UX-73** (die vier fehlenden Labels) — nach UX-70, damit nicht zweimal angefasst wird.
-5. **UX-74** — erst danach neu bewerten.
+2. ~~**UX-71**~~ ✅ v2.0.19 (Menü-Haken) und v2.0.20 (Sortierung als Achse der Zustandszeile)
+3. ~~**UX-70**~~ ✅ v2.0.20 — der Auftrag selbst, Sprint 21
+4. ~~**UX-73**~~ ✅ v2.0.20 — von UX-70 mitgelöst, plus die vier Nachträge
+5. **UX-74** — offen. *Jetzt neu zu bewerten:* Die Kopfzone hat mit v2.0.20 eine **ortsfeste**
+   Zeile bekommen, die die Grundlast trägt. Damit ändert sich die Frage, die dieser Befund
+   stellt — die springende Ausnahmezeile darunter ist womöglich kein Problem mehr, sondern
+   genau die richtige Arbeitsteilung. **Vor der Praxis nicht zu entscheiden.**
 
 ## Aus der UX-Durchsicht v1.19.33 *(2026-08-10)*
 

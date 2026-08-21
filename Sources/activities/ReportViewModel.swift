@@ -483,6 +483,31 @@ final class ReportViewModel {
             byHiddenPath: skippedByHiddenPathCount
         )
     }
+
+    /// **Was gerade wirkt** – die sechs Achsen der Zustandszeile (UX-70).
+    ///
+    /// **⚠️ Eine Stelle, an der alles zusammenkommt, und ausdruecklich KEINE
+    /// zweite Abfrage der Eingaenge.** Der Zeitraum kommt aus derselben
+    /// Formatierung wie die Ueberschrift, der Typ-Text aus ``visibility``, der
+    /// Rausch-Text aus ``ExclusionRules`` – nichts davon wird hier nachgebaut.
+    /// Genau daran ist PR-46 zweimal gescheitert, und eine Zeile, die dem
+    /// Anwender Vollstaendigkeit verspricht, ist der schlechteste Ort fuer den
+    /// dritten Anlauf.
+    var activeFilterFacets: [FilterFacet] {
+        ActiveFilters.facets(
+            source: sourcesLabel,
+            period: DateFormatting.range(
+                from: displayRangeStart,
+                to: displayRangeEnd,
+                days: displayRangeDayCount
+            ),
+            skippedByRule: skippedByRuleCount,
+            skippedByHiddenPath: skippedByHiddenPathCount,
+            namePattern: namePattern,
+            visibility: visibility,
+            sort: sort
+        )
+    }
     /// Rohergebnis des letzten Suchlaufs – **das gesamte gescannte Fenster**.
     /// Grundlage dafuer, eine Verkleinerung des Zeitraums ohne neuen Scan zu bedienen.
     /// Rohbestand des Suchlaufs, **je Quelle getrennt gehalten**.

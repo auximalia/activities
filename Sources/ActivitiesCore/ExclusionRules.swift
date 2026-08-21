@@ -186,4 +186,26 @@ public struct ExclusionRules: Sendable, Equatable {
         guard byHiddenPath > 0 else { return kopf }
         return kopf + " · davon \(byHiddenPath) von dir ausgeblendet"
     }
+
+    /// Dieselbe Auskunft in kurz – für die Zustandszeile über dem Diagramm.
+    ///
+    /// **⚠️ Zwei Längen für eine Tatsache, und beide stehen hier.** Die
+    /// Zustandszeile (UX-70) nennt sechs Achsen in einer Zeile; gemessen mit
+    /// `measure-ui` bei System 11 pt kostete die Langfassung dort **862,9 pt**,
+    /// die Kurzfassung **600,7 pt** – 262 pt allein an diesem Satz. Das Haus
+    /// kennt dieses Paar bereits: ``ReportViewModel/sourcesLabel`` („3 Quellen")
+    /// neben ``ReportViewModel/statusSourceText`` („3 Quellen: A · B · C").
+    ///
+    /// **⚠️ Die Kurzfassung darf nur weglassen, nie anders rechnen.** Sie nennt
+    /// dieselbe Gesamtzahl und verschweigt nur die Aufschlüsselung – die steht
+    /// zwei Zeilen darunter in der Filterzeile, samt Weg zum Rauschfilter.
+    /// ``CoreChecks`` sichert zu, dass beide **gemeinsam** `nil` sind: Eine
+    /// Kurzfassung, die schweigt, während die Langfassung redet, wäre ein
+    /// stiller Zustand an der Stelle, die Vollständigkeit verspricht.
+    public static func skippedShort(byRule: Int, byHiddenPath: Int) -> String? {
+        let total = byRule + byHiddenPath
+        guard total > 0 else { return nil }
+        // „Ordner" ist im Deutschen in Ein- und Mehrzahl gleich – keine Fallunterscheidung.
+        return "\(total) Ordner übersprungen"
+    }
 }

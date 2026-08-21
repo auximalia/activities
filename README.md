@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v2.0.19 · 2026-08-21*
+*Stand: v2.0.20 · 2026-08-21*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -53,6 +53,10 @@ bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege
 - Die **Legende** filtert: Klick blendet einen Typ aus, Doppelklick zeigt nur diesen.
 
 **Ergebnisliste**
+- **Was gerade wirkt, steht an einem Ort**: Ueber dem Diagramm nennt die obere Zeile den
+  Gegenstand (Quelle, Zeitraum), die untere in fester Reihenfolge, was davon weggelassen und
+  wie es geordnet wird – uebersprungene Ordner, Namensfilter, ausgeblendete Typen, Sortierung.
+  Sie ist immer da und zeigt nur; abgeschaltet wird jeder Filter dort, wo er gesetzt wurde.
 - Nach Zeitabschnitten gruppiert („Heute", „Diese Woche", „Vor 3 Monaten" …), als Baum
   mit abgerundeten Verbindungslinien.
 - **Sortierung** nach Datum, Name oder Typ – innerhalb der Zeitabschnitte. Welche gilt, steht

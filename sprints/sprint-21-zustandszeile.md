@@ -1,9 +1,9 @@
 # Sprint 21 – „Ein Ort, ein Blick"
 
-*Stand: v2.0.19 · 2026-08-21*
+*Stand: v2.0.20 · 2026-08-21*
 
-*Geplant am 2026-08-21 · **E1 entschieden am 2026-08-21: Variante a).** Umsetzung von AP1,
-AP2, AP5–AP8 noch nicht freigegeben.*
+*Geplant am 2026-08-21 · **Umgesetzt und ausgeliefert am 2026-08-21 (v2.0.20).**
+E1 entschieden: Variante a). AP5 bei der Umsetzung verworfen — Begründung unten.*
 
 > **Übergabedokument.** Es kann von einem anderen Modell und in einer anderen Sitzung
 > umgesetzt werden. Was ein Umsetzender fragen müsste, ist ein Fehler dieses Plans.
@@ -182,17 +182,22 @@ einen selten gewechselten Zustand.
 Regel, wurde aber für zwei Segmente geschrieben; das Namenssegment aus UX-29 kam später
 links davor. Kommentar auf drei flüchtige Segmente nachziehen.
 
-### AP5 · „Alle Filter zurücksetzen" *(S — hängt an E1)*
+### AP5 · „Alle Filter zurücksetzen" *(bei der Umsetzung VERWORFEN)*
 
-Ein Befehl im Menü „Darstellung", der Namensfilter, Typ-Filter und Office in einem
-Handgriff löscht.
+**⚠️ `decision-check` fällte das Urteil „falsche Frage gestellt" — und das ist der Ertrag,
+nicht der Rückschlag.** Der Befehl hätte nur Namens- und Typ-Filter löschen können; Zeitraum,
+Quelle und Sortierung haben kein „aus", der Rauschfilter ist dauerhafte Einrichtung (UX-57).
+Damit standen zwei Namen zur Wahl, und beide waren schlecht:
 
-**⚠️ Was er ausdrücklich NICHT anfasst:** Zeitraum, Quelle, Sortierung, Rauschfilter. Die
-ersten drei haben keinen „Aus"-Zustand — „zurücksetzen" hieße dort „auf einen Wert setzen,
-den du nicht gewählt hast". Der Rauschfilter ist dauerhafte Einrichtung, kein
-Ansichtszustand (UX-57). *Wenn der Befehl nicht ehrlich „alle" sein kann, muss der Name das
-sagen* — Alternativname `„Name- und Typ-Filter zurücksetzen"`, zu entscheiden bei der
-Umsetzung mit `decision-check`.
+- **„Alle Filter zurücksetzen"** wäre in **derselben Auslieferung** falsch geworden, die die
+  Zustandszeile einführt: Sie weist „77 Ordner übersprungen" als wirkend aus, und der Befehl
+  hätte es nicht angefasst. *Ein Widerspruch im selben Fenster.*
+- **„Name- und Typ-Filter zurücksetzen"** wäre ehrlich — und benennt damit genau die beiden
+  Befehle, die **bereits untereinander im selben Menü stehen** (`ActivitiesApp.swift:232-241`),
+  je mit Kürzel und abgeblendet, wenn nichts wirkt. Ein dritter Menüpunkt, der zwei
+  benachbarte zusammenfasst, ist Zeremonie.
+
+Der Auftrag lautete außerdem *sehen*, nicht *löschen*. AP5 war eine Zutat des Planers.
 
 ### AP6 · Die vier fehlenden Bedienhilfen-Labels *(S — Rest von UX-73)*
 
@@ -289,6 +294,49 @@ Beide sind von E1 unabhängig und eigenständige Defekte, keine Vorarbeiten — 
 sonst ohne Grund. Was davon **noch offen** ist: **AP3 Teil 2** (die Sortierung als Achse 6
 der Zustandszeile). Der Wortlaut dafür liegt seit v2.0.19 als `FolderSort.summary` im Kern
 und ist von AP1 nur noch abzurufen.
+
+---
+
+## 5b · Was die Umsetzung am Plan geändert hat
+
+*Nachgetragen am 2026-08-21. Der Plan ist ein lebendes Dokument; hier steht, wo die
+Wirklichkeit ihn korrigiert hat.*
+
+**1. Zwei Zeilen statt einer.** Der Plan skizzierte eine Zeile mit dem Zeitraum in `.title3`
+und dem Rest in `.subheadline` auf derselben Grundlinie. Gemessen (`measure-ui`, System):
+Gegenstand 379,1 pt bei 15 pt, Behandlung 600,7 pt bei 11 pt, dazu der Einklapp-Knopf mit
+107,6 pt — zusammen über 1.000 pt in **einer** Zeile. Getrennt bleibt die Überschrift eine
+Überschrift (mein eigenes Gegenargument aus E1a entfällt damit), und die Zustandszeile
+bekommt eine feste Position. **Zeile 1 = der Gegenstand** (Quelle · Zeitraum), **Zeile 2 =
+die Behandlung** (Rauschen · Name · Typen · Sortierung).
+
+**2. Nur der Rauschfilter wird gekürzt, nicht der Typ-Text.** Der Plan verlangte wörtliche
+Übernahme beider. Gemessen kostete das 862,9 pt. Die Kürzung des Rauschens bringt **262 pt**,
+die des Typs nur weitere **109** — und erfände ausgerechnet für den Wortlaut, um den PR-44
+gerungen hat, eine zweite Fassung. Die Geschwisterprobe erlaubt das Paar
+(`sourcesLabel` / `statusSourceText` ist genau das), also gibt es
+`ExclusionRules.skippedShort(…)` neben `skippedSummary(…)`, mit der Zusicherung, dass beide
+**gemeinsam** schweigen.
+
+**3. Zwei `Text` mit getrennter Layout-Priorität in der Überschrift.** Das Messen fand einen
+Fehler, den der Entwurf nicht sah: Als **eine** Zeichenkette mit `.truncationMode(.tail)`
+hätte ein langer Quellenname den **Zeitraum** vom Ende her abgeschnitten — ausgerechnet die
+Angabe, ohne die die Balken nicht deutbar sind (Entscheidung 6). Bei 820 pt
+Mindestfensterbreite bleiben 265 pt Luft; ein Ordnername mit vierzig Zeichen frisst sie auf.
+Der Quellenname weicht jetzt zuerst und mittig gekürzt.
+
+**4. Voller Kontrast statt `.secondary`.** Gemessen: `secondaryLabel` erreicht hell
+**3,82:1** und liegt unter AA (4,5:1; 11 pt zählt nicht als großer Text). Die Filterzeile
+hat für dieselbe Klasse von Auskunft schon so entschieden. Die Rangfolge zur Überschrift
+trägt die Größe (11 gegen 15 pt), nicht das Grau.
+
+**5. AP5 verworfen** — siehe dort.
+
+**6. Der Typ-Text steht zweimal untereinander, und das ist bewusst bezahlt.** Zustandszeile
+und Filterzeile zeigen „Office · 5 Typen zusätzlich ausgeblendet" wörtlich gleich, zwei
+Zeilen auseinander. Die Alternative wäre eine zweite Formulierung — der Fehler von v1.19.37.
+**Als Kosten festgehalten, nicht wegdiskutiert**; erneut anzusehen nach der Praxis, nicht
+nach weiterem Nachdenken.
 
 ---
 

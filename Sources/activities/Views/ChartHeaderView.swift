@@ -111,32 +111,50 @@ struct ChartHeaderView: View {
         .background(.bar)
     }
 
-    /// Zeitraum als **Überschrift direkt über dem Diagramm**, linksbündig.
+    /// Der **Gegenstand** als Überschrift direkt über dem Diagramm, linksbündig:
+    /// aus welcher Quelle und aus welchem Zeitraum das Bild darunter stammt.
     ///
     /// Der Zeitraum beschriftet das Diagramm – ohne ihn sind die Balken nicht
     /// deutbar. Er gehört deshalb in dessen unmittelbare Nähe und **nicht** in
     /// die Titelleiste (dort stand er in v1.8.x; Gesetz der Nähe).
     /// Bleibt auch **eingeklappt** sichtbar, weil die Information dann erst
     /// recht gebraucht wird.
+    ///
+    /// **⚠️ Seit v2.0.20 steht die Quelle davor, und darunter die Zustandszeile
+    /// (UX-70).** Gemeldet wurde: *„Ich muss mir die Informationen über das
+    /// Fenster verteilt einzeln einsammeln. Ich brauche einen Ort, einen Blick
+    /// um zu wissen, was wirkt."* Die Zweiteilung ist die Antwort:
+    /// **oben der Gegenstand** – woher und aus welcher Zeit –, **darunter die
+    /// Behandlung** – was weggelassen und wie geordnet wird.
+    ///
+    /// **⚠️ Zwei Zeilen, nicht eine.** Der Plan sah eine vor. Gemessen mit
+    /// `measure-ui` bei System 11 pt ist die Behandlungszeile im Vollzustand
+    /// **600,7 pt** breit, die Überschrift bei 15 pt **283,0 pt**; angehängt
+    /// ergäbe das mit dem Einklapp-Knopf über 1.000 pt in **einer** Zeile – und
+    /// eine Überschrift, die zur Aufzählung wird. Getrennt bleibt die
+    /// Überschrift eine Überschrift, und die Zustandszeile bekommt eine feste
+    /// Position, die sich nicht verschiebt.
     private var headline: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(rangeHeadline)
-                .font(.title3)
-                .fontWeight(.semibold)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .help("Aktuell angezeigter Zeitraum")
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                subjectHeadline
+                    .font(.title3)
+                    .fontWeight(.semibold)
 
-            if !model.headerExpanded && !model.topExtensions.isEmpty {
-                Text(collapsedSummary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                if !model.headerExpanded && !model.topExtensions.isEmpty {
+                    Text(collapsedSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .accessibilityLabel("Häufigste Dateitypen")
+                        .accessibilityValue(collapsedSummary)
+                }
+
+                Spacer(minLength: 8)
+                collapseButton
             }
-
-            Spacer(minLength: 8)
-            collapseButton
+            stateLine
         }
         // Links so weit einruecken, dass die Ueberschrift rechts neben der
         // Y-Achsenbeschriftung des Diagramms beginnt – sonst stossen „30" und
@@ -147,14 +165,87 @@ struct ChartHeaderView: View {
         .padding(.bottom, model.headerExpanded ? 0 : 6)
     }
 
-    /// Zeitraum ausgeschrieben, z. B. „Mi., 08.07.2026 – Do., 06.08.2026 · 30 Tage".
-    /// Über dem Diagramm ist Platz für die Langfassung mit Wochentagen.
-    private var rangeHeadline: String {
-        DateFormatting.range(
-            from: model.displayRangeStart,
-            to: model.displayRangeEnd,
-            days: model.displayRangeDayCount
-        )
+    /// Der Gegenstand: **Quelle · Zeitraum**.
+    ///
+    /// **⚠️ Zwei `Text` mit verschiedener Layout-Priorität, nicht eine
+    /// zusammengesetzte Zeichenkette.** Als ein Text mit `.truncationMode(.tail)`
+    /// hätte ein langer Quellenname den **Zeitraum** vom Ende her abgeschnitten
+    /// – ausgerechnet die Angabe, ohne die die Balken darunter nicht deutbar
+    /// sind (Entscheidung 6). Gemessen mit `measure-ui`: der Gegenstand ist im
+    /// Normalfall 379,1 pt breit, die Zeile hat bei der Mindestfensterbreite von
+    /// 820 pt rund 265 pt Luft – ein Quellenname mit vierzig Zeichen frisst sie
+    /// auf. Der Quellenname weicht deshalb zuerst und **mittig** gekürzt, wie
+    /// der Pfad in der Fußzeile; derselbe Grundsatz wie bei der Urheberangabe
+    /// dort: *Schmückendes weicht Auskunft, nicht umgekehrt.*
+    @ViewBuilder
+    private var subjectHeadline: some View {
+        let facets = ActiveFilters.subject(model.activeFilterFacets)
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            if let quelle = facets.first(where: { $0.axis == .source }) {
+                Text(quelle.text)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .layoutPriority(-1)
+                    .accessibilityLabel("Quelle")
+                    .accessibilityValue(quelle.text)
+                Text("·").foregroundStyle(.secondary).layoutPriority(-1)
+            }
+            if let zeitraum = facets.first(where: { $0.axis == .period }) {
+                Text(zeitraum.text)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                    .accessibilityLabel("Zeitraum")
+                    .accessibilityValue(zeitraum.text)
+            }
+        }
+    }
+
+    /// **Die Zustandszeile: was von diesem Gegenstand weggelassen und wie er
+    /// geordnet wird** (UX-70).
+    ///
+    /// **⚠️ Sie ist IMMER da, und das ist der ganze Zweck.** Ein
+    /// Zustandsanzeiger, der bei Vorgabe schweigt, beantwortet die Frage „in
+    /// welchem Zustand bin ich" nicht. Damit unterscheidet sie sich grundlegend
+    /// von der Filterzeile darunter, die als **Ausnahmezeile** im Normalfall
+    /// schweigen muss (Sprint 17, Festlegung 3 – gilt unverändert). Zwei
+    /// Bauteile mit gegensätzlicher Regel; wer sie zusammenlegt, zerstört beide.
+    ///
+    /// **⚠️ Nur Anzeige, keine Bedienung.** Die Wege zum Abschalten bleiben, wo
+    /// sie wirken: in der Filterzeile, in der Legende, in der Werkzeugleiste.
+    /// Zwei Bedienorte für dieselbe Sache wären genau der Fehler, den PR-44
+    /// behoben hat.
+    ///
+    /// **⚠️ Voller Kontrast, nicht `.secondary`.** Gemessen: `secondaryLabel`
+    /// erreicht im hellen Erscheinungsbild **3,82:1** und liegt damit unter der
+    /// AA-Schwelle von 4,5:1 (11 pt zählt nicht als großer Text). Die
+    /// Filterzeile darunter hat für dieselbe Klasse von Auskunft schon so
+    /// entschieden – *wer sie übersieht, hält eine gefilterte Liste für den
+    /// ganzen Bestand.* Die Rangfolge zur Überschrift trägt die Größe
+    /// (11 gegen 15 pt) und das Gewicht, nicht das Grau.
+    ///
+    /// **⚠️ Ein einziges Bedienhilfen-Element** (UX-73). Für Vorleseprogramme
+    /// gibt es „einen Blick" sonst überhaupt nicht – wer nicht sieht, müsste das
+    /// ganze Fenster durchtabben. Das ist das stärkste Argument für diese Zeile.
+    ///
+    /// **⚠️ Der Typ-Text steht hier WÖRTLICH so wie in der Filterzeile darunter
+    /// – und ja, das liest sich zweimal.** Die Alternative wäre eine zweite,
+    /// kürzere Formulierung desselben Sachverhalts, und genau daran ist
+    /// v1.19.37 gescheitert (Schalter und Plättchen sagten Verschiedenes).
+    /// Gemessen bringt die Kürzung hier nur 109 pt, während die des
+    /// Rauschfilters 262 pt bringt – nur der wurde deshalb gekürzt
+    /// (``ExclusionRules/skippedShort(byRule:byHiddenPath:)``). *Die Dopplung
+    /// ist der bewusst bezahlte Preis; sie steht als solche im Backlog und wird
+    /// nach der Praxis erneut angesehen, nicht nach weiterem Nachdenken.*
+    private var stateLine: some View {
+        let facets = ActiveFilters.treatment(model.activeFilterFacets)
+        return Text(facets.map(\.text).joined(separator: " · "))
+            .font(.subheadline)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel("Wirkt gerade")
+            .accessibilityValue(ActiveFilters.spokenSummary(facets))
+            .help("Was gerade wirkt – abschalten lässt es sich dort, wo es gesetzt wurde")
     }
 
     /// Auf-/Zuklappen – sitzt rechts in der Überschriftzeile.

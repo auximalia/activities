@@ -447,7 +447,13 @@ struct StatusBarView: View {
 
             Image(systemName: "folder")
                 .foregroundStyle(.secondary)
+            // ⚠️ Eigenes Bedienhilfen-Label (UX-73). Ohne es liest ein
+            // Vorleseprogramm „24 Ordner Punkt 103 Dateien" ohne jede Auskunft,
+            // **wovon** das die Anzahl ist – und dass es die Zahl NACH allen
+            // Filtern ist, steht dann nirgends. „Ergebnis" sagt genau das.
             Text("\(folderCount) Ordner · \(model.scannedFileCount) Dateien")
+                .accessibilityLabel("Ergebnis")
+                .accessibilityValue("\(folderCount) Ordner, \(model.scannedFileCount) Dateien")
 
             Divider().frame(height: 10)
             scanAge
@@ -455,11 +461,18 @@ struct StatusBarView: View {
             Spacer()
             // Bei mehreren Quellen der gemeinsame Kurztext; die vollen Pfade
             // stehen im Tooltip, sonst waere die Statuszeile drei Zeilen hoch.
+            //
+            // ⚠️ Der Tooltip ist KEIN Ersatz fuer das Label (UX-73,
+            // Entscheidung 20): Fuer Vorleseprogramme existiert `.help` nicht.
+            // Hier war der Pfad damit ein nacktes `Text` – und die Quelle ist
+            // die wichtigste Zustandsinformation der App.
             Text(model.statusSourceText)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .help(model.sourcesTooltip)
+                .accessibilityLabel("Quelle")
+                .accessibilityValue(model.statusSourceText)
 
             // Versionsnummer gehoert als **Statusinformation** hierher (nicht in
             // die Arbeitsflaeche): Sie wird bei Rueckfragen und Fehlermeldungen

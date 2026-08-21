@@ -120,21 +120,23 @@ struct ChartHeaderView: View {
     /// Bleibt auch **eingeklappt** sichtbar, weil die Information dann erst
     /// recht gebraucht wird.
     ///
-    /// **⚠️ Seit v2.0.20 steht die Quelle davor, und darunter die Zustandszeile
-    /// (UX-70).** Gemeldet wurde: *„Ich muss mir die Informationen über das
-    /// Fenster verteilt einzeln einsammeln. Ich brauche einen Ort, einen Blick
-    /// um zu wissen, was wirkt."* Die Zweiteilung ist die Antwort:
-    /// **oben der Gegenstand** – woher und aus welcher Zeit –, **darunter die
-    /// Behandlung** – was weggelassen und wie geordnet wird.
+    /// **⚠️ Hier stand von v2.0.20 bis v2.0.21 eine zweite Zeile, und sie war
+    /// zu drei Vierteln überflüssig (UX-75).** Gemeldet wurde: *„bei
+    /// eingeklapptem Diagramm wirkt der Text oben unruhig und redundant."* Der
+    /// Nachweis lag im Quelltext: Die Bedingungen für Rauschen, Name und Typ
+    /// waren in beiden Zeilen **paarweise identisch** – die Überschneidung war
+    /// nicht teilweise, sondern vollständig. Von drei Angaben der zweiten Zeile
+    /// war genau eine neu, die Sortierung.
     ///
-    /// **⚠️ Zwei Zeilen, nicht eine.** Der Plan sah eine vor. Gemessen mit
-    /// `measure-ui` bei System 11 pt ist die Behandlungszeile im Vollzustand
-    /// **600,7 pt** breit, die Überschrift bei 15 pt **283,0 pt**; angehängt
-    /// ergäbe das mit dem Einklapp-Knopf über 1.000 pt in **einer** Zeile – und
-    /// eine Überschrift, die zur Aufzählung wird. Getrennt bleibt die
-    /// Überschrift eine Überschrift, und die Zustandszeile bekommt eine feste
-    /// Position, die sich nicht verschiebt.
+    /// *Gemessen worden war damals die Breite, nicht die Überschneidung.* Die
+    /// Sortierung sitzt jetzt in der Statuszeile, und die Kopfzone trägt wieder
+    /// **eine** Überschrift: **oben der Gegenstand, darunter die Behandlung.**
     private var headline: some View {
+        // ⚠️ **Ein** Bedienhilfen-Element mit dem Satz ueber ALLE sechs Achsen,
+        // obwohl sichtbar nur zwei hier stehen (UX-73). Wer nicht sieht, kann
+        // nicht ueber zwei Zeilen blicken – „einen Blick" gibt es fuer
+        // Vorleseprogramme sonst gar nicht. Die Statuszeile darunter bleibt
+        // trotzdem einzeln erreichbar, weil ihre Knoepfe bedienbar sein muessen.
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 subjectHeadline
@@ -154,8 +156,10 @@ struct ChartHeaderView: View {
                 Spacer(minLength: 8)
                 collapseButton
             }
-            stateLine
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Was gerade wirkt")
+        .accessibilityValue(ActiveFilters.spokenSummary(model.activeFilterFacets))
         // Links so weit einruecken, dass die Ueberschrift rechts neben der
         // Y-Achsenbeschriftung des Diagramms beginnt – sonst stossen „30" und
         // der Anfang der Ueberschrift optisch aneinander.
@@ -200,54 +204,6 @@ struct ChartHeaderView: View {
         }
     }
 
-    /// **Die Zustandszeile: was von diesem Gegenstand weggelassen und wie er
-    /// geordnet wird** (UX-70).
-    ///
-    /// **⚠️ Sie ist IMMER da, und das ist der ganze Zweck.** Ein
-    /// Zustandsanzeiger, der bei Vorgabe schweigt, beantwortet die Frage „in
-    /// welchem Zustand bin ich" nicht. Damit unterscheidet sie sich grundlegend
-    /// von der Filterzeile darunter, die als **Ausnahmezeile** im Normalfall
-    /// schweigen muss (Sprint 17, Festlegung 3 – gilt unverändert). Zwei
-    /// Bauteile mit gegensätzlicher Regel; wer sie zusammenlegt, zerstört beide.
-    ///
-    /// **⚠️ Nur Anzeige, keine Bedienung.** Die Wege zum Abschalten bleiben, wo
-    /// sie wirken: in der Filterzeile, in der Legende, in der Werkzeugleiste.
-    /// Zwei Bedienorte für dieselbe Sache wären genau der Fehler, den PR-44
-    /// behoben hat.
-    ///
-    /// **⚠️ Voller Kontrast, nicht `.secondary`.** Gemessen: `secondaryLabel`
-    /// erreicht im hellen Erscheinungsbild **3,82:1** und liegt damit unter der
-    /// AA-Schwelle von 4,5:1 (11 pt zählt nicht als großer Text). Die
-    /// Filterzeile darunter hat für dieselbe Klasse von Auskunft schon so
-    /// entschieden – *wer sie übersieht, hält eine gefilterte Liste für den
-    /// ganzen Bestand.* Die Rangfolge zur Überschrift trägt die Größe
-    /// (11 gegen 15 pt) und das Gewicht, nicht das Grau.
-    ///
-    /// **⚠️ Ein einziges Bedienhilfen-Element** (UX-73). Für Vorleseprogramme
-    /// gibt es „einen Blick" sonst überhaupt nicht – wer nicht sieht, müsste das
-    /// ganze Fenster durchtabben. Das ist das stärkste Argument für diese Zeile.
-    ///
-    /// **⚠️ Der Typ-Text steht hier WÖRTLICH so wie in der Filterzeile darunter
-    /// – und ja, das liest sich zweimal.** Die Alternative wäre eine zweite,
-    /// kürzere Formulierung desselben Sachverhalts, und genau daran ist
-    /// v1.19.37 gescheitert (Schalter und Plättchen sagten Verschiedenes).
-    /// Gemessen bringt die Kürzung hier nur 109 pt, während die des
-    /// Rauschfilters 262 pt bringt – nur der wurde deshalb gekürzt
-    /// (``ExclusionRules/skippedShort(byRule:byHiddenPath:)``). *Die Dopplung
-    /// ist der bewusst bezahlte Preis; sie steht als solche im Backlog und wird
-    /// nach der Praxis erneut angesehen, nicht nach weiterem Nachdenken.*
-    private var stateLine: some View {
-        let facets = ActiveFilters.treatment(model.activeFilterFacets)
-        return Text(facets.map(\.text).joined(separator: " · "))
-            .font(.subheadline)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityLabel("Wirkt gerade")
-            .accessibilityValue(ActiveFilters.spokenSummary(facets))
-            .help("Was gerade wirkt – abschalten lässt es sich dort, wo es gesetzt wurde")
-    }
-
     /// Auf-/Zuklappen – sitzt rechts in der Überschriftzeile.
     private var collapseButton: some View {
         Button {
@@ -275,26 +231,49 @@ struct ChartHeaderView: View {
         return rest > 0 ? "\(names) +\(rest)" : names
     }
 
-    /// **Eine** Statuszeile für alles gerade Ausgeblendete.
+    /// **Die Zustandszeile: was zurückgehalten wird und wie geordnet ist.**
     ///
     /// **Warum zusammengefasst?** Typ-Filter und Rauschfilter beantworten dem
     /// Anwender dieselbe Frage: „Warum sehe ich nicht alles?" Zwei gestapelte
     /// Leisten kosteten doppelt Höhe und legten nahe, es seien zwei getrennte
     /// Sachverhalte.
     ///
-    /// **Warum der Rauschfilter ganz links steht:** Er ist dauerhaft sichtbar,
-    /// die drei anderen kommen und gehen. Stünde ein flüchtiges Segment davor,
-    /// spränge das ortsfeste bei jedem Ein- und Ausblenden waagerecht weg – und
-    /// man sucht eine Zeile ab, die man eigentlich schon kennt.
+    /// **⚠️ Seit v2.1.0 ist sie IMMER da, und damit ist sie keine Ausnahmezeile
+    /// mehr (UX-75).** Gemeldet wurde: *„bei eingeklapptem Diagramm wirkt der
+    /// Text oben unruhig und redundant."* Über ihr stand seit v2.0.20 eine
+    /// zweite Zeile, deren Bedingungen für Rauschen, Name und Typ **paarweise
+    /// identisch** mit denen hier waren — die Überschneidung war nicht
+    /// teilweise, sondern vollständig. Beide sind zu **einer** verschmolzen; die
+    /// Sortierung ist als fünftes Segment eingezogen.
+    ///
+    /// **⚠️ Damit ist Sprint 17, Festlegung 3 EINGESCHRÄNKT, nicht aufgehoben —
+    /// und die Einschränkung gehört hierher, sonst zieht der Nächste den
+    /// falschen Schluss.** Festlegung 3 argumentierte zweibeinig gegen die
+    /// Aufnahme von „Dateien außerhalb des Zeitraums":
+    /// *(a)* eine Ansage über den Vorgabezustand feuerte immer und wäre
+    /// Grundrauschen — *„die drei Geschwister sind im Ruhezustand alle still"*;
+    /// *(b)* was der Schalter durchsetzt, steht bereits als Überschrift über dem
+    /// Diagramm (Entscheidung 6).
+    ///
+    /// **Bein (a) trug schon damals nicht.** `zeigtRauschen` ist bei jedem
+    /// realen Ordnerbaum wahr — `.git`, `node_modules` und Konsorten werden
+    /// immer übersprungen. Die Zeile war also **de facto längst permanent**; die
+    /// Verschmelzung macht sie nicht dauerhaft, sie gibt zu, dass sie es ist.
+    /// **Bein (b) steht unangetastet und trägt Festlegung 3 allein weiter:**
+    /// „Dateien außerhalb des Zeitraums" kommt weiterhin nicht hinein.
+    ///
+    /// **Warum die Sortierung ganz links steht:** Sie ist das einzige Segment
+    /// ohne „aus" und damit das ortsfesteste — siehe ``sortSegment``.
     ///
     /// **⚠️ Genau das war bis v2.0.18 der Fall, und die Begründung stand
     /// daneben (UX-72).** Sie war für **zwei** Segmente geschrieben („der
     /// Typ-Filter kommt und geht") und stimmte damals. Mit dem Namenssegment aus
     /// UX-29 kam ein **drittes, flüchtiges** links davor, und der Rauschfilter
-    /// stand plötzlich in der Mitte – der Grund, der gegen den Typ-Filter
-    /// sprach, traf das Namenssegment genauso. *Eine Begründung, die
-    /// stehenbleibt, während der Aufbau sich ändert, schützt nicht mehr; sie
-    /// lässt den Fehler nur begründet aussehen.*
+    /// stand plötzlich in der Mitte. *Eine Begründung, die stehenbleibt, während
+    /// der Aufbau sich ändert, schützt nicht mehr; sie lässt den Fehler nur
+    /// begründet aussehen.* Dieselbe Regel hat jetzt die Sortierung nach vorn
+    /// geschoben — sie ist damit zum zweiten Mal angewandt worden, nicht zum
+    /// zweiten Mal übersehen.
     ///
     /// **Warum `ViewThatFits`?** Nebeneinander ist schlanker – aber bei schmalem
     /// Fenster würde Text abgeschnitten, und ein abgeschnittener Hinweis auf
@@ -346,42 +325,65 @@ struct ChartHeaderView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(text)
         }
-        if model.nameFilterPending || model.hasNameFilter || model.hasTypeFilter || zeigtRauschen {
-            ViewThatFits(in: .horizontal) {
-                // Reihenfolge: das Ortsfeste zuerst, die Flüchtigen dahinter –
-                // Begründung im Doc-Kommentar oben (UX-72).
-                HStack(spacing: 10) {
-                    if zeigtRauschen { noiseSegment }
-                    if zeigtRauschen && (model.nameFilterPending || model.hasNameFilter || model.hasTypeFilter) {
-                        Divider().frame(height: 11)
-                    }
-                    if model.nameFilterPending { pendingSegment }
-                    if model.nameFilterPending && (model.hasNameFilter || model.hasTypeFilter) {
-                        Divider().frame(height: 11)
-                    }
-                    if model.hasNameFilter { nameSegment }
-                    if model.hasNameFilter && model.hasTypeFilter {
-                        Divider().frame(height: 11)
-                    }
-                    if model.hasTypeFilter { typeSegment }
-                }
-                VStack(alignment: .leading, spacing: 3) {
-                    if zeigtRauschen { noiseSegment }
-                    if model.nameFilterPending { pendingSegment }
-                    if model.hasNameFilter { nameSegment }
-                    if model.hasTypeFilter { typeSegment }
-                }
+        ViewThatFits(in: .horizontal) {
+            // Reihenfolge: das Ortsfeste zuerst, die Flüchtigen dahinter –
+            // Begründung im Doc-Kommentar oben (UX-72, UX-75).
+            HStack(spacing: 10) {
+                sortSegment
+                if zeigtRauschen { Divider().frame(height: 11); noiseSegment }
+                if model.nameFilterPending { Divider().frame(height: 11); pendingSegment }
+                if model.hasNameFilter { Divider().frame(height: 11); nameSegment }
+                if model.hasTypeFilter { Divider().frame(height: 11); typeSegment }
             }
-            // ⚠️ `.subheadline` (11 pt) statt `.caption` (10 pt): Diese Zeile
-            // ist die **einzige** Stelle, an der ein stiller Filter sichtbar
-            // wird. Sie in der kleinsten Schrift des Fensters zu setzen
-            // widerspricht ihrem Zweck – wer sie uebersieht, haelt eine
-            // gefilterte Liste fuer den ganzen Bestand (UX-06).
-            .font(.subheadline)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.bottom, 5)
+            VStack(alignment: .leading, spacing: 3) {
+                sortSegment
+                if zeigtRauschen { noiseSegment }
+                if model.nameFilterPending { pendingSegment }
+                if model.hasNameFilter { nameSegment }
+                if model.hasTypeFilter { typeSegment }
+            }
         }
+        // ⚠️ `.subheadline` (11 pt) statt `.caption` (10 pt): Diese Zeile
+        // ist die **einzige** Stelle, an der ein stiller Filter sichtbar
+        // wird. Sie in der kleinsten Schrift des Fensters zu setzen
+        // widerspricht ihrem Zweck – wer sie uebersieht, haelt eine
+        // gefilterte Liste fuer den ganzen Bestand (UX-06).
+        .font(.subheadline)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.bottom, 5)
+    }
+
+    /// Wonach die Liste geordnet ist – „nach Datum, absteigend".
+    ///
+    /// **⚠️ Das einzige Segment ohne Akzentfarbe und ohne Rückweg, und beides
+    /// mit Absicht.** Der Akzentton trägt in dieser Zeile eine Bedeutung: *hier
+    /// wird etwas zurückgehalten, und du kannst es zurückholen.* Die Sortierung
+    /// hält nichts zurück – sie ordnet nur. Ein „Zurücksetzen" gäbe es hier
+    /// nicht, sondern nur ein „anders"; gewechselt wird sie in der
+    /// Werkzeugleiste und im Menü „Darstellung" (⌥⌘1–4). Ein dritter Bedienort
+    /// wäre genau der Fehler, den PR-44 behoben hat.
+    ///
+    /// **⚠️ Sie steht ganz links, und das folgt der Regel dieser Zeile.**
+    /// UX-72: *ein ortsfestes Element darf von einem flüchtigen nicht verschoben
+    /// werden.* Seit v2.1.0 ist die Sortierung das einzige Segment, das
+    /// **immer** dasteht — damit ist sie das ortsfesteste und rückt vor den
+    /// Rauschfilter. Die Regel wird angewandt, nicht gebrochen.
+    private var sortSegment: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "arrow.up.arrow.down")
+                .foregroundStyle(.secondary)
+            Text(sortFacetText)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Sortierung")
+        .accessibilityValue(model.sort.summary)
+    }
+
+    /// Der Wortlaut kommt aus ``ActiveFilters`` – nicht aus einer zweiten
+    /// Formulierung hier.
+    private var sortFacetText: String {
+        model.activeFilterFacets.first { $0.axis == .sort }?.text ?? "nach \(model.sort.summary)"
     }
 
     /// Der gesetzte **Namensfilter**.

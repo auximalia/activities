@@ -1,9 +1,18 @@
 # Sprint 21 – „Ein Ort, ein Blick"
 
-*Stand: v2.0.20 · 2026-08-21*
+*Stand: v2.1.0 · 2026-08-21*
 
-*Geplant am 2026-08-21 · **Umgesetzt und ausgeliefert am 2026-08-21 (v2.0.20).**
-E1 entschieden: Variante a). AP5 bei der Umsetzung verworfen — Begründung unten.*
+*Geplant am 2026-08-21 · **Umgesetzt und ausgeliefert am 2026-08-21 (v2.0.20),
+nachgebessert mit v2.1.0.** E1 entschieden: Variante a). AP5 bei der Umsetzung verworfen —
+Begründung unten.*
+
+> **⚠️ Nachtrag v2.1.0 (UX-75), und er gehört an den Anfang.** Die ausgelieferte
+> Zustandszeile war **zu drei Vierteln überflüssig**: Ihre Achsen Rauschen, Name und Typ
+> waren mit denen der Filterzeile darunter **paarweise identisch** bedingt. Gemessen worden
+> war die Breite, nicht die Überschneidung. Beide Zeilen sind mit v2.1.0 zu **einer**
+> verschmolzen, die Sortierung als fünftes Segment eingezogen. *Was dieser Plan über die
+> Trennung von Zustands- und Ausnahmezeile sagt, gilt seitdem nur noch als Historie* —
+> maßgeblich ist `backlog.md`, UX-75.
 
 > **Übergabedokument.** Es kann von einem anderen Modell und in einer anderen Sitzung
 > umgesetzt werden. Was ein Umsetzender fragen müsste, ist ein Fehler dieses Plans.

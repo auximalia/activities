@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.0.20 · 2026-08-21*
+*Stand: v2.1.0 · 2026-08-21*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -54,6 +54,80 @@ darf sich dort nicht ansagen, sonst *„feuerte sie immer und wäre Grundrausche
 Hinweis"*. Eine **Ausnahmezeile** und ein **Zustandsanzeiger** sind zwei Bauteile mit
 gegensätzlicher Regel — das eine schweigt im Normalfall, das andere muss dann gerade
 reden. Wer das eine ins andere baut, zerstört beides.
+
+### ✅ UX-75 · Zwei Zeilen sagten dasselbe *(v2.1.0)*
+**Aufwand:** S · **Nutzen:** hoch · **Art:** Defekt — *aus der Praxis, einen Tag nach UX-70*
+
+*„Bei eingeklapptem Diagramm wirkt der Text oben unruhig und redundant. Was können wir mit
+maßvollem Aufwand verbessern?"*
+
+**Der Beleg lag im Quelltext, nicht im Auge.** Die drei überlappenden Achsen waren nicht
+*teilweise*, sondern **paarweise identisch** bedingt:
+
+| Achse | Zustandszeile | Filterzeile |
+|---|---|---|
+| Rauschen | `skippedShort != nil` | `skippedSummary != nil` |
+| Name | `namePattern` getrimmt | `hasNameFilter` (getrimmt) |
+| Typen | `visibility.hasTypeFilter` | `model.hasTypeFilter` |
+
+Wann immer die Zustandszeile eine davon nannte, stand sie eine Zeile tiefer nochmal —
+ausführlicher und mit Rücksetzknopf. **Von drei Angaben der zweiten Zeile war genau eine
+neu: die Sortierung.**
+
+**⚠️ Die Lehre ist die Messung, die nicht stattfand.** Bei UX-70 wurde die **Breite**
+gemessen, gründlich und in beiden Erscheinungsbildern — und dabei die **Überschneidung**
+nicht. Der eigene Vorbehalt stand sogar im Backlog („bewusst in Kauf genommen … erneut
+anzusehen nach der Praxis"), aber er benannte nur den Typ-Text; tatsächlich betraf es drei
+von vier Achsen. *Ein Vorbehalt, der die Größe des Problems unterschätzt, beruhigt mehr als
+er warnt.* Die Praxis hat binnen eines Tages geantwortet — genau dafür stand er da.
+
+**Was gebaut wurde:** Die beiden Zeilen sind **eine**. Die Kopfzone trägt wieder eine
+Überschrift (Gegenstand: Quelle · Zeitraum), darunter die Statuszeile mit fünf Segmenten —
+**Sortierung · Rauschen · schwebend · Name · Typ**, jedes mit seinem Rückweg. Die
+Statuszeile ist ab jetzt **dauerhaft**.
+
+**⚠️ Damit ist Sprint 17, Festlegung 3 eingeschränkt — nicht aufgehoben.** Sie stand auf
+zwei Beinen: *(a)* eine Ansage über den Vorgabezustand feuerte immer und wäre Grundrauschen,
+denn *„die drei Geschwister sind im Ruhezustand alle still"*; *(b)* was der Schalter
+durchsetzt, steht bereits als Überschrift (Entscheidung 6).
+
+**Bein (a) trug schon damals nicht, und das ist der eigentliche Fund.** `zeigtRauschen` ist
+bei jedem realen Ordnerbaum wahr — `.git`, `node_modules` und Konsorten werden immer
+übersprungen. Die Zeile *war* de facto permanent; das gemeldete Bildschirmfoto zeigt sie im
+Ruhezustand. Die Verschmelzung macht sie nicht dauerhaft, sie **gibt zu, dass sie es ist**.
+**Bein (b) steht unangetastet und trägt Festlegung 3 allein weiter:** „Dateien außerhalb des
+Zeitraums" kommt weiterhin nicht hinein. *Wer Festlegung 3 zitiert, zitiert ab jetzt nur
+noch (b)* — festgehalten am Ort der Entscheidung, in `FileVisibility.filtersNothing`.
+
+**⚠️ Die Sortierung steht ganz links, und das folgt UX-72 statt es zu brechen.** Die Regel
+lautet: *ein ortsfestes Element darf von einem flüchtigen nicht verschoben werden.* Die
+Sortierung ist das einzige Segment ohne „aus" und damit das ortsfesteste — sie rückt vor den
+Rauschfilter. Dieselbe Regel hat damit zum zweiten Mal gegriffen, statt zum zweiten Mal
+übersehen zu werden.
+
+**⚠️ Sie ist das einzige Segment ohne Akzentfarbe und ohne Rückweg.** Der Akzentton trägt in
+dieser Zeile eine Bedeutung — *hier wird etwas zurückgehalten, und du kannst es zurückholen.*
+Die Sortierung hält nichts zurück; es gäbe kein „zurück", nur ein „anders". Gewechselt wird
+sie weiterhin in der Werkzeugleiste und im Menü (⌥⌘1–4); ein dritter Bedienort wäre der
+Fehler, den PR-44 behoben hat.
+
+**Gemessen** (`measure-ui`, System 11 pt): die Zeile im Ruhezustand **127,6 pt**, im
+Vollzustand **1065,4 pt**. Der Ruhezustand ist damit kein Grundrauschen, sondern eine kurze
+graue Angabe; die Filter, die hinzukommen, sind lang, akzentuiert und tragen
+verweisfarbene Knöpfe. *Das Signal trägt Farbe und Länge, nicht An- und Abwesenheit.* Passt
+es nicht in die Breite, bricht `ViewThatFits` wie bisher um.
+
+**⚠️ Für VoiceOver bleibt „ein Blick" erhalten.** Sichtbar steht in der Überschrift nur der
+Gegenstand — gesprochen nennt sie weiter **alle sechs** Achsen
+(`ActiveFilters.spokenSummary`). Wer nicht sieht, kann nicht über zwei Zeilen blicken; die
+Segmente darunter bleiben trotzdem einzeln erreichbar, weil ihre Knöpfe bedienbar sein
+müssen. Die Zusage aus UX-73 steht damit unverändert.
+
+**Behalten, nicht entfernt:** die Legendenkurzfassung („.md, .pdf, .xmind, .docx +1") in der
+Überschrift. Sie ist der einzige Hinweis auf die Dateitypen, solange das Diagramm zu ist —
+*Information zu entfernen ist ein größerer Schritt als Dopplung zu entfernen.* Erneut
+ansehen, wenn die eine Zeile allein nicht reicht.
+
 
 ### ✅ UX-70 · Kein Ort nannte den wirkenden Zustand vollständig *(v2.0.20)*
 **Aufwand:** M · **Nutzen:** hoch · **Art:** Defekt
@@ -120,10 +194,10 @@ kommt, der `FileVisibility` **liest** statt es nachzubauen, und weil `CoreChecks
 Äquivalenz „wirkt ⟺ wird genannt" für jede Achse prüft — über alle 16 Kombinationen der vier
 wegfallbaren Achsen.
 
-**Bewusst in Kauf genommen:** Der Typ-Text steht **zweimal untereinander**, wörtlich gleich,
-zwei Zeilen auseinander. Die Alternative wäre eine zweite Formulierung — der Fehler von
-v1.19.37. *Als Kosten festgehalten, nicht wegdiskutiert; erneut anzusehen nach der Praxis,
-nicht nach weiterem Nachdenken.*
+**⚠️ Bewusst in Kauf genommen — und einen Tag später widerlegt.** Der Typ-Text stand
+**zweimal untereinander**, wörtlich gleich. Der Vorbehalt stand hier („erneut anzusehen nach
+der Praxis, nicht nach weiterem Nachdenken") und war **zu klein bemessen**: Betroffen war
+nicht eine Achse, sondern drei. **Behoben in v2.1.0, siehe UX-75.**
 
 **Bewusst nicht gebaut:** „Alle Filter zurücksetzen" (geplant als AP5, bei der Umsetzung von
 `decision-check` verworfen). Er hätte nur Namens- und Typ-Filter löschen können und wäre in
@@ -241,38 +315,46 @@ die Pause, die das Auge aus dem Punkt liest.
 Vorleseprogramme gibt es „einen Blick" sonst gar nicht.***
 
 
-### UX-74 · Die Kopfzone springt in der Höhe
+### UX-74 · Die Kopfzone springt in der Höhe *(weitgehend erledigt in v2.1.0)*
 **Aufwand:** S · **Nutzen:** gering · **Art:** Geschmack
 
 **Beobachtet:** Die Kopfzone trägt bis zu drei unabhängig ein-/ausblendbare Blöcke
 (Quellenhinweis, Zukunftsdateien, Filterzeile), die Filterzeile selbst null bis vier
-Segmente mit Umbruch. Diagramm und Liste rutschen dadurch senkrecht, sobald ein Filter
-gesetzt oder gelöscht wird.
+Segmente mit Umbruch. Diagramm und Liste rutschten dadurch senkrecht, sobald ein Filter
+gesetzt oder gelöscht wurde.
 
-**Beleg:** `ChartHeaderView.swift:210, 211, 230, 249` — vier voneinander unabhängige
-Sichtbarkeitsbedingungen im selben `VStack`; `ViewThatFits` (`:250`) wechselt zusätzlich
-zwischen ein- und mehrzeilig.
+**Warum das (nur) Geschmack war:** Es war der Preis der Ausnahmezeile, und der war bewusst
+bezahlt — eine Zeile, die immer da ist, wäre Grundrauschen (Sprint 17, Festlegung 3).
 
-**Warum das (nur) Geschmack ist:** Es ist der Preis der Ausnahmezeile, und der ist bewusst
-bezahlt — eine Zeile, die immer da ist, wäre Grundrauschen (Sprint 17, Festlegung 3). Erst
-**wenn** UX-70 eine dauerhafte Zustandszeile bringt, wird die Frage neu: Dann trägt eine
-ortsfeste Zeile die Grundlast, und die Ausnahmezeile darf springen.
+**✅ Der Hauptteil ist mit UX-75 nebenbei entfallen.** Die Statuszeile ist seit v2.1.0
+**dauerhaft**; sie erscheint und verschwindet nicht mehr, und damit springt die Kopfzone
+beim Setzen und Löschen eines Filters nicht mehr. *Das war kein Nebeneffekt, sondern das
+zweite Argument für die Verschmelzung.*
 
-**Vorschlag:** Nicht einzeln behandeln. Nach UX-70 erneut ansehen.
+**Was bleibt:** Der Quellenhinweis („Verstanden") und der Zukunftsdatei-Hinweis sind
+weiterhin eigene, ein-/ausblendbare Zeilen; `ViewThatFits` wechselt bei schmalem Fenster
+weiterhin zwischen ein- und mehrzeilig. Beide sind **seltene** Ereignisse, keine
+Filterwechsel — der Leidensdruck ist damit klein.
+
+**Vorschlag:** Nicht weiter behandeln, solange es nicht gemeldet wird.
 
 ### Rangfolge
 
 **E1 (Ort der Zustandszeile) entschieden am 2026-08-21: Variante a)**, die Überschrift über
-dem Diagramm. **Vier der fünf Befunde sind erledigt.**
+dem Diagramm. **Alle sechs Befunde sind erledigt** — UX-75 kam aus der Praxis dazu und hat
+UX-74 mitgenommen.
 
 1. ~~**UX-72**~~ ✅ v2.0.19
-2. ~~**UX-71**~~ ✅ v2.0.19 (Menü-Haken) und v2.0.20 (Sortierung als Achse der Zustandszeile)
+2. ~~**UX-71**~~ ✅ v2.0.19 (Menü-Haken) und v2.0.20 (Sortierung sichtbar)
 3. ~~**UX-70**~~ ✅ v2.0.20 — der Auftrag selbst, Sprint 21
 4. ~~**UX-73**~~ ✅ v2.0.20 — von UX-70 mitgelöst, plus die vier Nachträge
-5. **UX-74** — offen. *Jetzt neu zu bewerten:* Die Kopfzone hat mit v2.0.20 eine **ortsfeste**
-   Zeile bekommen, die die Grundlast trägt. Damit ändert sich die Frage, die dieser Befund
-   stellt — die springende Ausnahmezeile darunter ist womöglich kein Problem mehr, sondern
-   genau die richtige Arbeitsteilung. **Vor der Praxis nicht zu entscheiden.**
+5. ~~**UX-75**~~ ✅ v2.1.0 — die Dopplung, die UX-70 hinterlassen hatte
+6. ~~**UX-74**~~ ✅ v2.1.0 — vom Verschmelzen mitgenommen; der Rest ist nicht meldenswert
+
+**⚠️ Was diese Reihe lehrt, steht in UX-75 und ist kein Nebensatz:** Bei UX-70 wurde die
+**Breite** gemessen und die **Überschneidung** nicht. Der Vorbehalt, den der eigene Eintrag
+notierte, war zu klein bemessen. *Ein Vorbehalt, der die Größe des Problems unterschätzt,
+beruhigt mehr als er warnt* — die Praxis hat binnen eines Tages geantwortet.
 
 ## Aus der UX-Durchsicht v1.19.33 *(2026-08-10)*
 

@@ -21,11 +21,11 @@ struct HelpView: View {
                 // gerade alles?" (UX-70). Wer sie in der Hilfe erst unter
                 // „Diagramm" fände, hätte sie schon nicht mehr gesucht.
                 section("Was gerade wirkt", icon: "text.magnifyingglass", [
-                    "Über dem Diagramm stehen **zwei Zeilen**: oben der Gegenstand – Quelle und Zeitraum –, darunter, was davon weggelassen und wie es geordnet wird.",
-                    "Die untere Zeile ist **immer** da und nennt in fester Reihenfolge: übersprungene Ordner, Namensfilter, ausgeblendete Typen, Sortierung.",
-                    "Steht dort nur „nach Datum, absteigend“, filtert nichts.",
-                    "Sie **zeigt nur** – abschalten lässt sich jeder Filter dort, wo er gesetzt wurde: Suchfeld, Legende, Werkzeugleiste.",
-                    "Die Zeile **darunter** erscheint nur, wenn etwas ausgeblendet ist, und trägt die Knöpfe „Löschen“ und „Zurücksetzen“.",
+                    "Über dem Diagramm stehen **zwei Zeilen**: oben der Gegenstand – Quelle und Zeitraum –, darunter, was davon zurückgehalten wird und wie geordnet ist.",
+                    "Die untere Zeile ist **immer** da. Ganz links steht die Sortierung; dahinter kommen übersprungene Ordner, Namensfilter und ausgeblendete Typen hinzu, sobald sie wirken.",
+                    "Steht dort nur „nach Datum, absteigend“, wird nichts gefiltert.",
+                    "Jeder Filter trägt seinen Rückweg gleich mit: „Löschen“, „Zurücksetzen“, „Rauschfilter öffnen“.",
+                    "Die Sortierung wird **nicht** dort gewechselt, sondern im ⇅-Menü der Werkzeugleiste oder im Menü „Darstellung“ (\(Shortcuts.sortByDate.display) bis \(Shortcuts.sortBySize.display)).",
                 ])
 
                 section("Quellen wählen", icon: "folder", [

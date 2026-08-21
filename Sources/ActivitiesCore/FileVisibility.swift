@@ -171,10 +171,27 @@ public struct FileVisibility: Sendable, Equatable {
     ///
     /// **⚠️ Nicht zu verwechseln mit der Ansage der Statuszeile.** Diese
     /// Eigenschaft schließt das Zeitfenster **ein**; die Statuszeile lässt es
-    /// bewusst **aus** (Sprint 17, Festlegung 3): Der Zustand
-    /// „nur Dateien im Zeitraum" ist die Vorgabe, eine Ansage darüber feuerte
-    /// also immer – und der Zeitraum, den er durchsetzt, steht ohnehin als
-    /// Überschrift über dem Diagramm. Zwei verschiedene Fragen, zwei Namen.
+    /// bewusst **aus** (Sprint 17, Festlegung 3). Zwei verschiedene Fragen,
+    /// zwei Namen.
+    ///
+    /// **⚠️ Festlegung 3 ist mit v2.1.0 EINGESCHRÄNKT worden, und der Rest
+    /// trägt sie allein weiter (UX-75).** Sie stand auf zwei Beinen:
+    /// *(a)* „nur Dateien im Zeitraum" ist die Vorgabe, eine Ansage darüber
+    /// feuerte also immer und wäre Grundrauschen statt Hinweis — *„die drei
+    /// Geschwister sind im Ruhezustand alle still"*;
+    /// *(b)* der Zeitraum, den der Schalter durchsetzt, steht ohnehin als
+    /// Überschrift über dem Diagramm (Entscheidung 6).
+    ///
+    /// **Bein (a) ist entfallen — es trug schon damals nicht.** Die Statuszeile
+    /// ist seit v2.1.0 ausdrücklich dauerhaft, und sie war es de facto immer:
+    /// Ihr Rauschfilter-Segment erscheint, sobald *irgendein* Ordner
+    /// übersprungen wurde, und bei jedem realen Ordnerbaum trifft das zu. Die
+    /// Prämisse „im Ruhezustand alle still" war nie wahr.
+    ///
+    /// **Bein (b) steht unverändert, und es genügt.** „Dateien außerhalb des
+    /// Zeitraums" gehört weiterhin **nicht** in die Statuszeile: Was der
+    /// Schalter durchsetzt, ist zwei Zeilen darüber ausgeschrieben zu lesen.
+    /// *Wer Festlegung 3 zitiert, zitiert ab jetzt nur noch (b).*
     public var filtersNothing: Bool {
         hiddenExtensions.isEmpty
             && !showsOnlyWorkFiles

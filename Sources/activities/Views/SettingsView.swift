@@ -177,8 +177,24 @@ struct SettingsView: View {
     ) -> some View {
         LabeledContent {
             Menu(current?.name ?? "Keines") {
+                // ⚠️ Mit Programmsymbol, seit v2.1.1. Nicht als Schmuck: Das
+                // Untermenue „Oeffnen mit" traegt sie (PR-71), und das hier ist
+                // dieselbe Sache – eine Liste von Programmen, aus der man eines
+                // waehlt. *Zwei Programmlisten mit zwei Antworten waeren genau
+                // das Muster, das die Durchsichten sonst ruegen.* HIG, „Menus":
+                // *„provide icons for all menu items in a group, or none of
+                // them"* – „Anderes Programm …" und „Keines" stehen deshalb
+                // hinter dem Strich, sie sind keine Programme.
                 ForEach(ExternalAppService.installed(among: candidates)) { app in
-                    Button(app.name) { apply(app) }
+                    Button {
+                        apply(app)
+                    } label: {
+                        Label {
+                            Text(app.name)
+                        } icon: {
+                            Image(nsImage: AppIconProvider.icon(atPath: app.url.path))
+                        }
+                    }
                 }
                 Divider()
                 Button("Anderes Programm …") {

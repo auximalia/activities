@@ -361,6 +361,15 @@ final class ReportViewModel {
     /// nicht selbst oeffnen, ohne die Ansicht zu kennen. Dieselbe Bauform wie
     /// ``filterFocusToken`` – der Befehl sagt „jetzt", die Ansicht weiss, wie.
     var folderPickerToken = 0
+    /// Zaehler, um den Programmwaehler von „Anderes Programm …" zu oeffnen.
+    var openWithPickerToken = 0
+    /// Die Objekte, auf die das gewaehlte Programm angewendet wird.
+    ///
+    /// **⚠️ Wird beim Ausloesen festgehalten, nicht beim Zurueckkommen gelesen.**
+    /// Der Auswahldialog ist eine Reise: Zwischen Klick und Ergebnis kann die
+    /// Auswahl in der Liste laengst eine andere sein, und dann oeffnete das
+    /// gewaehlte Programm etwas, das niemand benannt hat.
+    var openWithTargets: [URL] = []
     /// Zaehler, um die Eingabe einer eigenen Tageszahl zu oeffnen.
     var customDaysToken = 0
     /// Zaehler, um die Vorschau der Auswahl zu oeffnen (Menue ⌘Y).
@@ -874,6 +883,43 @@ final class ReportViewModel {
     func requestOpenInEditor(_ urls: [URL]) {
         guard let editorApp else { return }
         run(PendingBulkAction(kind: .openInApp(editorApp.name), urls: urls, app: editorApp))
+    }
+
+    /// Oeffnet Objekte in einem **frei gewaehlten** Programm („Oeffnen mit", PR-71).
+    ///
+    /// **⚠️ Hier greift keine Erlaubnisliste, und das ist eine Festlegung, keine
+    /// Luecke.** Die Regel steht seit Sprint 17 im Backlog: *„Ein Handgriff auf
+    /// einer benannten Datei kennt keine Erlaubnisliste. … Ungefragt heisst: Der
+    /// Anwender hat die Datei nie benannt. Genau dort gehoert die Schranke hin
+    /// und sonst nirgends."* Bei „Oeffnen mit" benennt der Anwender **die Datei
+    /// und das Programm** – ausdruecklicher geht ein Handgriff nicht. Die drei
+    /// Netze schuetzen „Arbeit fortsetzen", wo das *Programm* die Menge bildet.
+    ///
+    /// **⚠️ Trotzdem ueber ``run(_:)``.** Die Rueckfrage ab zehn Objekten gilt
+    /// auch hier – nicht wegen der Ausfuehrung, sondern wegen der Fenster. Wer
+    /// aus Versehen fuenfzig Dateien markiert hat, soll es vorher erfahren.
+    func requestOpenWith(_ urls: [URL], app: ExternalApp) {
+        run(PendingBulkAction(kind: .openInApp(app.name), urls: urls, app: app))
+    }
+
+    /// Loest den Auswahldialog fuer „Anderes Programm …" aus.
+    ///
+    /// **⚠️ Ueber Modell und Zaehler, nicht ueber einen `.fileImporter` in der
+    /// Zeile.** Das Kontextmenue lebt in ``FileRowView``; ein Dateiwaehler dort
+    /// haenge an **jeder** Dateizeile der Liste. Derselbe Weg wie beim
+    /// Ordnerwaehler (``folderPickerToken``): Die Zeile meldet den Wunsch, der
+    /// Dialog steht einmal in ``RootView``.
+    func requestOpenWithOtherApp(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        openWithTargets = urls
+        openWithPickerToken += 1
+    }
+
+    /// Fuehrt „Anderes Programm …" nach der Wahl aus.
+    func openWithPickedApp(_ url: URL) {
+        guard let app = ExternalAppService.app(at: url), !openWithTargets.isEmpty else { return }
+        requestOpenWith(openWithTargets, app: app)
+        openWithTargets = []
     }
 
     /// Oeffnet die zugehoerigen **Ordner** im Terminal.

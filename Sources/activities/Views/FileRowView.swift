@@ -268,6 +268,7 @@ struct FileContextMenu: View {
         let targets = model.actionTargets(for: url)
         let suffix = targets.count > 1 ? " (\(targets.count))" : ""
         Button("Öffnen" + suffix) { model.requestOpen(targets) }
+        openWith(targets, suffix: suffix)
         Button("Im Finder anzeigen" + suffix) { model.requestReveal(targets) }
         if let editor = model.editorApp {
             Button("In \(editor.name) öffnen" + suffix) { model.requestOpenInEditor(targets) }
@@ -293,6 +294,59 @@ struct FileContextMenu: View {
         Button(Shortcuts.renameItem.label) { model.requestRename(url) }
             .disabled(targets.count > 1)
         Button(Shortcuts.moveToTrash.label + suffix) { model.requestTrash(targets) }
+    }
+
+    /// **„Öffnen mit"** – die Programme, die **alle** markierten Dateien öffnen
+    /// können (PR-71).
+    ///
+    /// Gemeldet wurde: *„bei manchen Dateien muss man das Programm auswählen um
+    /// öffnen zu können."* Eine Datei ohne eingetragenen Handler – etwa
+    /// `.env.example` – lässt sich mit „Öffnen" gar nicht aufmachen.
+    ///
+    /// **⚠️ Steht direkt unter „Öffnen", wie im Finder.** Es ist die zweite
+    /// Antwort auf dieselbe Frage; die beiden benannten Plätze darunter
+    /// („Editor", „Terminal") bleiben, weil sie Kürzel tragen und auch auf
+    /// **Ordner** wirken. Zur alten Absage gegen dieses Untermenü und warum sie
+    /// eine andere Frage beantwortet hat, siehe ``ExternalAppService``.
+    ///
+    /// **⚠️ Hier greift keine Erlaubnisliste** – die Begründung steht bei
+    /// ``ReportViewModel/requestOpenWith(_:app:)``. Kurz: Der Anwender benennt
+    /// die Datei *und* das Programm.
+    ///
+    /// **⚠️ Nie leer.** „Anderes Programm …" steht immer da, auch wenn
+    /// LaunchServices nichts meldet. Das ist keine Zugabe, sondern die Hausregel
+    /// aus ``RepoMenu``: *„Ein Untermenü, das sich leer aufklappt, wäre ein
+    /// stiller Zustand."* Bei einer Datei ohne Handler ist genau das der
+    /// Normalfall – und der Grund, aus dem das Menü überhaupt geöffnet wurde.
+    @ViewBuilder
+    private func openWith(_ targets: [URL], suffix: String) -> some View {
+        Menu("Öffnen mit" + suffix) {
+            let entries = OpenWithMenu.entries(
+                ExternalAppService.candidates(toOpen: targets),
+                // ⚠️ Ein „(Standard)" gibt es nur bei genau EINER Datei. Bei
+                // mehreren koennen die Standardprogramme verschieden sein –
+                // eines davon zu kennzeichnen behauptete eine Gemeinsamkeit,
+                // die es nicht gibt.
+                defaultID: targets.count == 1
+                    ? ExternalAppService.defaultCandidate(toOpen: url)?.id
+                    : nil
+            )
+            ForEach(entries) { entry in
+                Button {
+                    if let app = ExternalAppService.app(candidate: entry) {
+                        model.requestOpenWith(targets, app: app)
+                    }
+                } label: {
+                    Label {
+                        Text(entry.label)
+                    } icon: {
+                        Image(nsImage: AppIconProvider.icon(atPath: entry.id))
+                    }
+                }
+            }
+            if !entries.isEmpty { Divider() }
+            Button("Anderes Programm …") { model.requestOpenWithOtherApp(targets) }
+        }
     }
 }
 

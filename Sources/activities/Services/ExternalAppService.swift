@@ -1,4 +1,5 @@
 import AppKit
+import ActivitiesCore
 
 /// Ein Programm, mit dem sich Ordner und Dateien oeffnen lassen.
 ///
@@ -15,17 +16,27 @@ struct ExternalApp: Identifiable, Hashable, Sendable {
 
 /// Startet Ordner und Dateien in einem **anderen** Programm als dem Finder.
 ///
-/// **Warum kein Untermenue „Oeffnen mit …"?** Der naheliegende Weg waere
-/// ``NSWorkspace/urlsForApplications(toOpen:)``. Gemessen an einem echten
-/// Benutzerordner liefert das neun Programme, davon fuenf sinnlose (QuickTime,
-/// Archivierungsprogramm, Books, VLC …) – und **Terminal.app fehlt darin ganz**,
-/// weil sie sich bei LaunchServices nicht als Ordner-Oeffner meldet. Ein Menue,
-/// in dem man den einen brauchbaren Eintrag zwischen Rauschen sucht und den
-/// wichtigsten gar nicht findet, ist keine Hilfe.
+/// **Warum die beiden Plaetze KEINE Liste „Oeffnen mit …" sind.** Der
+/// naheliegende Weg waere ``NSWorkspace/urlsForApplications(toOpen:)``. Gemessen
+/// an einem echten Benutzerordner liefert das neun Programme, davon fuenf
+/// sinnlose (QuickTime, Archivierungsprogramm, Books, VLC …) – und
+/// **Terminal.app fehlt darin ganz**, weil sie sich bei LaunchServices nicht als
+/// Ordner-Oeffner meldet. Als *Ersatz* fuer die Plaetze taugt die Liste also
+/// nicht: „Editor" und „Terminal" sind zwei verschiedene Handgriffe
+/// (Code ansehen · hier arbeiten), keine zwei Eintraege einer Liste — und beide
+/// tragen ein Kuerzel und wirken auch auf **Ordner**.
 ///
-/// Stattdessen **zwei benannte Plaetze**: „Editor" und „Terminal". Das sind zwei
-/// verschiedene Handgriffe (Code ansehen · hier arbeiten), keine zwei Eintraege
-/// einer Liste.
+/// **⚠️ Dieser Absatz war bis v2.1.1 eine Absage an das Untermenue ueberhaupt,
+/// und das war zu weit gegriffen (PR-71).** Beide Gruende zielen auf **Ersatz**,
+/// nicht auf **Ergaenzung**: „fuenf sinnlose" ist ein Einwand gegen die
+/// *automatische* Auswahl — dieselbe Liste zeigt der Finder, und dort ist sie
+/// brauchbar, **weil der Anwender greift und nicht die Maschine**. Rauschen
+/// stoert beim Raten, nicht beim Waehlen. Und „Terminal.app fehlt" betrifft das
+/// Oeffnen von *Ordnern*; fuer eine Datei ist es belanglos.
+///
+/// Gemeldet wurde: *„bei manchen Dateien muss man das Programm auswaehlen um
+/// oeffnen zu koennen."* Das Untermenue steht seit v2.1.1 im Datei-Kontextmenue
+/// (``OpenWithMenu``) — **neben** den beiden Plaetzen, nicht an ihrer Stelle.
 enum ExternalAppService {
     /// Kandidaten fuer den Platz „Editor" – **Reihenfolge = Vorrang** bei der
     /// Erkennung. Die Liste dient nur der Vorbelegung; jedes andere Programm
@@ -93,6 +104,43 @@ enum ExternalAppService {
     /// Alle installierten Kandidaten – Grundmenge der Auswahl in den Einstellungen.
     static func installed(among bundleIDs: [String]) -> [ExternalApp] {
         bundleIDs.compactMap { app(bundleID: $0) }
+    }
+
+    /// Alle Programme, die **jede** der uebergebenen Dateien oeffnen koennen –
+    /// die Vorlage fuer „Oeffnen mit" (PR-71).
+    ///
+    /// **⚠️ Die Kennung ist der Pfad, nicht die Bundle-ID.** Drei Fassungen von
+    /// IDLE teilen sich eine Bundle-ID; nach ihr entdoppelt blieben zwei auf der
+    /// Strecke. Begruendung an ``OpenWithMenu/Candidate/id``.
+    ///
+    /// **⚠️ Die Version wird hier gelesen, aber erst im Kern verwendet** – und
+    /// zwar nur dort, wo ein Name mehrfach vorkommt. Sie hier schon anzuhaengen
+    /// hiesse, die Regel in die Abfrage zu schmuggeln.
+    static func candidates(toOpen urls: [URL]) -> [OpenWithMenu.Candidate] {
+        OpenWithMenu.common(urls.map { url in
+            NSWorkspace.shared.urlsForApplications(toOpen: url).compactMap(candidate(at:))
+        })
+    }
+
+    /// Das Standardprogramm einer Datei – der erste Eintrag des Untermenues.
+    static func defaultCandidate(toOpen url: URL) -> OpenWithMenu.Candidate? {
+        NSWorkspace.shared.urlForApplication(toOpen: url).flatMap(candidate(at:))
+    }
+
+    /// Ein Programmbuendel als Kandidat: Pfad, Anzeigename, Kurzversion.
+    ///
+    /// Der Name kommt aus ``app(at:)`` und damit aus derselben Quelle wie in den
+    /// Einstellungen – nicht aus ``CFBundleDisplayName``, siehe dort.
+    private static func candidate(at url: URL) -> OpenWithMenu.Candidate? {
+        guard let app = app(at: url) else { return nil }
+        let version = Bundle(url: url)?
+            .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        return OpenWithMenu.Candidate(id: url.path, name: app.name, version: version)
+    }
+
+    /// Ein Kandidat zurueck zum startbaren Programm.
+    static func app(candidate: OpenWithMenu.Entry) -> ExternalApp? {
+        app(at: URL(fileURLWithPath: candidate.id))
     }
 
     /// Oeffnet die Objekte im angegebenen Programm.

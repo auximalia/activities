@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.0 · 2026-08-21*
+*Stand: v2.1.1 · 2026-08-21*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,109 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-71 · „Öffnen mit" — manche Dateien lassen sich sonst gar nicht öffnen *(v2.1.1)*
+**Aufwand:** M · **Art:** Wunsch aus der Praxis · *„bei manchen Dateien muss man das Programm auswählen um öffnen zu können — im Finder sieht das so aus: […] Bekommen wir das bitte ins Kontextmenü zu den Dateien?"*
+
+Gemeldet an `.env.example` — eine Datei ohne eingetragenen Handler. „Öffnen" tut dort
+schlicht nichts, und es gab keinen anderen Weg als den Umweg über den Finder.
+
+## ⚠️ Es gab eine Absage, und sie beantwortete eine andere Frage
+
+`ExternalAppService.swift` sagte seit v1.19.x:
+
+> **Warum kein Untermenue „Oeffnen mit …"?** … Gemessen an einem echten Benutzerordner
+> liefert das neun Programme, davon fuenf sinnlose … und **Terminal.app fehlt darin ganz** …
+> Stattdessen **zwei benannte Plaetze**.
+
+**Beide Gründe zielen auf Ersatz, nicht auf Ergänzung** — der Schlusssatz verrät es
+(„stattdessen"). Und beide tragen für die neue Frage nicht:
+
+- *„fünf sinnlose"* ist ein Einwand gegen die **automatische** Auswahl. Genau dieselbe Liste
+  zeigt der Finder im Bildschirmfoto des Melders, und dort ist sie brauchbar — **weil der
+  Anwender greift und nicht die Maschine.** Rauschen stört beim Raten, nicht beim Wählen.
+- *„Terminal.app fehlt"* betrifft das Öffnen von **Ordnern**. Für eine Datei belanglos.
+
+Die beiden Plätze bleiben unangetastet: Sie tragen Kürzel (⇧⌘E, ⇧⌘T) und wirken auch auf
+Ordner. Der Kommentar ist umgeschrieben, damit er nicht weiter als Blankoverbot gelesen wird.
+
+## ⚠️ Warum hier KEINE Erlaubnisliste greift — und das ist eine Festlegung, keine Lücke
+
+Die App hat drei Netze gegen ungewolltes Ausführen (PR-35, PR-51, Sprint 17). Hier greift
+keines, und zwar nach der eigenen, wörtlich niedergeschriebenen Regel:
+
+> **Ein Handgriff auf einer benannten Datei kennt keine Erlaubnisliste.** […] **Ungefragt
+> heißt: Der Anwender hat die Datei nie benannt.** Genau dort gehört die Schranke hin und
+> sonst nirgends.
+
+Bei „Öffnen mit" benennt der Anwender **die Datei und das Programm** — ausdrücklicher geht
+ein Handgriff nicht. Die Netze schützen „Arbeit fortsetzen", wo das *Programm* die Menge
+bildet. *Es musste dafür nichts Neues entschieden werden; die Regel stand schon da.*
+
+**Die Rückfrage ab zehn Objekten gilt trotzdem** — nicht wegen der Ausführung, sondern wegen
+der Fenster. Der Weg läuft über `run(_:)`, den einen Trichter.
+
+## Die Regeln, die daraus prüfbar wurden
+
+`ActiveFilters`-Muster: Der Abruf ist AppKit und bleibt im Dienst, die **Regel** liegt im
+Kern (`OpenWithMenu.swift`) und ist zugesichert.
+
+**⚠️ Entdoppelt wird nach PFAD, nicht nach Bundle-ID.** Im Bildschirmfoto des Melders stehen
+drei Fassungen von IDLE (3.12.3, 3.11.2, 3.10.5) und drei von Python Launcher — **mit
+derselben Bundle-ID**. Wer nach ihr entdoppelt, schluckt zwei davon und nimmt dem Anwender
+genau die Wahl, für die er das Menü geöffnet hat. *Die Bundle-ID identifiziert ein Programm,
+der Pfad eine Installation; hier ist die Installation gemeint.*
+
+**⚠️ Die Version steht nur, wo ein Name mehrfach vorkommt.** „Visual Studio Code (1.94.2)"
+ist Ballast; „IDLE (3.12.3)" neben „IDLE (3.11.2)" ist die einzige Unterscheidung. Der Finder
+macht es genauso. *Eine Angabe, die immer dasteht, wird überlesen — gerade dann, wenn sie
+einmal entscheidend ist.*
+
+**⚠️ Sortiert wird nach der Beschriftung, nicht nach dem Namen.** Der erste Anlauf ordnete
+nach `name` — drei Einträge namens „IDLE" behielten damit die Reihenfolge, in der
+LaunchServices sie zufällig meldete. Die Zusicherung hat es gefangen. *Eine Liste, die
+sortiert aussieht und es an einer Stelle nicht ist, ist schlimmer als eine unsortierte: Man
+sucht nicht mehr, man verlässt sich.*
+
+**⚠️ Bei Mehrfachauswahl die Schnittmenge, nicht die Vereinigung.** Das Untermenü wirkt nach
+der Finder-Regel auf die ganze Auswahl. Böte es ein Programm an, das nur die angeklickte
+Datei öffnen kann, gingen bei den übrigen Fehlermeldungen auf. Ein „(Standard)" gibt es
+folgerichtig nur bei **genau einer** Datei — bei mehreren behauptete es eine Gemeinsamkeit,
+die es nicht gibt.
+
+**⚠️ Nie leer.** „Anderes Programm …" steht immer da, auch wenn LaunchServices nichts meldet.
+Das ist keine Zugabe, sondern die Hausregel aus `RepoMenu`: *„Ein Untermenü, das sich leer
+aufklappt, wäre ein stiller Zustand."* Bei einer Datei ohne Handler ist genau das der
+Normalfall — und der Grund, aus dem das Menü überhaupt geöffnet wurde.
+
+**⚠️ Der Dateiwähler hängt in `RootView`, nicht im Kontextmenü.** Jenes lebt in
+`FileRowView`; ein `.fileImporter` dort hinge an **jeder** Dateizeile. Dieselbe Bauform wie
+beim Ordnerwähler: Die Zeile meldet über einen Zähler, der Dialog steht einmal. Die Ziele
+werden beim **Auslösen** festgehalten — zwischen Klick und Ergebnis kann die Auswahl längst
+eine andere sein.
+
+## Die ersten Programmsymbole der App
+
+Bis v2.1.0 zeigte die App **nirgends** ein Programmsymbol. Auf Wunsch des Eigentümers tragen
+die Einträge nun welche (`AppIconProvider`, eigener Zwischenspeicher — der von
+`FileIconProvider` hat die *Endung* als Schlüssel und lieferte für alle Programme dasselbe).
+
+**Nachgezogen wurde der Wähler in den Einstellungen**, obwohl nicht verlangt: Er ist dieselbe
+Sache — eine Liste von Programmen, aus der man eines wählt. *Zwei Programmlisten mit zwei
+Antworten wären genau das Muster, das die Durchsichten sonst rügen.* HIG, „Menus": *„provide
+icons for all menu items in a group, or none of them"* — „Anderes Programm …" und „Keines"
+stehen deshalb hinter dem Strich, sie sind keine Programme.
+
+## Bewusst nicht gebaut
+
+- **„Immer damit öffnen"** (Finders ⌥-Variante). Sie ändert die **systemweite** Zuordnung —
+  eine Wirkung weit außerhalb dieses Fensters, und sie wäre von hier aus nicht zurückzunehmen.
+- **„App Store …"** aus Finders Liste. Ein Programm zu kaufen ist kein Handgriff an einer Datei.
+- **Ein Kürzel.** Das Untermenü ist eine Reparatur für den Einzelfall; ⇧⌘E deckt den
+  wiederkehrenden Fall bereits ab.
+- **„Öffnen mit" für Ordner.** Dafür stehen die beiden Plätze; LaunchServices meldet für
+  Ordner ohnehin fast nichts (siehe die alte Messung).
+
 
 ### ✅ PR-70 · „Arbeit fortsetzen" zwang zum Klicken pro Tag *(v2.0.18)*
 **Aufwand:** S · **Art:** Wunsch aus der Praxis · *„Bei Arbeit fortsetzen muss es auch eine Option alle geben – sonst muss ich jeden Tag einzeln klicken – das ist aufwändig."*

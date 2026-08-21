@@ -124,7 +124,12 @@ struct HelpView: View {
                 ])
 
                 section("In anderen Programmen öffnen", icon: "arrow.up.forward.app", [
-                    "Kontextmenü: „In <Editor> öffnen“ (\(Shortcuts.openInEditor.display)) und „In <Terminal> öffnen“ (\(Shortcuts.openInTerminal.display)).",
+                    "**„Öffnen mit“** im Kontextmenü einer Datei listet alle Programme, die sie öffnen können – mit Symbol, das Standardprogramm zuerst.",
+                    "Nützlich bei Dateien, die gar kein Programm zugeordnet haben (etwa `.env.example`): Mit „Öffnen“ allein passiert dann nichts.",
+                    "Sind mehrere Dateien markiert, erscheinen nur Programme, die **alle** öffnen können.",
+                    "Ganz unten steht immer **„Anderes Programm …“** – auch dann, wenn das System nichts vorschlägt.",
+                    "Die Zuordnung des Systems bleibt dabei unverändert; beim nächsten Doppelklick gilt wieder das Standardprogramm.",
+                    "Daneben zwei feste Plätze: „In <Editor> öffnen“ (\(Shortcuts.openInEditor.display)) und „In <Terminal> öffnen“ (\(Shortcuts.openInTerminal.display)) – sie tragen Kürzel und wirken auch auf Ordner.",
                     "Bei Dateien öffnet der Editor die Dateien, das Terminal deren Ordner.",
                     "Vorbelegt wird, was tatsächlich installiert ist – sonst fehlt der Eintrag.",
                     "Änderbar unter Einstellungen → Allgemein → Programme (\(Shortcuts.settings.display)).",

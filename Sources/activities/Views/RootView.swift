@@ -10,6 +10,8 @@ struct RootView: View {
     var updates: UpdateChecker
     /// Ob gerade ein Ordner ueber dem Fenster schwebt (Abwurfziel hervorheben).
     @State private var isDropTargeted = false
+    /// Sichtbarkeit des Programmwaehlers von „Anderes Programm …" (PR-71).
+    @State private var showAppPicker = false
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -64,6 +66,22 @@ struct RootView: View {
         // Der Ordnername steht jetzt sichtbar im Ordner-Menue der Toolbar –
         // im Fenstertitel waere er unmittelbar daneben eine Dopplung.
         .navigationTitle("activities")
+        // ⚠️ Der Programmwaehler von „Oeffnen mit → Anderes Programm …" haengt
+        // HIER und nicht am Kontextmenue. Jenes lebt in `FileRowView`; ein
+        // `.fileImporter` dort haenge an **jeder** Dateizeile der Liste – bei
+        // tausend Zeilen tausendmal. Dieselbe Bauform wie beim Ordnerwaehler:
+        // Die Zeile meldet den Wunsch ueber einen Zaehler, der Dialog steht
+        // einmal.
+        .onChange(of: model.openWithPickerToken) { _, _ in showAppPicker = true }
+        .fileImporter(
+            isPresented: $showAppPicker,
+            allowedContentTypes: [.application],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let app = urls.first {
+                model.openWithPickedApp(app)
+            }
+        }
         .task { model.startInitialScanIfNeeded() }
         // ⚠️ Hier stand `.task { await updates.check() }` – die einzige
         // Update-Suche der App, und damit eine, die bei jedem Fensteroeffnen

@@ -123,6 +123,33 @@ func checkActivefiltersEinOrtEinBlickUx70() {
                 "Name \u{201E}scr\u{201C}",
                 "Zustandszeile: der Namensfilter erscheint getrimmt")
 
+    // ── Der Suchbereich: der Vorgabezustand schweigt, der abweichende redet.
+    //
+    // ⚠️ Beide Richtungen zugesichert, und die erste ist die wichtigere. Saehe
+    // die Zeile bei JEDER Suche „auch Ordnernamen", waere das Grundrauschen
+    // statt Hinweis – dieselbe Ueberlegung, die den Zeitraum aus der
+    // Ausnahmezeile heraushaelt. Umgekehrt verschweigt „nur Dateinamen"
+    // Treffer und darf deshalb nicht still sein (UX-06).
+    expect(ActiveFilters.nameScopeNote(includesFolderNames: true) == nil,
+           "Suchbereich: die Vorgabe sagt nichts an")
+    expectEqual(ActiveFilters.nameScopeNote(includesFolderNames: false), "nur Dateinamen",
+                "Suchbereich: die Einschraenkung sagt sich an")
+    expectEqual(ActiveFilters.nameText("scr", includesFolderNames: true),
+                "Name \u{201E}scr\u{201C}",
+                "Suchbereich: die Vorgabe laesst den Namenstext unveraendert")
+    expectEqual(ActiveFilters.nameText("scr", includesFolderNames: false),
+                "Name \u{201E}scr\u{201C} · nur Dateinamen",
+                "Suchbereich: die Einschraenkung haengt sich an den Namenstext")
+    // Und die Zeile selbst traegt es weiter – nicht nur die Hilfsfunktion.
+    expectEqual(achsen(name: "scr").first { $0.axis == .name }?.text,
+                ActiveFilters.nameText("scr", includesFolderNames: true),
+                "Zustandszeile: die Namensachse benutzt genau diesen Wortlaut")
+    // ⚠️ Der Bereich ist KEINE siebte Achse. Er beschreibt den Namensfilter
+    // naeher; eine eigene Achse liesse ihn auch dann erscheinen, wenn gar
+    // nichts gesucht wird – eine Ansage ueber einen Filter, den es nicht gibt.
+    expect(!achsen(name: "").contains { $0.axis == .name },
+           "Suchbereich: ohne Suchbegriff sagt sich auch der Bereich nicht an")
+
     // ── Der Umbruch: Gegenstand in die Ueberschrift, Behandlung darunter.
     expectEqual(ActiveFilters.subject(voll).map(\.axis), [.source, .period],
                 "Zustandszeile: der Gegenstand ist Quelle und Zeitraum")

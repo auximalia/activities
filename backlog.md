@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.2 · 2026-08-27*
+*Stand: v2.1.3 · 2026-08-27*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,116 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-73 · Ein Ordnertreffer weit oben im Pfad zog ganze Äste herein *(v2.1.3)*
+**Aufwand:** M · **Art:** Wunsch aus der Praxis · *„ich wünsche mir nah am Suchfeld eine Checkbox oder ähnlich um die Suche auf Ordner auszuweiten oder eben nur nach Dateien zu suchen. Bei vielen Dateien kommen zuviele Ordnerpfade mit enthaltenem Suchbegriff und ich finde nur noch mühsam eine gesuchte Datei."*
+
+Gemeldet an `/Volumes/Master/`. Suche `Matthias` → es erschien
+`/Volumes/Master/lerngruppe/wmr/jupyter/Matthias/ki` mit **allen** Dateien darin, von denen
+keine „Matthias" heißt. Der Treffer stammte aus einem **Vorfahren** im Pfad.
+
+## ⚠️ Der Befund stand schon im eigenen Backlog — als akzeptierter Preis
+
+PR-68 hat genau diesen Fall vorweggenommen und unter „Zwei scharfe Kanten, bewusst in Kauf
+genommen" verbucht: *„Kurze Begriffe ziehen viel mehr. `esp` trifft 30 Ordner, darunter
+`Korrespondenz` … und dann kommt der ganze Unterbaum mit. Der Preis der Obermenge."*
+Gemessen war es auch: `lerngruppe` → **1259 Ordner, der ganze Ast**.
+
+*Ein Preis, der in der Planung akzeptiert wird und sich in der Praxis als zu hoch erweist,
+ist ein Befund und keine Wiederholung der alten Diskussion.* Dieselbe Bewegung wie am
+2026-08-11 bei der Sprint-Regel.
+
+## ⚠️ Der Schalter greift PR-68s tragendes Argument an — und übersteht es
+
+PR-68 ließ die Ordnersuche nur mit **einem** Satz ins bestehende Feld: *„Es ist eine echte
+Obermenge, und nur deshalb darf es dasselbe Suchfeld sein."* Ein Schalter nimmt die
+Obermenge weg; damit stünde das Sprint-19-Verbot wieder da, das eine zweite Bedeutung für
+dasselbe Feld untersagt.
+
+Gehalten hat die Unterscheidung: **Das Obermengen-Argument rechtfertigte, sich ein Feld zu
+teilen — es verlangte nicht, dass die Obermenge zwingend ist.** Solange ein sichtbares
+Bedienelement direkt am Feld steht, ist dessen Bedeutung nicht mehrdeutig, sondern
+**angesagt**. Damit fällt zugleich der Einwand, an dem in PR-68 das Präfix `ordner:`
+scheiterte (*„fände niemand ohne Hilfe"*) — ein Schalter ist auffindbar, eine Syntax nicht.
+
+`decision-check` lief vorher. Klasse: **ein Suchbereich**, kein Filter — er filtert nichts
+eigenes, er legt fest, *worauf* der Begriff angewandt wird. Geschwister: **keine**, die App
+hatte nie einen Bereich. Vier von sechs Zeilen der Probe waren offen und wurden zur
+Arbeitsliste (Zustandsanzeige, Menüeintrag, Rücksetzung, Speicherung).
+
+## ⚠️ „Aus" ist die leere Menge — und bekommt ausdrücklich KEIN eigenes Feld
+
+Die naheliegende Bauform wäre `searchesFolderNames: Bool` in `FileVisibility` gewesen,
+abgefragt in `passesName`. Sie wurde verworfen: Bei abgeschaltetem Bereich lässt
+`filteredFromScan()` den Aufstieg ausfallen, `foldersMatchingName` bleibt leer, und die
+Veroderung ergibt von selbst genau „nur Dateinamen". **Ein Schalter daneben wäre eine
+zweite Darstellung derselben Tatsache**, und zwei Darstellungen einer Tatsache laufen
+auseinander — PR-46, zweimal. Vier Zusicherungen halten die Entscheidung fest, darunter die
+Deckungsgleichheit mit der reinen Dateinamensprüfung: Der Schalter stellt den Zustand vor
+v2.0.16 her und erfindet keinen dritten. Nebenbei spart er den Aufstieg ganz.
+
+## ⚠️ Gespeichert — die Ausnahme ist begründet, nicht vergessen
+
+Office-Schalter und Typ-Plättchen werden bewusst **nicht** gespeichert, *„damit niemand mit
+einem vergessenen Filter weiterarbeitet"*. Der Grund dieser Regel ist wörtlich: *„Der
+Hinweis darauf steht in der Kopfzone, und die lässt sich einklappen."* Dieser Schalter sitzt
+in der **Titelleiste**, und die lässt sich nicht einklappen; zusätzlich sagt die Statuszeile
+„nur Dateinamen" mit. *Der Grund der Regel trägt hier nicht — deshalb gilt sie hier nicht.*
+Ohne Merken müsste der Melder genau in dem Arbeitsablauf, über den er sich beschwert, jede
+Sitzung neu klicken.
+
+Vorgabe bleibt **an**. Der Ausfallwert beim Laden ist deshalb `true` und nicht `false`: Wer
+von einer älteren Fassung kommt, hat den Schlüssel nicht, und ein Update darf keine Treffer
+verschwinden lassen, die es vorher gab.
+
+## ⚠️ `folder.slash` gibt es nicht
+
+Der Wunsch lautete „Ordner-Symbol und Ordner-Symbol durchgestrichen". Nachgesehen im
+vollständigen Bestand (`symbol_order.plist`, **7695 Symbole**): **24 tragen einen Ordner,
+keines einen Schrägstrich und keines ein `xmark`-Abzeichen.** Gewählt wurde
+`folder.fill` / `folder.fill.badge.minus` — die nächstliegende Verneinung, und dieselbe
+Hausform wie `clock.badge.checkmark` / `.xmark` beim Außerhalb-Schalter.
+
+Verworfen: den Schrägstrich selbst zeichnen (trifft Strichstärke und Neigung der echten
+`.slash`-Varianten nicht und bricht bei jeder SF-Symbols-Fassung neu) und das Paar
+`folder.fill` / `doc.fill` (säße neben zwei echten **Ansichts**-Umschaltern und würde als
+dritter gelesen).
+
+Aus `decision-check`, Prüfung 5, offen festgehalten: Ein Ordnersymbol neben einem Suchfeld
+**kann** als „Ordner ausblenden" gelesen werden — die Liste ist schließlich nach Ordnern
+gegliedert. Entschärft durch den Platz (unmittelbar am Feld) und durch `onState`/`offState`,
+die es in Tooltip und Vorleseprogramm ausschreiben. *Wenn sich das in der Praxis anders
+zeigt, ist das ein eigener Befund und kein Grund, diesen hier umzuschreiben.*
+
+## Zwei Altlasten, vom Schalter ans Licht gebracht
+
+- **Zwei Ladewege, zwei Namensregeln.** `loadFilesNow` filterte Detaildateien mit
+  `NameFilter(namePattern)`, also **nur nach Dateinamen**, während der Hauptweg
+  `loadDetails` ungefiltert liest und `isVisible` bei der Anzeige entscheiden lässt. Bei
+  einem Ordnernamens-Treffer lieferten die beiden Wege zu denselben Dateien verschiedene
+  Ergebnisse. Die PR-46-Bauform, bestehend seit v2.0.16, erreichbar geworden durch den
+  Bereichsschalter. Behoben: `NameFilter("")` wie der Hauptweg.
+- **Der Tooltip des Suchfelds sagte „Teil des Dateinamens"** — seit v2.0.16 unvollständig.
+  Jetzt „Teil des Namens"; was genau gilt, sagt der Schalter daneben.
+
+**Bewusst NICHT getan:**
+- **Die Aufstiegsregel nicht geändert.** Naheliegend wäre gewesen, nur den **eigenen** Namen
+  eines Ordners zählen zu lassen statt aller Vorfahren — das hätte den gemeldeten Fall
+  ebenfalls entschärft. Verworfen, weil es eine **stille** Verhaltensänderung wäre, die der
+  Anwender nicht rückgängig machen kann, und weil sie den Fall zerstört, für den PR-68
+  gebaut wurde: *„manchmal fällt mir nur der Ordnername ein"* — dann will man den Inhalt,
+  auch den tiefer geschachtelten.
+- **Kein Tastenkürzel.** Wie „Office" daneben: Die Leiste trägt den Schalter, das Menü macht
+  ihn auffindbar. Ein weiteres Kürzel wäre Vorrat, kein Bedarf.
+- **Keine siebte Achse in der Zustandszeile.** Der Bereich beschreibt den Namensfilter
+  näher; eine eigene Achse ließe ihn auch dann erscheinen, wenn gar nichts gesucht wird —
+  eine Ansage über einen Filter, den es nicht gibt. Zugesichert.
+
+**Kosten:** Die Werkzeugleiste läuft 35 pt früher über — Schwelle **~1393 pt statt ~1358**,
+gerechnet auf der linearen Messreihe aus PR-31. Das Suchfeld bleibt trotzdem bei 273 pt; es
+zu kürzen gäbe genau den Platz zurück, den UX-35 erkämpft hat.
+
+**Zusicherungen:** 2014 → **2024**.
 
 ### ✅ PR-72 · Jeder Tastendruck im Suchfeld zählte den ganzen Bestand durch *(v2.1.2)*
 **Aufwand:** S · **Art:** Defekt — *aus der Praxis, an einer großen Quelle* · *„Wenn ich nun im Suchfeld einen Begriff eingebe, dauert es Sekunden, bis Buchstabe für Buchstabe im Suchfeld einer nach dem Anderen erscheint. Das verstehe ich nicht, hatten wir doch die Entprellung ausgebaut und uns darauf geeinigt, dass erst mit Enter die Suche gestartet wird."*
@@ -3582,6 +3692,16 @@ greift **den Grund** an – nicht die Entscheidung.
     - **Ein Wunsch „auch Ordnernamen durchsuchen" darf nicht in den Namensfilter.** Das wäre
       eine dritte Bedeutung für dasselbe Feld, das seit Sprint 16 bereits zwei trägt
       (Leerzeichen = UND, `ODER` trennt).
+
+    > **⚠️ ÜBERHOLT seit v2.0.16 — die beiden vorstehenden Punkte gelten nicht mehr.**
+    > PR-68 hat die Ordnernamen-Suche gebaut, und zwar genau dort, wo dieser Absatz sie
+    > verbietet. Das Verbot wurde nicht übersehen, sondern ausgehebelt: Es unterstellt,
+    > die Erweiterung nähme etwas weg, und das tut sie nicht — sie ist eine **echte
+    > Obermenge**, niemand verliert einen Treffer. Der Absatz blieb danach unmarkiert
+    > stehen und hat *dreiunddreißig Auslieferungen lang* das Gegenteil dessen behauptet,
+    > was die App tut. Nachgetragen mit PR-73 (v2.1.3), das dieselbe Stelle noch einmal
+    > angefasst hat. *Ein Verbot, das der eigene Code längst gebrochen hat, ist schlimmer
+    > als keines: Es wird beim Lesen für geltend gehalten.*
 
     *Wer das ändern will, greift den ersten Satz an: Solange Ordner keine eigene
     filterbare Eigenschaft haben, folgt alles Übrige daraus.*

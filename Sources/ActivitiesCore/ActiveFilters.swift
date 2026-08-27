@@ -93,6 +93,7 @@ public enum ActiveFilters {
     ///   - skippedByRule: Vom Rauschfilter übersprungene Einstiege.
     ///   - skippedByHiddenPath: Davon vom Anwender selbst ausgeblendete.
     ///   - namePattern: Der **angewandte** Namensfilter (nicht der getippte).
+    ///   - includesFolderNames: Ob der Begriff auch auf Ordnernamen gilt.
     ///   - visibility: Der Entscheidungstyp – hier nur gelesen.
     ///   - sort: Die wirkende Sortierung.
     public static func facets(
@@ -101,6 +102,7 @@ public enum ActiveFilters {
         skippedByRule: Int,
         skippedByHiddenPath: Int,
         namePattern: String,
+        includesFolderNames: Bool = true,
         visibility: FileVisibility,
         sort: FolderSort
     ) -> [FilterFacet] {
@@ -118,7 +120,7 @@ public enum ActiveFilters {
         // ansagen – sonst suchte man einen Filter, den es nicht gibt.
         let name = namePattern.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty {
-            out.append(FilterFacet(axis: .name, text: "Name \u{201E}\(name)\u{201C}"))
+            out.append(FilterFacet(axis: .name, text: nameText(name, includesFolderNames: includesFolderNames)))
         }
         if visibility.hasTypeFilter {
             out.append(FilterFacet(axis: .type, text: visibility.typeFilterSummary))
@@ -127,11 +129,36 @@ public enum ActiveFilters {
         return out
     }
 
+    /// Der Zusatz, der den **eingeschränkten** Suchbereich benennt – oder `nil`.
+    ///
+    /// **⚠️ Der Vorgabezustand schweigt, der abweichende redet.** Dass der
+    /// Begriff auch auf Ordnernamen gilt, ist seit v2.0.16 die Vorgabe; das bei
+    /// jeder Suche anzusagen wäre Grundrauschen statt Hinweis — dieselbe
+    /// Überlegung, die den Zeitraum aus der Ausnahmezeile heraushält (Sprint 17,
+    /// Festlegung 3, Bein b). Umgekehrt ist „nur Dateinamen" ein Zustand, der
+    /// **Treffer verschweigt**, und der darf nicht still sein (UX-06).
+    ///
+    /// **⚠️ Der Wortlaut steht hier und nirgends sonst.** Er wird an zwei
+    /// Stellen gebraucht — in der Zustandszeile über ``facets(…)`` und im
+    /// Segment der Statuszeile. Genau bei der Namensansage sind die beiden
+    /// Stellen schon einmal auseinandergelaufen („Name „…"" gegen
+    /// „Namensfilter „…""); ein zweiter Wortlaut für den Bereich wäre der
+    /// dritte Anlauf derselben Panne.
+    public static func nameScopeNote(includesFolderNames: Bool) -> String? {
+        includesFolderNames ? nil : "nur Dateinamen"
+    }
+
+    /// Die Namensachse als fertiger Satz, Bereichszusatz eingeschlossen.
+    public static func nameText(_ pattern: String, includesFolderNames: Bool) -> String {
+        let kern = "Name \u{201E}\(pattern)\u{201C}"
+        guard let zusatz = nameScopeNote(includesFolderNames: includesFolderNames) else { return kern }
+        return "\(kern) · \(zusatz)"
+    }
+
     /// Die Achsen des **Gegenstands** – Quelle und Zeitraum, für die Überschrift.
     public static func subject(_ facets: [FilterFacet]) -> [FilterFacet] {
         facets.filter { $0.axis.isSubject }
     }
-
     /// Die Achsen der **Behandlung** – was weggelassen und wie geordnet wird.
     public static func treatment(_ facets: [FilterFacet]) -> [FilterFacet] {
         facets.filter { !$0.axis.isSubject }

@@ -30,52 +30,44 @@ struct MainToolbar: ToolbarContent {
             folderMenu
         }
 
-        // 2. Suche
+        // 2. Suche – Feld und Suchbereich im selben Element.
+        //
+        // **⚠️ Der Bereichsschalter ist KEIN eigenes `ToolbarItem`, und das ist
+        // nicht nur Platznot.** `ToolbarContentBuilder` nimmt hoechstens zehn
+        // Elemente, und zehn sind belegt (dieselbe Grenze wie beim Trennstrich
+        // am Zeitraum, siehe unten). Aber selbst mit freiem Platz gehoerte er
+        // hierher: Er filtert nichts eigenes, er legt fest, **worauf** der
+        // Begriff im Feld daneben angewandt wird. Ein Bedienelement, das die
+        // Bedeutung eines anderen bestimmt, gehoert an dieses andere.
         ToolbarItem(placement: .navigation) {
-            SearchField(
-                text: $model.namePatternDraft,
-                prompt: "Name filtern, z. B. studium",
-                onChange: { model.namePatternDidChange() },
-                onSubmit: { model.applyNameFilterNow() }
-            )
-            // **⚠️ 273 pt (Faktor 1,3), nicht 315 (1,5) – und die Zahl ist
-            // gemessen, nicht gewaehlt.** Gewuenscht war 1,5. Gemessen wurde,
-            // ab welcher Fensterbreite die Werkzeugleiste ueberlaeuft und
-            // Knoepfe ins `»`-Menue wandern:
-            //
-            //   210 pt (bisher) → unter ~1295 pt Fensterbreite
-            //   273 pt (1,3)    → unter ~1358 pt
-            //   315 pt (1,5)    → unter ~1400 pt   (eingegrenzt: 1390 ja, 1410 nein)
-            //
-            // Verborgene Bedienelemente sind in diesem Programm eine teure
-            // Lehre: UX-35, „Der Ordner-Umschalter war so unauffindbar
-            // geworden, dass ihn der eigene Erbauer nicht mehr fand."
-            //
-            // **Versucht und verworfen:** `minWidth: 210, idealWidth: 315`,
-            // damit das Feld bei Enge schrumpft. SwiftUI nimmt die Wunschbreite
-            // und laesst stattdessen Knoepfe ueberlaufen – die Schwelle blieb
-            // bei ~1400 pt. Ein flexibles Feld waere die bessere Loesung; es
-            // gibt sie hier nicht.
-            .frame(width: 273)
-            // **Ein gesetzter Filter muss auffallen.** Ein Suchfeld mit Text
-            // sieht sonst fast aus wie eines ohne – und dann wundert man sich
-            // ueber eine unerklaerlich kurze Liste. Derselbe Grundsatz wie beim
-            // Typ-Filter (UX-06): kein stiller Zustand.
-            .overlay {
-                if model.hasNameFilter {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(Color.accentColor, lineWidth: 2)
-                        .allowsHitTesting(false)
-                }
+            HStack(spacing: 6) {
+                searchField
+                // **⚠️ Ordnersymbol neben einem Suchfeld, obwohl es „Ordner
+                // ausblenden" heissen koennte.** Der Einwand ist echt und kam
+                // aus `decision-check`: Die Liste ist nach Ordnern gegliedert,
+                // ein durchgestrichener Ordner koennte versprechen, dass die
+                // Ordnerzeilen verschwinden. Entschaerft durch den **Platz** –
+                // unmittelbar am Suchfeld liest man „auch dort suchen" – und
+                // durch `onState`/`offState`, die es in Tooltip und
+                // Vorleseprogramm ausschreiben.
+                //
+                // **`folder.slash` gibt es nicht.** Nachgesehen im vollstaendigen
+                // Bestand (`symbol_order.plist`, 7695 Symbole): 24 tragen einen
+                // Ordner, keines einen Schraegstrich oder ein `xmark`-Abzeichen.
+                // Das Minus-Abzeichen ist die naechstliegende Verneinung und
+                // folgt der Hausform `clock.badge.checkmark`/`.xmark` unten.
+                ToolbarStateToggle(
+                    isOn: Binding(
+                        get: { model.searchIncludesFolderNames },
+                        set: { model.setSearchIncludesFolderNames($0) }
+                    ),
+                    onSymbol: "folder.fill",
+                    offSymbol: "folder.fill.badge.minus",
+                    label: "Suchbereich",
+                    onState: "auch Ordnernamen",
+                    offState: "nur Dateinamen"
+                )
             }
-            // ⚠️ Nicht ueber ``hint(_:)``: ⌘F springt ins Feld, es tut nicht das,
-            // was der Satz davor beschreibt. Die Schreibweise kommt trotzdem aus
-            // dem Katalog, damit sie nicht driften kann.
-            .help("Teil des Dateinamens eingeben, dann Enter. Mehrere Wörter: alle müssen vorkommen. ODER trennt Alternativen. Platzhalter * und ? sind möglich. Ein leeres Feld hebt den Filter sofort auf. · Feld erreichen: \(Shortcuts.focusFilter.display)")
-            .accessibilityLabel("Name filtern")
-            .accessibilityValue(model.nameFilterPending
-                ? "Noch nicht gesucht – Enter drücken"
-                : (model.hasNameFilter ? "Filter aktiv: \(model.namePattern)" : "kein Filter"))
         }
 
         // 3. Zeitraum – mit dem Trennstrich zu den Anpassungen im selben Element.
@@ -339,6 +331,67 @@ struct MainToolbar: ToolbarContent {
             .accessibilityLabel("Update installieren")
             }
         }
+    }
+
+    // MARK: - Suche
+
+    private var searchField: some View {
+        SearchField(
+            text: $model.namePatternDraft,
+            prompt: "Name filtern, z. B. studium",
+            onChange: { model.namePatternDidChange() },
+            onSubmit: { model.applyNameFilterNow() }
+        )
+        // **⚠️ 273 pt (Faktor 1,3), nicht 315 (1,5) – und die Zahl ist
+        // gemessen, nicht gewaehlt.** Gewuenscht war 1,5. Gemessen wurde,
+        // ab welcher Fensterbreite die Werkzeugleiste ueberlaeuft und
+        // Knoepfe ins `»`-Menue wandern:
+        //
+        //   210 pt (bisher) → unter ~1295 pt Fensterbreite
+        //   273 pt (1,3)    → unter ~1358 pt
+        //   315 pt (1,5)    → unter ~1400 pt   (eingegrenzt: 1390 ja, 1410 nein)
+        //
+        // Verborgene Bedienelemente sind in diesem Programm eine teure
+        // Lehre: UX-35, „Der Ordner-Umschalter war so unauffindbar
+        // geworden, dass ihn der eigene Erbauer nicht mehr fand."
+        //
+        // **Versucht und verworfen:** `minWidth: 210, idealWidth: 315`,
+        // damit das Feld bei Enge schrumpft. SwiftUI nimmt die Wunschbreite
+        // und laesst stattdessen Knoepfe ueberlaufen – die Schwelle blieb
+        // bei ~1400 pt. Ein flexibles Feld waere die bessere Loesung; es
+        // gibt sie hier nicht.
+        //
+        // **⚠️ Der Bereichsschalter daneben kostet 35 pt, und die Schwelle
+        // wandert mit (PR-73).** Die Messreihe oben ist linear – 63 pt mehr
+        // Feld ergaben 63 pt mehr Schwelle, 42 ergaben 42. Der Schalter misst
+        // 19 pt (festes Rahmenmass von ``ToolbarStateToggle``) plus 2 × 5 pt
+        // Innenabstand plus 6 pt Zeilenabstand: **~1393 pt statt ~1358**.
+        // Das Feld bleibt trotzdem bei 273 – es zu kuerzen, um die Schwelle zu
+        // halten, gaebe genau den Platz zurueck, den UX-35 erkaempft hat.
+        .frame(width: 273)
+        // **Ein gesetzter Filter muss auffallen.** Ein Suchfeld mit Text
+        // sieht sonst fast aus wie eines ohne – und dann wundert man sich
+        // ueber eine unerklaerlich kurze Liste. Derselbe Grundsatz wie beim
+        // Typ-Filter (UX-06): kein stiller Zustand.
+        .overlay {
+            if model.hasNameFilter {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                    .allowsHitTesting(false)
+            }
+        }
+        // ⚠️ Nicht ueber ``hint(_:)``: ⌘F springt ins Feld, es tut nicht das,
+        // was der Satz davor beschreibt. Die Schreibweise kommt trotzdem aus
+        // dem Katalog, damit sie nicht driften kann.
+        //
+        // **⚠️ „Namens" statt „Dateinamens" (PR-73).** Der Satz sagte bis
+        // v2.1.2 „Teil des Dateinamens" – seit v2.0.16 falsch, weil auch
+        // Ordnernamen zaehlen. Was genau gilt, sagt der Schalter daneben.
+        .help("Teil des Namens eingeben, dann Enter. Mehrere Wörter: alle müssen vorkommen. ODER trennt Alternativen. Platzhalter * und ? sind möglich. Ein leeres Feld hebt den Filter sofort auf. · Feld erreichen: \(Shortcuts.focusFilter.display)")
+        .accessibilityLabel("Name filtern")
+        .accessibilityValue(model.nameFilterPending
+            ? "Noch nicht gesucht – Enter drücken"
+            : (model.hasNameFilter ? "Filter aktiv: \(model.namePattern)" : "kein Filter"))
     }
 
     // MARK: - Ordnerwahl

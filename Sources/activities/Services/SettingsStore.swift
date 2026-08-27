@@ -7,6 +7,8 @@ struct StoredSettings {
     var sources: SourceList
     var days: Int
     var namePattern: String
+    /// Ob der Suchbegriff auch auf **Ordnernamen** gilt (PR-73).
+    var searchIncludesFolderNames: Bool
     var autoRefresh: Bool
     var useDateRange: Bool
     var rangeStart: Date
@@ -56,6 +58,7 @@ final class SettingsStore {
     private let activeSourcesKey = "activeSources"
     private let daysKey = "days"
     private let patternKey = "namePattern"
+    private let searchFoldersKey = "searchIncludesFolderNames"
     private let autoRefreshKey = "autoRefresh"
     /// **⚠️ Nur noch zum Uebernehmen.** „Zuletzt geoeffnet" ist in den
     /// Quellen-Bestand aufgegangen; siehe ``loadSources()``.
@@ -138,6 +141,11 @@ final class SettingsStore {
         let days = defaults.object(forKey: daysKey) as? Int ?? 30
         let pattern = defaults.string(forKey: patternKey) ?? ""
         let autoRefresh = defaults.object(forKey: autoRefreshKey) as? Bool ?? true
+        // **⚠️ Vorgabe `true` – der Ausfallwert ist hier eine Zusage.** Wer von
+        // einer Fassung vor v2.1.3 kommt, hat den Schluessel nicht; `false` als
+        // Ausfallwert naehme ihm still die Ordnersuche aus v2.0.16 weg. Ein
+        // Update darf keine Treffer verschwinden lassen, die es vorher gab.
+        let searchFolders = defaults.object(forKey: searchFoldersKey) as? Bool ?? true
         let useDateRange = defaults.object(forKey: useRangeKey) as? Bool ?? false
         // Standard: Dateien ausserhalb des Zeitraums sind ausgeblendet.
         let showOutOfWindow = defaults.object(forKey: showOutOfWindowKey) as? Bool ?? false
@@ -169,7 +177,8 @@ final class SettingsStore {
         let sources = loadSources()
 
         return StoredSettings(
-            sources: sources, days: days, namePattern: pattern, autoRefresh: autoRefresh,
+            sources: sources, days: days, namePattern: pattern,
+            searchIncludesFolderNames: searchFolders, autoRefresh: autoRefresh,
             useDateRange: useDateRange,
             rangeStart: calendar.startOfDay(for: rangeStart),
             rangeEnd: calendar.startOfDay(for: rangeEnd),
@@ -285,6 +294,17 @@ final class SettingsStore {
 
     func saveAutoRefresh(_ enabled: Bool) {
         defaults.set(enabled, forKey: autoRefreshKey)
+    }
+
+    /// **⚠️ Gespeichert, anders als Office- und Typ-Filter.** Deren Regel
+    /// (``ReportViewModel/showsOnlyWorkFiles``) begruendet sich damit, dass der
+    /// Hinweis in der **Kopfzone** steht und die sich einklappen laesst – ein
+    /// gemerkter Schalter verschwiege dann eines Morgens Dateien. Dieser
+    /// Schalter sitzt in der **Titelleiste**, und die laesst sich nicht
+    /// einklappen; zusaetzlich sagt die Statuszeile „nur Dateinamen" mit.
+    /// *Der Grund der Regel traegt hier nicht – deshalb gilt sie hier nicht.*
+    func saveSearchIncludesFolderNames(_ enabled: Bool) {
+        defaults.set(enabled, forKey: searchFoldersKey)
     }
 
     func saveShowOutOfWindowFiles(_ enabled: Bool) {

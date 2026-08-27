@@ -70,6 +70,17 @@ public struct FileVisibility: Sendable, Equatable {
     /// vom Ordner ab, nicht von der Datei. Sie hier je Datei zu wiederholen
     /// hieße, denselben Aufstieg zwanzigtausendmal zu laufen, in einer
     /// Schleife, die bei jeder Neuzeichnung startet.
+    ///
+    /// **⚠️ Der abgeschaltete Suchbereich kommt hier als LEERE MENGE an, und
+    /// das ist Absicht (PR-73).** Seit v2.1.3 kann der Anwender die Suche auf
+    /// Dateinamen beschränken. Es wäre naheliegend, dafür ein zweites Feld
+    /// `searchesFolderNames: Bool` danebenzustellen und in ``passesName(_:)``
+    /// abzufragen — genau das wäre der Fehler. Die Menge ist dann **ohnehin**
+    /// leer; ein Schalter daneben wäre eine zweite Darstellung derselben
+    /// Tatsache, und zwei Darstellungen einer Tatsache laufen auseinander
+    /// (PR-46, zweimal). *Wer den Bereich hier sucht, findet ihn im Modell:
+    /// ``ReportViewModel/searchIncludesFolderNames`` entscheidet, ob der
+    /// Aufstieg überhaupt läuft.*
     public let foldersMatchingName: Set<URL>
 
     /// Beginn des Zeitfensters (einschließlich).

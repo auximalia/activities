@@ -423,16 +423,30 @@ struct ChartHeaderView: View {
     }
 
     private var nameSegment: some View {
-        HStack(spacing: 5) {
+        // ⚠️ Der Bereichszusatz kommt aus dem Kern und wird hier **nicht**
+        // zweitgeschrieben: ``ActiveFilters/nameScopeNote(includesFolderNames:)``
+        // liefert ihn auch der Zustandszeile. Genau die Namensansage ist schon
+        // einmal auseinandergelaufen („Name „…"" gegen „Namensfilter „…"") –
+        // ein zweiter Wortlaut fuer den Bereich waere der dritte Anlauf.
+        let bereich = ActiveFilters.nameScopeNote(
+            includesFolderNames: model.searchIncludesFolderNames
+        )
+        return HStack(spacing: 5) {
             Image(systemName: "magnifyingglass.circle.fill")
                 .foregroundStyle(.tint)
             Text("Namensfilter „\(model.namePattern)“")
+            if let bereich {
+                Text("· \(bereich)").foregroundStyle(.secondary)
+            }
             Button("Löschen") { model.clearNameFilter() }
                 .buttonStyle(.link)
                 .help(Shortcuts.clearNameFilter.hint("Namensfilter entfernen"))
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Namensfilter \(model.namePattern) ist aktiv")
+        .accessibilityLabel(
+            bereich.map { "Namensfilter \(model.namePattern) ist aktiv, \($0)" }
+                ?? "Namensfilter \(model.namePattern) ist aktiv"
+        )
         .accessibilityHint("Zum Löschen aktivieren")
     }
 

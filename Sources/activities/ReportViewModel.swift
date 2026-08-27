@@ -149,6 +149,29 @@ final class ReportViewModel {
     /// Der Text **im Suchfeld** – noch nicht unbedingt angewandt.
     var namePatternDraft: String = ""
 
+    /// Ob der Suchbegriff auch auf **Ordnernamen** gilt (Vorgabe: ja).
+    ///
+    /// Seit v2.0.16 durchsucht der Namensfilter Datei- **und** Ordnernamen; PR-68
+    /// begruendete das damit, dass es eine **echte Obermenge** sei — *„niemand
+    /// verliert einen Treffer"* — und nur deshalb dasselbe Suchfeld benutzen
+    /// duerfe. Aus der Praxis kam der Preis dieser Obermenge zurueck: Bei einer
+    /// grossen Quelle traf `Matthias` einen Ordner weit oben im Pfad, und der
+    /// ganze Ast darunter erschien mit allen Dateien — *„ich finde nur noch
+    /// muehsam eine gesuchte Datei"*. PR-68 hatte genau das als „scharfe Kante,
+    /// bewusst in Kauf genommen" notiert; hier ist die Kante.
+    ///
+    /// **⚠️ Der Schalter nimmt die Obermenge nicht weg, er macht sie waehlbar.**
+    /// Das Obermengen-Argument rechtfertigte, sich **ein Feld** zu teilen; es
+    /// verlangte nicht, dass die Obermenge **zwingend** ist. Solange ein
+    /// sichtbares Bedienelement direkt am Feld steht, ist die Bedeutung des
+    /// Feldes nicht mehrdeutig, sondern **angesagt** — und damit faellt auch der
+    /// Einwand, an dem das Praefix `ordner:` scheiterte („faende niemand ohne
+    /// Hilfe"). Die Vorgabe bleibt `true`, damit kein Update still etwas wegnimmt.
+    ///
+    /// **⚠️ Gespeichert – die Ausnahme ist begruendet, nicht vergessen.** Siehe
+    /// ``SettingsStore/saveSearchIncludesFolderNames(_:)``.
+    var searchIncludesFolderNames: Bool { didSet { invalidateRows() } }
+
     /// Ob im Feld etwas anderes steht als das, was die Liste zeigt.
     ///
     /// **⚠️ Muss sichtbar sein, sonst tauscht man ein Ruckeln gegen eine Luege.**
@@ -513,6 +536,7 @@ final class ReportViewModel {
             skippedByRule: skippedByRuleCount,
             skippedByHiddenPath: skippedByHiddenPathCount,
             namePattern: namePattern,
+            includesFolderNames: searchIncludesFolderNames,
             visibility: visibility,
             sort: sort
         )
@@ -567,6 +591,7 @@ final class ReportViewModel {
         self.days = saved.days
         self.namePattern = saved.namePattern
         self.namePatternDraft = saved.namePattern
+        self.searchIncludesFolderNames = saved.searchIncludesFolderNames
         self.autoRefresh = saved.autoRefresh
         self.showOutOfWindowFiles = saved.showOutOfWindowFiles
         self.typeRules = store.loadTypeRules()
@@ -2393,11 +2418,20 @@ final class ReportViewModel {
         }
     }
 
+    /// Liest die Dateien **eines** Ordners nach – ungefiltert.
+    ///
+    /// **⚠️ `NameFilter("")`, obwohl hier bis v2.1.2 `NameFilter(namePattern)`
+    /// stand.** Der Hauptweg (``loadDetails``) liest ungefiltert und laesst
+    /// ``FileVisibility/isVisible(_:)`` bei der Anzeige entscheiden; dieser
+    /// Nachladeweg tat das Gegenteil und filterte **nur nach Dateinamen**.
+    /// Damit lieferten zwei Wege zu denselben Dateien zwei Ergebnisse: Bei
+    /// einem Ordner*namens*-Treffer gab der Hauptweg alle Dateien, dieser
+    /// keine. Die PR-46-Bauform – dieselbe Frage an zwei Stellen –, gefunden
+    /// beim Bau des Suchbereichs (PR-73), der sie erreichbar gemacht haette.
     private func loadFilesNow(_ folder: URL) async -> [RelevantFile] {
         let scanner = self.scanner
-        let filter = NameFilter(namePattern)
         return await Task.detached(priority: .userInitiated) {
-            scanner.listDirectoryFiles(folder, filter: filter)
+            scanner.listDirectoryFiles(folder, filter: NameFilter(""))
         }.value
     }
 
@@ -2977,17 +3011,48 @@ final class ReportViewModel {
         applyWindowChange()
     }
 
+    /// Schaltet den Suchbereich um: nur Dateinamen oder auch Ordnernamen.
+    ///
+    /// **Kein Suchlauf.** Der Rohbestand liegt vollstaendig im Speicher; der
+    /// Bereich wirkt erst bei der Auswertung (``filteredFromScan()``). Deshalb
+    /// genuegt ``applyWindowChange()`` – dieselbe Bahn, die auch Enter im
+    /// Suchfeld nimmt.
+    ///
+    /// **⚠️ Wirkt sofort, auch ohne Enter.** Der Bereich ist kein Entwurf: Es
+    /// gibt nichts zu tippen und damit nichts abzuwarten. Ihn in den
+    /// Schwebezustand von PR-55 zu ziehen hiesse, einen Schalter zu bauen, der
+    /// nach dem Klick noch nichts tut – die Umkehrung dessen, was ein Schalter
+    /// verspricht.
+    func setSearchIncludesFolderNames(_ enabled: Bool) {
+        guard enabled != searchIncludesFolderNames else { return }
+        searchIncludesFolderNames = enabled
+        store.saveSearchIncludesFolderNames(enabled)
+        // Ohne gesetzten Filter aendert der Bereich nichts – dann waere das
+        // Neurechnen Arbeit ohne Wirkung.
+        guard hasNameFilter else { return }
+        applyWindowChange()
+    }
+
     /// Die Dateien des letzten Suchlaufs, eingegrenzt auf Zeitfenster und Namensmuster.
     private func filteredFromScan() -> [RelevantFile] {
         let w = window
         // **⚠️ Der Aufstieg läuft je ORDNER, nicht je Datei** – und über den
         // **vollen** Bestand, nicht über das Ergebnis. Je Datei gerechnet wäre
         // es derselbe Aufstieg zwanzigtausendmal.
-        foldersMatchingName = FolderNameMatch.matchingFolders(
-            among: Set(scannedFiles.map(\.folder)),
-            sources: activeSources,
-            filter: NameFilter(namePattern)
-        )
+        //
+        // **⚠️ Bei abgeschaltetem Suchbereich bleibt die Menge LEER, statt dass
+        // eine zweite Bedingung entstünde** (PR-73). ``FileVisibility``
+        // verodert sie mit dem Dateinamen; eine leere Menge trägt zu dieser
+        // Veroderung nichts bei, und damit gilt genau „nur Dateinamen" – ohne
+        // dass die Namensregel ein zweites Mal formuliert werden müsste. Der
+        // Aufstieg entfällt dabei ganz, was ihn zugleich spart.
+        foldersMatchingName = searchIncludesFolderNames
+            ? FolderNameMatch.matchingFolders(
+                among: Set(scannedFiles.map(\.folder)),
+                sources: activeSources,
+                filter: NameFilter(namePattern)
+              )
+            : []
         // **⚠️ Die Namensregel wird NICHT hier zum zweiten Mal geschrieben.**
         // Genau daran ist PR-46 zweimal gescheitert: dieselbe Frage an zwei
         // Stellen, fünfhundert Zeilen auseinander – und als eine wuchs, wuchs

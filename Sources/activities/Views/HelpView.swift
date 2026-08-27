@@ -52,6 +52,7 @@ struct HelpView: View {
                 section("Nach Namen filtern", icon: "line.3.horizontal.decrease.circle", [
                     "Einfach einen Teil des Namens eingeben, z. B. studium.",
                     "**Gesucht wird in Datei- und Ordnernamen.** Trifft ein Ordnername, erscheint der Ordner mit **allem**, was darin im Zeitraum liegt – auch tiefer geschachtelt. Für den Fall, dass einem nur der Ordner einfällt.",
+                    "**Der Suchbereich lässt sich umschalten**: der Ordner-Knopf rechts neben dem Suchfeld, im Menü „Darstellung“ als **Auch in Ordnernamen suchen**. Bei vielen Dateien zieht ein Ordnertreffer weit oben im Pfad ganze Äste herein – dann auf **nur Dateinamen** stellen. Der Knopf merkt sich seine Stellung, und die Zeile unter dem Diagramm sagt „nur Dateinamen“ mit, solange sie gilt.",
                     "**Versteckte Dateien sind dabei**: `.env`, `.gitignore` und Ähnliches werden gelesen und gefunden – einfach `.env` eingeben. Ein Präfix braucht es nicht.",
                     "**Alle** versteckten auf einmal: `.*` – der Platzhalter bindet das Muster an den ganzen Namen, also „beginnt mit Punkt“. Ein Punkt **allein** wird dagegen zu `*.*` und trifft fast alles.",
                     "Gesucht wird bis zur Quelle hinauf, nicht darüber: Der Name der Quelle zählt noch mit, die Ordner oberhalb nicht.",

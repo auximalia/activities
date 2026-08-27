@@ -232,6 +232,13 @@ struct ActivitiesApp: App {
                 Button(Shortcuts.clearNameFilter.label) { model.clearNameFilter() }
                     .keyboardShortcut(Shortcuts.clearNameFilter)
                     .disabled(!model.hasNameFilter)
+                // Kein Kuerzel – wie „Office" daneben. Die Leiste traegt den
+                // Schalter, das Menue macht ihn auffindbar; ein weiteres Kuerzel
+                // waere Vorrat, kein Bedarf.
+                Toggle("Auch in Ordnernamen suchen", isOn: Binding(
+                    get: { model.searchIncludesFolderNames },
+                    set: { model.setSearchIncludesFolderNames($0) }
+                ))
                 Toggle("Office", isOn: Binding(
                     get: { model.showsOnlyWorkFiles },
                     set: { _ in model.toggleWorkFilesOnly() }

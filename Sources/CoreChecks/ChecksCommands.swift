@@ -1054,6 +1054,29 @@ func checkFolderNameMatchManchmalFaelltEinemNurDerOrdnernameEinV2016() {
                                 folder: URL(fileURLWithPath: "/woanders"), timestamp: Date(), size: 10)
     expect(FileVisibility(nameFilter: NameFilter("lerngruppe")).passesName(nachName),
            "Sicht: der Dateiname trifft weiterhin ohne jeden Ordnertreffer")
+
+    // ── Der abgeschaltete Suchbereich IST die leere Menge (PR-73, v2.1.3). ──
+    //
+    // ⚠️ Diese vier Zeilen sichern eine Entwurfsentscheidung, keine Rechnung.
+    // „Nur Dateinamen" bekam bewusst KEIN eigenes Feld in ``FileVisibility``:
+    // Bei abgeschaltetem Bereich laesst ``ReportViewModel`` den Aufstieg
+    // ausfallen, die Menge bleibt leer, und die Veroderung in ``passesName``
+    // ergibt von selbst genau „nur Dateinamen". Ein zusaetzliches
+    // `searchesFolderNames: Bool` waere eine zweite Darstellung derselben
+    // Tatsache – und zwei Darstellungen einer Tatsache laufen auseinander
+    // (PR-46, zweimal). *Faellt eine dieser Zeilen, hat jemand das Feld
+    // eingefuehrt und die beiden Darstellungen driften bereits.*
+    let nurDateien = FileVisibility(nameFilter: NameFilter("lerngruppe"), foldersMatchingName: [])
+    expect(!nurDateien.passesName(datei),
+           "Suchbereich: abgeschaltet faellt die Datei im getroffenen Ordner heraus")
+    expect(nurDateien.passesName(nachName),
+           "Suchbereich: abgeschaltet trifft der Dateiname unveraendert")
+    // Und das ist punktgenau das Verhalten vor v2.0.16 – die Umschaltung
+    // stellt den alten Zustand her und erfindet keinen dritten.
+    for f in [datei, nachName] {
+        expectEqual(nurDateien.passesName(f), NameFilter("lerngruppe").matches(f.url.lastPathComponent),
+                    "Suchbereich: abgeschaltet ist deckungsgleich mit der reinen Dateinamenspruefung")
+    }
 }
 
 // MARK: - Notice: die Form ist eine Regel, keine Gewohnheit (v2.0.10)

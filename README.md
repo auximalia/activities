@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v2.1.1 · 2026-08-21*
+*Stand: v2.1.2 · 2026-08-27*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -116,7 +116,7 @@ Mit vollem Xcode zusaetzlich `swift test`. Der Ablauf fuer Freigaben steht in
 |---|---|
 | `ActivitiesCore` | Gesamte Fachlogik – **nur `Foundation`**, damit sie plattformunabhaengig bleibt (Fernziel Windows). |
 | `activities` | Die Oberflaeche (SwiftUI/AppKit, nur macOS). |
-| `CoreChecks` | Zusicherungen der Fachlogik (derzeit ueber 1800), laufen ohne Apple-Frameworks. |
+| `CoreChecks` | Zusicherungen der Fachlogik (derzeit ueber 2000), laufen ohne Apple-Frameworks. |
 
 > ---
 

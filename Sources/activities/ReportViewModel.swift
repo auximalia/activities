@@ -1499,10 +1499,14 @@ final class ReportViewModel {
     /// Jahrzehnte. Ohne diesen Hinweis waere das ein stiller Zustand: Das
     /// Diagramm zeigte weniger als die Liste, und niemand koennte sagen warum –
     /// genau das, was UX-06 abgeschafft hat.
-    var futureFileCount: Int {
-        let now = Date()
-        return scannedFiles.count { ChartAxis.isInFuture($0.timestamp, now: now) }
-    }
+    ///
+    /// **⚠️ Die Schleife liegt in ``ChartAxis/countInFuture(_:now:calendar:)``,
+    /// nicht hier.** Sie laeuft ueber ``scannedFiles``, den ungefilterten
+    /// Rohbestand aller Quellen, und wird aus einem SwiftUI-Rumpf gelesen. Bis
+    /// v2.1.1 bildete sie die Tagesgrenze **je Datei**; bei einer grossen
+    /// Quelle kostete das 0,35 s je Auswertung – und weil das Suchfeld denselben
+    /// Rumpf invalidiert, hiess das 0,35 s **je Tastendruck**.
+    var futureFileCount: Int { ChartAxis.countInFuture(scannedFiles) }
 
     /// Ob ueberhaupt Typen ausgeblendet sind – Grundlage der Statuszeile.
     ///

@@ -9,14 +9,17 @@ import AppKit
 /// eingebettete `NSSearchField` liefert die native Optik (Lupe, Löschen-Knopf,
 /// runde Form) bei freier Platzierung.
 ///
-/// Die Eingabe wirkt **live** (entprellt im Modell, ~250 ms); Enter und der
-/// Löschen-Knopf wirken sofort. Möglich wurde das, weil der Filter seit v1.10.0
-/// keinen Suchlauf mehr auslöst, sondern im Speicher arbeitet.
+/// **⚠️ Die Suche läuft erst bei Enter** – hier stand bis v2.1.1 noch
+/// „entprellt im Modell, ~250 ms". Die Entprellung ist seit v1.19.52 entfernt
+/// (Begründung in ``ReportViewModel/namePatternDidChange()``); der Löschen-Knopf
+/// wirkt weiterhin sofort. Prosa, die etwas anderes sagt als der Code, wird
+/// geglaubt – deshalb die ausdrückliche Berichtigung statt einer stillen Änderung.
 struct SearchField: NSViewRepresentable {
     @Binding var text: String
     var prompt: String
     var width: CGFloat = 220
-    /// Wird bei jeder Eingabe gerufen (das Modell entprellt).
+    /// Wird bei jeder Eingabe gerufen – das Modell entscheidet, ob etwas zu tun
+    /// ist (bei nicht-leerem Feld: nichts).
     var onChange: () -> Void
     /// Wird bei Enter und beim Löschen-Knopf gerufen – ohne Verzögerung.
     var onSubmit: () -> Void

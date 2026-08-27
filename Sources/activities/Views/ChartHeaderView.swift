@@ -306,11 +306,14 @@ struct ChartHeaderView: View {
         // Filter, sondern eine Auskunft ueber die **Daten**. Wer es zwischen
         // Namens- und Typ-Filter setzt, laesst es wie etwas aussehen, das man
         // abschalten kann.
-        if model.futureFileCount > 0 {
-            let n = model.futureFileCount
-            let text = n == 1
+        // ⚠️ **Einmal lesen, dann die Zahl benutzen.** `futureFileCount` laeuft
+        // ueber den gesamten Rohbestand; bis v2.1.1 stand es hier zweimal –
+        // als Bedingung und als Wert – und zaehlte entsprechend doppelt.
+        let zukunft = model.futureFileCount
+        if zukunft > 0 {
+            let text = zukunft == 1
                 ? "1 Datei ist auf ein Datum in der Zukunft gesetzt und liegt außerhalb des Diagramms."
-                : "\(n) Dateien sind auf ein Datum in der Zukunft gesetzt und liegen außerhalb des Diagramms."
+                : "\(zukunft) Dateien sind auf ein Datum in der Zukunft gesetzt und liegen außerhalb des Diagramms."
             HStack(spacing: 5) {
                 Image(systemName: "clock.badge.exclamationmark")
                     .foregroundStyle(.secondary)

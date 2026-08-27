@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.1 · 2026-08-21*
+*Stand: v2.1.2 · 2026-08-27*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,81 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-72 · Jeder Tastendruck im Suchfeld zählte den ganzen Bestand durch *(v2.1.2)*
+**Aufwand:** S · **Art:** Defekt — *aus der Praxis, an einer großen Quelle* · *„Wenn ich nun im Suchfeld einen Begriff eingebe, dauert es Sekunden, bis Buchstabe für Buchstabe im Suchfeld einer nach dem Anderen erscheint. Das verstehe ich nicht, hatten wir doch die Entprellung ausgebaut und uns darauf geeinigt, dass erst mit Enter die Suche gestartet wird."*
+
+Gemeldet mit `/Volumes/Master/` als Quelle. **Der Melder hatte recht und lag doch beim
+Verdächtigen falsch** — genau das macht den Befund lehrreich.
+
+Die Suche lief tatsächlich nicht. `namePatternDidChange()` kehrt bei nicht-leerem Feld
+sofort zurück, `namePatternDraft` hat bewusst kein `didSet { invalidateRows() }`, die
+Zeilenliste wurde nicht neu gebaut, nichts wurde in `UserDefaults` geschrieben. Alle
+Zusagen von v1.19.52 wurden eingehalten.
+
+Aber `namePatternDraft` ist eine `@Observable`-Eigenschaft, und `ChartHeaderView.body`
+liest sie — für den Hinweis *„Enter drücken, um nach … zu suchen"*. **Jeder Tastendruck
+invalidierte also den Rumpf der Kopfzone.** Und in demselben Rumpf stand
+`model.futureFileCount`: eine ungepufferte Schleife über `scannedFiles`, den
+ungefilterten Rohbestand **aller** Quellen.
+
+## ⚠️ Der Fehler war nicht die Schleife, sondern was in ihr stand
+
+`ChartAxis.isInFuture` bildete die Tagesgrenze **je Datei** — `startOfDay` plus
+`date(byAdding: .day)`, zwei ICU-Kalenderoperationen pro Element, `n`-mal statt einmal.
+Gemessen (`swiftc -O`, dieselbe Funktion, MacBook):
+
+| Bestand | je Auswertung | Grenze einmal vorgebildet |
+|---|---|---|
+| 83.000 | **0,353 s** | 0,00040 s |
+| 300.000 | **1,222 s** | 0,00153 s |
+| 500.000 | **2,039 s** | 0,00242 s |
+
+Faktor rund 840. Solange der Hauptstrang zählt, kann der Field-Editor weder zeichnen noch
+das nächste Tastenereignis annehmen — die Zeichen standen in der Ereignisschlange und
+tröpfelten im Takt der Rumpfauswertung heraus. Verschärfend: `futureFileCount` stand in
+`ChartHeaderView` **zweimal** hintereinander, als Bedingung und als Wert.
+
+**Warum es wie eine laufende Suche aussah, ohne eine zu sein:** Die Kosten hingen nicht am
+Suchtext, sondern am Bestand. Die Verzögerung war deshalb bei jedem Zeichen gleich groß
+und verschwand auch nicht, wenn der Filter nichts traf. *Ein Symptom, das exakt wie das
+abgeschaffte Verhalten aussieht, lenkt die Suche auf den bereits reparierten Ort.*
+
+## ⚠️ Der eigentliche Befund: der vierte Speicher hatte einen fünften Geschwister
+
+Die Lehre aus `Memo.swift` und `visibleRows` (v1.19.75) — *„ein Speicher, der zwei von
+drei Geschwistern bekommt, sieht vollständig aus"* — trifft hier ein drittes Mal zu, und
+diesmal mit einer neuen Wendung: `futureFileCount` war die vierte O(n)-Eigenschaft auf
+`scannedFiles` und die einzige **außerhalb** des Puffergebäudes, weil sie kein
+Zeileneingang ist und deshalb nicht an `rowsGeneration` hängt. *Ein Puffer, der an einen
+Zähler gebunden ist, schützt nur, was diesen Zähler kennt.*
+
+**Getan:**
+- `ChartAxis.futureBoundary(now:calendar:)` als eigener Begriff — die Grenze wird einmal
+  gebildet. `isInFuture` bleibt als Bequemlichkeit für den Einzelfall und ruft sie.
+- `ChartAxis.countInFuture(_:now:calendar:)` trägt die Schleife **im Kern**, wo
+  `CoreChecks` sie erreicht. `ReportViewModel.futureFileCount` ist auf einen Aufruf
+  geschrumpft.
+- `ChartHeaderView`: einmal lesen, dann die Zahl benutzen.
+- Vier neue Assertionen, darunter der ausdrückliche Vergleich „schnelle Zählung == 
+  Einzelprüfung": Die Beschleunigung darf keine Verhaltensänderung sein.
+- Berichtigt: `SearchField.swift` versprach im Doc-Kommentar noch *„entprellt im Modell,
+  ~250 ms"* — seit v1.19.52 falsch. Prosa, die etwas anderes sagt als der Code, wird
+  geglaubt.
+
+**Bewusst NICHT getan:**
+- **Kein `Memo` für `futureFileCount`.** Bei 0,4 ms ist es kein Rumpf-Problem mehr, und
+  ein fünfter Speicher hätte den Zähler gebraucht, an dem die Eigenschaft gerade nicht
+  hängt — also eine zweite Ungültigkeitsregel neben `rowsGeneration`. Die falsche Antwort
+  auf einen Befund, dessen Kern lautet: *es waren zwei Kalenderoperationen zu viel.*
+- **`namePatternDraft` nicht aus dem Rumpf der Kopfzone entfernt.** Der Hinweis *„Enter
+  drücken, um nach … zu suchen"* muss beim Tippen erscheinen; das ist sein Zweck. Die
+  Invalidierung ist richtig — teuer war nur, was sie auslöste.
+- **Das Diagramm nicht angefasst.** `HistoryChartView` wird durch die fünf
+  Closure-Parameter bei jedem Zeichen mit neu gebaut. Geprüft: `points` läuft über
+  `chartDays` (Bündel, nicht Dateien) — rund 500 Marken, alle übrigen Eingaben sind
+  gespeicherte Eigenschaften aus `recomputeChart()`. Kein zweiter O(n)-Pfad. Sollte nach
+  dieser Änderung noch etwas spürbar sein, ist das ein eigener Befund mit eigener Messung.
 
 ### ✅ PR-71 · „Öffnen mit" — manche Dateien lassen sich sonst gar nicht öffnen *(v2.1.1)*
 **Aufwand:** M · **Art:** Wunsch aus der Praxis · *„bei manchen Dateien muss man das Programm auswählen um öffnen zu können — im Finder sieht das so aus: […] Bekommen wir das bitte ins Kontextmenü zu den Dateien?"*

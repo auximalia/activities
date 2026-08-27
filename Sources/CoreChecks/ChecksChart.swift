@@ -239,4 +239,29 @@ func checkChartaxisDieAchseEndetHeuteSprint18Pr50() {
            "Zukunft: der gemeldete Fall")
     expect(!ChartAxis.isInFuture(tag(2020, 1, 1), now: heute, calendar: calendar),
            "Zukunft: Vergangenes nicht")
+
+    // ⚠️ Die Grenze ist ein eigener Begriff, weil sie **einmal** gebildet werden
+    // muss und nicht je Datei: zwei ICU-Kalenderoperationen, gemessen 0,353 s
+    // auf 83.000 Dateien gegen 0,4 ms mit vorgebildeter Grenze. Die Assertion
+    // haelt fest, dass „einmal" und „je Datei" dasselbe Ergebnis liefern – sonst
+    // waere die Beschleunigung eine Verhaltensaenderung.
+    expectEqual(ChartAxis.futureBoundary(now: heute, calendar: calendar),
+                tag(2026, 8, 12), "Zukunft: die Grenze ist der Beginn des morgigen Tages")
+    expectEqual(ChartAxis.futureBoundary(now: heuteSpaet, calendar: calendar),
+                tag(2026, 8, 12), "Zukunft: die Grenze haengt am Tag, nicht an der Uhrzeit")
+
+    let zukunftsOrdner = URL(fileURLWithPath: "/z")
+    let gemischt = [tag(2020, 1, 1), heuteSpaet, tag(2026, 8, 12), tag(2091, 9, 23)]
+        .enumerated()
+        .map { i, d in
+            RelevantFile(url: zukunftsOrdner.appendingPathComponent("f\(i).txt"),
+                         folder: zukunftsOrdner, timestamp: d)
+        }
+    expectEqual(ChartAxis.countInFuture(gemischt, now: heute, calendar: calendar), 2,
+                "Zukunft: gezaehlt werden nur die beiden ab morgen")
+    expectEqual(ChartAxis.countInFuture(gemischt, now: heute, calendar: calendar),
+                gemischt.count { ChartAxis.isInFuture($0.timestamp, now: heute, calendar: calendar) },
+                "Zukunft: die schnelle Zaehlung stimmt mit der Einzelpruefung ueberein")
+    expectEqual(ChartAxis.countInFuture([], now: heute, calendar: calendar), 0,
+                "Zukunft: leerer Bestand zaehlt null")
 }

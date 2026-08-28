@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.3 · 2026-08-27*
+*Stand: v2.1.4 · 2026-08-28*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,65 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-74 · Die rechte Seite der Zeile hatte keine Gewichtsstufe *(v2.1.4)*
+**Aufwand:** S · **Art:** Wunsch aus der Praxis · *„In der Tabelle/Baumansicht soll in der Zeile eines Ordners der Timestamp fett gesetzt sein. So bekommt das Auge mehr Halt auf der rechten Seite."*
+
+## ⚠️ Es gab eine ausdrückliche Gegenentscheidung — sie beantwortete eine andere Frage
+
+`DateStampView` trug seit PR-32 (v1.19.24) den Satz *„**Gewicht: durchgängig regular.** Die
+datumstiftende Datei bleibt erkennbar – ihr **Name** steht fett. Ein Signal, ein Träger;
+zweimal fett in derselben Zeile betont nichts mehr."*
+
+**Das Argument gilt der Dateizeile und gilt dort weiter.** Dort steht der Name fett, wenn
+die Datei dem Ordner ihr Datum stiftet — ein fetter Zeitstempel daneben löschte diese
+Auskunft aus. **In der Ordnerzeile trifft es nicht zu:** Der Name ist dort `.semibold`, und
+rechts stand flaches Grau. PR-32 hat den Fall nie erwogen, weil es die *Dateizeile* reparierte.
+
+Links trug die Zeile längst eine Gewichtsstufe — Ordner halbfett, Datei normal. Rechts nicht.
+*Der Wunsch erfindet keine neue Hervorhebung, er setzt eine vorhandene fort.*
+
+## ⚠️ Halbfett, nicht fett — `.bold` ist vergeben
+
+`.bold` bedeutet in dieser Tabelle „diese Datei stiftet dem Ordner sein Datum"
+(`FileRowView.swift:115`) und ist dem Anwender in der Hilfe **wörtlich zugesagt**. `.semibold`
+ist die Emphase des Hauses (`RootView.swift:578-588`) und dasselbe Gewicht, das der
+Ordnername links schon trägt.
+
+Nebenbei berichtigt: Die Hilfezeile sagte *„Die datumstiftende Datei … ist fett"* — sie
+konnte als „die ganze Zeile" gelesen werden. Jetzt: *„Der **Name** … – nicht die ganze Zeile."*
+
+## ⚠️ Die Breitenwarnung war real und trifft hier nicht zu — gemessen
+
+`RowSize` verlangt ausdrücklich: *„Wer die Datumsformatierung ändert, misst neu."* UX-59
+hatte notiert, Fettdruck koste **7,1 pt**. Nachgemessen (`NSFont.monospacedSystemFont`, alle
+drei Stufen, lang und kompakt):
+
+| Stufe | regular | semibold | bold | Spalte |
+|---|---|---|---|---|
+| 11 pt | 142,8 | **142,8** | 142,8 | 146 |
+| 12 pt | 155,8 | **155,8** | 155,8 | 159 |
+| 13 pt | 168,8 | **168,8** | 168,8 | 172 |
+
+**Null Punkt Unterschied.** Der Zeitstempel steht monospaced, und SF Mono hat für alle
+Gewichte dieselbe Vorschubbreite. Die UX-59-Zahl galt einer *proportionalen* Schrift. Die
+Zusicherung `dateColumnWidth > measuredDateWidth` bleibt unberührt. *Eine Warnung, die aus
+einer anderen Messung stammt, ist keine Messung für diesen Fall.*
+
+## ⚠️ Die Regel steht im Kern, nicht in der Ansicht
+
+`RowKind.emphasizesDateStamp` in `RowSize.swift`. Es wäre ein Zweizeiler in `DateStampView`
+gewesen — aber **genau diese Formatierung ist schon einmal über drei Views
+auseinandergelaufen**, und das ist der Grund, aus dem es `DateStampView` überhaupt gibt.
+PR-57 hatte für den Aufklappzustand notiert, dass eine Regel außerhalb des Kerns von
+`CoreChecks` nicht erreicht wird und deshalb driftet; hier war es billig, es richtig zu
+machen. Drei Zusicherungen, darunter *„genau eine Zeilenart hebt hervor"* — heben beide
+hervor, hebt keine hervor.
+
+Vorgabe des Parameters ist `.file`, also die zurückhaltende Form: Wer die Hervorhebung will,
+sagt es. Umgekehrt wäre ein künftiger Zeilentyp still hervorgehoben.
+
+**Zusicherungen:** 2024 → **2027**.
 
 ### ✅ PR-73 · Ein Ordnertreffer weit oben im Pfad zog ganze Äste herein *(v2.1.3)*
 **Aufwand:** M · **Art:** Wunsch aus der Praxis · *„ich wünsche mir nah am Suchfeld eine Checkbox oder ähnlich um die Suche auf Ordner auszuweiten oder eben nur nach Dateien zu suchen. Bei vielen Dateien kommen zuviele Ordnerpfade mit enthaltenem Suchbegriff und ich finde nur noch mühsam eine gesuchte Datei."*

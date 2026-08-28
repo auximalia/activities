@@ -124,7 +124,8 @@ struct FolderRowView: View {
 
             // Feste Datumsspalte: haelt den Zeitstempel nah am Inhalt.
             // Die Dateianzahl steht im Zeitabschnitts-Kopf (spart hier Platz).
-            DateStampView(date: displayDate, isCompact: isCompact, size: model.rowSize)
+            DateStampView(date: displayDate, isCompact: isCompact, size: model.rowSize,
+                          kind: .folder)
             // Ordner tragen keine Groesse – der Platz wird trotzdem
             // freigehalten, damit die Datumskante zu den Dateizeilen passt.
             if !isCompact { SizeStampPlaceholder(size: model.rowSize) }

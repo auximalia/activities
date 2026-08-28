@@ -23,9 +23,19 @@ import ActivitiesCore
 /// Name ist der Gegenstand. Die Ordnerzeile setzte es in `primary` und liess
 /// es damit mit dem Namen konkurrieren.
 ///
-/// **Gewicht: durchgaengig regular.** Die datumstiftende Datei bleibt
-/// erkennbar – ihr **Name** steht fett (``FileRowView``). Ein Signal, ein
-/// Traeger; zweimal fett in derselben Zeile betont nichts mehr.
+/// **Gewicht: nach Zeilenart – ``RowKind/emphasizesDateStamp``.** Bis v2.1.3
+/// stand hier „durchgaengig regular", begruendet mit *„zweimal fett in
+/// derselben Zeile betont nichts mehr"*. Der Satz gilt der **Dateizeile** und
+/// gilt dort weiter: Ihr Name steht fett, wenn sie dem Ordner ihr Datum
+/// stiftet, und ein fetter Zeitstempel daneben loeschte diese Auskunft aus.
+/// In der **Ordnerzeile** trifft er nicht zu – dort ist der Name halbfett und
+/// rechts stand flaches Grau. Gemeldet aus der Praxis: *„So bekommt das Auge
+/// mehr Halt auf der rechten Seite."*
+///
+/// **⚠️ Die Regel steht im Kern, nicht hier.** Genau diese Formatierung ist
+/// schon einmal ueber drei Views auseinandergelaufen – das ist der Grund, aus
+/// dem es diese View gibt. Eine zweite Fassung derselben Entscheidung in der
+/// Ansicht waere derselbe Fehler mit neuem Anstrich.
 ///
 /// Der frueher im Baum genutzte Farbwechsel fuer Durchgangsknoten entfaellt.
 /// Er kodierte „das Datum stammt aus dem Unterbaum" allein ueber Farbe,
@@ -47,12 +57,20 @@ struct DateStampView: View {
     /// Das ist ein Zustand, keine Formatierung: Deshalb bleibt er als
     /// Schalter erhalten, waehrend Farbe und Gewicht fest sind.
     var isDimmed: Bool = false
+    /// Welche Zeilenart – entscheidet ueber das Gewicht.
+    ///
+    /// **⚠️ Vorgabe ``RowKind/file``, damit ein vergessener Aufrufer die
+    /// zurueckhaltende Form bekommt.** Die Hervorhebung ist die Ausnahme; wer
+    /// sie will, sagt es. Umgekehrt waere ein neuer Zeilentyp still
+    /// hervorgehoben, ohne dass es jemand entschieden haette.
+    var kind: RowKind = .file
 
     var body: some View {
         Text(isCompact
              ? DateFormatting.dateTimeCompact(date)
              : DateFormatting.dateTime(date))
             .font(.system(size: size.metaFontSize, design: .monospaced))
+            .fontWeight(kind.emphasizesDateStamp ? .semibold : .regular)
             .foregroundStyle(.secondary)
             .opacity(isDimmed ? RowMetrics.outOfWindowTextOpacity : 1)
             .lineLimit(1)

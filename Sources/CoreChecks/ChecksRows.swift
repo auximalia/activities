@@ -153,6 +153,20 @@ func checkRowsizeEinstellbareSchriftgroesse() {
         }
         before = stufe
     }
+
+    // ── Das Gewicht des Zeitstempels haengt an der Zeilenart (v2.1.3). ──
+    //
+    // ⚠️ Diese Regel lag bis v2.1.3 als Literal in drei Zeilen-Views und war
+    // dort schon einmal auseinandergelaufen – der Anlass fuer ``DateStampView``.
+    // Sie steht jetzt im Kern, damit genau das nicht wieder passieren kann.
+    expect(RowKind.folder.emphasizesDateStamp,
+           "Zeitstempel: die Ordnerzeile hebt ihn hervor")
+    expect(!RowKind.file.emphasizesDateStamp,
+           "Zeitstempel: die Dateizeile nicht - dort traegt der NAME das Signal")
+    // ⚠️ Genau eine Zeilenart hebt hervor. Heben beide hervor, hebt keine
+    // hervor; hebt keine hervor, ist die Aenderung stillschweigend zurueck.
+    expectEqual(RowKind.allCases.count { $0.emphasizesDateStamp }, 1,
+                "Zeitstempel: genau eine Zeilenart hebt hervor")
 }
 
 // MARK: - Dateigroesse: Formatierung und Sortierung (PR-37/PR-39)

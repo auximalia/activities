@@ -115,7 +115,7 @@ struct HelpView: View {
                     "Diagramm und Legende bleiben oben stehen; „Diagramm ausblenden“ schafft Platz.",
                     "Über dem Diagramm steht der angezeigte Zeitraum als Überschrift.",
                     "Klick auf den Ordner: auf-/zuklappen und Pfad kopieren.",
-                    "Die datumstiftende Datei (neueste im Zeitfenster) ist fett.",
+                    "Der **Name** der datumstiftenden Datei (neueste im Zeitfenster) ist fett – nicht die ganze Zeile.",
                     "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",
                     "Der Uhr-Schalter oben zeigt sie bei Bedarf (grau/gedimmt, Uhr-Symbol).",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",

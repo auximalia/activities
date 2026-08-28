@@ -122,3 +122,45 @@ public enum RowSize: String, CaseIterable, Sendable, Identifiable {
     /// Die Schwelle der kleinsten Stufe – der gemessene Ausgangspunkt.
     private var baseCompactThreshold: Double { 940 }
 }
+
+/// Welche Art von Zeile eine Angabe beschriftet.
+///
+/// **⚠️ Steht im Kern, obwohl es nach Darstellung aussieht – und genau deshalb.**
+/// Die Gewichtsregel des Zeitstempels lag bis v2.1.3 als Literal in drei
+/// Zeilen-Views und ist dort schon einmal auseinandergelaufen (der Anlass für
+/// ``DateStampView``). Eine Regel, die ``CoreChecks`` nicht erreicht, driftet
+/// unbemerkt; das ist Lehre 4 dieses Projekts. Der Kern trägt deshalb die
+/// **Entscheidung**, die Ansicht nur noch ihre Umsetzung in `Font.Weight`.
+public enum RowKind: Sendable, CaseIterable {
+    /// Eine Ordnerzeile – in beiden Ansichten.
+    case folder
+    /// Eine Dateizeile.
+    case file
+
+    /// Ob der Zeitstempel dieser Zeilenart hervorgehoben wird.
+    ///
+    /// **⚠️ Nur Ordnerzeilen, und das kehrt PR-32 in einem Punkt um.** Jene
+    /// Entscheidung lautete „Gewicht durchgängig regular", begründet mit
+    /// *„zweimal fett in derselben Zeile betont nichts mehr"*. Das Argument
+    /// gilt der **Dateizeile**: Dort steht der Name bereits fett, wenn die
+    /// Datei dem Ordner ihr Datum stiftet – ein fetter Zeitstempel daneben
+    /// löschte diese Auskunft aus. In der **Ordnerzeile** trifft es nicht zu;
+    /// dort ist der Name halbfett und rechts steht flaches Grau.
+    ///
+    /// Gemeldet aus der Praxis: *„So bekommt das Auge mehr Halt auf der
+    /// rechten Seite."* Links trägt die Zeile längst eine Gewichtsstufe
+    /// (Ordner halbfett, Datei normal), rechts nicht — die Hervorhebung
+    /// setzt diese vorhandene Stufe fort, statt eine neue zu erfinden.
+    ///
+    /// **⚠️ Halbfett, nicht fett.** `.bold` ist in dieser Tabelle vergeben: Es
+    /// bedeutet „diese Datei stiftet dem Ordner sein Datum" und ist dem
+    /// Anwender in der Hilfe wörtlich zugesagt. `.semibold` ist die Emphase
+    /// des Hauses und dasselbe Gewicht, das der Ordnername links schon trägt.
+    ///
+    /// **Die Spaltenbreite bleibt unberührt – gemessen, nicht vermutet.** Der
+    /// Zeitstempel steht monospaced; SF Mono hat für alle Gewichte dieselbe
+    /// Vorschubbreite. „Mi., 05.08.2025 14:32" misst in regular wie in
+    /// semibold wie in bold 142,8 / 155,8 / 168,8 pt. Die
+    /// ``RowSize/measuredDateWidth`` und ihre Zusicherung gelten weiter.
+    public var emphasizesDateStamp: Bool { self == .folder }
+}

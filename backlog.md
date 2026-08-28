@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.4 · 2026-08-28*
+*Stand: v2.1.5 · 2026-08-28*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,81 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-75 · „Alles aufgeklappt" überlebte keine Filteränderung *(v2.1.5)*
+**Aufwand:** M · **Art:** Defekt — *aus der Praxis* · *„Wenn ich den Toggle z.B. auf Ordner aufklappen stehen habe und dann den Filter ändere (Zeit oder Suchbegriff) dann kann es sein dass auch neue Ordner mit Dateien erscheinen. Diese sind dann immer zugeklappt, sodass ich erneut auf aufklappen klicken muss."*
+
+## ⚠️ Eine Lücke, keine Entscheidung — und der Beweis steht im eigenen Code
+
+`expandedFolders` ist eine Menge von URLs. **Sie kann über einen Ordner, den sie noch nicht
+kennt, nichts aussagen.** Ein neu erscheinender Ordner fehlt darin nicht aus Absicht, sondern
+weil ihn nie jemand gesehen hat. Das ist keine abgewogene Festlegung, sondern eine
+Datenmodellgrenze, die nie zur Sprache kam.
+
+**Die fehlende Zeile existierte bereits — an zwei anderen Stellen.** `setViewMode` zieht beim
+Ansichtswechsel nach (`expandedFolders.formUnion(displayedFolders())`), `finishDetailLoad`
+führt über einen Suchlauf nach. Nur der Filterweg bekam sie nie, **ohne dass ein Kommentar
+den Unterschied begründet.** Nach der Hausregel („Doc comments carry the reason") wäre eine
+bewusste Ungleichbehandlung dokumentiert.
+
+Es ist derselbe Bauform-Fehler wie PR-57, nur über die Zeit statt im Augenblick: *„Der
+Schalter meldete einen Zustand, den die Ansicht nicht hatte – und das ist der Teil, der aus
+einem Ärgernis einen Vertrauensverlust macht."*
+
+## ⚠️ Die Reparatur ist eine Reihenfolge, kein neuer Zustand
+
+Vor der Neuberechnung wird `allExpanded` erfasst; galt es, wird es danach wiederhergestellt.
+**Danach zu fragen wäre wertlos** — der neue Ordner ist dann ja schon da und die Antwort
+zwangsläufig „nein". Diese Reihenfolge *ist* die ganze Reparatur.
+
+**Der Entwurf wurde erst größer geplant und dann kleiner.** Angenommen war, der Schalter
+müsse eine dauerhafte Absicht tragen und seine Beschriftung von einer Zustandsaussage zu
+einer Anweisung wechseln — mit dem Risiko, PR-57 rückgängig zu machen. Die Antwort des
+Eigentümers auf die offene Frage („wer ausdrücklich zuklappt, bleibt zu") hat das erledigt:
+**Ein einzeln zugeklappter Ordner setzt `allExpanded` ohnehin auf `false`, die Nachführung
+greift dann gar nicht.** Es braucht keinen zweiten Speicher für „ausdrücklich zugeklappt" —
+der abgeleitete Schalter trägt die Auskunft bereits. *Ein Zustand, den man aus einem
+vorhandenen ableiten kann, darf nicht danebengelegt werden.* Sprint 16, Festlegung 4
+(`nil` ≠ `[]` je Quelle) bleibt unberührt, ebenso die Ausschalt-Asymmetrie im Baum.
+
+## ⚠️ Drei Wege, nicht einer
+
+Der Typ-Filter (Legenden-Plättchen, Office, „Typ-Filter zurücksetzen") berührt
+`applyWindowChange()` **gar nicht** — er ruft unmittelbar `recomputeAfterFilterChange()`.
+Auch dort können Ordner neu erscheinen. Eine Reparatur nur im Filterweg wäre halb gewesen und
+hätte genau die Sorte Fehler ergeben, die man erst nach Wochen bemerkt. Abgedeckt sind:
+Zeitraum/Namensfilter/Suchbereich (synchron **und** über den Nachladeweg) sowie der Typ-Filter.
+
+Die Nachführung ruft `setAllExpanded(true)` und baut die Vereinigung **nicht selbst**:
+„Alles aufklappen" ist je Ansicht verschieden (Zeitansicht mit `ensureLoaded`, Baum ohne; Baum
+zusätzlich `treeShowsFiles`). Eine zweite Fassung wäre die PR-46-Falle im Wortlaut.
+
+## ⚠️ Eine offene Schuld von PR-57 beglichen
+
+`allExpanded` lag im Sichtmodell, und PR-57 hatte das selbst als Mangel notiert: *„Ohne neue
+Zusicherung, und das ist eine Schwäche: Die Regel lebt im Sichtmodell …, nicht im Kern —
+`CoreChecks` erreicht sie nicht."* Sie ist eine reine Funktion über zwei Mengen und ein Flag
+und liegt jetzt als `ExpansionState.isAllExpanded(displayed:expanded:filesVisible:)` im Kern.
+Sechs Zusicherungen, darunter der gemeldete Fall selbst („ein neu erschienener Ordner kippt
+die Aussage"), die leere Liste („nicht alles aufgeklappt") und der PR-57-Fall (im Baum
+genügen offene Knoten ohne sichtbare Dateien nicht).
+
+**Bewusst NICHT getan:**
+- **Kein zweiter Speicher „ausdrücklich zugeklappt".** Siehe oben — ableitbar.
+- **Keine Mehrheitsregel.** Wer 4 von 5 Ordnern offen hat, bekommt neue zugeklappt, weil der
+  Schalter auf „aus" steht. Das ist „folgt dem Schalter"; alles andere wäre ein Verhalten,
+  das niemand vorhersagen kann.
+- **`preserveOnNextLoad` nicht angefasst.** Beim Untersuchen aufgefallen: Das Feld wird nie
+  zurückgesetzt, ein Wert von dort überdauert Suchläufe und entscheidet spätere Ladevorgänge
+  mit. Folgenlos für dieses Symptom, aber ein durchgereichter Zustand ohne Doc-Kommentar. Das
+  neue `expandAllAfterLoad` wiederholt die Falle ausdrücklich nicht — es wird bedingungslos
+  verbraucht. *Eigener Befund, eigener Anlass.*
+
+**Nebenbei berichtigt:** Der Doc-Kommentar „Blendet die Dateien aller Ordner ein oder aus"
+stand über `setRowSize(_:)`, der von `setRowSize(_:)` über `setAllExpanded(_:)` — ein
+DocC-Bau ordnete beide der falschen Methode zu.
+
+**Zusicherungen:** 2027 → **2033**.
 
 ### ✅ PR-74 · Die rechte Seite der Zeile hatte keine Gewichtsstufe *(v2.1.4)*
 **Aufwand:** S · **Art:** Wunsch aus der Praxis · *„In der Tabelle/Baumansicht soll in der Zeile eines Ordners der Timestamp fett gesetzt sein. So bekommt das Auge mehr Halt auf der rechten Seite."*

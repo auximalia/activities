@@ -1612,9 +1612,14 @@ final class ReportViewModel {
     /// Legende, Diagramm und Ordnerliste nach einer Filteraenderung neu bilden.
     private func recomputeAfterFilterChange() {
         guard !relevantFiles.isEmpty else { return }
+        // ⚠️ Dieser Weg beruehrt ``applyWindowChange()`` nicht – Legende und
+        // Office-Schalter rechnen unmittelbar neu. Auch hier koennen Ordner neu
+        // erscheinen; eine Nachfuehrung nur im Filterweg waere halb.
+        let warAllesOffen = allExpanded
         recomputeLegend()
         recomputeChart()
         recomputeDisplayBuckets()
+        restoreExpandAll(warAllesOffen)
     }
 
     /// True, wenn eine Datei ueber ihre Endung (oder als "Sonstige") ausgeblendet ist.
@@ -2328,26 +2333,76 @@ final class ReportViewModel {
     /// war dafuer bereits gebaut – sein Doc-Kommentar sagt ausdruecklich, die
     /// Durchgangsknoten muessten „im Zustandsabgleich mitzaehlen". *Die Funktion
     /// gab es, der Baum-Zweig hat sie nur nie aufgerufen.*
+    ///
+    /// **⚠️ Die Regel selbst liegt seit v2.1.5 in ``ExpansionState/isAllExpanded(displayed:expanded:filesVisible:)``.**
+    /// PR-57 hatte notiert, dass sie im Sichtmodell fuer ``CoreChecks``
+    /// unerreichbar ist – sie ist eine reine Funktion und gehoert deshalb in
+    /// den Kern. Hier bleibt nur, was der Kern nicht wissen kann: dass in der
+    /// **Zeitansicht** ein aufgeklappter Ordner seine Dateien zwangslaeufig
+    /// zeigt, es dort also kein Gegenstueck zu ``treeShowsFiles`` gibt.
     var allExpanded: Bool {
-        let all = Set(displayedFolders())
-        guard !all.isEmpty else { return false }
-        switch viewMode {
-        case .tree: return treeShowsFiles && all.isSubset(of: expandedFolders)
-        case .time: return all.isSubset(of: expandedFolders)
-        }
+        ExpansionState.isAllExpanded(
+            displayed: displayedFolders(),
+            expanded: expandedFolders,
+            filesVisible: viewMode == .tree ? treeShowsFiles : true
+        )
     }
 
-    /// Blendet die Dateien aller Ordner ein oder aus.
+    /// Ob nach dem laufenden Nachladen „alles aufklappen" wiederherzustellen ist.
     ///
-    /// Im **Baum** bleibt das Ordnergeruest dabei unangetastet – nur die
-    /// Dateizeilen entfallen. In der **Zeitansicht** ist das Zuklappen der
-    /// Ordner derselbe Vorgang: Dort haengen unter einem Ordner ausschliesslich
-    /// Dateien.
+    /// **⚠️ Ein durchgereichter Wunsch, kein Zustand – und er wird in
+    /// ``finishDetailLoad()`` bedingungslos verbraucht.** Neben ihm liegt
+    /// ``preserveOnNextLoad``, das genau diese Bauform hat und **nicht**
+    /// zurueckgesetzt wird; ein Wert von dort ueberdauert Suchlaeufe und
+    /// entscheidet spaetere Ladevorgaenge mit. Diese Falle wird hier nicht
+    /// wiederholt.
+    private var expandAllAfterLoad = false
+
     /// Setzt die Schriftgröße der Liste.
     func setRowSize(_ size: RowSize) {
         guard size != rowSize else { return }
         rowSize = size
         store.saveRowSize(size)
+    }
+
+    /// Blendet die Dateien aller Ordner ein oder aus.
+    ///
+    /// Im **Baum** bleibt das Ordnergeruest beim Ausschalten unangetastet – nur
+    /// die Dateizeilen entfallen. In der **Zeitansicht** ist das Zuklappen der
+    /// Ordner derselbe Vorgang: Dort haengen unter einem Ordner ausschliesslich
+    /// Dateien.
+    ///
+    /// ⚠️ Diese Beschreibung stand bis v2.1.5 ueber ``setRowSize(_:)`` und die
+    /// von ``setRowSize(_:)`` hier; ein DocC-Bau ordnete beide der falschen
+    /// Methode zu. Gefunden bei der Untersuchung fuer PR-75.
+    /// Stellt „alles aufgeklappt" wieder her, wenn es vor der Neuberechnung galt.
+    ///
+    /// **Der gemeldete Fall (PR-75):** *„Wenn ich den Toggle auf Ordner
+    /// aufklappen stehen habe und dann den Filter ändere … Diese sind dann
+    /// immer zugeklappt, sodass ich erneut auf aufklappen klicken muss."*
+    /// ``expandedFolders`` ist eine Menge von URLs und kann ueber einen Ordner,
+    /// den sie noch nicht kennt, nichts aussagen. Ein neu erscheinender Ordner
+    /// fehlt darin – nicht aus Absicht, sondern weil ihn nie jemand gesehen hat.
+    ///
+    /// **⚠️ Erfasst wird VOR der Neuberechnung, nicht danach.** Danach ist
+    /// ``allExpanded`` bereits `false` – der neue Ordner ist ja da. Genau diese
+    /// Reihenfolge ist die ganze Reparatur.
+    ///
+    /// **⚠️ Wer ausdruecklich zuklappt, bleibt zugeklappt.** Ein einzeln
+    /// zugeklappter Ordner setzt ``allExpanded`` auf `false`; die Nachfuehrung
+    /// greift dann gar nicht. Es braucht dafuer **keinen** zweiten Speicher fuer
+    /// „ausdruecklich zugeklappt" – der abgeleitete Schalter traegt die Auskunft
+    /// bereits. *Ein Zustand, den man aus einem vorhandenen ableiten kann, darf
+    /// nicht danebengelegt werden* (Sprint 16, Festlegung 4 bleibt unberuehrt).
+    ///
+    /// **⚠️ Ruft ``setAllExpanded(_:)`` und baut die Vereinigung nicht selbst.**
+    /// „Alles aufklappen" ist je Ansicht verschieden (Zeitansicht mit
+    /// ``ensureLoaded``, Baum ohne; Baum zusaetzlich ``treeShowsFiles``). Die
+    /// Menge hier noch einmal zu vereinigen waere eine zweite Fassung derselben
+    /// Regel – die PR-46-Falle im Wortlaut.
+    private func restoreExpandAll(_ galtVorher: Bool) {
+        guard galtVorher, !allExpanded else { return }
+        setAllExpanded(true)
     }
 
     func setAllExpanded(_ expand: Bool) {
@@ -2869,6 +2924,10 @@ final class ReportViewModel {
             rescan()
             return
         }
+        // ⚠️ **Ganz oben erfasst.** Weiter unten steht die alte Ordnerliste noch,
+        // hier ist ``allExpanded`` also die Aussage ueber den Zustand VOR der
+        // Aenderung – und nur die ist brauchbar (PR-75).
+        let warAllesOffen = allExpanded
         store.save(days: days, namePattern: namePattern)
         notices.removeAll { $0.kind == .blocking }
         relevantFiles = filteredFromScan()
@@ -2904,7 +2963,11 @@ final class ReportViewModel {
             detailTotal = 0
             detailDone = 0
             recomputeDisplayBuckets()
+            restoreExpandAll(warAllesOffen)
         } else {
+            // Der Nachladeweg ist asynchron; der Wunsch reist mit und wird in
+            // ``finishDetailLoad()`` verbraucht.
+            expandAllAfterLoad = warAllesOffen
             loadDetails(for: folders)
         }
     }
@@ -3267,6 +3330,12 @@ final class ReportViewModel {
     /// Nach dem Laden: Ordnerliste berechnen und Aufklapp-/Auswahlzustand setzen.
     private func finishDetailLoad() {
         isLoadingDetails = false
+        // ⚠️ **Bedingungslos verbraucht, gleich zu Beginn.** Ein Wunsch, der
+        // stehenbleibt, entscheidet spaetere Ladevorgaenge mit – genau das tut
+        // ``preserveOnNextLoad`` daneben, und es ist dort ein Mangel und kein
+        // Merkmal.
+        let holeAllesAuf = expandAllAfterLoad
+        expandAllAfterLoad = false
         recomputeDisplayBuckets()
         let displayed = Set(displayedFolders())
         if preserveOnNextLoad {
@@ -3304,6 +3373,10 @@ final class ReportViewModel {
             }
             expandedFolders = withAncestors(wiederhergestellt)
         }
+        // ⚠️ **Nach** der Wiederherstellung des gespeicherten Zustands, nicht
+        // davor: Jener Zweig setzt ``expandedFolders`` neu und wuerde die
+        // Nachfuehrung sonst wieder wegwerfen.
+        restoreExpandAll(holeAllesAuf)
         if let focus = chartFocus { applyChartFocus(for: focus.folder) }
     }
 

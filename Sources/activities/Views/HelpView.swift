@@ -119,6 +119,7 @@ struct HelpView: View {
                     "Dateien außerhalb des Zeitraums sind standardmäßig ausgeblendet.",
                     "Der Uhr-Schalter oben zeigt sie bei Bedarf (grau/gedimmt, Uhr-Symbol).",
                     "Schalter oben klappt alle Ordner auf einmal auf/zu.",
+                    "**Stand alles offen, bleibt alles offen**: Ordner, die durch einen neuen Zeitraum oder Suchbegriff dazukommen, sind dann ebenfalls aufgeklappt. Wer einzelne Ordner selbst zugeklappt hat, behält sie zugeklappt.",
                     "Sortieren nach Datum, Name, Typ oder Größe (⇅-Menü, \(Shortcuts.sortByDate.display) bis \(Shortcuts.sortBySize.display)).",
                     "**Welche Sortierung gilt**, steht angehakt im Menü „Darstellung“ – samt Richtung. Dasselbe Kriterium erneut wählen kehrt sie um.",
                     "Dateien lassen sich in andere Programme ziehen.",

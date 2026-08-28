@@ -333,6 +333,39 @@ func checkAufklappzustandJeWurzelordnerPr14B() {
                 "Migration: vorhandener Stand wird nicht ueberschrieben")
     expect(ExpansionState.migrated(legacy: [], currentRoot: projekte, into: [:]).isEmpty,
            "Migration: nichts Altes, nichts zu tun")
+
+    // ── „Alles aufgeklappt": die Aussage, die der Schalter trifft (PR-75). ──
+    //
+    // ⚠️ Diese Regel lag bis v2.1.5 im Sichtmodell. PR-57 hat sie dort gebaut
+    // und die Schwaeche im selben Atemzug notiert: „Die Regel lebt im
+    // Sichtmodell …, nicht im Kern – CoreChecks erreicht sie nicht."
+    let a = URL(fileURLWithPath: "/r/a", isDirectory: true)
+    let b = URL(fileURLWithPath: "/r/b", isDirectory: true)
+    let c = URL(fileURLWithPath: "/r/c", isDirectory: true)
+
+    expect(ExpansionState.isAllExpanded(displayed: [a, b], expanded: [a, b], filesVisible: true),
+           "Alles offen: beide angezeigten Ordner sind aufgeklappt")
+    expect(!ExpansionState.isAllExpanded(displayed: [a, b], expanded: [a], filesVisible: true),
+           "Alles offen: ein einziger zugeklappter genuegt fuer nein")
+    // ⚠️ Der gemeldete Fall in einer Zeile: Ein NEU hinzugekommener Ordner
+    // kippt die Aussage – und genau deshalb muss der Zustand VOR der
+    // Neuberechnung erfasst werden, nicht danach.
+    expect(!ExpansionState.isAllExpanded(displayed: [a, b, c], expanded: [a, b], filesVisible: true),
+           "Alles offen: ein neu erschienener Ordner kippt die Aussage")
+    // ⚠️ Karteileichen stoeren nicht: Wer mehr aufgeklappt hat, als angezeigt
+    // wird, hat trotzdem alles Angezeigte offen. Ohne das faelle der Schalter
+    // aus, sobald ein Filter einen offenen Ordner wegnimmt.
+    expect(ExpansionState.isAllExpanded(displayed: [a], expanded: [a, b, c], filesVisible: true),
+           "Alles offen: mehr Aufgeklapptes als Angezeigtes ist trotzdem alles")
+    // ⚠️ Leere Anzeige ist NICHT alles – sonst behauptete der Schalter etwas
+    // ueber nichts, etwa direkt nach einem Filter, der alles wegnimmt.
+    expect(!ExpansionState.isAllExpanded(displayed: [URL](), expanded: [a], filesVisible: true),
+           "Alles offen: eine leere Liste ist nicht alles aufgeklappt")
+    // ⚠️ Der Baum braucht beides. Bis v1.19.59 genuegte hier `treeShowsFiles`
+    // allein, und der Schalter meldete „ein", waehrend zugeklappte Knoten ihre
+    // Dateien verschwiegen (PR-57).
+    expect(!ExpansionState.isAllExpanded(displayed: [a, b], expanded: [a, b], filesVisible: false),
+           "Alles offen: im Baum genuegen offene Knoten ohne sichtbare Dateien nicht")
 }
 
 // MARK: - TimePreset

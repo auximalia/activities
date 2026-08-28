@@ -89,4 +89,35 @@ public enum ExpansionState {
     public static func folders(in map: Map, for root: String) -> [String]? {
         map[root]
     }
+
+    /// Ob **alles** aufgeklappt ist – die Aussage, die der Schalter trifft.
+    ///
+    /// **⚠️ Steht seit v2.1.5 im Kern, und das war eine offene Schuld.** PR-57
+    /// hat diese Regel gebaut und im selben Atemzug ihre Schwaeche notiert:
+    /// *„Ohne neue Zusicherung, und das ist eine Schwaeche: Die Regel lebt im
+    /// Sichtmodell neben der gleichartigen Regel der Zeitansicht, nicht im Kern
+    /// – ``CoreChecks`` erreicht sie nicht."* Sie ist eine reine Funktion ueber
+    /// zwei Mengen und ein Flag; es gab keinen Grund, sie dort zu lassen.
+    ///
+    /// - Parameters:
+    ///   - displayed: Alle gerade angezeigten Ordner. Im Baum **einschliesslich
+    ///     der Durchgangsknoten** – ein zugeklappter Durchgangsknoten verbirgt
+    ///     seinen ganzen Ast, er zaehlt also mit.
+    ///   - expanded: Die aufgeklappten Ordner.
+    ///   - filesVisible: Im Baum ``ReportViewModel/treeShowsFiles``; in der
+    ///     Zeitansicht immer `true`, weil dort ein aufgeklappter Ordner seine
+    ///     Dateien zwangslaeufig zeigt.
+    ///
+    /// **⚠️ Eine leere Anzeige ist NICHT „alles aufgeklappt".** Sonst stuende
+    /// der Schalter bei leerer Liste auf „ein" und behauptete etwas ueber
+    /// nichts. Aus der Praxis waere das der Zustand direkt nach einem Filter,
+    /// der alles wegnimmt.
+    public static func isAllExpanded(
+        displayed: some Collection<URL>,
+        expanded: Set<URL>,
+        filesVisible: Bool
+    ) -> Bool {
+        guard !displayed.isEmpty, filesVisible else { return false }
+        return displayed.allSatisfy { expanded.contains($0) }
+    }
 }

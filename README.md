@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v2.1.3 · 2026-08-27*
+*Stand: v2.1.6 · 2026-08-31*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -332,6 +332,8 @@ Hinweise:
   Zeichen (z. B. `~$*` fuer Office-Sperrdateien, `*.tmp` fuer Temporaerdateien).
 - Versteckte Objekte (Namen mit fuehrendem Punkt, unter Windows auch das Attribut
   „versteckt") werden ohnehin immer ignoriert – sie muessen nicht aufgelistet werden.
+  **Das gilt nur fuer die alte Python-CLI dieses Abschnitts.** Die macOS-App liest
+  versteckte Dateien und Ordner seit v2.0.17 mit (siehe oben, Namensfilter).
 
 ---
 

@@ -34,9 +34,15 @@ public struct ScanOutcome: Sendable {
 /// Durchsucht einen Verzeichnisbaum nach kuerzlich bearbeiteten Dateien.
 ///
 /// Ausgewertet werden ausschliesslich Dateien. Das massgebliche Datum je Datei
-/// ist das neuere aus Erstell- und Aenderungsdatum. Versteckte Objekte sowie
-/// bekannte Junk-Dateien/-Ordner werden ausgeschlossen; Symlinks werden nicht
-/// verfolgt. Nicht lesbare Eintraege werden uebersprungen und protokolliert.
+/// ist das neuere aus Erstell- und Aenderungsdatum. Bekannte Junk-Dateien und
+/// -Ordner werden ausgeschlossen; Symlinks werden nicht verfolgt. Nicht lesbare
+/// Eintraege werden uebersprungen und protokolliert.
+///
+/// **⚠️ Versteckte Objekte werden GELESEN – hier stand bis v2.1.6 das
+/// Gegenteil.** Der Satz „Versteckte Objekte … werden ausgeschlossen" ueberlebte
+/// v2.0.17 sechzig Zeilen ueber dem ⚠️-Block, der ihn widerlegt (siehe
+/// `options: []` in ``scan(_:)``). Uebersprungen wird nichts, weil es versteckt
+/// ist — nur, was namentlich in ``ExclusionRules`` steht.
 public struct FileScanner: Sendable {
     private let exclusions: ExclusionRules
     /// Protokollierung ist plattformabhaengig gekapselt: ``os.Logger`` gibt es

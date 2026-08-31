@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.5 · 2026-08-28*
+*Stand: v2.1.6 · 2026-08-31*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,73 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-76 · Der Einstellungsdialog behauptete das Gegenteil dessen, was der Scanner tut *(v2.1.6)*
+**Aufwand:** S · **Art:** Defekt — *aus der Praxis* · *„der Eintrag ‚Versteckte Objekte' stimmt ja so nicht mehr — was machen wir damit?"*
+
+Im Rauschfilter-Reiter, Abschnitt **„Immer übersprungen"**, stand: *„Versteckte Objekte —
+Alles, was mit einem Punkt beginnt (.git, .build, .venv) sowie vom System als versteckt
+markierte Objekte."*
+
+## ⚠️ Falsch in zwei Richtungen, und die zweite ist die schlimmere
+
+Seit v2.0.17 läuft der Suchlauf mit `options: []` (`FileScanner.swift:119`). **Es gibt keine
+Hidden-Behandlung mehr** — das Attribut wird nicht einmal abgefragt. Gelesen werden nicht nur
+versteckte *Dateien*, sondern auch versteckte *Ordner*: `.github/workflows/*.yml`,
+`.vscode/settings.json`, `.ssh`, `.aws`. PR-69 hatte genau daran die eigene Schätzung
+kassiert — erwartet `+51` Dateien, gemessen **`+607`**.
+
+**Und die drei Beispiele sind Kästchen zwei Abschnitte weiter oben auf demselben Bildschirm.**
+`.git`, `.build`, `.venv` werden übersprungen, weil sie *namentlich in der abschaltbaren
+Regelliste* stehen, nicht weil sie versteckt sind. Der Abschnitt „**Immer** übersprungen"
+führte damit als unabänderlich vor, was der Anwender direkt darüber schaltet.
+
+## ⚠️ Der gefährlichere Fund lag im Kern, nicht im Dialog
+
+`ExclusionRules.swift:10-11` trug denselben Irrtum — aber als **Begründung, Ausschlüsse
+wegzulassen**: *„Versteckte Objekte … überspringt der Scanner ohnehin und müssen hier nicht
+gelistet werden."* Genau die Einträge, die dieser Satz für überflüssig erklärte, musste PR-69
+hinzufügen. Er stand **53 Zeilen über seiner eigenen Widerlegung in derselben Datei**
+(`:63-65`: *„Vorher hielt `.skipsHiddenFiles` sie fern; seit versteckte Dateien gelesen
+werden, müssen sie hier stehen."*).
+
+*Ein falscher Dialogtext irritiert. Ein falscher Doc-Kommentar, der eine Unterlassung
+rechtfertigt, baut den nächsten Fehler ein.* Ebenso berichtigt: `FileScanner.swift:37-39`,
+sechzig Zeilen über dem ⚠️-Block, der ihn widerlegt.
+
+## ⚠️ Warum es PR-69 überlebt hat — die Antwort steht eine Zeile tiefer
+
+Im selben `Section` liest die Nachbarzeile „Systemdateien" ihren Text **aus dem Kern**
+(`ExclusionRules.default.filePatterns`) und konnte gar nicht driften. „Versteckte Objekte"
+war handgeschrieben. **Die richtige Bauform stand direkt daneben und wurde für diese eine
+Zeile nicht benutzt.**
+
+Für den neuen Text geht das nicht: *„versteckt zu sein ist kein Grund"* ist keine Aufzählung,
+die sich aus einer Datenstruktur erzeugen ließe. `CoreChecks` erreicht Dialogtexte nicht — das
+ist dieselbe eingestandene Schwäche wie beim Hilfetext in `AGENTS.md` (*„Prosa kann nicht
+erzeugt werden, deshalb ist diese Regel der Wächter, und sie ist mit Absicht schwächer"*).
+Die einzige verfügbare Absicherung ist der **Ort**: Der Satz steht jetzt neben der Liste, die
+er beschreibt.
+
+**Getan:**
+- Die Zeile aus „Immer übersprungen" entfernt — sie gehörte per Definition dieses Abschnitts
+  (*„Was sich nicht einstellen lässt"*) nicht mehr dorthin.
+- Neuer Abschnitt **„Wird nicht übersprungen"** mit der positiven Aussage. Der Gegensatz zur
+  Überschrift darüber ist der Zweck.
+- Zwei Doc-Kommentare im Kern berichtigt, beide mit dem alten Wortlaut als Warnung.
+- `README.md:333` markiert: Der Satz gilt dort für die **alte Python-CLI** und ist in ihrem
+  Abschnitt richtig — 300 Zeilen unter der gegenteiligen, ebenfalls richtigen Aussage zur App.
+  Eine Falle für den nächsten Leser, jetzt entschärft statt gelöscht.
+
+**Entscheidung des Eigentümers:** eigene Zeile statt Fußnote. Dass Schlüsselspeicher wie
+`.ssh` mitgelesen werden, ist seine ausdrückliche Festlegung aus PR-69 (*„Die Sorgfaltspflicht
+liegt beim Nutzer, nicht beim Tool"*) und überrascht manche. *Eine Festlegung dieser Tragweite
+gehört nicht in Kleingedrucktes.*
+
+**Bewusst NICHT getan:** keine neue Zusicherung. Es gibt nichts zu prüfen, was `CoreChecks`
+erreicht — die Verhaltenszusicherungen dazu bestehen bereits (`ChecksCommands.swift:444, 466`,
+`ChecksFilter.swift:622`) und waren die ganze Zeit grün, während der Dialog log. *Das ist der
+Befund, nicht die Lücke.*
 
 ### ✅ PR-75 · „Alles aufgeklappt" überlebte keine Filteränderung *(v2.1.5)*
 **Aufwand:** M · **Art:** Defekt — *aus der Praxis* · *„Wenn ich den Toggle z.B. auf Ordner aufklappen stehen habe und dann den Filter ändere (Zeit oder Suchbegriff) dann kann es sein dass auch neue Ordner mit Dateien erscheinen. Diese sind dann immer zugeklappt, sodass ich erneut auf aufklappen klicken muss."*

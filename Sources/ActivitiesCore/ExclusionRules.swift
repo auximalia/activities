@@ -7,8 +7,17 @@ import Foundation
 /// Übersetzern, Paketverwaltungen und Sicherungen, die Zeitstempel setzen, ohne
 /// dass jemand etwas getan hat.
 ///
-/// Versteckte Objekte (Dotfiles, System-Attribut „versteckt") überspringt der
-/// Scanner ohnehin und müssen hier nicht gelistet werden.
+/// **⚠️ Versteckte Objekte müssen HIER stehen, sonst werden sie gelesen.**
+/// Bis v2.1.6 stand an dieser Stelle das Gegenteil: *„Versteckte Objekte
+/// (Dotfiles, System-Attribut ‚versteckt') überspringt der Scanner ohnehin und
+/// müssen hier nicht gelistet werden."* Seit v2.0.17 stimmt das nicht mehr —
+/// der Suchlauf läuft mit `options: []` (siehe ``FileScanner``), das
+/// Hidden-Attribut wird nicht einmal abgefragt.
+///
+/// *Der Satz war die gefährlichste Sorte falscher Prosa: Er begründete, warum
+/// man Ausschlüsse **weglassen** dürfe — genau die, die PR-69 dann hinzufügen
+/// musste. Er stand 53 Zeilen über seiner eigenen Widerlegung weiter unten in
+/// dieser Datei.* Wer einen Punkt-Ordner fernhalten will, trägt ihn ein.
 public struct ExclusionRules: Sendable, Equatable {
     /// Ordnernamen, die nicht betreten werden.
     public let folders: Set<String>

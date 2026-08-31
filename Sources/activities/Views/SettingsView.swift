@@ -343,14 +343,37 @@ struct SettingsView: View {
             // Was sich nicht einstellen lässt, wird wenigstens benannt – sonst
             // bleibt es ein stiller Zustand.
             Section("Immer übersprungen") {
-                labelled("Versteckte Objekte",
-                         "Alles, was mit einem Punkt beginnt (.git, .build, .venv) sowie "
-                         + "vom System als versteckt markierte Objekte.")
                 labelled("Systemdateien",
                          ExclusionRules.default.filePatterns.joined(separator: ", "))
                 labelled("App-Bündel",
                          "Programme und Dokumentbündel (.app, .rtfd, .photoslibrary …) zählen "
                          + "als eine Datei – ihr Innenleben ist keine Arbeit.")
+            }
+
+            // **⚠️ Eigener Abschnitt, und der Gegensatz zur Überschrift darüber
+            // ist der Zweck.** Hier stand bis v2.1.6 eine Zeile „Versteckte
+            // Objekte" **unter** „Immer übersprungen", mit dem Text „Alles, was
+            // mit einem Punkt beginnt (.git, .build, .venv)". Seit v2.0.17 ist
+            // davon nichts mehr wahr: Der Suchlauf läuft mit `options: []`, das
+            // Hidden-Attribut wird nicht einmal abgefragt, und übersprungen wird
+            // ausschließlich, was **namentlich** in der Liste ganz oben steht –
+            // also genau die drei genannten Beispiele, die zwei Abschnitte
+            // darüber als abhakbare Kästchen stehen. Der Dialog führte damit als
+            // unabänderlich vor, was der Anwender selbst schaltet.
+            //
+            // **⚠️ Nicht in die Fußnote der Regelliste, sondern sichtbar.**
+            // Entscheidung des Eigentümers: Dass Schlüsselspeicher wie `.ssh`
+            // mitgelesen werden, ist seine ausdrückliche Festlegung aus PR-69
+            // („Die Sorgfaltspflicht liegt beim Nutzer, nicht beim Tool") und
+            // überrascht manche. Eine Festlegung dieser Tragweite gehört nicht
+            // in Kleingedrucktes.
+            Section("Wird nicht übersprungen") {
+                labelled("Versteckte Objekte",
+                         "Dateien und Ordner mit führendem Punkt werden gelesen und gefunden – "
+                         + ".env, .gitignore, auch der Inhalt von .github. Versteckt zu sein ist "
+                         + "kein Grund zum Überspringen; es zählt nur der Name aus der Liste oben. "
+                         + "Schlüsselspeicher wie .ssh oder .aws sind ebenfalls dabei – gelesen "
+                         + "werden ohnehin nur Name, Datum und Größe.")
             }
         }
         .formStyle(.grouped)

@@ -427,7 +427,7 @@ public enum Shortcuts {
     )
     public static let dragCopy = ShortcutEntry(
         id: "dragCopy", key: nil, displayOverride: "⌥-Ziehen",
-        label: "Beim Ziehen kopieren statt verschieben (⌘ erzwingt verschieben)", section: .mouse
+        label: "In der Liste kopieren statt verschieben (⌘ erzwingt verschieben) – in den Finder wird immer kopiert", section: .mouse
     )
     public static let wheelDays = ShortcutEntry(
         id: "wheelDays", key: nil, displayOverride: "Mausrad",

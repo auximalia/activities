@@ -98,6 +98,8 @@ checkRepodetectionLiegtDieDateiUnterVersionsverwaltungV11979()
 checkRepoRemoteAusDerFernadresseEineSeiteImBrowserV2014()
 checkRepoToolingWoGitUndSvnWirklichLiegenV2015()
 checkFolderNameMatchManchmalFaelltEinemNurDerOrdnernameEinV2016()
+checkLegendkeysKeinAusgeblendeterTypOhnePlaettchenV217()
+checkTypepaletteZweiRaengeFuerZehnFarbenV217()
 
 checkNotice()
 

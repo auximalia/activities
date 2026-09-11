@@ -713,3 +713,128 @@ func checkEmptyfoldervisibilityFilterSchlaegtNeuenOrdnerV204() {
         expect(r.text.contains("nicht"), "Leerer Ordner: … und dass er nicht erscheint")
     }
 }
+
+// MARK: - LegendKeys: kein ausgeblendeter Typ ohne Plaettchen (v2.1.7)
+func checkLegendkeysKeinAusgeblendeterTypOhnePlaettchenV217() {
+    let otherKey = FileVisibility.otherKey
+
+    // ── Der gemeldete Fall, Zahlen aus der Praxis. ──
+    //
+    // Vor dem Office-Schalter: zehn Endungen, `docx`/`txt`/`pptx` liegen mit
+    // 5/5/4 weit hinter `png` mit 29 – und waren damit aus der Legende
+    // verschwunden, obwohl die Kopfzone „3 Typen ausgeblendet" sagte. Gedeutet
+    // wurde das so: „jetzt ist .pptx, .txt und .docx wieder ausgeblendet – das
+    // war ich nicht."
+    let bestand = [
+        "swift": 169, "md": 132, "json": 128, "o": 98, "pcm": 70, "pdf": 63,
+        "py": 56, "swiftmodule": 42, "eml": 33, "png": 29,
+        "xmind": 15, "xlsx": 11, "docx": 5, "txt": 5, "pptx": 4,
+    ]
+    let versteckt: Set<String> = ["docx", "txt", "pptx"]
+    let legende = LegendKeys.make(counts: bestand, hidden: versteckt)
+    let keys = legende.all
+
+    expectEqual(Array(keys.prefix(10)),
+                ["swift", "md", "json", "o", "pcm", "pdf", "py", "swiftmodule", "eml", "png"],
+                "Legende: die haeufigsten zehn stehen vorn, in dieser Reihenfolge")
+    expectEqual(Array(keys.dropFirst(10)), ["docx", "txt", "pptx"],
+                "Legende: die ausgeblendeten haengen hinten an - sonst zeigt die Ansage auf nichts")
+    expectEqual(keys.count, 13, "Legende: zehn plus drei, ohne Dopplung")
+
+    // Mit Office wiegen dieselben Endungen genug, um von sich aus vorn zu
+    // stehen – dann wird nichts angehaengt.
+    let office = ["md": 132, "pdf": 63, "xmind": 15, "xlsx": 11, "docx": 5, "txt": 5, "pptx": 4]
+    expectEqual(LegendKeys.make(counts: office, hidden: versteckt).all,
+                ["md", "pdf", "xmind", "xlsx", "docx", "txt", "pptx"],
+                "Legende: passen alle in die Top-Liste, haengt nichts an")
+
+    // ── Die Invariante, um die es geht. ──
+    //
+    // ⚠️ Sie ist der ganze Zweck dieses Typs: Ein ausgeblendeter Typ ohne
+    // Plaettchen ist nur noch im Ganzen zurueckzunehmen (⌥⌘R) und sieht aus wie
+    // ein Programm, das eigenmaechtig filtert.
+    let faelle: [(String, [String: Int], Set<String>)] = [
+        ("leer", [:], []),
+        ("nichts versteckt", bestand, []),
+        ("alles versteckt", bestand, Set(bestand.keys)),
+        ("nur Sonstige", bestand, [otherKey]),
+        ("Sonstige und Endung", bestand, [otherKey, "pptx"]),
+        ("versteckt ohne Dateien", office, ["swift", "zip"]),
+        ("versteckt nur ausserhalb", bestand, ["docx"]),
+    ]
+    for (name, counts, hidden) in faelle {
+        let k = LegendKeys.make(counts: counts, hidden: hidden).all
+        for ext in hidden where ext != otherKey {
+            expect(k.contains(ext),
+                   "Legende (\(name)): ausgeblendetes \(ext) hat ein Plaettchen")
+        }
+        expectEqual(k.count, Set(k).count, "Legende (\(name)): kein Schluessel doppelt")
+        expect(!k.contains(otherKey),
+               "Legende (\(name)): „Sonstige“ ist kein Endungsschluessel, sondern ein eigenes Plaettchen")
+        expect(k.count <= LegendKeys.topCount + hidden.count,
+               "Legende (\(name)): nicht mehr als zehn plus die ausgeblendeten")
+    }
+
+    // ⚠️ Auch mit Anzahl 0. Wer `swift` ausblendet und danach Office
+    // einschaltet, haelt einen Filter, der gerade nichts zurueckhaelt – ohne
+    // Plaettchen waere er dennoch unerreichbar.
+    let mitNull = LegendKeys.make(counts: office, hidden: ["swift"]).all
+    expect(mitNull.contains("swift"),
+           "Legende: eine ausgeblendete Endung ohne Dateien bekommt trotzdem ihr Plaettchen")
+    expectEqual(mitNull.last, "swift", "Legende: sie steht hinten, nicht zwischen den haeufigen")
+
+    // Gleichstand alphabetisch – sonst wackelt die Reihenfolge zwischen zwei
+    // Durchlaeufen, und mit ihr die Farbzuordnung.
+    expectEqual(LegendKeys.make(counts: ["b": 5, "a": 5, "c": 5], hidden: [], topCount: 2).all,
+                ["a", "b"], "Legende: bei Gleichstand entscheidet das Alphabet")
+    expectEqual(LegendKeys.make(counts: [:], hidden: []).all, [],
+                "Legende: ohne Material keine Schluessel")
+}
+
+// MARK: - Farbvergabe: ein ausgeblendetes Plaettchen faerbt das Diagramm nicht um (v2.1.7)
+func checkTypepaletteZweiRaengeFuerZehnFarbenV217() {
+    let bestand = [
+        "swift": 169, "md": 132, "json": 128, "o": 98, "pcm": 70, "pdf": 63,
+        "py": 56, "swiftmodule": 42, "eml": 33, "png": 29,
+        "xmind": 15, "xlsx": 11, "docx": 5, "txt": 5, "pptx": 4,
+    ]
+
+    // ⚠️ Das ist der Defekt, den die UX-Durchsicht vor der Auslieferung fand.
+    // Die Legende zeigt seit v2.1.7 auch ausgeblendete Endungen; die Palette hat
+    // zehn Farben und vergibt sie ALPHABETISCH. Ohne Rangfolge haette ein
+    // nachtraeglich hinzugekommenes `docx` einem sichtbaren Typ den Platz
+    // nehmen koennen - das Diagramm faerbt sich um, weil jemand ein Plaettchen
+    // ausgeblendet hat.
+    let ohne = LegendKeys.make(counts: bestand, hidden: [])
+    let mit = LegendKeys.make(counts: bestand, hidden: ["docx", "txt", "pptx"])
+    let farbenOhne = TypePalette.assignment(for: ohne.ranked, secondary: ohne.alsoHidden)
+    let farbenMit = TypePalette.assignment(for: mit.ranked, secondary: mit.alsoHidden)
+
+    for ext in ohne.ranked {
+        expectEqual(farbenMit[ext], farbenOhne[ext],
+                    "Farbe: \(ext) behaelt seinen Platz, obwohl Plaettchen dazukamen")
+    }
+
+    // Die Zusage der Palette: nie zwei gleiche Farben im Bild.
+    let plaetze = farbenMit.values
+    expectEqual(plaetze.count, Set(plaetze).count,
+                "Farbe: kein Platz zweimal vergeben")
+
+    // ⚠️ Reicht die Palette nicht, bleibt der NACHRANGIGE ohne Eintrag - die
+    // Ansicht faellt dann auf Neutralgrau zurueck. Das ist die richtige
+    // Reihenfolge des Verzichts: Ein durchgestrichenes Plaettchen zeigt einen
+    // Typ, der im Diagramm gar nicht vorkommt.
+    let voll = LegendKeys.make(counts: bestand, hidden: ["docx", "txt", "pptx", "xmind", "xlsx"])
+    let farbenVoll = TypePalette.assignment(for: voll.ranked, secondary: voll.alsoHidden)
+    for ext in voll.ranked {
+        expect(farbenVoll[ext] != nil, "Farbe: ein gezeigter Typ bekommt immer eine Farbe (\(ext))")
+    }
+    expect(farbenVoll.count <= 10, "Farbe: nie mehr Zuordnungen als bunte Farben")
+    expectEqual(Set(farbenVoll.values).count, farbenVoll.count,
+                "Farbe: auch bei erschoepfter Palette keine Dopplung")
+
+    // Ohne Nachrang bleibt alles wie bisher - die alte Aufrufform gilt weiter.
+    expectEqual(TypePalette.assignment(for: ohne.ranked, secondary: []),
+                TypePalette.assignment(for: ohne.ranked),
+                "Farbe: ohne Nachrang unveraendert zur bisherigen Vergabe")
+}

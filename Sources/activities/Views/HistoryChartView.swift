@@ -43,6 +43,16 @@ struct HistoryChartView: View {
     private var hasOther: Bool { otherCount > 0 }
     private var otherColor: Color { FileTypeColor.other }
 
+    /// Ob die Legende das Plättchen „Sonstige" zeigt.
+    ///
+    /// **⚠️ Auch bei 0, solange es ausgeblendet ist** – und deshalb nicht
+    /// ``hasOther``, das den Wertebereich des Diagramms bestimmt. Wer „Sonstige"
+    /// ausblendet und danach den Zeitraum enger zieht, bis nichts mehr
+    /// darunterfällt, hielte sonst einen Filter ohne Plättchen: angesagt in der
+    /// Kopfzone, zurückzunehmen nur noch im Ganzen. Dieselbe Lücke wie bei den
+    /// Endungen, siehe ``LegendKeys``.
+    private var zeigtSonstige: Bool { hasOther || hiddenExtensions.contains(otherKey) }
+
     /// Reihenfolge/Domain der Stapel: Top-Endungen, danach ggf. "Sonstige".
     /// **⚠️ Nie leer, auch wenn es nichts zu zeigen gibt.** Seit v1.19.72 steht
     /// die Kopfzone auch dann, wenn im Zeitfenster nichts liegt – dann ist die
@@ -427,7 +437,7 @@ struct HistoryChartView: View {
                     onSolo: { onSoloExtension(item.ext) }
                 )
             }
-            if hasOther {
+            if zeigtSonstige {
                 LegendChip(
                     color: otherColor,
                     icon: nil,

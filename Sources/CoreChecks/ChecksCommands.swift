@@ -395,6 +395,26 @@ func checkDragoperationVerschiebenOderKopierenV11978() {
     expect(erklaerungK.contains("bleiben"), "Zug: Kopieren nennt, dass die Dateien bleiben")
     expectEqual(BulkAction.confirmLabel(kind: .transfer(.copy, "Ziel")), "Kopieren",
                 "Zug: der Knopf heisst wie die Handlung")
+
+    // ── Was die Quelle einem Ziel ueberhaupt ANBIETET (v2.1.7). ──
+    //
+    // ⚠️ Dieser Wert war zweimal falsch ausgeliefert, weil er in der
+    // App-Schicht lag, wo keine Zusicherung hinreicht: erst `[]` nach innen
+    // (v1.19.77, Zug auf eine Ordnerzeile abgewiesen), dann `.move` nach
+    // draussen (v1.19.78 bis v2.1.6, Datei im Finder verschoben statt kopiert).
+    // Jetzt ist er pruefbar, und beide Haelften stehen hier.
+    expectEqual(DragOperation.allowed(outsideApplication: true), [.copy],
+                "Zug nach draussen: nur kopieren")
+    expect(!DragOperation.allowed(outsideApplication: true).contains(.move),
+           "Zug nach draussen: kein Verschieben - der Finder fuehrt es aus, ⌘Z erreicht es nicht")
+    expectEqual(DragOperation.allowed(outsideApplication: false), [.copy, .move],
+                "Zug innerhalb der App: beides - sonst wird die Ordnerzeile abgewiesen (v1.19.77)")
+    for draussen in [true, false] {
+        expect(!DragOperation.allowed(outsideApplication: draussen).isEmpty,
+               "Zug: die erlaubte Menge ist nie leer (draussen: \(draussen))")
+        expect(DragOperation.allowed(outsideApplication: draussen).contains(.copy),
+               "Zug: kopieren ist immer erlaubt (draussen: \(draussen))")
+    }
 }
 
 // MARK: - FileScanner (temporaeres Verzeichnis)

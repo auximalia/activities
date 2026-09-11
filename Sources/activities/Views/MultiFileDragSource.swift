@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ActivitiesCore
 
 /// Zieht **mehrere** Dateien in ein anderes Programm.
 ///
@@ -177,20 +178,19 @@ struct MultiFileDragSource: NSViewRepresentable {
 
         func draggingSession(_ session: NSDraggingSession,
                              sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-            // **⚠️ Hier stand `context == .outsideApplication ? [.copy] : []`,
-            // und die zweite Haelfte war ein Defekt.** Innerhalb der App war
-            // damit **keine** Operation erlaubt – ein Zug mit mehreren Dateien
-            // auf eine Ordnerzeile wurde abgewiesen, waehrend der Einzelzug
-            // ueber SwiftUI ankam. Ausgeliefert in v1.19.77, bemerkt beim
-            // Nachlesen eine Stunde spaeter.
-            //
-            // **Die Quelle sagt, was ERLAUBT ist, das Ziel waehlt aus.** Genau
-            // daraus entsteht der Anhaenger am Mauszeiger: Meldet das Ziel
-            // `.copy`, zeichnet das System das gruene Plus; meldet es `.move`,
-            // zeichnet es nichts. Beschraenkt die Quelle auf `.copy`, kann das
-            // Ziel nie etwas anderes waehlen – und der Anhaenger lueckenlos
-            // falsch stehen.
-            [.copy, .move]
+            // **⚠️ Die Regel liegt in ``DragOperation/allowed(outsideApplication:)``,
+            // hier steht nur die Uebersetzung.** Zweimal ist sie an dieser
+            // Stelle falsch ausgeliefert worden – erst `[]` nach innen
+            // (v1.19.77), dann `.move` nach draussen (v1.19.78 bis v2.1.6).
+            // Beide Male stand der Wert in der App-Schicht, die ``CoreChecks``
+            // nicht erreicht. Jetzt bewacht sie ihn.
+            let erlaubt = DragOperation.allowed(
+                outsideApplication: context == .outsideApplication
+            )
+            var maske: NSDragOperation = []
+            if erlaubt.contains(.copy) { maske.insert(.copy) }
+            if erlaubt.contains(.move) { maske.insert(.move) }
+            return maske
         }
     }
 }

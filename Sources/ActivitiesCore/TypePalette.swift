@@ -178,6 +178,48 @@ public enum TypePalette {
         return result
     }
 
+    /// Dieselbe Zuordnung, danach **nachrangig** um weitere Endungen ergänzt.
+    ///
+    /// **⚠️ Zwei Ränge, weil die Palette zehn Farben hat und die Legende seit
+    /// v2.1.7 mehr Plättchen haben kann.** Sie zeigt jetzt auch ausgeblendete
+    /// Endungen außerhalb der häufigsten zehn (siehe ``LegendKeys``) – damit
+    /// kann die Schlüsselmenge elf oder mehr betragen, und die Zusage „nie zwei
+    /// gleiche Farben im Bild" wäre nicht mehr zu halten.
+    ///
+    /// **Der Rang entscheidet, wer die Zusage behält.** ``ranked`` sind die
+    /// gezeigten Typen: Sie bekommen ihre Plätze zuerst und **exakt so wie
+    /// vorher** – die Farben im Diagramm verschieben sich durch ein
+    /// ausgeblendetes Plättchen nicht. Genau das wäre sonst passiert: Die
+    /// Vergabe läuft alphabetisch, ein nachträglich hinzugekommenes `docx`
+    /// hätte einem sichtbaren Typ seinen Platz nehmen können.
+    ///
+    /// ``secondary`` sind die nachrangigen. Ist nichts mehr frei, bleiben sie
+    /// **ohne** Eintrag – die Ansicht greift dann auf Neutralgrau zurück
+    /// (`FileTypeColor.color(forExtension:assignment:)`). Das ist die richtige
+    /// Reihenfolge des Verzichts: Ein durchgestrichenes Plättchen zeigt einen
+    /// Typ, der im Diagramm **gar nicht vorkommt**; seine Farbe verspricht dort
+    /// also nichts, das sie brechen könnte.
+    public static func assignment(for ranked: [String], secondary: [String]) -> [String: Int] {
+        var result = assignment(for: ranked)
+        var used = Set(result.values)
+        let offen = Set(secondary.map { $0.lowercased() }).subtracting(result.keys)
+
+        for ext in offen.sorted() {
+            guard used.count < chromatic.count else { break }
+            let base = preferred[ext] ?? fallbackIndex(forExtension: ext)
+            var index = base
+            var steps = 0
+            while used.contains(index) && steps < chromatic.count {
+                index = (index + 1) % chromatic.count
+                steps += 1
+            }
+            guard !used.contains(index) else { break }
+            used.insert(index)
+            result[ext] = index
+        }
+        return result
+    }
+
     /// Farbe zu einem Platz; ausserhalb des Bereichs faellt sie auf Neutral zurueck.
     public static func color(at index: Int) -> PaletteColor {
         guard chromatic.indices.contains(index) else { return neutral }

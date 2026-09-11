@@ -96,9 +96,10 @@ struct HelpView: View {
                     "Ziehen im Diagramm wählt einen Zeitraum aus.",
                     "Lange Zeiträume werden nach Woche, Monat, Quartal oder Jahr gebündelt.",
                     "Die Achse endet heute; Dateien mit einem Datum in der Zukunft liegen außerhalb – ein Hinweis nennt ihre Zahl.",
-                    "Ganz links das Plättchen „Office“: zeigt nur Arbeitsdateien (Dokumente, PDF, Tabellen, Präsentationen, bpmn, graph).",
+                    "Ganz links das Plättchen „Office“: zeigt nur Arbeitsdateien (Dokumente, PDF, Tabellen, Präsentationen, bpmn, graph). Die Legende zählt dann nur diese – seltenere Endungen wie `.xmind` rücken nach, andere verschwinden.",
                     "Legende: jeder Eintrag ist ein Knopf – Klick blendet den Typ aus/ein.",
                     "Doppelklick = nur diesen Typ; erneuter Doppelklick = wieder alle.",
+                    "**Ein ausgeblendeter Typ behält sein Plättchen** – durchgestrichen und hinten angehängt, auch wenn er nicht mehr zu den häufigsten zählt oder gerade keine Datei hat. Sonst wäre er nur noch im Ganzen zurückzuholen.",
                     "Sind Typen ausgeblendet, erscheint ein Hinweis mit „Zurücksetzen“ (\(Shortcuts.resetTypeFilter.display)).",
                 ])
 
@@ -154,11 +155,11 @@ struct HelpView: View {
                     "Dateien markieren und auf eine **Ordnerzeile** der Liste ziehen – sie liegen danach dort.",
                     "Ein Ziehen beginnt erst nach einer kurzen Strecke: Ein Klick zum Auf- und Zuklappen löst keines aus.",
                     "**Am Mauszeiger steht, was passiert**: mit grünem Plus wird kopiert, ohne verschoben.",
-                    "**⌥ beim Ziehen kopiert, ⌘ verschiebt** – wie im Finder. Auf einen anderen Datenträger wird von sich aus kopiert.",
+                    "**⌥ beim Ziehen kopiert, ⌘ verschiebt** – wie im Finder. Auf einen anderen Datenträger wird von sich aus kopiert. Das gilt **innerhalb** der App.",
                     "\(Shortcuts.undoMove.display) macht die letzte Bewegung rückgängig – bei einer Kopie wandert sie in den Papierkorb.",
                     "Liegt am Ziel schon eine Datei des Namens, fragt die App: daneben ablegen (Name wird hochgezählt), ersetzen oder überspringen.",
                     "**Ersetzen löscht nicht**: Die vorhandene Datei wandert in den Papierkorb und lässt sich dort zurücklegen.",
-                    "Ziehen in ein **Finder-Fenster** kopiert stattdessen – dort entscheidet der Finder.",
+                    "**Ziehen in ein Finder-Fenster kopiert immer** – das grüne Plus steht dabei am Zeiger. Verschoben wird dort nie, auch nicht mit ⌘: Der Finder führte es aus, \(Shortcuts.undoMove.display) käme nicht heran und die Liste wüsste nichts davon.",
                 ])
 
                 section("Verwalten", icon: "folder.badge.gearshape", [

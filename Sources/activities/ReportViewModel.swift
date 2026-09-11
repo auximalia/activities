@@ -299,9 +299,16 @@ final class ReportViewModel {
             recomputeAfterFilterChange()
         }
     }
-    /// Die haeufigsten Endungen des Zeitraums (fuer Legende und Diagramm), max. ``legendTopCount``.
+    /// Die Endungen, die die Legende einzeln zeigt: die haeufigsten des
+    /// Zeitraums (max. ``legendTopCount``) **und** die gerade ausgeblendeten.
+    ///
+    /// ⚠️ Der Name sagt „top" und meint seit v2.1.7 etwas mehr – die Regel
+    /// steht in ``LegendKeys``. Umbenennen hiesse, sechs Aufrufstellen und
+    /// ``FileVisibility/topExtensions`` mitzuziehen; dessen Doc-Kommentar hat
+    /// die weitere Bedeutung ohnehin immer schon getragen („die Endungen, die
+    /// die Legende einzeln zeigt").
     var topExtensions: [ExtensionCount] = []
-    /// Anzahl In-Zeitraum-Dateien ausserhalb der Top-Endungen (Sammel-Eintrag "Sonstige").
+    /// Anzahl In-Zeitraum-Dateien ausserhalb der Legende (Sammel-Eintrag "Sonstige").
     var otherCount: Int = 0
     /// Sammelschluessel fuer alle Endungen ausserhalb der Top-Endungen.
     ///
@@ -312,8 +319,12 @@ final class ReportViewModel {
     /// Farbplatz je Endung (kategoriale Palette). Wird mit der Legende neu
     /// bestimmt, damit Diagramm und Chips garantiert dieselbe Farbe zeigen.
     private(set) var typeColorAssignment: [String: Int] = [:]
-    /// Maximale Anzahl einzeln gelisteter Endungen in der Legende (Rest -> "Sonstige").
-    static let legendTopCount = 10
+    /// Wie viele Endungen die Legende nach **Haeufigkeit** zeigt (Rest -> "Sonstige").
+    ///
+    /// Weiterleitung auf ``LegendKeys/topCount`` – aus demselben Grund wie
+    /// ``otherKey``: Die Zahl ist nur zusammen mit der Regel deutbar, die sie
+    /// anwendet.
+    static let legendTopCount = LegendKeys.topCount
     /// Start-/Endtag des aktuell **angezeigten** Zeitraums (wird beim Diagramm-
     /// Neuaufbau gesetzt, passt daher immer zum sichtbaren Diagramm/der Liste).
     private(set) var displayRangeStart: Date = Calendar.current.startOfDay(for: Date())
@@ -1636,7 +1647,8 @@ final class ReportViewModel {
     /// erste. Jeder Name nennt jetzt seinen Gegenstand.
     func isTypeHidden(_ url: URL) -> Bool { !visibility.passesType(url) }
 
-    /// Legende (Top-Endungen + "Sonstige") aus den In-Zeitraum-Dateien; stabil ueber Filterwechsel.
+    /// Legende (haeufigste Endungen, ausgeblendete und "Sonstige") aus den
+    /// In-Zeitraum-Dateien; stabil ueber Filterwechsel.
     private func recomputeLegend() {
         var extensionCounts: [String: Int] = [:]
         // **⚠️ Ausnahme von der eigenen Regel „stabil ueber Filterwechsel".**
@@ -1652,14 +1664,34 @@ final class ReportViewModel {
             let ext = file.url.pathExtension.lowercased()
             if !ext.isEmpty { extensionCounts[ext, default: 0] += 1 }
         }
-        topExtensions = extensionCounts
-            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
-            .prefix(Self.legendTopCount)
-            .map { ExtensionCount(ext: $0.key, count: $0.value) }
-        topExtensionSet = Set(topExtensions.map(\.ext))
+        // ⚠️ Welche Schluessel das sind, entscheidet ``LegendKeys`` – die Regel
+        // gehoert in den Kern, weil sie den ausgeblendeten Typen ihren Rueckweg
+        // sichert und ohne Zusicherung genau dort wieder verlorenginge. Sie
+        // liefert die haeufigsten **und** die ausgeblendeten.
+        let legende = LegendKeys.make(
+            counts: extensionCounts,
+            hidden: hiddenExtensions,
+            topCount: Self.legendTopCount
+        )
+        let keys = legende.all
+        topExtensions = keys.map { ExtensionCount(ext: $0, count: extensionCounts[$0] ?? 0) }
+        topExtensionSet = Set(keys)
         // Farbzuordnung folgt der Legende: eindeutig, stabil und unabhaengig
         // von der Haeufigkeit (siehe TypePalette.assignment).
-        typeColorAssignment = TypePalette.assignment(for: topExtensions.map(\.ext))
+        //
+        // ⚠️ Zwei Raenge, und die Reihenfolge ist der Punkt: Die Palette hat
+        // zehn Farben, die Legende kann seit v2.1.7 mehr Plaettchen haben. Die
+        // gezeigten Typen bekommen ihre Plaetze zuerst – sonst nimmt ein
+        // ausgeblendetes `docx` bei der alphabetischen Vergabe einem sichtbaren
+        // Typ die Farbe weg, und das Diagramm faerbt sich um, weil jemand ein
+        // Plaettchen ausgeblendet hat.
+        typeColorAssignment = TypePalette.assignment(
+            for: legende.ranked, secondary: legende.alsoHidden
+        )
+        // ⚠️ Gezaehlt wird gegen ALLE Legendenschluessel, nicht nur gegen die
+        // zehn haeufigsten: Eine angehaengte Endung hat ihr eigenes Plaettchen
+        // und darf nicht zusaetzlich in „Sonstige" stecken. Sonst stuende ihre
+        // Anzahl zweimal da.
         otherCount = source.reduce(0) {
             topExtensionSet.contains($1.url.pathExtension.lowercased()) ? $0 : $0 + 1
         }

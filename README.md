@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v2.1.6 · 2026-08-31*
+*Stand: v2.1.7 · 2026-09-11*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -53,7 +53,10 @@ bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege
 - **Mausrad** ueber dem Diagramm verstellt den Zeitraum tageweise – eine Raste, ein Tag.
   Die Zahl steht sofort im Diagramm; gerechnet wird, sobald sie kurz stillsteht.
 - Lange Zeitraeume werden automatisch nach **Woche** oder **Monat** gebuendelt.
-- Die **Legende** filtert: Klick blendet einen Typ aus, Doppelklick zeigt nur diesen.
+- Die **Legende** filtert: Klick blendet einen Typ aus, Doppelklick zeigt nur diesen. Sie zeigt
+  die zehn haeufigsten Endungen, eine graue Sammelgruppe „Sonstige" – und jeden ausgeblendeten
+  Typ, durchgestrichen und hinten angehaengt. Auch einen, der gerade zu selten ist oder gar
+  keine Datei mehr hat: Sonst waere er nur noch im Ganzen zurueckzuholen (⌥⌘R).
 
 **Ergebnisliste**
 - **Was gerade wirkt, steht an einem Ort**: Ueber dem Diagramm nennt die obere Zeile den
@@ -66,7 +69,9 @@ bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege
 - **Sortierung** nach Datum, Name oder Typ – innerhalb der Zeitabschnitte. Welche gilt, steht
   angehakt im Menue „Darstellung", samt Richtung; dasselbe Kriterium erneut waehlen kehrt sie um.
 - **Mehrfachauswahl** nach macOS-Standard: ⌘-Klick, ⇧-Klick, ⇧↑/⇧↓, ⌘A, Esc.
-- **Drag & Drop**: Dateien lassen sich einzeln oder mehrfach in andere Programme ziehen.
+- **Drag & Drop**: Dateien lassen sich einzeln oder mehrfach in andere Programme ziehen – nach
+  draussen wird immer **kopiert**, erkennbar am gruenen Plus. Verschoben wird nur innerhalb der
+  App, wo ⌘Z es zuruecknehmen kann.
 - **Verwalten wie im Finder**: Ordner anlegen (⇧⌘N, ⌃⌘N mit Auswahl), umbenennen (⌃⌘R),
   in den Papierkorb (⌘⌫, Ordner nur wenn leer), Dateien ueber die Zwischenablage (⌘C/⌘V/⌥⌘V).
   Aus dem Finder lassen sich Dateien und Ordner auf eine Ordnerzeile ziehen; auf freie Flaeche

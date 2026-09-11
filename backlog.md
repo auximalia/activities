@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.6 · 2026-08-31*
+*Stand: v2.1.7 · 2026-09-11*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,99 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-77 · Der Zug in den Finder verschob, statt zu kopieren *(v2.1.7)*
+**Aufwand:** S · **Art:** Defekt — *aus der Praxis* · *„das grüne +-Symbol erscheint nicht und die Datei wird verschoben statt kopiert"*
+
+Die Ziehquelle meldete unbedingt `[.copy, .move]` (`MultiFileDragSource.swift:193`). Der
+Finder wählt bei erlaubtem `.move` auf demselben Datenträger von sich aus das Verschieben —
+kein grünes Plus, und die Datei ist wirklich weg. Gegen ⌥ anzukommen war ein Wettlauf mit
+dem Ziel, kein Bedienen; genau das meinte das gemeldete *„nicht zuverlässig"*.
+
+## ⚠️ Die Regression entstand beim Reparieren einer anderen
+
+Bis v1.19.77 stand dort `context == .outsideApplication ? [.copy] : []`. Der Defekt war die
+**zweite** Hälfte: Innerhalb der App war gar nichts erlaubt, ein Zug auf eine Ordnerzeile
+wurde abgewiesen. In v1.19.78 fiel daraufhin die **ganze** Fallunterscheidung weg statt nur
+ihrer falschen Hälfte — und damit kam `.move` nach draußen. *Eine halb falsche Bedingung
+wurde durch eine ganz falsche ersetzt, und niemand sah es, weil der Wert in der App-Schicht
+lag, die `CoreChecks` nicht erreicht.* Er war damit zweimal hintereinander unbemerkt falsch.
+
+**Entschieden (`decision-check`): nach draußen wird nur noch kopiert.** Ein Verschieben nach
+draußen wäre die einzige Dateioperation dieses Programms ohne alles, was hier zu einer
+gehört — kein ⌘Z (`rememberUndo`), keine Rückfrage ab zehn Objekten, kein Nachziehen der
+Liste. Der Finder führt sie aus, die App erfährt nichts: Die Datei ist fort, die Zeile bleibt
+stehen, zurückholen lässt sich nichts. Fünf von fünf Eigenschaften der Geschwister fehlten,
+keine davon absichtlich. Der Besitzer auf die Frage nach dem Preis: *„nein, ich verliere
+nichts."*
+
+**Bewusst nicht:** ⌘ als Erzwingung des Verschiebens nach draußen. Sie hätte genau die
+Operation zurückgeholt, die nicht zurücknehmbar ist.
+
+**Die Regel liegt jetzt im Kern** (`DragOperation.allowed(outsideApplication:)`) und nicht
+mehr in der Ansicht — `NSDragOperation` ist AppKit, `Set<TransferKind>` ist prüfbar. Die
+Ansicht übersetzt nur noch. Prosa im selben Commit berichtigt: `HelpView` versprach bereits
+*„kopiert stattdessen"*, `Shortcuts.dragCopy` sagte nicht, dass ⌥/⌘ nur in der Liste gelten.
+
+### ✅ PR-78 · Ein ausgeblendeter Dateityp ohne Plättchen *(v2.1.7)*
+**Aufwand:** S · **Art:** Defekt — *aus der Praxis* · *„jetzt ist .pptx, .txt und .docx wieder ausgeblendet — das war ich nicht. Das geschieht reproduzierbar bei Klick auf den Office-Button."*
+
+Gemeldet als Fehlverhalten des Office-Schalters. Der Schalter war es nicht: Es gibt genau
+drei Schreibstellen auf `hiddenExtensions` (`toggleExtension`, `soloExtension`,
+`resetTypeFilters`), und keine hängt an ihm. Die drei Endungen **waren bereits
+ausgeblendet** — die Kopfzone sagte es im Bild davor („3 Typen ausgeblendet").
+
+## ⚠️ Der Fund ist die Deutung, nicht der Zustand
+
+Die Legende zeigte nur die zehn häufigsten. `.docx 5`, `.txt 5` und `.pptx 4` lagen weit
+hinter `.png 29` und hatten deshalb **kein Plättchen**. Der Filter wirkte, wurde angesagt —
+und war einzeln nicht mehr zurückzunehmen, nur noch im Ganzen mit ⌥⌘R. Der Office-Schalter
+rechnet die Legende über Office-Dateien neu; dadurch rutschten die drei erstmals hinein und
+erschienen in dem Zustand, den sie längst hatten. **Er deckte auf, er verursachte nicht.**
+
+*Dass der Besitzer daraus „das war ich nicht" schloss, ist der eigentliche Befund.* Ein
+unerreichbarer Zustand sieht nicht aus wie ein vergessener eigener Handgriff, sondern wie
+ein Programm, das eigenmächtig filtert. UX-06 verlangt, dass ein wirkender Filter sich
+ansagt; die Geschwister erfüllen mehr als das: Der Namensfilter bietet „Löschen" neben
+seiner Ansage, der Rauschfilter „öffnen", der Office-Schalter ist sein eigener Rückweg.
+**Wer filtert, sagt es — und zeigt, wie es zurückgeht.** Die halbe Regel ist schlimmer als
+keine.
+
+**Die Legende zeigt jetzt die häufigsten zehn *und* jede ausgeblendete Endung**
+(`LegendKeys`, im Kern und zugesichert), durchgestrichen und hinten angehängt. Auch mit
+Anzahl 0: Wer `.swift` ausblendet und dann Office einschaltet, hält sonst wieder einen
+Filter ohne Plättchen. Dasselbe für „Sonstige", das nun auch bei 0 bleibt, solange es
+ausgeblendet ist.
+
+**⚠️ Ein Schnappschuss, keine laufende Rechnung.** `toggleExtension` ruft die Neuberechnung
+der Legende bewusst nicht auf. Läse die Legende `hiddenExtensions` live, verschwände ein
+wieder eingeblendetes Plättchen im selben Moment unter dem Mauszeiger — genau das
+Wegspringen, gegen das sie diese Menge von jeher nicht liest. Der `decision-check` fand
+diese Ausnahme; sie löst sich auf, weil der Aufruf ohnehin fehlt.
+
+**Nicht geändert:** dass unter Office **weniger** Plättchen stehen. Die Legende zählt dann
+nur Office-Dateien (PR-44) — ein Plättchen, das nichts mehr bewirkt, wäre schlimmer. Der
+Besitzer zur Erklärung: *„ja — das ist eine gute Erklärung."*
+
+**Verworfen:** eine Endung aus `hiddenExtensions` werfen, sobald sie die Legende verlässt —
+das tauscht einen sichtbaren Zustand gegen einen unsichtbaren. Und: Office die Plättchen
+mit zurücksetzen zu lassen — das überschreibt eine Anwenderentscheidung, wofür es ⌥⌘R gibt.
+
+## ⚠️ Und der Preis dafür hätte das Diagramm umgefärbt — gefunden von `ux-review`, vor der Auslieferung
+
+`TypePalette` hat **zehn** bunte Farben und vergibt sie **alphabetisch**; ihre Zusage lautet
+*„nie zwei gleiche Farben im Bild"*. Sie galt, weil die Legende nie mehr als zehn Schlüssel
+hatte. Mit den angehängten Plättchen waren es dreizehn — und die alphabetische Vergabe
+hätte nicht nur gedoppelt, sondern **sichtbaren** Typen ihre Farbe genommen: `.pcm` wäre
+von Blau auf Orange gesprungen, `.swiftmodule` von Violett auf Amber. *Das Diagramm hätte
+sich umgefärbt, weil jemand ein Plättchen ausgeblendet hat.*
+
+`TypePalette.assignment(for:secondary:)` vergibt jetzt in zwei Rängen: Die gezeigten Typen
+bekommen ihre Plätze zuerst und exakt wie bisher, die nachrangigen füllen auf. Reicht die
+Palette nicht, bleiben sie ohne Eintrag und fallen auf Neutralgrau zurück — die richtige
+Reihenfolge des Verzichts, denn ein durchgestrichenes Plättchen zeigt einen Typ, der im
+Diagramm gar nicht vorkommt. *Die Zusicherung dazu wurde gegen die alte Aufrufform
+gegengeprüft: drei Fehlschläge, also beißt sie.*
 
 ### ✅ PR-76 · Der Einstellungsdialog behauptete das Gegenteil dessen, was der Scanner tut *(v2.1.6)*
 **Aufwand:** S · **Art:** Defekt — *aus der Praxis* · *„der Eintrag ‚Versteckte Objekte' stimmt ja so nicht mehr — was machen wir damit?"*

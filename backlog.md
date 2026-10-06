@@ -1,6 +1,6 @@
 # Backlog – activities
 
-*Stand: v2.1.7 · 2026-09-11*
+*Stand: v2.1.8 · 2026-10-06*
 
 Die Akte dieses Projekts: was offen ist, was entschieden wurde und warum, und was
 bewusst **nicht** gebaut wird. Aus dem Abschnitt „Offen" werden Sprints geschnitten
@@ -385,6 +385,66 @@ und die nachrangigen Punkte.
 
 
 ## Aus der Produkt-Roadmap
+
+### ✅ PR-79 · Der Export nannte die Fundorte, nicht die Funde *(v2.1.8)*
+**Aufwand:** M · **Art:** Erweiterung — *aus der Praxis* · *„Ich hätte gerne eine Liste aller gefundener Dateien als Textdatei mit den vollständigen Pfaden. Dann könnte ich diese Information nutzen und z.B. ein Python-Skript schreiben, was diese Dateien durchsucht."*
+
+CSV und HTML schrieben je **Ordner** eine Zeile mit der Anzahl daneben. Nach einer Suche
+nach `requirements.txt` hieß das 53 Ordnerzeilen mit einer „1" und kein einziger Dateipfad;
+der Suchbegriff stand in keinem der beiden Exporte. Der Besitzer dazu: *„So haben csv und
+Excel-Export wenig Wert."*
+
+**Umgesetzt:** Menü „Ablage" → **„Exportieren"** mit fünf Formaten, alle mit den sichtbaren
+Dateien und ihren vollen Pfaden:
+- **CSV** (⌘E): eine Zeile je Datei, Spalten *Zeitabschnitt, Ordner, Datei, Pfad,
+  Zeitstempel, Größe*; mit BOM, weil Excel UTF-8 sonst als Mac Roman liest.
+- **HTML** (⌥⌘E): je Ordner ein offenes `<details>` mit den Dateien als `file://`-Links.
+- **Text**: ein Pfad je Zeile, **sonst nichts** – ein Skript liest jede Zeile als `Path`.
+- **Markdown**: zum Weitergeben. Gewünscht: *„Ein unbedarfter Dritter soll verstehen
+  können, was das ist, von wann das ist etc."* Einleitungssatz, Angabentabelle, Lesehilfe,
+  dann je Datei `` `Pfad` ([Link](file://…)) · Datum ``.
+- **Mindmap** (FreeMind `.mm`; XMind importiert sie, öffnet sie aber nicht): Baum ab dem gemeinsamen Ordner, Ketten
+  ohne Verzweigung verdichtet (`OCR_Bot/robot`), jeder Knoten mit Link.
+
+## ⚠️ `decision-check` hat die Menüform gekippt, bevor Code entstand
+
+Vorgeschlagen und genehmigt war **„Dateiliste exportieren …" mit Formatwahl im
+Speichern-Dialog**, abgegrenzt von CSV/HTML als „Berichten über Ordner". Dieselbe Runde
+beschloss aber, dass CSV und HTML **ebenfalls** die Dateien tragen. Damit war die Abgrenzung
+weg: Der Name hätte behauptet, die CSV enthalte keine Dateien, und die Formatwahl im Dialog
+hätte CSV und HTML entweder doppelt angeboten oder ihre Kürzel gekostet. Ein Untermenü
+mit fünf gleichrangigen Formaten erfüllt die Absicht – **ein** Eintrag in „Ablage" – ohne beides.
+
+## ⚠️ Der Kopf ist die Zustandszeile, nicht ein zweiter Text
+
+Was gesucht wurde, welcher Zeitraum, welche Filter: Das beschreibt `ActiveFilters.facets`
+bereits, wörtlich geprüft. `ExportContext` übernimmt diese Achsen und **ergänzt** nur, was
+eine Datei außerhalb der App braucht: volle Quellpfade statt „2 Quellen", den
+Export-Zeitpunkt und – gegen die Zustandszeile – den Schalter *Dateien außerhalb des
+Zeitraums*. Den lässt die Zeile weg, weil der Zeitraum zwei Zeilen darüber steht
+(Festlegung 3, Bein b); in einer weitergegebenen Datei steht er nirgends, und ein Leser sähe
+„30 Tage" über einer Datei von 2019. Für „5 Typen ausgeblendet", das einem Dritten nichts
+sagt, steht daneben **„Enthaltene Dateitypen"**, gezählt aus den Dateien selbst und nicht aus
+dem Filter abgeleitet – so kann diese Angabe nicht vom Filter abweichen.
+
+TXT und CSV bleiben ohne Kopfzeilen; ihr Kontext steht im **Dateinamen**
+(`activities – requirements.txt – 2026-10-06.txt`).
+
+**Nebenbefunde:** Zugeklappte Ordner hätten im Export gefehlt, weil Dateien erst beim
+Aufklappen geladen werden – `filesForExport` lädt nach wie QuickLook. Schreibfehler beim
+Speichern wurden mit `try?` verschluckt; jetzt erscheinen sie als Hinweis. Die README nannte
+für HTML ⇧⌘E statt ⌥⌘E.
+
+**`ux-review` vor der Auslieferung, drei Befunde, alle behoben:** Der Speichern-Dialog kam
+erst **nach** dem Nachladen der zugeklappten Ordner – bei vielen Ordnern geschah nach dem
+Klick zunächst sichtbar nichts; jetzt kommt der Dialog zuerst. Die Hilfe behauptete, XMind
+**öffne** `.mm` – es importiert sie nur. Die Kürzeltabelle nannte „Als CSV exportieren",
+das Menü „CSV-Tabelle" – die Beschriftungen in `Shortcuts` folgen jetzt dem Menü.
+
+**Bewusst nicht:** Ordner ohne sichtbare Dateien in CSV, TXT und Markdown (sie sind
+Dateilisten – im HTML stehen sie mit „0 Dateien"); eine Formatwahl im Dialog; ein Kürzel für
+die drei neuen Formate; ein Rechnername im Kopf (die Pfade nennen den Benutzer ohnehin, und
+mehr braucht der Hinweis „gilt auf dem erstellenden Rechner" nicht).
 
 ### ✅ PR-77 · Der Zug in den Finder verschob, statt zu kopieren *(v2.1.7)*
 **Aufwand:** S · **Art:** Defekt — *aus der Praxis* · *„das grüne +-Symbol erscheint nicht und die Datei wird verschoben statt kopiert"*

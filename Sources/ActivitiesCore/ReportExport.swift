@@ -1,6 +1,7 @@
 import Foundation
 
-/// Erzeugt Berichte zum Export (CSV und HTML) aus den gruppierten Ordnern.
+/// Erzeugt die Exporte (CSV, HTML, Text, Markdown, Mindmap) aus den
+/// angezeigten Ordnern und ihren sichtbaren Dateien.
 public enum ReportExport {
     /// Wie viele Ordner die Zusammenfassung namentlich nennt.
     ///
@@ -82,17 +83,33 @@ public enum ReportExport {
         return formatter
     }
 
-    /// CSV mit Semikolon-Trenner (Excel-freundlich, deutsche Locale).
-    public static func csv(_ buckets: [BucketedEntries]) -> String {
+    /// CSV mit Semikolon-Trenner (Excel-freundlich, deutsche Locale) – **eine
+    /// Zeile je Datei**.
+    ///
+    /// **⚠️ Bis v2.1.7 war es eine Zeile je Ordner, mit der Anzahl daneben.**
+    /// Gemeldet: *„So haben csv und Excel-Export wenig Wert."* Wer nach
+    /// `requirements.txt` gesucht hatte, bekam 53 Ordnerzeilen mit einer „1" und
+    /// keinen einzigen Dateipfad. Die Ordnerspalte bleibt, damit die Zählung je
+    /// Ordner in Excel per Pivot entsteht, statt hier ein zweites Mal gerechnet
+    /// zu werden.
+    ///
+    /// **⚠️ Mit Byte-Order-Mark.** Excel liest UTF-8 ohne BOM als Mac Roman –
+    /// jeder Pfad mit Umlaut (`Übungen`) käme verstümmelt an.
+    ///
+    /// **Ohne Kopf über der Spaltenzeile.** Excel nähme ihn als Spaltennamen;
+    /// Suchbegriff und Datum stehen im Dateinamen.
+    public static func csv(_ buckets: [BucketedEntries], files: [URL: [RelevantFile]]) -> String {
         let formatter = dateFormatter()
-        var lines = ["Zeitabschnitt;Ordner;NeuestesDatum;AnzahlDateien"]
-        for bucket in buckets {
-            for entry in bucket.entries {
+        var lines = ["\u{FEFF}Zeitabschnitt;Ordner;Datei;Pfad;Zeitstempel;Größe (Bytes)"]
+        for row in rows(buckets, files: files) {
+            for file in row.files {
                 let columns = [
-                    bucket.label,
-                    entry.folder.path,
-                    formatter.string(from: entry.newestDate),
-                    String(entry.fileCount),
+                    row.section,
+                    row.folder.path,
+                    file.url.lastPathComponent,
+                    file.url.path,
+                    formatter.string(from: file.timestamp),
+                    file.size.map(String.init) ?? "",
                 ].map(escapeCSV)
                 lines.append(columns.joined(separator: ";"))
             }
@@ -107,7 +124,19 @@ public enum ReportExport {
         return value
     }
 
-    /// Eigenstaendiger HTML-Bericht (Kopf, Diagramm, Tabelle je Zeitabschnitt).
+    /// Eigenstaendiger HTML-Bericht (Kopf, Diagramm, je Zeitabschnitt die
+    /// Ordner mit ihren Dateien).
+    ///
+    /// **⚠️ Seit v2.1.8 mit den Dateien, jede als Link.** Vorher stand je Ordner
+    /// nur die Anzahl – nach einer Suche war der Bericht damit die Liste der
+    /// Fundorte ohne die Funde. Jeder Ordner steht in einem `<details>`, das
+    /// offen beginnt: Ohne Suchbegriff werden es leicht tausende Zeilen, und
+    /// der Bericht soll trotzdem **eine** Datei ohne Skript bleiben.
+    ///
+    /// **⚠️ Der Kopf kommt aus ``ExportContext``** – derselbe wie im Markdown,
+    /// und dessen Wortlaut aus der Zustandszeile. Bis v2.1.7 nannte der Bericht
+    /// Zeitraum und Quellen, aber nicht den Suchbegriff: Eine gefilterte Liste
+    /// sah aus wie der ganze Bestand.
     ///
     /// **⚠️ Das Diagramm zeichnet aus ``DayExtensionCount`` – derselben
     /// Aggregation, die auch die Ansicht speist.** Nur das Zeichnen
@@ -123,31 +152,44 @@ public enum ReportExport {
     /// im Zweifel lesen.
     public static func html(
         _ buckets: [BucketedEntries],
-        range: String = "",
-        roots: [URL] = [],
-        chartDays: [DayExtensionCount] = [],
-        generatedAt: Date = Date()
+        files: [URL: [RelevantFile]] = [:],
+        context: ExportContext = ExportContext(),
+        chartDays: [DayExtensionCount] = []
     ) -> String {
         let formatter = dateFormatter()
-        var rows = ""
+        var body = ""
         for bucket in buckets {
-            rows += "<h2>\(escapeHTML(bucket.label)) · \(bucket.entries.count)</h2>\n<table>\n"
-            rows += "<tr><th>Ordner</th><th>Neuestes Datum</th><th>Dateien</th></tr>\n"
-            for entry in bucket.entries {
-                rows += "<tr><td>\(escapeHTML(entry.folder.path))</td>"
-                rows += "<td>\(formatter.string(from: entry.newestDate))</td>"
-                rows += "<td>\(entry.fileCount)</td></tr>\n"
+            body += "<h2>\(escapeHTML(bucket.label)) · \(bucket.entries.count) Ordner</h2>\n"
+            for row in rows([bucket], files: files) {
+                let n = row.files.count
+                body += "<details open><summary><a href=\"\(escapeHTML(fileLink(row.folder)))\">"
+                body += "\(escapeHTML(row.folder.path))</a> <span class=\"meta\">· "
+                body += "\(formatter.string(from: row.newestDate)) · \(n) \(n == 1 ? "Datei" : "Dateien")</span></summary>\n"
+                if !row.files.isEmpty {
+                    body += "<ul>\n"
+                    for file in row.files {
+                        body += "<li><a href=\"\(escapeHTML(fileLink(file.url)))\">"
+                        body += "\(escapeHTML(file.url.lastPathComponent))</a> <span class=\"meta\">"
+                        body += "\(formatter.string(from: file.timestamp))"
+                        if file.size != nil {
+                            let size = SizeFormatting.short(file.size).trimmingCharacters(in: .whitespaces)
+                            body += " · \(escapeHTML(size))"
+                        }
+                        body += "</span></li>\n"
+                    }
+                    body += "</ul>\n"
+                }
+                body += "</details>\n"
             }
-            rows += "</table>\n"
         }
 
-        let subtitle = range.isEmpty ? "" : "<p class=\"range\">\(escapeHTML(range))</p>\n"
+        let range = context.text(for: .period) ?? ""
         // Alle Quellen, nicht nur eine: Ein Bericht, der zwei Ordner mischt und
-        // einen davon nennt, behauptet einen falschen Geltungsbereich.
-        let source = roots.isEmpty ? "" :
-            "<p class=\"meta\">\(roots.count == 1 ? "Ordner" : "Quellen"): "
-            + roots.map { escapeHTML($0.path) }.joined(separator: " · ")
-            + "</p>\n"
+        // einen davon nennt, behauptet einen falschen Geltungsbereich – das
+        // erledigt ``ExportContext/details``.
+        let facts = context.details(inventory: typeInventory(rows(buckets, files: files)))
+            .map { "<tr><th>\(escapeHTML($0.label))</th><td>\(escapeHTML($0.value))</td></tr>" }
+            .joined(separator: "\n")
         let summaryLine = buckets.isEmpty ? "" :
             "<p class=\"meta\">\(escapeHTML(summary(buckets, range: range).replacingOccurrences(of: "\n", with: " — ")))</p>\n"
 
@@ -156,30 +198,36 @@ public enum ReportExport {
         <html lang="de">
         <head>
         <meta charset="utf-8">
-        <title>activities – Ordnerbericht</title>
+        <title>activities – \(escapeHTML(context.title))</title>
         <style>
           body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem; }
           h1 { font-size: 1.4rem; margin-bottom: 0.2rem; }
           h2 { font-size: 1.05rem; margin-top: 1.5rem; }
-          .range { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.4rem; }
           .meta { font-size: 0.85rem; color: #666; margin: 0.2rem 0; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #ddd; font-size: 0.9rem; }
-          td:last-child, th:last-child { text-align: right; }
+          table.facts { border-collapse: collapse; margin: 0.6rem 0; }
+          .facts th, .facts td { text-align: left; padding: 2px 12px 2px 0; font-size: 0.85rem; vertical-align: top; }
+          .facts th { color: #666; font-weight: normal; }
+          details { border-bottom: 1px solid #ddd; padding: 4px 0; }
+          summary { font-size: 0.9rem; cursor: pointer; }
+          ul { margin: 0.2rem 0 0.4rem; padding-left: 1.6rem; }
+          li { font-size: 0.9rem; padding: 1px 0; }
+          a { color: inherit; }
           .chart { margin: 1.2rem 0 0.4rem; }
           .chart rect { fill: #3478f6; }
           @media (prefers-color-scheme: dark) {
             body { background: #1e1e1e; color: #eee; }
-            th, td { border-color: #444; }
-            .meta { color: #999; }
+            details { border-color: #444; }
+            .meta, .facts th { color: #999; }
           }
         </style>
         </head>
         <body>
-        <h1>Zuletzt bearbeitete Ordner</h1>
-        \(subtitle)\(source)\(summaryLine)<p class="meta">Erstellt: \(escapeHTML(formatter.string(from: generatedAt)))</p>
-        \(chartSVG(chartDays))
-        \(rows)
+        <h1>\(escapeHTML(context.title))</h1>
+        <table class="facts">
+        \(facts)
+        </table>
+        \(summaryLine)\(chartSVG(chartDays))
+        \(body)
         </body>
         </html>
         """

@@ -252,22 +252,22 @@ struct ActivitiesApp: App {
             }
             // Export gehoert ins Menue „Ablage" – dort sucht man ihn.
             CommandGroup(replacing: .saveItem) {
-                Button("Als CSV exportieren …") { ExportService.exportCSV(model.displayBuckets) }
-                    .keyboardShortcut("e", modifiers: .command)
-                // **⌥⌘E statt ⌘⇧E.** Das naheliegende ⌘⇧E ging an „In <Editor>
-                // oeffnen": Ein Ordner im Editor ist ein taeglicher Handgriff,
-                // ein HTML-Bericht eine Ausnahme – das leichter erreichbare
-                // Kuerzel gehoert dem haeufigeren Befehl. ⌘E/⌥⌘E bleiben als
-                // Paar beieinander.
-                Button("Als HTML exportieren …") {
-                    ExportService.exportHTML(
-                        model.displayBuckets,
-                        range: model.rangeLabel,
-                        roots: model.activeSources,
-                        chartDays: model.chartDays
-                    )
+                // **⚠️ Ein Untermenue mit fuenf gleichrangigen Formaten** – die
+                // Begruendung steht in ``ExportService``.
+                // **⌥⌘E statt ⌘⇧E** fuer HTML. Das naheliegende ⌘⇧E ging an „In
+                // <Editor> oeffnen": Ein Ordner im Editor ist ein taeglicher
+                // Handgriff, ein HTML-Bericht eine Ausnahme – das leichter
+                // erreichbare Kuerzel gehoert dem haeufigeren Befehl.
+                Menu("Exportieren") {
+                    Button("CSV-Tabelle …") { Task { await ExportService.export(.csv, model: model) } }
+                        .keyboardShortcut(Shortcuts.exportCSV)
+                    Button("HTML-Bericht …") { Task { await ExportService.export(.html, model: model) } }
+                        .keyboardShortcut(Shortcuts.exportHTML)
+                    Divider()
+                    Button("Textdatei – nur Pfade …") { Task { await ExportService.export(.text, model: model) } }
+                    Button("Markdown …") { Task { await ExportService.export(.markdown, model: model) } }
+                    Button("Mindmap (FreeMind) …") { Task { await ExportService.export(.mindmap, model: model) } }
                 }
-                    .keyboardShortcut("e", modifiers: [.command, .option])
                 Divider()
                 // **⌥⌘C, nicht ⌘C.** ⌘C gehoert dem Kopieren der Auswahl und
                 // muss auch im Suchfeld funktionieren; ein zweiter Befehl darauf

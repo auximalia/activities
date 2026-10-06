@@ -572,23 +572,22 @@ func checkWeitergebenZusammenfassungUndBerichtPr16Pr17() {
            "Diagramm: ohne Treffer nichts")
 
     // --- HTML-Bericht ---
-    let report = ReportExport.html(abschnitte, range: zeitraum,
-                                    roots: [URL(fileURLWithPath: "/r")], chartDays: days,
-                                    generatedAt: date(2026, 8, 3))
+    func kopf(_ quellen: [String]) -> ExportContext {
+        ExportContext(
+            facets: [FilterFacet(axis: .source, text: "r"), FilterFacet(axis: .period, text: zeitraum)],
+            sources: quellen.map { URL(fileURLWithPath: $0) },
+            generatedAt: date(2026, 8, 3)
+        )
+    }
+    let report = ReportExport.html(abschnitte, context: kopf(["/r"]), chartDays: days)
     expect(report.contains(zeitraum), "Bericht: Zeitraum steht im Kopf")
-    expect(report.contains("Ordner: /r"), "Bericht: Wurzelordner steht im Kopf")
+    expect(report.contains("<th>Quelle</th><td>/r</td>"), "Bericht: Wurzelordner steht im Kopf")
 
     // ⚠️ Zwei Quellen muessen BEIDE im Kopf stehen - ein Bericht, der zwei
     // Ordner mischt und einen nennt, behauptet einen falschen Geltungsbereich.
-    let zweiQuellen = ReportExport.html(abschnitte, range: zeitraum,
-                                        roots: [URL(fileURLWithPath: "/r"), URL(fileURLWithPath: "/s")],
-                                        chartDays: days, generatedAt: date(2026, 8, 3))
-    expect(zweiQuellen.contains("Quellen:"), "Bericht: Mehrzahl bei zwei Quellen")
-    expect(zweiQuellen.contains("/r"), "Bericht: erste Quelle genannt")
-    expect(zweiQuellen.contains("/s"), "Bericht: zweite Quelle genannt")
-    expect(!ReportExport.html(abschnitte, range: zeitraum, roots: [], chartDays: days,
-                              generatedAt: date(2026, 8, 3)).contains("Quellen:"),
-           "Bericht: ohne Quelle keine Zeile")
+    let zweiQuellen = ReportExport.html(abschnitte, context: kopf(["/r", "/s"]), chartDays: days)
+    expect(zweiQuellen.contains("<th>Quellen</th>"), "Bericht: Mehrzahl bei zwei Quellen")
+    expect(zweiQuellen.contains("/r · /s"), "Bericht: beide Quellen genannt")
     expect(report.contains("<svg"), "Bericht: Diagramm eingebettet")
     expect(report.contains("<rect"), "Bericht: Diagramm hat Balken")
     expect(report.contains("PM2025 (14)"), "Bericht: Zusammenfassung im Kopf")
@@ -604,9 +603,127 @@ func checkWeitergebenZusammenfassungUndBerichtPr16Pr17() {
     ])]
     expect(!ReportExport.html(boese).contains("<script>"), "Bericht: Ordnernamen werden maskiert")
 
-    // Rueckwaertsvertraeglich: ohne die neuen Angaben entsteht weiterhin ein
-    // gueltiger Bericht (die alten Aufrufer im Test bleiben gueltig).
+    // Ohne Kopfangaben entsteht weiterhin ein gueltiger Bericht.
     expect(ReportExport.html(abschnitte).contains("<!DOCTYPE html>"), "Bericht: auch ohne Kopfangaben gueltig")
+}
+
+// MARK: - Export: Dateien statt Fundorte (v2.1.8)
+//
+// Gemeldet: „Ich hätte gerne eine Liste aller gefundener Dateien als Textdatei mit
+// den vollständigen Pfaden." CSV und HTML trugen bis dahin nur Ordner und Anzahlen.
+func checkExportDateienStattFundorteV218() {
+    let projekt = URL(fileURLWithPath: "/r/Projekt (alt)")
+    let tief = URL(fileURLWithPath: "/r/x/y/z")
+    let leer = URL(fileURLWithPath: "/r/leer")
+    func datei(_ ordner: URL, _ name: String, _ groesse: Int?) -> RelevantFile {
+        RelevantFile(url: ordner.appendingPathComponent(name), folder: ordner,
+                     timestamp: date(2026, 10, 5, 10), size: groesse)
+    }
+    let dateien: [URL: [RelevantFile]] = [
+        projekt: [datei(projekt, "Uebung 1.txt", 12), datei(projekt, "b_c*d.md", nil)],
+        tief: [datei(tief, "requirements.txt", 40)],
+        leer: []
+    ]
+    func eintrag(_ ordner: URL) -> FolderEntry {
+        FolderEntry(folder: ordner, newestDate: date(2026, 10, 5), fileCount: dateien[ordner]?.count ?? 0)
+    }
+    let abschnitte = [
+        BucketedEntries(label: "Heute", entries: [eintrag(projekt), eintrag(leer)]),
+        BucketedEntries(label: "Gestern", entries: [eintrag(tief)])
+    ]
+    let namensAchse = ActiveFilters.nameText("req", includesFolderNames: true)
+    let kontext = ExportContext(
+        facets: [
+            FilterFacet(axis: .source, text: "r"),
+            FilterFacet(axis: .period, text: "Mo., 05.10.2026 – Di., 06.10.2026 · 2 Tage"),
+            FilterFacet(axis: .noise, text: "3 Ordner übersprungen"),
+            FilterFacet(axis: .name, text: namensAchse),
+            FilterFacet(axis: .sort, text: "nach Datum, absteigend")
+        ],
+        sources: [URL(fileURLWithPath: "/r")],
+        namePattern: "req",
+        generatedAt: date(2026, 10, 6, 14)
+    )
+
+    // --- Text: ein Pfad je Zeile, sonst nichts ---
+    // ⚠️ Zweck ist ein Skript, das jede Zeile als Pfad liest. Eine Kopfzeile
+    // muesste es erst ueberspringen.
+    let text = ReportExport.text(abschnitte, files: dateien)
+    expectEqual(text, "/r/Projekt (alt)/Uebung 1.txt\n/r/Projekt (alt)/b_c*d.md\n/r/x/y/z/requirements.txt\n",
+                "Text: genau die Pfade, in Anzeigereihenfolge")
+    expectEqual(ReportExport.text([], files: [:]), "", "Text: ohne Dateien leer, keine Leerzeile")
+
+    // --- CSV: eine Zeile je Datei ---
+    let csv = ReportExport.csv(abschnitte, files: dateien)
+    let csvZeilen = csv.split(separator: "\n").map(String.init)
+    expect(csvZeilen[0].hasPrefix("\u{FEFF}Zeitabschnitt;Ordner;Datei;Pfad"),
+           "CSV: BOM fuer Excel, dann Spaltenkopf mit Pfad")
+    expectEqual(csvZeilen.count, 4, "CSV: Kopf plus eine Zeile je Datei; leerer Ordner ohne Zeile")
+    expect(csv.contains(";/r/x/y/z/requirements.txt;"), "CSV: voller Pfad als eigene Spalte")
+    expect(csvZeilen[2].hasSuffix(";"), "CSV: unbekannte Groesse bleibt leer, nicht 0")
+
+    // --- Markdown: zum Weitergeben ---
+    let md = ReportExport.markdown(abschnitte, files: dateien, context: kontext)
+    expect(md.hasPrefix("# Dateiliste: Suche \u{201E}req\u{201C}"), "Markdown: Titel nennt den Suchbegriff")
+    expect(md.contains("3 Dateien in 2 Ordnern"), "Markdown: Umfang im Einleitungssatz")
+    expect(md.contains("Di., 06.10.2026, 14:00"), "Markdown: Zeitpunkt des Exports")
+    expect(md.contains("| Suche | \(namensAchse) |"), "Markdown: Suchachse woertlich aus der Zustandszeile")
+    expect(md.contains("| Quelle | /r |"), "Markdown: Quelle als voller Pfad")
+    expect(md.contains("| Enthaltene Dateitypen | .txt (2), .md (1) |"),
+           "Markdown: Dateitypen aus den Dateien gezaehlt")
+    expect(md.contains("Rauschfilter** überspringt"), "Markdown: Lesehilfe erklaert den Rauschfilter")
+    expect(!md.contains("Angeheftet"), "Markdown: ohne angeheftete Ordner keine Erklaerung dazu")
+    expect(md.contains("## Heute · 2 Dateien"), "Markdown: gegliedert nach Zeitabschnitten")
+    expect(md.contains("- `/r/x/y/z/requirements.txt` ([Link](file:///r/x/y/z/requirements.txt)) · 05.10.2026, 10:00"),
+           "Markdown: Pfad, Link in Klammern, Datum")
+    // ⚠️ Pfade als Code: `b_c*d` waere sonst Hervorhebung.
+    expect(md.contains("`/r/Projekt (alt)/b_c*d.md`"), "Markdown: Pfad als Code, Sonderzeichen unberuehrt")
+    // ⚠️ Klammern im Pfad beenden sonst den Link.
+    expect(md.contains("(file:///r/Projekt%20%28alt%29/Uebung%201.txt)"), "Markdown: Klammern und Leerzeichen im Link kodiert")
+
+    let ohneSuche = ReportExport.markdown([], files: [:], context: ExportContext(generatedAt: date(2026, 10, 6)))
+    expect(ohneSuche.hasPrefix("# Dateiliste: Zuletzt bearbeitete Dateien"), "Markdown: ohne Suche neutraler Titel")
+    expect(ohneSuche.contains("| Suche | keine – alle Dateien |"), "Markdown: fehlende Suche wird gesagt, nicht verschwiegen")
+    expect(ohneSuche.contains("Keine Dateien"), "Markdown: leere Liste sagt das")
+    expect(!ohneSuche.contains("Außerhalb des Zeitraums"), "Markdown: Zeitfenster-Schalter aus -> keine Zeile")
+
+    let mitAngeheftet = ReportExport.markdown(
+        [BucketedEntries(label: "Angeheftet", entries: [eintrag(tief)], isPinned: true)],
+        files: dateien,
+        context: ExportContext(namePattern: "a|b", includesOutOfWindowFiles: true)
+    )
+    expect(mitAngeheftet.contains("**Angeheftet** sind Ordner"), "Markdown: angeheftete Ordner werden erklaert")
+    // ⚠️ In der App steht der Zeitraum ueber dem Diagramm; in einer Datei nicht.
+    expect(mitAngeheftet.contains("| Außerhalb des Zeitraums |"), "Markdown: Zeitfenster-Schalter wird genannt")
+    expect(ReportExport.markdown([BucketedEntries(label: "Heute", entries: [eintrag(tief)])], files: dateien,
+                                 context: ExportContext(facets: [FilterFacet(axis: .name, text: "Name „a|b“")]))
+           .contains("Name „a\\|b“"), "Markdown: senkrechter Strich zerlegt die Tabelle nicht")
+
+    // --- Mindmap ---
+    let mm = ReportExport.mindmap(abschnitte, files: dateien, context: kontext)
+    expect(mm.hasPrefix("<map version=\"1.0.1\">"), "Mindmap: FreeMind-Format")
+    expect(mm.contains("<node TEXT=\"Angaben\" FOLDED=\"true\">"), "Mindmap: Angaben zugeklappt")
+    expect(mm.contains("<node TEXT=\"/r\" LINK=\"file:///r/\">"), "Mindmap: Baum beginnt beim gemeinsamen Ordner")
+    // ⚠️ x/y/z hat je nur einen Unterordner und keine Datei – ein Knoten, nicht drei.
+    expect(mm.contains("<node TEXT=\"x/y/z\" LINK=\"file:///r/x/y/z/\">"), "Mindmap: einzelne Ketten verdichtet")
+    expect(!mm.contains("<node TEXT=\"x\" "), "Mindmap: kein Knoten fuer die Zwischenebene")
+    expect(mm.contains("LINK=\"file:///r/x/y/z/requirements.txt\"/>"), "Mindmap: Datei mit Link")
+    expect(!mm.unicodeScalars.contains { !$0.isASCII }, "Mindmap: nur ASCII, Sonderzeichen als Referenz")
+    expect(ReportExport.mindmap([], files: [:], context: ExportContext()).contains("Keine Dateien"),
+           "Mindmap: leer sagt das")
+
+    // --- HTML: Dateien unter ihrem Ordner, mit Link ---
+    let html = ReportExport.html(abschnitte, files: dateien, context: kontext)
+    expect(html.contains("<a href=\"file:///r/x/y/z/requirements.txt\">requirements.txt</a>"),
+           "HTML: Datei als Link")
+    expect(html.contains("<details open>"), "HTML: Ordner aufklappbar, offen")
+    expect(html.contains("<h1>Suche \u{201E}req\u{201C}</h1>"), "HTML: Suchbegriff im Titel")
+
+    // --- Dateiname: der Kontext von TXT und CSV ---
+    expectEqual(ExportContext(namePattern: " a/b:  c ", generatedAt: date(2026, 10, 6)).suggestedFileName(extension: "txt"),
+                "activities – a-b- c – 2026-10-06.txt", "Dateiname: Suchbegriff bereinigt, Datum ISO")
+    expectEqual(ExportContext(generatedAt: date(2026, 10, 6)).suggestedFileName(extension: "md"),
+                "activities – 2026-10-06.md", "Dateiname: ohne Suchbegriff")
 }
 
 // MARK: - FileNaming: „daneben ablegen" zaehlt hoch (v1.19.77)

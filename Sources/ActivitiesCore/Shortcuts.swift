@@ -301,10 +301,10 @@ public enum Shortcuts {
     // MARK: Ablage, Bearbeiten, Fenster
 
     public static let exportCSV = ShortcutEntry(
-        id: "exportCSV", key: .character("e"), modifiers: .command, label: "Als CSV exportieren"
+        id: "exportCSV", key: .character("e"), modifiers: .command, label: "CSV-Tabelle exportieren"
     )
     public static let exportHTML = ShortcutEntry(
-        id: "exportHTML", key: .character("e"), modifiers: [.command, .option], label: "Als HTML exportieren"
+        id: "exportHTML", key: .character("e"), modifiers: [.command, .option], label: "HTML-Bericht exportieren"
     )
     public static let copySummary = ShortcutEntry(
         id: "copySummary", key: .character("c"), modifiers: [.command, .option],

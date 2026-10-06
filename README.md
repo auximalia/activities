@@ -1,6 +1,6 @@
 # activities – zuletzt verwendete Ordner
 
-*Stand: v2.1.7 · 2026-09-11*
+*Stand: v2.1.8 · 2026-10-06*
 
 **Native macOS-App (SwiftUI).** Zeigt auf einen Blick, in welchen Ordnern zuletzt
 gearbeitet wurde – als Verlaufsdiagramm nach Dateityp und als Liste der betroffenen
@@ -95,7 +95,11 @@ bei jedem Start; ein Hinweis oben rechts installiert sie auf Klick. Weitere Wege
   eines Arbeitstags auf einmal; angeboten werden die letzten Arbeitstage mit Datum und Anzahl,
   darunter **„Alle"** fuer alle angebotenen Tage zusammen. Geoeffnet werden nur Dokumente –
   Skripte und Programme nie. Ab 10 Objekten fragt die App zurueck und nennt die Zahl.
-- **Export** ueber „Ablage": CSV (⌘E) oder HTML (⇧⌘E) – exportiert wird das Sichtbare.
+- **Export** ueber „Ablage" → „Exportieren" – exportiert wird das Sichtbare, immer mit den
+  Dateien und ihren vollen Pfaden: **CSV** (⌘E, eine Zeile je Datei), **HTML-Bericht** (⌥⌘E,
+  Ordner mit ihren Dateien als Links), **Textdatei** (nur Pfade, eine je Zeile – fuer Skripte),
+  **Markdown** (zum Weitergeben: erklaert Suche, Zeitraum und Zeitpunkt, je Datei ein Link) und
+  **Mindmap** (FreeMind `.mm` – Freeplane oeffnet sie, XMind kann sie importieren; Ordnerbaum bis zur Datei, jeder Knoten verlinkt).
 
 **Bedienung**
 - Vollstaendig per Tastatur bedienbar; Bedienelemente und Legende sind fuer **VoiceOver**

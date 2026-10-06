@@ -201,10 +201,13 @@ struct HelpView: View {
                 ])
 
                 section("Weitergeben", icon: "square.and.arrow.up", [
-                    "Menü „Ablage“: als CSV (\(Shortcuts.exportCSV.display)) oder als HTML-Bericht (\(Shortcuts.exportHTML.display)).",
+                    "Menü „Ablage“ → „Exportieren“: CSV-Tabelle (\(Shortcuts.exportCSV.display)), HTML-Bericht (\(Shortcuts.exportHTML.display)), Textdatei, Markdown oder Mindmap. Alle enthalten die angezeigten Dateien mit vollem Pfad.",
+                    "**Textdatei**: ein Pfad je Zeile, sonst nichts – zum Weiterverarbeiten, etwa in einem Skript. Suchbegriff und Datum stehen im Dateinamen, ebenso bei der CSV-Tabelle.",
+                    "**Markdown** ist zum Weitergeben gedacht: Die Datei erklärt, was die Liste ist, wonach gesucht wurde, welcher Zeitraum galt und wann sie entstand; hinter jedem Pfad steht ein Link zur Datei.",
+                    "**Mindmap** (FreeMind, `.mm`): der Ordnerbaum bis zu jeder Datei, jeder Knoten mit Link. Freeplane öffnet sie, XMind kann sie importieren.",
+                    "Der HTML-Bericht enthält dieselben Angaben, das Diagramm und je Ordner seine Dateien als Links – eine einzelne Datei.",
                     "\(Shortcuts.copySummary.display) legt eine Zusammenfassung in die Zwischenablage – für Standup oder Zeiterfassung.",
-                    "Der HTML-Bericht enthält Zeitraum, Diagramm und Tabelle und ist eine einzelne Datei.",
-                    "Weitergegeben wird genau das, was gerade angezeigt wird.",
+                    "Weitergegeben wird genau das, was gerade angezeigt wird – auch aus zugeklappten Ordnern.",
                 ])
 
                 section("Rauschfilter", icon: "eye.slash", [

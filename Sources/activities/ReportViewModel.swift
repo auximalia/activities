@@ -2185,6 +2185,33 @@ final class ReportViewModel {
         ClipboardService.copy(ReportExport.summary(displayBuckets, range: rangeLabel))
     }
 
+    /// Die Angaben, die einem Export beiliegen – aus der Zustandszeile.
+    var exportContext: ExportContext {
+        ExportContext(
+            facets: activeFilterFacets,
+            sources: activeSources,
+            namePattern: namePattern,
+            includesOutOfWindowFiles: showOutOfWindowFiles
+        )
+    }
+
+    /// Die sichtbaren Dateien der angezeigten Ordner – für den Export.
+    ///
+    /// **⚠️ Lädt nach, was noch nicht im Speicher liegt.** Dateien eines Ordners
+    /// werden erst beim Aufklappen gelesen; ein zugeklappter Ordner fehlte im
+    /// Export sonst stumm. Zuklappen ist eine Ansichtsfrage, kein Filter.
+    /// Derselbe Weg wie ``prepareFullFileList()`` für QuickLook.
+    func filesForExport(_ buckets: [BucketedEntries]) async -> [URL: [RelevantFile]] {
+        var result: [URL: [RelevantFile]] = [:]
+        for folder in buckets.flatMap({ $0.entries.map(\.folder) }) {
+            if filesByFolder[folder] == nil {
+                filesByFolder[folder] = await loadFilesNow(folder)
+            }
+            result[folder] = visibleFiles(in: folder) ?? []
+        }
+        return result
+    }
+
     /// Die Arbeitstage eines Ordners – Grundlage von „Arbeit fortsetzen" (PR-11).
     ///
     /// **⚠️ Speist sich aus ``visibleFiles(in:)``, nicht aus ``filesByFolder``.**
